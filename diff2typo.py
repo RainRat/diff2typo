@@ -1,6 +1,7 @@
 import re
 import subprocess
 import argparse
+import csv
 
 def extract_backticks(input_text):
     output = []
@@ -13,6 +14,15 @@ def extract_backticks(input_text):
             if len(extracted_string) > 1:
                 output.append(extracted_string)
     return output
+
+def read_allowed_words(allowed_file):
+    allowed_words = set()
+    with open(allowed_file, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if row:
+                allowed_words.add(row[0].lower())
+    return allowed_words
 
 def find_typos(diff_text):
     typos = []
@@ -57,11 +67,13 @@ def main():
     # 4. Run "typos --format brief [input] > [output]"
     # 5. Extract the list of already-known typos between backticks
     # 6. Remove the already-known typos
+    # 7. Remove the candidates that are on the allowed list
 
     parser = argparse.ArgumentParser(description="Process diff file to identify typos.")
     parser.add_argument('--input_file', type=str, default='diff.txt', help='The input diff file.')
     parser.add_argument('--output_file', type=str, default='typos.txt', help='The output typos file.')
     parser.add_argument('--typos_tool_path', type=str, default='typos', help='Path to the typos tool.')
+    parser.add_argument('--allowed_file', type=str, default='allowed.csv', help='CSV file with allowed words.')
     args = parser.parse_args()
 
     temp_file = 'typos_temp.txt'
@@ -85,8 +97,14 @@ def main():
     already_known_typos = extract_backticks(result.stdout)
     filtered_lines = [line for line in typos if line.split(' -> ')[0] not in already_known_typos]
 
+    # Read allowed words
+    allowed_words = read_allowed_words(args.allowed_file)
+
+    # Filter out allowed words
+    final_typos = [typo for typo in filtered_lines if typo.split(' -> ')[0].lower() not in allowed_words]
+
     with open(args.output_file, 'w') as f:
-        for typo in filtered_lines:
+        for typo in final_typos:
             f.write(f"{typo}\n")
 
     print(f"Typos have been written to {args.output_file}")

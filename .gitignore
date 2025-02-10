@@ -1,3 +1,10 @@
+cmdrunner_private.yaml
+typos_mega.toml
+*.csv
+
+# All docs are in .md, so:
+*.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

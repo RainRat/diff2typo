@@ -13,12 +13,14 @@ Features:
     - Integrates with the `typos` tool to avoid duplicate typo entries.
     - Automatically detects dictionary file format (single-word or typo-correction pairs).
     - Allows customization via command-line options, including output format.
+    - Output new typos, new corrections for existing typos, or both.
 
 Usage:
     python diff2typo.py \
         --input_file=diff.txt \
         --output_file=typos.txt \
         --output_format=list \
+        --mode [typos|corrections|both] \
         --typos_tool_path=/path/to/typos \
         --allowed_file=allowed.csv \
         --dictionary_file=/path/to/dictionary.txt \
@@ -48,20 +50,7 @@ def extract_backticks(input_text):
     Returns:
         list: A list of extracted strings without the backticks.
     """
-    output = []
-    lines = input_text.split('\n')
-    for line in lines:
-        start_index = line.find('`')
-        while start_index != -1:
-            end_index = line.find('`', start_index + 1)
-            if end_index != -1:
-                extracted_string = line[start_index + 1:end_index]
-                if len(extracted_string) > 1:
-                    output.append(extracted_string)
-                start_index = line.find('`', end_index + 1)
-            else:
-                break
-    return output
+    return [s for s in re.findall(r'`([^`]+)`', input_text) if len(s) > 1]
 
 def read_allowed_words(allowed_file):
     """
@@ -112,47 +101,34 @@ def split_into_subwords(word):
             subwords.append(part)
     return subwords
 
-def read_dictionary(dictionary_file):
+def read_words_mapping(file_path):
     """
-    Reads a dictionary file and returns a set of valid words.
-    Automatically detects the format:
-        - If a line has two or more words, it assumes the first is a typo and the rest are valid words.
-        - If a line has one word, it treats it as a valid word.
+    Reads a CSV file of typo fixes and returns a mapping:
+         incorrect_word (lowercase) -> set(corrections)
+    
+    Each row should be in the form:
+         incorrect_word, correction1, correction2, ...
 
-    Args:
-        dictionary_file (str): Path to the dictionary file.
-
-    Returns:
-        set: A set of valid words in lowercase.
+    We can also accept a list of valid words. They will
+        just map to nothing.
     """
-    valid_words = set()
-    if not os.path.exists(dictionary_file):
-        print(f"Dictionary file '{dictionary_file}' not found. Skipping dictionary filtering.")
-        return valid_words
-
+    mapping = {}
+    if not os.path.exists(file_path):
+        print(f"Error: words mapping file '{file_path}' not found.")
+        sys.exit(1)
     try:
-        with open(dictionary_file, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             for row in reader:
-                if not row:
-                    continue
-                if len(row) >= 2:
-                    # Assume the second word is the valid word
-                    # Join all words after the first in case there are more than two
-                    valid_word = ' '.join(row[1:]).strip().lower()
-                    if valid_word:
-                        valid_words.add(valid_word)
-                elif len(row) == 1:
-                    # Single word, treat as valid
-                    valid_word = row[0].strip().lower()
-                    if valid_word:
-                        valid_words.add(valid_word)
-        print(f"Loaded {len(valid_words)} valid words from the dictionary.")
+                if row:
+                    incorrect = row[0].strip().lower()
+                    corrections = {col.strip().lower() for col in row[1:] if col.strip()}
+                    mapping[incorrect] = corrections
+        print(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
     except Exception as e:
-        print(f"Error reading dictionary file '{dictionary_file}': {e}")
+        print(f"Error reading words mapping file '{file_path}': {e}")
         sys.exit(1)
-
-    return valid_words
+    return mapping
 
 def find_typos(diff_text, min_length=2):
     """
@@ -171,7 +147,7 @@ def find_typos(diff_text, min_length=2):
     additions = []
     
     for line in lines:
-        if line.startswith('---') or line.startswith('+++') or line.startswith('@@'):
+        if line.startswith('---') or line.startswith('+++'):
             continue
         if line.startswith('-'):
             removals.append(line[1:].strip())
@@ -242,56 +218,20 @@ def format_typos(typos, output_format):
             formatted.append(typo)
     return formatted
 
-def main():
+def process_new_typos(candidates, args, valid_words):
     """
-    Main function to orchestrate the typo extraction and filtering process.
+    Process candidate typos (list of "before -> after") to produce
+    new typos—that is, typo corrections not already registered by the typos tool.
+    Applies additional filtering using allowed words and a dictionary.
+    Returns the formatted list of new typos.
     """
-    # Setup command-line argument parsing
-    parser = argparse.ArgumentParser(description="Process a git diff to identify typos for the `typos` utility.")
-    parser.add_argument('--input_file', type=str, default='diff.txt', help='Path to the input git diff file.')
-    parser.add_argument('--output_file', type=str, default='typos.txt', help='Path to the output typos file.')
-    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], default='arrow',
-                        help='Format of the output typos. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo). Default is arrow.')
-    parser.add_argument('--typos_tool_path', type=str, default='typos', help='Path to the typos tool executable.')
-    parser.add_argument('--allowed_file', type=str, default='allowed.csv', help='CSV file with allowed words to exclude from typos.')
-    parser.add_argument('--min_length', type=int, default=2, help='Minimum length of differing substrings to consider as typos.')
-    parser.add_argument('--dictionary_file', type=str, default='words.csv', help='Path to the dictionary file for filtering valid words.')
-    args = parser.parse_args()
-
     temp_file = 'typos_temp.txt'
-
-    print("Starting typo extraction process...")
-
-    # Read and load the dictionary
-    valid_words = set()
-    if args.dictionary_file:
-        valid_words = read_dictionary(args.dictionary_file)
-
-    # Read the diff file
-    try:
-        with open(args.input_file, 'r', encoding='utf-8') as f:
-            diff_text = f.read()
-        print(f"Successfully read input diff file '{args.input_file}'.")
-    except UnicodeDecodeError:
-        with open(args.input_file, 'r', encoding='latin-1') as f:
-            diff_text = f.read()
-        print(f"Successfully read input diff file '{args.input_file}' with 'latin-1' encoding.")
-    except FileNotFoundError:
-        print(f"Error: Input file '{args.input_file}' not found. Exiting.")
-        sys.exit(1)
-
-    # Find typos in the diff
-    print("Identifying potential typos from the diff...")
-    typos = find_typos(diff_text, min_length=args.min_length)
-    typos = lowercase_sort_dedup(typos)
-    print(f"Identified {len(typos)} potential typos.")
-
-    # Save typos to a temporary file for processing with the typos tool
+    # Save candidates to a temporary file for the typos tool.
     try:
         with open(temp_file, 'w', encoding='utf-8') as f:
-            for typo in typos:
+            for typo in candidates:
                 f.write(f"{typo}\n")
-        print(f"Saved typos to temporary file '{temp_file}'.")
+        print(f"Saved candidate typos to temporary file '{temp_file}'.")
     except Exception as e:
         print(f"Error writing to temporary file '{temp_file}': {e}")
         sys.exit(1)
@@ -308,55 +248,165 @@ def main():
         command = [typos_executable, '--format', 'brief', temp_file]
         try:
             result = subprocess.run(command, capture_output=True, text=True)
-            already_known_typos = extract_backticks(result.stdout)
-            filtered_lines = [line for line in typos if line.split(' -> ')[0] not in already_known_typos]
-            print(f"Filtered out {len(already_known_typos)} already-known typos.")
+            already_known = extract_backticks(result.stdout)
+            # Remove any candidate whose "before" word is in the list of already known typos.
+            filtered_candidates = [
+                line for line in candidates 
+                if line.split(' -> ')[0].lower() not in [word.lower() for word in already_known]
+            ]
+            print(f"Filtered out {len(already_known)} already-known typo(s).")
         except subprocess.CalledProcessError as e:
-            print(f"Warning: Typos tool returned a non-zero exit status. Skipping known typo filtering.")
-            print("Standard Output:", e.stdout)
-            print("Standard Error:", e.stderr)
-            filtered_lines = typos
+            print("Warning: Typos tool returned a non-zero exit status. Skipping known typo filtering.")
+            filtered_candidates = candidates
         except FileNotFoundError:
             print(f"Warning: Typos tool '{typos_executable}' not found. Skipping known typo filtering.")
-            filtered_lines = typos
+            filtered_candidates = candidates
     else:
         print(f"Warning: Typos tool '{args.typos_tool_path}' not found. Skipping known typo filtering.")
-        filtered_lines = typos
+        filtered_candidates = candidates
 
-    # Read allowed words to exclude from typos
-    allowed_words = read_allowed_words(args.allowed_file)
+    # Remove the temporary file.
+    try:
+        os.remove(temp_file)
+    except Exception:
+        pass
 
     # Filter out allowed words
+    allowed_words = read_allowed_words(args.allowed_file)
     if allowed_words:
-        initial_count = len(filtered_lines)
-        filtered_lines = [typo for typo in filtered_lines if typo.split(' -> ')[0].lower() not in allowed_words]
-        excluded_count = initial_count - len(filtered_lines)
-        print(f"Excluded {excluded_count} typos based on allowed words.")
-    else:
-        print("No allowed words to filter.")
+        before_count = len(filtered_candidates)
+        filtered_candidates = [
+            typo for typo in filtered_candidates
+            if typo.split(' -> ')[0].lower() not in allowed_words
+        ]
+        print(f"Excluded {before_count - len(filtered_candidates)} typo(s) based on allowed words.")
 
-    # Apply dictionary filtering if valid_words is provided
+    # Filter out cases where the "before" word is in the valid dictionary.
+    # It will filter out cases where the "before" word is anywhere in the mapping. Because
+    # for the new typos, you want it to be neither a correct word, nor an already-known typo.
+
     if valid_words:
-        initial_count = len(filtered_lines)
-        filtered_lines = [typo for typo in filtered_lines if typo.split(' -> ')[0].lower() not in valid_words]
-        filtered_count = initial_count - len(filtered_lines)
-        print(f"Excluded {filtered_count} typos where the 'before' word is a valid dictionary word.")
+        before_count = len(filtered_candidates)
+        filtered_candidates = [
+            typo for typo in filtered_candidates
+            if typo.split(' -> ')[0].lower() not in valid_words
+        ]
+        print(f"Excluded {before_count - len(filtered_candidates)} typo(s) based on valid dictionary words (or typos already in words.csv).")
 
-    # Format typos based on the selected output format
-    print(f"Formatting typos in '{args.output_format}' format...")
-    formatted_typos = format_typos(filtered_lines, args.output_format)
+    # Deduplicate and sort.
+    filtered_candidates = lowercase_sort_dedup(filtered_candidates)
+    # Format the output according to the requested output format.
+    formatted = format_typos(filtered_candidates, args.output_format)
+    return formatted
 
-    # Write the final typos to the output file
+def process_new_corrections(candidates, args, words_mapping):
+    """
+    Process candidate typos to produce new corrections for known typos.
+    It loads a words mapping file (ie. words.csv) and for each candidate correction,
+    if the "before" word is already known but the "after" is not among its registered fixes,
+    then it is output.
+    Returns a sorted, deduplicated list of new corrections (formatted in arrow style).
+    """
+
+    new_corrections = []
+
+    sample_key = next(iter(words_mapping))
+    if not words_mapping[sample_key]:
+        print("If you only use a list of valid words, rather than a words.csv, you can't produce a list of new candidates for existing typos.")
+        return new_corrections
+
+    for candidate in candidates:
+        if '->' in candidate:
+            before, after = [s.strip().lower() for s in candidate.split('->')]
+            # Only consider cases where the "before" word is already known in the mapping.
+            if before in words_mapping:
+                if after not in words_mapping[before]:
+                    new_corrections.append(f"{before} -> {after}")
+    new_corrections = lowercase_sort_dedup(new_corrections)
+    return new_corrections
+
+def main():
+
+    # Setup command-line argument parsing
+    parser = argparse.ArgumentParser(description="Process a git diff to identify typos for the `typos` utility.")
+    parser.add_argument('--input_file', type=str, default='diff.txt', help='Path to the input git diff file.')
+    parser.add_argument('--output_file', type=str, default='output.txt', help='Path to the output typos file.')
+    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], default='arrow',
+                        help='Format of the output typos. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo). Default is arrow.')
+    parser.add_argument('--typos_tool_path', type=str, default='typos', help='Path to the typos tool executable.')
+    parser.add_argument('--allowed_file', type=str, default='allowed.csv', help='CSV file with allowed words to exclude from typos.')
+    parser.add_argument('--min_length', type=int, default=2, help='Minimum length of differing substrings to consider as typos.')
+    parser.add_argument('--dictionary_file', type=str, default='words.csv', help='Path to the dictionary file for filtering valid words.')
+    parser.add_argument('--mode', type=str, choices=['typos', 'corrections', 'both'],
+                        default='typos', help='Which mode to run: "typos", "corrections", or "both".')
+    args = parser.parse_args()
+
+    print("Starting typo extraction process...")
+
+    # Read the diff file.
+    try:
+        with open(args.input_file, 'r', encoding='utf-8') as f:
+            diff_text = f.read()
+        print(f"Successfully read input diff file '{args.input_file}'.")
+    except UnicodeDecodeError:
+        with open(args.input_file, 'r', encoding='latin-1') as f:
+            diff_text = f.read()
+        print(f"Successfully read input diff file '{args.input_file}' with 'latin-1' encoding.")
+    except FileNotFoundError:
+        print(f"Error: Input file '{args.input_file}' not found. Exiting.")
+        sys.exit(1)
+
+    # Load the dictionary (words mapping) once.
+    dictionary_mapping = read_words_mapping(args.dictionary_file)
+
+    # Extract candidate typo corrections from the diff.
+    print("Identifying potential typo corrections from the diff...")
+    candidates = find_typos(diff_text, min_length=args.min_length)
+    candidates = lowercase_sort_dedup(candidates)
+    print(f"Identified {len(candidates)} candidate typo correction(s).")
+
+    # Prepare lists to hold results.
+    new_typos_result = []
+    new_corrections_result = []
+
+    # Process new typos if requested.
+    if args.mode in ['typos', 'both']:
+        print("\nProcessing new typos (filtering out known typos)...")
+        new_typos_result = process_new_typos(candidates, args, dictionary_mapping)
+        print(f"Found {len(new_typos_result)} new typo(s).")
+
+    # Process new corrections if requested.
+    if args.mode in ['corrections', 'both']:
+        print("\nProcessing new corrections to existing typos...")
+        new_corrections_result = process_new_corrections(candidates, args, dictionary_mapping)
+        print(f"Found {len(new_corrections_result)} new correction(s).")
+
+    # Combine results if needed.
+    final_output = []
+    if args.mode == 'both':
+        if new_typos_result:
+            final_output.append("=== New Typos ===")
+            final_output.extend(new_typos_result)
+            final_output.append("")  # Blank line for separation.
+        if new_corrections_result:
+            final_output.append("=== New Corrections ===")
+            final_output.extend(new_corrections_result)
+    elif args.mode == 'typos':
+        final_output = new_typos_result
+    elif args.mode == 'corrections':
+        final_output = new_corrections_result
+
+    # Write the final output to the specified file.
     try:
         with open(args.output_file, 'w', encoding='utf-8') as f:
-            for typo in formatted_typos:
-                f.write(f"{typo}\n")
-        print(f"Successfully wrote {len(formatted_typos)} typos to '{args.output_file}'.")
+            for line in final_output:
+                f.write(f"{line}\n")
+        print(f"\nSuccessfully wrote {len(final_output)} line(s) to '{args.output_file}'.")
     except Exception as e:
         print(f"Error writing to output file '{args.output_file}': {e}")
         sys.exit(1)
 
-    print(f"Typos have been written to '{args.output_file}' in '{args.output_format}' format.")
+    print("Processing complete.")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,69 @@
+# Configuration for Synthetic Typo Generator
+
+# File Paths
+input_file: "wordlist_small.txt"       # Path to the input (small) wordlist
+dictionary_file: "wordlist_large.txt"     # Path to the dictionary (large) wordlist
+output_file: "typos_mega.toml"     # Path to the output file
+
+# Output_format options: arrow, csv, table, list
+# Default: table
+output_format: "table"
+
+# Typo Generation Options
+typo_types:
+  deletion: true                        # Enable deletion typos
+  transposition: true                   # Enable transposition typos
+  replacement: true                     # Enable replacement typos
+  duplication: true                     # Enable duplication typos
+
+# Replacement Options
+replacement_options:
+  include_diagonals: false              # Exclude diagonally adjacent keys in replacements
+
+# Custom Substitutions
+custom_substitutions:
+  a:
+  - "e"
+  - "i"
+  - "o"
+  c:
+  - "s"
+  e:
+  - "a"
+  - "ea"
+  - "er"
+  - "es"
+  - "i"
+  - "o"
+  i:
+  - "a"
+  - "e"
+  - "it"
+  - "o"
+  - "u"
+  l:
+  - "le"
+  m:
+  - "n"
+  n:
+  - "m"
+  - "ne"
+  o:
+  - "a"
+  - "e"
+  - "i"
+  - "on"
+  r:
+  - "re"
+  s:
+  - "c"
+  t:
+  - "c"
+  - "d"
+  - "te"
+  - "ti"
+
+# Word Length Filters
+word_length:
+  min_length: 3                         # Minimum word length to generate typos
+  max_length: 20                        # Maximum word length to generate typos

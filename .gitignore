@@ -1,6 +1,10 @@
 cmdrunner_private.yaml
 typos_mega.toml
 *.csv
+*.bak
+typos_ex.toml
+*.bat
+private_*.py
 
 # All docs are in .md, so:
 *.txt

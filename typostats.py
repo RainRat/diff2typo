@@ -59,7 +59,13 @@ def process_typos(lines, allow_two_char):
         typo = parts[0].strip()
         corrections = [corr.strip() for corr in parts[1:]]
 
+        # Filter out non-ASCII words
+        if not all(ord(c) < 128 for c in typo):
+            continue
+
         for correction in corrections:
+            if not all(ord(c) < 128 for c in correction):
+                continue
             # Now we have: `typo` (incorrect word), `correction` (correct word)
             # Check replacements
             replacement = is_one_letter_replacement(typo, correction, allow_two_char=allow_two_char)

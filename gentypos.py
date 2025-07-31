@@ -118,7 +118,7 @@ def generate_typos_by_replacement(word, adjacent_keys, custom_subs=None):
     return typos
 
 
-def generate_variations(word, typo_types):
+def generate_variations(word, typo_types, transposition_distance=1):
     """
     Generate deletion and transposition typos.
 
@@ -142,10 +142,13 @@ def generate_variations(word, typo_types):
 
     # Transposition
     if typo_types.get('transposition', False):
-        for i in range(len(word) - 1):
-            if word[i] == word[i + 1]:
+        distance = max(1, transposition_distance)
+        for i in range(len(word) - distance):
+            if word[i] == word[i + distance]:
                 continue  # Don't swap identical letters
-            variation = word[:i] + word[i + 1] + word[i] + word[i + 2:]
+            # Swap characters that are 'distance' apart
+            middle = word[i + 1:i + distance]
+            variation = word[:i] + word[i + distance] + middle + word[i] + word[i + distance + 1:]
             variations.add(variation)
 
     return variations
@@ -173,7 +176,7 @@ def generate_typos_by_duplication(word, typo_types):
     return typos
 
 
-def generate_all_typos(word, adjacent_keys, custom_subs, typo_types):
+def generate_all_typos(word, adjacent_keys, custom_subs, typo_types, transposition_distance=1):
     """
     Generate all possible typos for a given word using selected typo types.
 
@@ -182,6 +185,7 @@ def generate_all_typos(word, adjacent_keys, custom_subs, typo_types):
         adjacent_keys (dict): Mapping of each character to its adjacent keys.
         custom_subs (dict): Custom substitution rules.
         typo_types (dict): Dictionary indicating which typo types to apply.
+        transposition_distance (int): Distance between letters to swap for transposition typos.
 
     Returns:
         set: A set of all unique typo variations.
@@ -189,7 +193,7 @@ def generate_all_typos(word, adjacent_keys, custom_subs, typo_types):
     typos = set()
 
     # Deletion and Transposition
-    typos.update(generate_variations(word, typo_types))
+    typos.update(generate_variations(word, typo_types, transposition_distance))
 
     # Replacement
     if typo_types.get('replacement', False):
@@ -373,6 +377,9 @@ def main():
     replacement_options = config.get('replacement_options', {'include_diagonals': True})
     include_diagonals = replacement_options.get('include_diagonals', True)
 
+    transposition_options = config.get('transposition_options', {'distance': 1})
+    transposition_distance = transposition_options.get('distance', 1)
+
     custom_subs = load_custom_substitutions(config.get('custom_substitutions', {}))
 
     word_length = config.get('word_length', {'min_length': 8, 'max_length': None})
@@ -422,7 +429,7 @@ def main():
         if max_length and word_len > max_length:
             continue
 
-        typos = generate_all_typos(word, adjacent_keys, custom_subs, typo_types)
+        typos = generate_all_typos(word, adjacent_keys, custom_subs, typo_types, transposition_distance)
         for typo in typos:
             typo_to_correct_word[typo].append(word)
 

@@ -20,6 +20,10 @@ typo_types:
 replacement_options:
   include_diagonals: false              # Exclude diagonally adjacent keys in replacements
 
+# Transposition Options
+transposition_options:
+  distance: 1                           # 1 for adjacent, 2 for a gap of one character
+
 # Custom Substitutions
 custom_substitutions:
   a:

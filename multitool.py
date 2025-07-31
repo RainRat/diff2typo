@@ -111,10 +111,11 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
     except Exception as e:
         print(f"[Count Mode] An error occurred: {e}")
 
-def csv_mode(input_file, output_file, min_length, max_length, process_output):
+def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False):
     """
-    Reads a CSV file and writes fields from the second column onward for
-    each row to the output file. Gathers raw fields, then filters them based
+    Reads a CSV file and writes fields from the second column onward for each
+    row to the output file by default. With ``first_column`` set to ``True``,
+    extracts only the first column. Gathers raw fields, then filters them based
     on length. Optionally converts to lowercase, sorts, and dedupes the output.
     """
     try:
@@ -122,9 +123,13 @@ def csv_mode(input_file, output_file, min_length, max_length, process_output):
         with open(input_file, newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
             for row in tqdm(reader, desc='Processing CSV rows', unit=' rows'):
-                if len(row) >= 2:
-                    for field in row[1:]:
-                        raw_items.append(field.strip())
+                if first_column:
+                    if row:
+                        raw_items.append(row[0].strip())
+                else:
+                    if len(row) >= 2:
+                        for field in row[1:]:
+                            raw_items.append(field.strip())
         filtered_items = [item for item in raw_items if min_length <= len(item) <= max_length]
         if process_output:
             filtered_items = [s.lower() for s in filtered_items]
@@ -271,6 +276,12 @@ def main():
         help="If set, converts output to lowercase, sorts it, and removes duplicates (applicable to all modes except 'count')."
     )
 
+    parser.add_argument(
+        '--first-column',
+        action='store_true',
+        help="In csv mode, extract the first column instead of the second onward."
+    )
+
     args = parser.parse_args()
 
     min_length = args.min_length
@@ -287,6 +298,7 @@ def main():
     input_file = args.input
     output_file = args.output
     process_output = args.process_output
+    first_column = args.first_column
 
     print(f"Selected Mode: {selected_mode}")
     print(f"Input File: {input_file}")
@@ -316,7 +328,10 @@ def main():
     if selected_mode == 'filterfragments':
         filter_fragments_mode(input_file, args.file2, output_file, min_length, max_length, process_output)
     else:
-        mode_functions[selected_mode](input_file, output_file, min_length, max_length, process_output)
+        if selected_mode == 'csv':
+            csv_mode(input_file, output_file, min_length, max_length, process_output, first_column)
+        else:
+            mode_functions[selected_mode](input_file, output_file, min_length, max_length, process_output)
 
 if __name__ == "__main__":
     main()

@@ -269,7 +269,7 @@ Output:
 teh
 
 
- -csv mode: Extract the second word onward from each line of a csv file. If you don't have a wordlist of valid words (for the synthetic typo generation) you can take the words.csv file from the typos data files, and make a wordlist out of that.
+ -csv mode: Extract the second word onward from each line of a csv file. Use `--first-column` to extract the first column instead. If you don't have a wordlist of valid words (for the synthetic typo generation) you can take the words.csv file from the typos data files, and make a wordlist out of that.
  
 Input:
 teh,the,ten

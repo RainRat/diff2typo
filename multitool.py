@@ -143,6 +143,43 @@ def csv_mode(input_file, output_file, min_length, max_length, process_output, fi
     except Exception as e:
         print(f"[CSV Mode] An error occurred: {e}")
 
+def check_mode(input_file, output_file, min_length, max_length, process_output):
+    """
+    Checks a CSV file of typos and corrections for any words that appear
+    as both a typo and a correction anywhere in the file. The CSV is
+    assumed to have the typo in the first column and one or more
+    corrections in subsequent columns.
+
+    The intersection of all typo words and all correction words is
+    written to the output file. Standard length filtering and optional
+    output processing (lowercasing, deduping, sorting) are applied.
+    """
+    try:
+        typos = set()
+        corrections = set()
+        with open(input_file, newline='', encoding='utf-8') as csvfile:
+            reader = csv.reader(csvfile)
+            for row in tqdm(reader, desc='Checking CSV for overlaps', unit=' rows'):
+                if not row:
+                    continue
+                typos.add(row[0].strip())
+                for field in row[1:]:
+                    corrections.add(field.strip())
+
+        duplicates = list(typos & corrections)
+        filtered_items = [w for w in duplicates if min_length <= len(w) <= max_length]
+        if process_output:
+            filtered_items = [s.lower() for s in filtered_items]
+            filtered_items = list(set(filtered_items))
+        filtered_items.sort()
+        with open(output_file, 'w', encoding='utf-8') as outfile:
+            for word in filtered_items:
+                outfile.write(word + '\n')
+        print_stats(duplicates, filtered_items)
+        print(f"[Check Mode] Found {len(filtered_items)} overlapping words. Output written to '{output_file}'.")
+    except Exception as e:
+        print(f"[Check Mode] An error occurred: {e}")
+
 def line_mode(input_file, output_file, min_length, max_length, process_output):
     """
     Processes each line as-is, gathering raw lines then filtering them based on
@@ -219,6 +256,7 @@ def main():
   python multitool.py --mode csv --input input4.csv --output output4.txt
   python multitool.py --mode line --input input5.txt --output output5.txt --min-length 5 --max-length 50 --process-output
   python multitool.py --mode filterfragments --input list1.txt --file2 list2.txt --output filtered.txt --min-length 3 --max-length 20 --process-output
+  python multitool.py --mode check --input typos.csv --output duplicates.txt
         """
     )
 
@@ -226,14 +264,15 @@ def main():
         '--mode',
         type=str,
         required=True,
-        choices=['arrow', 'backtick', 'count', 'csv', 'line', 'filterfragments'],
+        choices=['arrow', 'backtick', 'count', 'csv', 'line', 'filterfragments', 'check'],
         help="Mode of operation:\n"
              "  arrow           - Extract text before ' -> '\n"
              "  backtick        - Extract strings between backticks\n"
              "  count           - Count word frequencies\n"
              "  csv             - Extract fields from CSV\n"
              "  line            - Output each line as-is, subject to length filtering\n"
-             "  filterfragments - Filter words from file1 that are not substrings of any word in file2"
+             "  filterfragments - Filter words from file1 that are not substrings of any word in file2\n"
+             "  check           - List words appearing as both typo and correction in a CSV"
     )
 
     parser.add_argument(
@@ -304,7 +343,7 @@ def main():
     print(f"Input File: {input_file}")
     print(f"Output File: {output_file}")
 
-    if selected_mode in ['arrow', 'backtick', 'csv', 'line', 'count', 'filterfragments']:
+    if selected_mode in ['arrow', 'backtick', 'csv', 'line', 'count', 'filterfragments', 'check']:
         print(f"Minimum String Length: {min_length}")
         print(f"Maximum String Length: {max_length}")
         if selected_mode not in ['count']:
@@ -322,7 +361,8 @@ def main():
         'backtick': backtick_mode,
         'count': count_mode,
         'csv': csv_mode,
-        'line': line_mode
+        'line': line_mode,
+        'check': check_mode
     }
 
     if selected_mode == 'filterfragments':

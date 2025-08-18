@@ -247,7 +247,7 @@ diff2typo.py --input_file=diff.txt --typos_tool_path=typos --mode both --diction
  Handles small tasks that come up. All of the modes take an input file and output file.
 
 - **Command-line options**
-  - `--mode`: Choose one of: arrow, backtick, count, csv, or line.
+  - `--mode`: Choose one of: arrow, backtick, count, csv, line, filterfragments, or check.
   - `--input`: Input file path.
   - `--output`: Output file path.
   - `--min-length` / `--max-length`: Length filters.
@@ -278,7 +278,9 @@ Output:
 the
 ten
 
- -count mode: Take a list of words, and return them sorted descended by frequency. Typically a list of typos and you can prioritize whichever is most numerous. Ignores process-output.
+-check mode: Scan a CSV of typos and corrections and list any words that appear in both the typo column and the correction columns.
+
+-count mode: Take a list of words, and return them sorted descended by frequency. Typically a list of typos and you can prioritize whichever is most numerous. Ignores process-output.
 
 Input:
 teh

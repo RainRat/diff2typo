@@ -19,6 +19,8 @@ typo_types:
 # Replacement Options
 replacement_options:
   include_diagonals: false              # Exclude diagonally adjacent keys in replacements
+  enable_adjacent_substitutions: true   # Enable adjacent-key-based substitutions
+  enable_custom_substitutions: true     # Enable custom substitution rules
 
 # Transposition Options
 transposition_options:

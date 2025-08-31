@@ -9,6 +9,9 @@ output_file: "typos_mega.toml"     # Path to the output file
 # Default: table
 output_format: "table"
 
+# Number of times to repeat typo generation, stacking modifications
+repeat_modifications: 1
+
 # Typo Generation Options
 typo_types:
   deletion: true                        # Enable deletion typos

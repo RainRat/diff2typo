@@ -411,6 +411,11 @@ def main():
     transposition_options = config.get('transposition_options', {'distance': 1})
     transposition_distance = transposition_options.get('distance', 1)
 
+    # How many times to repeat typo generation, stacking modifications
+    repeat_modifications = int(config.get('repeat_modifications', 1))
+    if repeat_modifications < 1:
+        repeat_modifications = 1
+
     custom_subs = (
         load_custom_substitutions(config.get('custom_substitutions', {}))
         if enable_custom_substitutions
@@ -474,16 +479,25 @@ def main():
         if max_length and word_len > max_length:
             continue
 
-        typos = generate_all_typos(
-            word,
-            adjacent_keys,
-            custom_subs,
-            typo_types,
-            transposition_distance,
-            enable_adjacent_substitutions,
-            enable_custom_substitutions,
-        )
-        for typo in typos:
+        typos_current = {word}
+        accumulated_typos = set()
+        for _ in range(repeat_modifications):
+            new_typos = set()
+            for base_word in typos_current:
+                new_typos.update(
+                    generate_all_typos(
+                        base_word,
+                        adjacent_keys,
+                        custom_subs,
+                        typo_types,
+                        transposition_distance,
+                        enable_adjacent_substitutions,
+                        enable_custom_substitutions,
+                    )
+                )
+            accumulated_typos.update(new_typos)
+            typos_current = new_typos
+        for typo in accumulated_typos:
             typo_to_correct_word[typo].append(word)
 
     total_typos_generated = len(typo_to_correct_word)

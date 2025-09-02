@@ -40,6 +40,11 @@ import csv
 import os
 import sys
 
+
+def filter_to_letters(text):
+    """Return text containing only lowercase a-z characters."""
+    return re.sub("[^a-z]", "", text.lower())
+
 def extract_backticks(input_text):
     """
     Extracts all backtick-enclosed strings from the input text.
@@ -167,9 +172,15 @@ def find_typos(diff_text, min_length=2):
                                     # Ensure adjacent words are unchanged to avoid incorrect pairings
                                     if (i == 0 or before_words[i - 1] == after_words[i - 1]) and \
                                        (i == len(before_words) - 1 or before_words[i + 1] == after_words[i + 1]):
-                                        if len(before_words[i]) >= min_length and len(after_words[i]) >= min_length:
-                                            if not any(char.isdigit() for char in after_words[i]):
-                                                typos.append(f"{before_words[i]} -> {after_words[i]}")
+                                        before_clean = filter_to_letters(before_words[i])
+                                        after_clean = filter_to_letters(after_words[i])
+                                        if (
+                                            len(before_clean) >= min_length
+                                            and len(after_clean) >= min_length
+                                            and before_clean
+                                            and after_clean
+                                        ):
+                                            typos.append(f"{before_clean} -> {after_clean}")
                 else:
                     print("Warning: Number of removals and additions do not match. Skipping these changes.")
                 # Reset the lists after processing
@@ -205,6 +216,8 @@ def format_typos(typos, output_format):
     for typo in typos:
         if ' -> ' in typo:
             before, after = typo.split(' -> ')
+            before = filter_to_letters(before)
+            after = filter_to_letters(after)
             if output_format == 'arrow':
                 formatted.append(f"{before} -> {after}")
             elif output_format == 'csv':
@@ -215,7 +228,7 @@ def format_typos(typos, output_format):
                 formatted.append(f"{before}")
         else:
             # In case the typo does not follow the expected format
-            formatted.append(typo)
+            formatted.append(filter_to_letters(typo))
     return formatted
 
 def process_new_typos(candidates, args, valid_words):

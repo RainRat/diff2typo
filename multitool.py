@@ -2,7 +2,19 @@ import argparse
 import csv
 from collections import Counter
 import sys
+import re
 from tqdm import tqdm
+
+
+def filter_to_letters(text):
+    """Return text containing only lowercase a-z characters."""
+    return re.sub("[^a-z]", "", text.lower())
+
+
+def clean_and_filter(items, min_length, max_length):
+    """Clean items to letters only and apply length filtering."""
+    cleaned = [filter_to_letters(item) for item in items]
+    return [c for c in cleaned if min_length <= len(c) <= max_length]
 
 def print_stats(raw_items, filtered_items):
     print("Statistics:")
@@ -42,9 +54,8 @@ def arrow_mode(input_file, output_file, min_length, max_length, process_output):
                 if " -> " in line:
                     extracted = line.split(" -> ", 1)[0].strip()
                     raw_items.append(extracted)
-        filtered_items = [item for item in raw_items if min_length <= len(item) <= max_length]
+        filtered_items = clean_and_filter(raw_items, min_length, max_length)
         if process_output:
-            filtered_items = [s.lower() for s in filtered_items]
             filtered_items = list(set(filtered_items))
             filtered_items.sort()
         with open(output_file, 'w', encoding='utf-8') as outfile:
@@ -70,9 +81,8 @@ def backtick_mode(input_file, output_file, min_length, max_length, process_outpu
                 if start_index != -1 and end_index != -1:
                     extracted = line[start_index + 1:end_index].strip()
                     raw_items.append(extracted)
-        filtered_items = [item for item in raw_items if min_length <= len(item) <= max_length]
+        filtered_items = clean_and_filter(raw_items, min_length, max_length)
         if process_output:
-            filtered_items = [s.lower() for s in filtered_items]
             filtered_items = list(set(filtered_items))
             filtered_items.sort()
         with open(output_file, 'w', encoding='utf-8') as outfile:
@@ -99,7 +109,11 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
             for line in tqdm(file, desc='Counting words', unit=' lines'):
                 words = [word.strip() for word in line.split()]
                 raw_count += len(words)
-                filtered = [word.lower() for word in words if min_length <= len(word) <= max_length]
+                filtered = []
+                for word in words:
+                    cleaned = filter_to_letters(word)
+                    if min_length <= len(cleaned) <= max_length:
+                        filtered.append(cleaned)
                 filtered_words.extend(filtered)
                 word_counts.update(filtered)
         sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
@@ -130,9 +144,8 @@ def csv_mode(input_file, output_file, min_length, max_length, process_output, fi
                     if len(row) >= 2:
                         for field in row[1:]:
                             raw_items.append(field.strip())
-        filtered_items = [item for item in raw_items if min_length <= len(item) <= max_length]
+        filtered_items = clean_and_filter(raw_items, min_length, max_length)
         if process_output:
-            filtered_items = [s.lower() for s in filtered_items]
             filtered_items = list(set(filtered_items))
             filtered_items.sort()
         with open(output_file, 'w', encoding='utf-8') as outfile:
@@ -167,9 +180,8 @@ def check_mode(input_file, output_file, min_length, max_length, process_output):
                     corrections.add(field.strip())
 
         duplicates = list(typos & corrections)
-        filtered_items = [w for w in duplicates if min_length <= len(w) <= max_length]
+        filtered_items = clean_and_filter(duplicates, min_length, max_length)
         if process_output:
-            filtered_items = [s.lower() for s in filtered_items]
             filtered_items = list(set(filtered_items))
         filtered_items.sort()
         with open(output_file, 'w', encoding='utf-8') as outfile:
@@ -190,9 +202,8 @@ def line_mode(input_file, output_file, min_length, max_length, process_output):
         with open(input_file, 'r', encoding='utf-8') as infile:
             for line in tqdm(infile, desc='Processing lines (line mode)', unit=' lines'):
                 raw_items.append(line.rstrip('\n'))
-        filtered_items = [item for item in raw_items if min_length <= len(item) <= max_length]
+        filtered_items = clean_and_filter(raw_items, min_length, max_length)
         if process_output:
-            filtered_items = [s.lower() for s in filtered_items]
             filtered_items = list(set(filtered_items))
             filtered_items.sort()
         with open(output_file, 'w', encoding='utf-8') as outfile:
@@ -213,11 +224,11 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
     try:
         # Read words from input_file (list1)
         with open(input_file, 'r') as f:
-            list1 = [line.strip() for line in f]
+            list1 = [filter_to_letters(line.strip()) for line in f]
 
         # Read words from file2 (list2)
         with open(file2, 'r') as f:
-            list2 = [line.strip() for line in f]
+            list2 = [filter_to_letters(line.strip()) for line in f]
 
         # Filter words from list1 that are NOT substrings of any word in list2
         non_substrings = [
@@ -225,12 +236,11 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
             if all(word not in target for target in list2)
         ]
 
-        # Further filter by length
-        filtered_items = [word for word in non_substrings if min_length <= len(word) <= max_length]
+        # Further filter by length and clean
+        filtered_items = clean_and_filter(non_substrings, min_length, max_length)
 
-        # Optionally process the output: convert to lowercase, dedupe, and sort.
+        # Optionally process the output: dedupe and sort.
         if process_output:
-            filtered_items = [s.lower() for s in filtered_items]
             filtered_items = list(set(filtered_items))
             filtered_items.sort()
 

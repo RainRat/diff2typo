@@ -20,50 +20,36 @@ def get_adjacent_keys(include_diagonals=True):
     keyboard = [
         'qwertyuiop',
         'asdfghjkl',
-        'zxcvbnm'
+        'zxcvbnm',
     ]
 
-    adjacent = {}
-    for row_idx, row in enumerate(keyboard):
-        for char_idx, char in enumerate(row):
-            adjacent[char] = set()
+    # Map each character to its (row, column) coordinate for quick lookup
+    coords = {}
+    for r, row in enumerate(keyboard):
+        for c, ch in enumerate(row):
+            coords[ch] = (r, c)
 
-            # Same row adjacents
-            if char_idx > 0:
-                adjacent[char].add(row[char_idx - 1])
-            if char_idx < len(row) - 1:
-                adjacent[char].add(row[char_idx + 1])
+    adjacent = {ch: set() for ch in coords}
 
-            # Adjacent rows
-            for other_row_idx, other_row in enumerate(keyboard):
-                if abs(other_row_idx - row_idx) == 1:
-                    # Determine the range of adjacent keys in the other row
-                    start_idx = max(0, char_idx - 1)
-                    end_idx = min(len(other_row), char_idx + 2)
-                    for adj_char_idx in range(start_idx, end_idx):
-                        adjacent_char = other_row[adj_char_idx]
-                        adjacent[char].add(adjacent_char)
+    for ch, (r, c) in coords.items():
+        # Examine neighbouring positions within a 1-key radius
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                if dr == 0 and dc == 0:
+                    continue  # Skip the key itself
 
-            if not include_diagonals:
-                # Filter adjacent keys from other rows to include only those directly above/below
-                direct_adjacent = set()
-                for adj_char in list(adjacent[char]):
-                    # Find row and column of the adjacent character
-                    for r_idx, r in enumerate(keyboard):
-                        if adj_char in r:
-                            adj_row = r_idx
-                            adj_col = r.index(adj_char)
-                            break
-                    # Direct adjacency: same column
-                    if adj_col == char_idx:
-                        direct_adjacent.add(adj_char)
-                # Retain same-row adjacents and direct adjacents from other rows
-                same_row_adjacent = set()
-                if char_idx > 0:
-                    same_row_adjacent.add(row[char_idx - 1])
-                if char_idx < len(row) - 1:
-                    same_row_adjacent.add(row[char_idx + 1])
-                adjacent[char] = same_row_adjacent.union(direct_adjacent)
+                nr, nc = r + dr, c + dc
+                if nr < 0 or nr >= len(keyboard):
+                    continue
+                if nc < 0 or nc >= len(keyboard[nr]):
+                    continue
+
+                # Exclude diagonal keys if requested
+                if not include_diagonals and dr != 0 and dc != 0:
+                    continue
+
+                adjacent_char = keyboard[nr][nc]
+                adjacent[ch].add(adjacent_char)
 
     return adjacent
 
@@ -81,7 +67,6 @@ def load_custom_substitutions(custom_subs):
     if not custom_subs:
         return {}
     # Ensure all keys and values are lowercase
-    print (custom_subs)
     substitutions = {k.lower(): set(vv.lower() for vv in v) for k, v in custom_subs.items()}
     return substitutions
 

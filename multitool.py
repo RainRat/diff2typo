@@ -196,14 +196,17 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
         with open(input_file, 'r') as f:
             list1 = [filter_to_letters(line.strip()) for line in f]
 
-        # Read words from file2 (list2)
-        with open(file2, 'r') as f:
-            list2 = [filter_to_letters(line.strip()) for line in f]
+        # Read words from file2 (list2) as a single string to allow
+        # efficient substring checks. Reading the entire file and
+        # performing one `in` lookup per word is drastically faster
+        # than checking against each line individually.
+        with open(file2, 'r', encoding='utf-8') as f:
+            list2_content = f.read()
 
-        # Filter words from list1 that are NOT substrings of any word in list2
+        # Filter words from list1 that are NOT substrings of the content of file2
         non_substrings = [
             word for word in tqdm(list1, desc='Filtering words (not substrings)', unit=' word')
-            if all(word not in target for target in list2)
+            if word and word not in list2_content
         ]
 
         # Further filter by length and clean

@@ -41,57 +41,69 @@ def print_stats_count(raw_count, filtered_words):
     else:
         print("  No words passed the filtering criteria.")
 
-def arrow_mode(input_file, output_file, min_length, max_length, process_output):
-    """
-    Processes each line by extracting text before " -> " if present.
-    Gathers raw items, then filters them based on length.
-    Optionally converts to lowercase, sorts, and dedupes the output.
-    """
+def _process_items(extractor_func, input_file, output_file, min_length, max_length, process_output, mode_name, success_msg):
+    """Generic processing for modes that extract raw string items from a file."""
     try:
-        raw_items = []
-        with open(input_file, 'r', encoding='utf-8') as infile:
-            for line in tqdm(infile, desc='Processing lines (arrow mode)', unit=' lines'):
-                if " -> " in line:
-                    extracted = line.split(" -> ", 1)[0].strip()
-                    raw_items.append(extracted)
+        raw_items = list(extractor_func(input_file))
         filtered_items = clean_and_filter(raw_items, min_length, max_length)
         if process_output:
-            filtered_items = list(set(filtered_items))
-            filtered_items.sort()
+            filtered_items = sorted(set(filtered_items))
         with open(output_file, 'w', encoding='utf-8') as outfile:
             for item in filtered_items:
                 outfile.write(item + '\n')
         print_stats(raw_items, filtered_items)
-        print(f"[Arrow Mode] File processed successfully. Output written to '{output_file}'.")
+        print(f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'.")
     except Exception as e:
-        print(f"[Arrow Mode] An error occurred: {e}")
+        print(f"[{mode_name} Mode] An error occurred: {e}")
+
+
+def _extract_arrow_items(input_file):
+    """Yield text before ' -> ' from each line."""
+    with open(input_file, 'r', encoding='utf-8') as infile:
+        for line in tqdm(infile, desc='Processing lines (arrow mode)', unit=' lines'):
+            if " -> " in line:
+                yield line.split(" -> ", 1)[0].strip()
+
+
+def _extract_backtick_items(input_file):
+    """Yield text found between the first two backticks in each line."""
+    with open(input_file, 'r', encoding='utf-8') as infile:
+        for line in tqdm(infile, desc='Processing lines (backtick mode)', unit=' lines'):
+            start_index = line.find('`')
+            end_index = line.find('`', start_index + 1) if start_index != -1 else -1
+            if start_index != -1 and end_index != -1:
+                yield line[start_index + 1:end_index].strip()
+
+
+def _extract_csv_items(input_file, first_column):
+    """Yield fields from CSV rows based on column selection."""
+    with open(input_file, newline='', encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile)
+        for row in tqdm(reader, desc='Processing CSV rows', unit=' rows'):
+            if first_column:
+                if row:
+                    yield row[0].strip()
+            else:
+                if len(row) >= 2:
+                    for field in row[1:]:
+                        yield field.strip()
+
+
+def _extract_line_items(input_file):
+    """Yield each line from the file."""
+    with open(input_file, 'r', encoding='utf-8') as infile:
+        for line in tqdm(infile, desc='Processing lines (line mode)', unit=' lines'):
+            yield line.rstrip('\n')
+
+
+def arrow_mode(input_file, output_file, min_length, max_length, process_output):
+    """Wrapper for processing items separated by ' -> '."""
+    _process_items(_extract_arrow_items, input_file, output_file, min_length, max_length, process_output, 'Arrow', 'File processed successfully.')
+
 
 def backtick_mode(input_file, output_file, min_length, max_length, process_output):
-    """
-    Extracts strings between the first two backticks (`) in each line.
-    Gathers raw items, then filters them based on length.
-    Optionally converts to lowercase, sorts, and dedupes the output.
-    """
-    try:
-        raw_items = []
-        with open(input_file, 'r', encoding='utf-8') as infile:
-            for line in tqdm(infile, desc='Processing lines (backtick mode)', unit=' lines'):
-                start_index = line.find('`')
-                end_index = line.find('`', start_index + 1) if start_index != -1 else -1
-                if start_index != -1 and end_index != -1:
-                    extracted = line[start_index + 1:end_index].strip()
-                    raw_items.append(extracted)
-        filtered_items = clean_and_filter(raw_items, min_length, max_length)
-        if process_output:
-            filtered_items = list(set(filtered_items))
-            filtered_items.sort()
-        with open(output_file, 'w', encoding='utf-8') as outfile:
-            for item in filtered_items:
-                outfile.write(item + '\n')
-        print_stats(raw_items, filtered_items)
-        print(f"[Backtick Mode] Strings extracted successfully. Output written to '{output_file}'.")
-    except Exception as e:
-        print(f"[Backtick Mode] An error occurred: {e}")
+    """Wrapper for extracting text between backticks."""
+    _process_items(_extract_backtick_items, input_file, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.')
 
 def count_mode(input_file, output_file, min_length, max_length, process_output):
     """
@@ -124,37 +136,6 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
         print(f"[Count Mode] Word frequencies have been written to '{output_file}'.")
     except Exception as e:
         print(f"[Count Mode] An error occurred: {e}")
-
-def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False):
-    """
-    Reads a CSV file and writes fields from the second column onward for each
-    row to the output file by default. With ``first_column`` set to ``True``,
-    extracts only the first column. Gathers raw fields, then filters them based
-    on length. Optionally converts to lowercase, sorts, and dedupes the output.
-    """
-    try:
-        raw_items = []
-        with open(input_file, newline='', encoding='utf-8') as csvfile:
-            reader = csv.reader(csvfile)
-            for row in tqdm(reader, desc='Processing CSV rows', unit=' rows'):
-                if first_column:
-                    if row:
-                        raw_items.append(row[0].strip())
-                else:
-                    if len(row) >= 2:
-                        for field in row[1:]:
-                            raw_items.append(field.strip())
-        filtered_items = clean_and_filter(raw_items, min_length, max_length)
-        if process_output:
-            filtered_items = list(set(filtered_items))
-            filtered_items.sort()
-        with open(output_file, 'w', encoding='utf-8') as outfile:
-            for item in filtered_items:
-                outfile.write(item + '\n')
-        print_stats(raw_items, filtered_items)
-        print(f"[CSV Mode] CSV fields extracted successfully. Output written to '{output_file}'.")
-    except Exception as e:
-        print(f"[CSV Mode] An error occurred: {e}")
 
 def check_mode(input_file, output_file, min_length, max_length, process_output):
     """
@@ -192,27 +173,16 @@ def check_mode(input_file, output_file, min_length, max_length, process_output):
     except Exception as e:
         print(f"[Check Mode] An error occurred: {e}")
 
+
+def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False):
+    """Wrapper for extracting fields from CSV files."""
+    extractor = lambda f: _extract_csv_items(f, first_column)
+    _process_items(extractor, input_file, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.')
+
+
 def line_mode(input_file, output_file, min_length, max_length, process_output):
-    """
-    Processes each line as-is, gathering raw lines then filtering them based on
-    length. Optionally converts to lowercase, sorts, and dedupes the output.
-    """
-    try:
-        raw_items = []
-        with open(input_file, 'r', encoding='utf-8') as infile:
-            for line in tqdm(infile, desc='Processing lines (line mode)', unit=' lines'):
-                raw_items.append(line.rstrip('\n'))
-        filtered_items = clean_and_filter(raw_items, min_length, max_length)
-        if process_output:
-            filtered_items = list(set(filtered_items))
-            filtered_items.sort()
-        with open(output_file, 'w', encoding='utf-8') as outfile:
-            for item in filtered_items:
-                outfile.write(item + '\n')
-        print_stats(raw_items, filtered_items)
-        print(f"[Line Mode] Lines processed successfully. Output written to '{output_file}'.")
-    except Exception as e:
-        print(f"[Line Mode] An error occurred: {e}")
+    """Wrapper for processing raw lines from a file."""
+    _process_items(_extract_line_items, input_file, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.')
 
 def filter_fragments_mode(input_file, file2, output_file, min_length, max_length, process_output):
     """

@@ -59,7 +59,7 @@ Scans a Git diff file to find typo corrections. It:
 | Argument            | Description                                                                                       | Default       |
 |---------------------|---------------------------------------------------------------------------------------------------|---------------|
 | `--input_file`      | Path to the input Git diff file.                                                                   | `diff.txt`    |
-| `--output_file`     | Path to the output typos file.                                                                     | `typos.txt`   |
+| `--output_file`     | Path to the output typos file.                                                                     | `output.txt`   |
 | `--output_format`   | Format of the output typos. Choices: `arrow`, `csv`, `table`, `list`.                             | `arrow`       |
 | `--mode`            | Extract new typos, corrections to existing ones, or both. Choices: `typos`, `corrections`, `both` | `typos`       |
 | `--typos_tool_path` | Path to the `typos` tool executable.                                                               | `typos`       |
@@ -295,7 +295,7 @@ teh: 2
 thier: 1
 
 
- -list: leave each line exactly how it is (to expose file to max-length, min-length, and process-output)
+-line: leave each line exactly how it is (to expose file to max-length, min-length, and process-output)
 
 ### typostats.py
 

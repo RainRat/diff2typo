@@ -235,8 +235,10 @@ def process_new_typos(candidates, args, valid_words):
     """
     Process candidate typos (list of "before -> after") to produce
     new typos—that is, typo corrections not already registered by the typos tool.
-    Applies additional filtering using allowed words and a dictionary.
-    Returns the formatted list of new typos.
+    Applies additional filtering using allowed words and a dictionary of valid
+    words. The dictionary may be a simple word list (one word per line) or a
+    words.csv file, where only the correction columns are treated as valid
+    words. Returns the formatted list of new typos.
     """
     temp_file = 'typos_temp.txt'
     # Save candidates to a temporary file for the typos tool.
@@ -377,6 +379,15 @@ def main():
 
     # Load the dictionary (words mapping) once.
     dictionary_mapping = read_words_mapping(args.dictionary_file)
+    # Build a set of valid words. For simple word lists, each entry is treated as
+    # valid. For words.csv files, only the corrections (columns after the first)
+    # are considered valid dictionary words.
+    valid_words = set()
+    for typo, fixes in dictionary_mapping.items():
+        if fixes:
+            valid_words.update(fixes)
+        else:
+            valid_words.add(typo)
 
     # Extract candidate typo corrections from the diff.
     print("Identifying potential typo corrections from the diff...")
@@ -391,7 +402,7 @@ def main():
     # Process new typos if requested.
     if args.mode in ['typos', 'both']:
         print("\nProcessing new typos (filtering out known typos)...")
-        new_typos_result = process_new_typos(candidates, args, dictionary_mapping)
+        new_typos_result = process_new_typos(candidates, args, valid_words)
         print(f"Found {len(new_typos_result)} new typo(s).")
 
     # Process new corrections if requested.

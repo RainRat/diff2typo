@@ -53,6 +53,8 @@ Scans a Git diff file to find typo corrections. It:
 - Ignores corrections when the original word is valid.
 - Works with an external typos tool (if available) to skip duplicates.
 - Supports three modes: `typos`, `corrections`, and `both`.
+- Supports dictionary files as simple word lists or `words.csv` files; when a
+  `words.csv` file is used, the correction columns are treated as valid words.
 
 | Argument            | Description                                                                                       | Default       |
 |---------------------|---------------------------------------------------------------------------------------------------|---------------|

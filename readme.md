@@ -59,7 +59,7 @@ Scans a Git diff file to find typo corrections. It:
 | `--input_file`      | Path to the input Git diff file.                                                                   | `diff.txt`    |
 | `--output_file`     | Path to the output typos file.                                                                     | `typos.txt`   |
 | `--output_format`   | Format of the output typos. Choices: `arrow`, `csv`, `table`, `list`.                             | `arrow`       |
-| `--mode`            | Extract new typos, corrections to existing ones, or both. Choices: `typos`, `corrections`, `both` | `arrow`       |
+| `--mode`            | Extract new typos, corrections to existing ones, or both. Choices: `typos`, `corrections`, `both` | `typos`       |
 | `--typos_tool_path` | Path to the `typos` tool executable.                                                               | `typos`       |
 | `--allowed_file`    | CSV file containing allowed words to exclude from typos.                                         | `allowed.csv` |
 | `--min_length`      | Minimum length of differing substrings to consider as typos.                                      | `2`           |

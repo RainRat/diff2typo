@@ -373,10 +373,7 @@ def main():
         logging.warning(f"Unknown output format '{output_format}'. Defaulting to 'arrow'.")
         output_format = 'arrow'
 
-    typo_types = config.get(
-        'typo_types',
-        {'deletion': True, 'transposition': True, 'replacement': True, 'duplication': True},
-    )
+    typo_types = config['typo_types']
     replacement_options = config.get(
         'replacement_options',
         {

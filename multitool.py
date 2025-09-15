@@ -16,30 +16,22 @@ def clean_and_filter(items, min_length, max_length):
     cleaned = [filter_to_letters(item) for item in items]
     return [c for c in cleaned if min_length <= len(c) <= max_length]
 
-def print_stats(raw_items, filtered_items):
-    print("Statistics:")
-    print(f"  Total items encountered: {len(raw_items)}")
-    print(f"  Total items after filtering: {len(filtered_items)}")
-    if filtered_items:
-        shortest = min(filtered_items, key=len)
-        longest = max(filtered_items, key=len)
-        print(f"  Shortest item: '{shortest}' (length: {len(shortest)})")
-        print(f"  Longest item: '{longest}' (length: {len(longest)})")
-    else:
-        print("  No items passed the filtering criteria.")
 
-def print_stats_count(raw_count, filtered_words):
+def print_processing_stats(raw_item_count, filtered_items, item_label="item"):
+    """Print summary statistics for processed text items."""
+    item_label_plural = f"{item_label}s"
     print("Statistics:")
-    print(f"  Total words encountered: {raw_count}")
-    print(f"  Total words after filtering: {len(filtered_words)}")
-    if filtered_words:
-        unique_words = set(filtered_words)
-        shortest = min(unique_words, key=len)
-        longest = max(unique_words, key=len)
-        print(f"  Shortest word: '{shortest}' (length: {len(shortest)})")
-        print(f"  Longest word: '{longest}' (length: {len(longest)})")
+    print(f"  Total {item_label_plural} encountered: {raw_item_count}")
+    print(f"  Total {item_label_plural} after filtering: {len(filtered_items)}")
+    if filtered_items:
+        unique_items = list(dict.fromkeys(filtered_items))
+        shortest = min(unique_items, key=len)
+        longest = max(unique_items, key=len)
+        print(f"  Shortest {item_label}: '{shortest}' (length: {len(shortest)})")
+        print(f"  Longest {item_label}: '{longest}' (length: {len(longest)})")
     else:
-        print("  No words passed the filtering criteria.")
+        print(f"  No {item_label_plural} passed the filtering criteria.")
+
 
 def _process_items(extractor_func, input_file, output_file, min_length, max_length, process_output, mode_name, success_msg):
     """Generic processing for modes that extract raw string items from a file."""
@@ -51,7 +43,7 @@ def _process_items(extractor_func, input_file, output_file, min_length, max_leng
         with open(output_file, 'w', encoding='utf-8') as outfile:
             for item in filtered_items:
                 outfile.write(item + '\n')
-        print_stats(raw_items, filtered_items)
+        print_processing_stats(len(raw_items), filtered_items)
         print(f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'.")
     except Exception as e:
         print(f"[{mode_name} Mode] An error occurred: {e}")
@@ -132,7 +124,7 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
         with open(output_file, 'w', encoding='utf-8') as out_file:
             for word, count in sorted_words:
                 out_file.write(f"{word}: {count}\n")
-        print_stats_count(raw_count, filtered_words)
+        print_processing_stats(raw_count, filtered_words, item_label="word")
         print(f"[Count Mode] Word frequencies have been written to '{output_file}'.")
     except Exception as e:
         print(f"[Count Mode] An error occurred: {e}")
@@ -168,7 +160,7 @@ def check_mode(input_file, output_file, min_length, max_length, process_output):
         with open(output_file, 'w', encoding='utf-8') as outfile:
             for word in filtered_items:
                 outfile.write(word + '\n')
-        print_stats(duplicates, filtered_items)
+        print_processing_stats(len(duplicates), filtered_items)
         print(f"[Check Mode] Found {len(filtered_items)} overlapping words. Output written to '{output_file}'.")
     except Exception as e:
         print(f"[Check Mode] An error occurred: {e}")
@@ -223,7 +215,7 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
                 f.write(word + '\n')
 
         # Print statistics based on the original list1 and the final filtered list.
-        print_stats(list1, filtered_items)
+        print_processing_stats(len(list1), filtered_items)
         print(f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'.")
     except Exception as e:
         print(f"[FilterFragments Mode] An error occurred: {e}")

@@ -164,7 +164,7 @@ excluded_folders:
    Most tools use standard Python libraries. Some tools (like gentypos.py) need extra packages:
 
    ```bash
-   pip install tqdm pyyaml
+   pip install tqdm pyyaml chardet
    ```
 
 4. **Optional: External Typos Tool**

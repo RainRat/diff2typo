@@ -164,7 +164,13 @@ excluded_folders:
    Most tools use standard Python libraries. Some tools (like gentypos.py) need extra packages:
 
    ```bash
-   pip install tqdm pyyaml chardet
+   pip install tqdm pyyaml
+   ```
+
+   The `typostats.py` script can optionally use `chardet` as a fallback when it cannot determine a file's encoding:
+
+   ```bash
+   pip install chardet  # optional
    ```
 
 4. **Optional: External Typos Tool**
@@ -246,56 +252,67 @@ diff2typo.py --input_file=diff.txt --typos_tool_path=typos --mode both --diction
 
 ### multitool.py
 
- Handles small tasks that come up. All of the modes take an input file and output file.
+Handles small tasks that come up. Each mode is invoked as a subcommand:
 
-- **Command-line options**
-  - `--mode`: Choose one of: arrow, backtick, count, csv, line, filterfragments, or check.
-  - `--input`: Input file path.
-  - `--output`: Output file path.
-  - `--min-length` / `--max-length`: Length filters.
-  - `--process-output`: Convert output to lowercase, sort, and remove duplicates.
+```bash
+python multitool.py <mode> [options]
+```
 
- - arrow mode: Extract text before ' -> ', usually if you want to subject your list of possible typo corrections to further processing, ie.
-Input:
-teh -> the
+- **Command-line usage**
+  - Run `python multitool.py <mode> --help` to view options for a specific mode.
+  - Shared options include `--input`, `--output`, `--min-length`, `--max-length`, and (for most modes) `--process-output` to lowercase, sort, and deduplicate results.
+  - Mode-specific flags include `--first-column` for `csv` mode and `--file2` for `filterfragments`.
 
-Output:
-teh
+- **arrow** – Extract text before ` -> `, usually when you want to further process typo corrections.
 
- -backtick mode: Extract strings between the first pair of backticks, usually to extract the typos from the output of the typos utility. If there were a lot of candidate typos you might want to sort by the typo and work through them methodically.
+  Input:
 
-Input:
-example.py:9:2: `teh` -> `the`
+  ```
+  teh -> the
+  ```
 
-Output:
-teh
+  Output:
 
+  ```
+  teh
+  ```
 
- -csv mode: Extract the second word onward from each line of a csv file. Use `--first-column` to extract the first column instead. If you don't have a wordlist of valid words (for the synthetic typo generation) you can take the words.csv file from the typos data files, and make a wordlist out of that.
- 
-Input:
-teh,the,ten
+- **backtick** – Extract strings between the first pair of backticks on each line (useful for the `typos` CLI output).
 
-Output:
-the
-ten
+  Input:
 
--check mode: Scan a CSV of typos and corrections and list any words that appear in both the typo column and the correction columns.
+  ```
+  example.py:9:2: `teh` -> `the`
+  ```
 
--count mode: Take a list of words, and return them sorted descended by frequency. Typically a list of typos and you can prioritize whichever is most numerous. Ignores process-output.
+  Output:
 
-Input:
-teh
-thier
-teh
+  ```
+  teh
+  ```
 
+- **csv** – Extract the second column onward from each row of a CSV file. Use `--first-column` to output only the first column. Handy for turning `words.csv` into a simple list.
 
-Output:
-teh: 2
-thier: 1
+  Input:
 
+  ```
+  teh,the,ten
+  ```
 
--line: leave each line exactly how it is (to expose file to max-length, min-length, and process-output)
+  Output:
+
+  ```
+  the
+  ten
+  ```
+
+- **filterfragments** – Remove words from the first file if they already appear (as whole words) in the second file. This now uses a word set for fast, exact comparisons even on large files.
+
+- **check** – Scan a CSV of typos and corrections and list any words that appear in both the typo column and the correction columns.
+
+- **count** – Take a list of words and return them sorted descending by frequency. Typically used on typo lists so you can prioritize the most common ones. Ignores `--process-output`.
+
+- **line** – Leave each line exactly how it is while still applying length limits and optional post-processing.
 
 ### typostats.py
 

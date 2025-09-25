@@ -68,10 +68,10 @@ def test_filter_fragments_mode(tmp_path):
     list1 = tmp_path / "list1.txt"
     list1.write_text("apple\ncar\nplane\ncarpet\n")
     list2 = tmp_path / "list2.txt"
-    list2.write_text("an applepie\ncarpeted floor\n")
+    list2.write_text("an applepie\ncarpeted floor\ncar\n")
     output_file = tmp_path / "output.txt"
     multitool.filter_fragments_mode(str(list1), str(list2), str(output_file), 1, 10, True)
-    assert output_file.read_text().splitlines() == ["plane"]
+    assert output_file.read_text().splitlines() == ["apple", "carpet", "plane"]
 
 
 def test_check_mode(tmp_path):

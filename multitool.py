@@ -176,45 +176,76 @@ def line_mode(input_file, output_file, min_length, max_length, process_output):
     """Wrapper for processing raw lines from a file."""
     _process_items(_extract_line_items, input_file, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.')
 
+def _add_common_mode_arguments(subparser, include_process_output=True):
+    """Attach shared CLI arguments to a mode-specific subparser."""
+    subparser.add_argument(
+        '--input',
+        type=str,
+        default='input.txt',
+        help="Path to the input file (default: input.txt)",
+    )
+    subparser.add_argument(
+        '--output',
+        type=str,
+        default='output.txt',
+        help="Path to the output file (default: output.txt)",
+    )
+    subparser.add_argument(
+        '--min-length',
+        type=int,
+        default=3,
+        help="Minimum string length to process (default: 3)",
+    )
+    subparser.add_argument(
+        '--max-length',
+        type=int,
+        default=1000,
+        help="Maximum string length to process (default: 1000)",
+    )
+    if include_process_output:
+        subparser.add_argument(
+            '--process-output',
+            action='store_true',
+            help="If set, converts output to lowercase, sorts it, and removes duplicates.",
+        )
+    else:
+        subparser.set_defaults(process_output=False)
+
+
 def filter_fragments_mode(input_file, file2, output_file, min_length, max_length, process_output):
     """
-    Filters words from input_file (list1) that are NOT substrings of any word in file2 (list2).
+    Filters words from input_file (list1) that are NOT present as whole words in file2 (list2).
     Then applies length filtering using min_length and max_length.
     Optionally converts the output to lowercase, sorts it, and removes duplicates.
     Finally, writes the filtered words to output_file and prints statistics.
     """
     try:
-        # Read words from input_file (list1)
-        with open(input_file, 'r') as f:
+        with open(input_file, 'r', encoding='utf-8') as f:
             list1 = [filter_to_letters(line.strip()) for line in f]
 
-        # Read words from file2 (list2) as a single string to allow
-        # efficient substring checks. Reading the entire file and
-        # performing one `in` lookup per word is drastically faster
-        # than checking against each line individually.
+        comparison_words = set()
         with open(file2, 'r', encoding='utf-8') as f:
-            list2_content = f.read()
+            for line in f:
+                for raw_word in line.split():
+                    cleaned = filter_to_letters(raw_word)
+                    if cleaned:
+                        comparison_words.add(cleaned)
 
-        # Filter words from list1 that are NOT substrings of the content of file2
-        non_substrings = [
-            word for word in tqdm(list1, desc='Filtering words (not substrings)', unit=' word')
-            if word and word not in list2_content
+        non_matches = [
+            word for word in tqdm(list1, desc='Filtering words (exact match)', unit=' word')
+            if word and word not in comparison_words
         ]
 
-        # Further filter by length and clean
-        filtered_items = clean_and_filter(non_substrings, min_length, max_length)
+        filtered_items = clean_and_filter(non_matches, min_length, max_length)
 
-        # Optionally process the output: dedupe and sort.
         if process_output:
             filtered_items = list(set(filtered_items))
             filtered_items.sort()
 
-        # Write the filtered words to the output file
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             for word in filtered_items:
                 f.write(word + '\n')
 
-        # Print statistics based on the original list1 and the final filtered list.
         print_processing_stats(len(list1), filtered_items)
         print(f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'.")
     except Exception as e:
@@ -224,129 +255,112 @@ def main():
     parser = argparse.ArgumentParser(
         description="Multipurpose File Processing Tool",
         formatter_class=argparse.RawTextHelpFormatter,
-        epilog="""Example usage:
-  python multitool.py --mode arrow --input input1.txt --output output1.txt
-  python multitool.py --mode backtick --input input2.txt --output output2.txt
-  python multitool.py --mode count --input input3.txt --output output3.txt
-  python multitool.py --mode csv --input input4.csv --output output4.txt
-  python multitool.py --mode line --input input5.txt --output output5.txt --min-length 5 --max-length 50 --process-output
-  python multitool.py --mode filterfragments --input list1.txt --file2 list2.txt --output filtered.txt --min-length 3 --max-length 20 --process-output
-  python multitool.py --mode check --input typos.csv --output duplicates.txt
-        """
     )
 
-    parser.add_argument(
-        '--mode',
-        type=str,
-        required=True,
-        choices=['arrow', 'backtick', 'count', 'csv', 'line', 'filterfragments', 'check'],
-        help="Mode of operation:\n"
-             "  arrow           - Extract text before ' -> '\n"
-             "  backtick        - Extract strings between backticks\n"
-             "  count           - Count word frequencies\n"
-             "  csv             - Extract fields from CSV\n"
-             "  line            - Output each line as-is, subject to length filtering\n"
-             "  filterfragments - Filter words from file1 that are not substrings of any word in file2\n"
-             "  check           - List words appearing as both typo and correction in a CSV"
-    )
+    subparsers = parser.add_subparsers(dest='mode', required=True, metavar='mode')
 
-    parser.add_argument(
-        '--input',
-        type=str,
-        default='input.txt',
-        help="Path to the input file (default: input.txt)"
+    arrow_parser = subparsers.add_parser(
+        'arrow',
+        help="Extract text before ' -> ' from each line.",
+        formatter_class=argparse.RawTextHelpFormatter,
     )
+    _add_common_mode_arguments(arrow_parser)
 
-    parser.add_argument(
-        '--file2',
-        type=str,
-        help="Path to the second file (required for filterfragments mode)"
+    backtick_parser = subparsers.add_parser(
+        'backtick',
+        help='Extract text between the first pair of backticks on each line.',
+        formatter_class=argparse.RawTextHelpFormatter,
     )
+    _add_common_mode_arguments(backtick_parser)
 
-    parser.add_argument(
-        '--output',
-        type=str,
-        default='output.txt',
-        help="Path to the output file (default: output.txt)"
+    csv_parser = subparsers.add_parser(
+        'csv',
+        help='Extract fields from a CSV file.',
+        formatter_class=argparse.RawTextHelpFormatter,
     )
-
-    parser.add_argument(
-        '--min-length',
-        type=int,
-        default=3,
-        help="Minimum string length to process (default: 3)"
-    )
-    
-    parser.add_argument(
-        '--max-length',
-        type=int,
-        default=1000,
-        help="Maximum string length to process (default: 1000)"
-    )
-
-    parser.add_argument(
-        '--process-output',
-        action='store_true',
-        help="If set, converts output to lowercase, sorts it, and removes duplicates (applicable to all modes except 'count')."
-    )
-
-    parser.add_argument(
+    _add_common_mode_arguments(csv_parser)
+    csv_parser.add_argument(
         '--first-column',
         action='store_true',
-        help="In csv mode, extract the first column instead of the second onward."
+        help='Extract the first column instead of subsequent columns.',
     )
+
+    line_parser = subparsers.add_parser(
+        'line',
+        help='Output each line as-is, subject to filtering.',
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    _add_common_mode_arguments(line_parser)
+
+    count_parser = subparsers.add_parser(
+        'count',
+        help='Count word frequencies.',
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    _add_common_mode_arguments(count_parser, include_process_output=False)
+
+    filter_parser = subparsers.add_parser(
+        'filterfragments',
+        help='Filter words that also appear in another file.',
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    _add_common_mode_arguments(filter_parser)
+    filter_parser.add_argument(
+        '--file2',
+        type=str,
+        required=True,
+        help='Path to the second file used for comparison.',
+    )
+
+    check_parser = subparsers.add_parser(
+        'check',
+        help='Report words that are both typos and corrections in a CSV.',
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    _add_common_mode_arguments(check_parser)
 
     args = parser.parse_args()
 
-    min_length = args.min_length
-    max_length = args.max_length
-
-    if min_length < 1:
+    if hasattr(args, 'min_length') and args.min_length < 1:
         print("[Error] --min-length must be a positive integer.")
         sys.exit(1)
-    if max_length < min_length:
+    if hasattr(args, 'max_length') and args.max_length < args.min_length:
         print("[Error] --max-length must be greater than or equal to --min-length.")
         sys.exit(1)
 
-    selected_mode = args.mode
-    input_file = args.input
-    output_file = args.output
-    process_output = args.process_output
-    first_column = args.first_column
+    print(f"Selected Mode: {args.mode}")
+    if hasattr(args, 'input'):
+        print(f"Input File: {args.input}")
+    if hasattr(args, 'output'):
+        print(f"Output File: {args.output}")
 
-    print(f"Selected Mode: {selected_mode}")
-    print(f"Input File: {input_file}")
-    print(f"Output File: {output_file}")
+    if hasattr(args, 'min_length'):
+        print(f"Minimum String Length: {args.min_length}")
+        print(f"Maximum String Length: {args.max_length}")
 
-    if selected_mode in ['arrow', 'backtick', 'csv', 'line', 'count', 'filterfragments', 'check']:
-        print(f"Minimum String Length: {min_length}")
-        print(f"Maximum String Length: {max_length}")
-        if selected_mode not in ['count']:
-            print(f"Process Output: {'Enabled' if process_output else 'Disabled'}")
-    if selected_mode == 'filterfragments':
-        # For filterfragments, ensure that file2 is provided.
-        if not args.file2:
-            print("[Error] --file2 is required for filterfragments mode.")
-            sys.exit(1)
+    if args.mode != 'count' and hasattr(args, 'process_output'):
+        print(f"Process Output: {'Enabled' if args.process_output else 'Disabled'}")
+
+    if args.mode == 'filterfragments':
         print(f"File2: {args.file2}")
+    if args.mode == 'csv':
+        print(f"First Column Only: {'Yes' if args.first_column else 'No'}")
 
-    # Dispatch modes.
-    mode_functions = {
-        'arrow': arrow_mode,
-        'backtick': backtick_mode,
-        'count': count_mode,
-        'csv': csv_mode,
-        'line': line_mode,
-        'check': check_mode
-    }
+    if args.mode == 'arrow':
+        arrow_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
+    elif args.mode == 'backtick':
+        backtick_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
+    elif args.mode == 'csv':
+        csv_mode(args.input, args.output, args.min_length, args.max_length, args.process_output, args.first_column)
+    elif args.mode == 'line':
+        line_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
+    elif args.mode == 'count':
+        count_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
+    elif args.mode == 'filterfragments':
+        filter_fragments_mode(args.input, args.file2, args.output, args.min_length, args.max_length, args.process_output)
+    elif args.mode == 'check':
+        check_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
 
-    if selected_mode == 'filterfragments':
-        filter_fragments_mode(input_file, args.file2, output_file, min_length, max_length, process_output)
-    else:
-        if selected_mode == 'csv':
-            csv_mode(input_file, output_file, min_length, max_length, process_output, first_column)
-        else:
-            mode_functions[selected_mode](input_file, output_file, min_length, max_length, process_output)
 
 if __name__ == "__main__":
     main()

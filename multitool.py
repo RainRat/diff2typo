@@ -214,7 +214,8 @@ def _add_common_mode_arguments(subparser, include_process_output=True):
 
 def filter_fragments_mode(input_file, file2, output_file, min_length, max_length, process_output):
     """
-    Filters words from input_file (list1) that are NOT present as whole words in file2 (list2).
+    Filters words from input_file (list1) that do not appear as substrings of any
+    word in file2 (list2).
     Then applies length filtering using min_length and max_length.
     Optionally converts the output to lowercase, sorts it, and removes duplicates.
     Finally, writes the filtered words to output_file and prints statistics.
@@ -223,18 +224,25 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
         with open(input_file, 'r', encoding='utf-8') as f:
             list1 = [filter_to_letters(line.strip()) for line in f]
 
-        comparison_words = set()
+        comparison_words = []
         with open(file2, 'r', encoding='utf-8') as f:
             for line in f:
                 for raw_word in line.split():
                     cleaned = filter_to_letters(raw_word)
                     if cleaned:
-                        comparison_words.add(cleaned)
+                        comparison_words.append(cleaned)
 
-        non_matches = [
-            word for word in tqdm(list1, desc='Filtering words (exact match)', unit=' word')
-            if word and word not in comparison_words
-        ]
+        # Remove duplicates to reduce redundant substring checks while keeping
+        # all unique words for comparison.
+        comparison_words = list(dict.fromkeys(comparison_words))
+
+        non_matches = []
+        for word in tqdm(list1, desc='Filtering words (substring match)', unit=' word'):
+            if not word:
+                continue
+            if any(word in comparison for comparison in comparison_words if len(comparison) >= len(word)):
+                continue
+            non_matches.append(word)
 
         filtered_items = clean_and_filter(non_matches, min_length, max_length)
 

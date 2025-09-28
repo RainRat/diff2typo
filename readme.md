@@ -306,7 +306,7 @@ python multitool.py <mode> [options]
   ten
   ```
 
-- **filterfragments** – Remove words from the first file if they already appear (as whole words) in the second file. This now uses a word set for fast, exact comparisons even on large files.
+- **filterfragments** – Remove words from the first file if they appear anywhere inside a word from the second file. Useful for pruning fragments that are contained within known corrections.
 
 - **check** – Scan a CSV of typos and corrections and list any words that appear in both the typo column and the correction columns.
 

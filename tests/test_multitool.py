@@ -31,10 +31,15 @@ def test_arrow_mode(tmp_path):
 
 def test_backtick_mode(tmp_path):
     input_file = tmp_path / "input.txt"
-    input_file.write_text("prefix `data` suffix\nno backtick here\nmultiple `words here` please\n")
+    input_file.write_text(
+        "prefix `data` suffix\n"
+        "no backtick here\n"
+        "multiple `words here` please\n"
+        "path Tests_for_ty's_`instbuiltins`_-_Built-ins error: `mdtest` should be `mstest`\n"
+    )
     output_file = tmp_path / "output.txt"
     multitool.backtick_mode(str(input_file), str(output_file), 1, 20, False)
-    assert output_file.read_text().splitlines() == ["data", "wordshere"]
+    assert output_file.read_text().splitlines() == ["data", "wordshere", "mdtest"]
 
 
 def test_csv_mode(tmp_path):

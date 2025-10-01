@@ -58,13 +58,33 @@ def _extract_arrow_items(input_file):
 
 
 def _extract_backtick_items(input_file):
-    """Yield text found between the first two backticks in each line."""
+    """Yield text found between backticks with heuristics for diagnostics."""
+
+    context_markers = ("error:", "warning:", "note:")
+
     with open(input_file, 'r', encoding='utf-8') as infile:
         for line in tqdm(infile, desc='Processing lines (backtick mode)', unit=' lines'):
-            start_index = line.find('`')
-            end_index = line.find('`', start_index + 1) if start_index != -1 else -1
-            if start_index != -1 and end_index != -1:
-                yield line[start_index + 1:end_index].strip()
+            # Split the line on backticks to inspect the surrounding context of
+            # each candidate substring. This helps avoid extracting identifiers
+            # from file paths when a later pair of backticks contains the actual
+            # typo from messages such as "error: `foo` should be `bar`".
+            parts = line.split('`')
+            selected = None
+            if len(parts) >= 3:
+                for index in range(1, len(parts), 2):
+                    preceding = parts[index - 1].lower() if index - 1 >= 0 else ""
+                    if any(marker in preceding for marker in context_markers):
+                        selected = parts[index].strip()
+                        break
+
+            if selected is None:
+                start_index = line.find('`')
+                end_index = line.find('`', start_index + 1) if start_index != -1 else -1
+                if start_index != -1 and end_index != -1:
+                    selected = line[start_index + 1:end_index].strip()
+
+            if selected:
+                yield selected
 
 
 def _extract_csv_items(input_file, first_column):

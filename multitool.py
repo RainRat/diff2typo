@@ -3,6 +3,7 @@ import csv
 from collections import Counter
 import sys
 import re
+from textwrap import dedent
 from tqdm import tqdm
 
 
@@ -279,32 +280,111 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
     except Exception as e:
         print(f"[FilterFragments Mode] An error occurred: {e}")
 
-def main():
+MODE_DETAILS = {
+    "arrow": {
+        "summary": "Extract text before ' -> ' from each line of a file.",
+        "description": "Useful for processing conversion tables or mappings formatted as 'typo -> correction'.",
+        "example": "python multitool.py arrow --input typos.log --output cleaned.txt",
+    },
+    "backtick": {
+        "summary": "Extract text between pairs of backticks on each line.",
+        "description": "Designed for compiler or linter diagnostics that enclose problematic identifiers in backticks.",
+        "example": "python multitool.py backtick --input build.log --output suspects.txt",
+    },
+    "csv": {
+        "summary": "Extract typo or correction columns from a CSV file.",
+        "description": "By default skips the first column so you can gather every suggested correction in one list.",
+        "example": "python multitool.py csv --input typos.csv --output corrections.txt",
+    },
+    "line": {
+        "summary": "Output each input line as-is (after optional filtering).",
+        "description": "A simple pass-through mode that keeps one entry per line from the input file.",
+        "example": "python multitool.py line --input raw_words.txt --output filtered.txt",
+    },
+    "count": {
+        "summary": "Count word frequencies within the provided file.",
+        "description": "Reports how often each cleaned word appears, sorted by frequency then alphabetically.",
+        "example": "python multitool.py count --input typos.log --output counts.txt",
+    },
+    "filterfragments": {
+        "summary": "Remove words that appear as substrings in a comparison file.",
+        "description": "Helps filter out generated words that already exist within a dictionary or corpus.",
+        "example": "python multitool.py filterfragments --input generated.txt --file2 dictionary.txt --output unique.txt",
+    },
+    "check": {
+        "summary": "Report words that show up as both typos and corrections in a CSV file.",
+        "description": "Useful sanity check for typo databases to avoid suggesting the same word as both wrong and right.",
+        "example": "python multitool.py check --input typos.csv --output duplicates.txt",
+    },
+}
+
+
+class ModeHelpAction(argparse.Action):
+    """Custom argparse action that prints detailed help for one or all modes."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        modes_to_show = MODE_DETAILS.keys() if values in (None, "all") else [values]
+        help_blocks = []
+        for mode in modes_to_show:
+            details = MODE_DETAILS.get(mode)
+            if not details:
+                continue
+            block = [f"Mode: {mode}", f"  Summary: {details['summary']}"]
+            if details.get("description"):
+                block.append(f"  Description: {details['description']}")
+            if details.get("example"):
+                block.append(f"  Example: {details['example']}")
+            help_blocks.append("\n".join(block))
+
+        message = "\n\n".join(help_blocks)
+        parser.exit(message=f"\n{message}\n\n")
+
+
+def _build_parser():
     parser = argparse.ArgumentParser(
         description="Multipurpose File Processing Tool",
+        epilog=dedent(
+            """
+            Examples:
+              python multitool.py --mode-help             # Show a summary of every mode
+              python multitool.py --mode-help csv         # Describe the CSV extraction mode
+              python multitool.py arrow --input file.txt  # Run a specific mode
+            """
+        ).strip(),
         formatter_class=argparse.RawTextHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--mode-help",
+        nargs="?",
+        choices=[*MODE_DETAILS.keys(), "all"],
+        action=ModeHelpAction,
+        help="Display extended documentation for a specific mode or all modes.",
     )
 
     subparsers = parser.add_subparsers(dest='mode', required=True, metavar='mode')
 
     arrow_parser = subparsers.add_parser(
         'arrow',
-        help="Extract text before ' -> ' from each line.",
+        help=MODE_DETAILS['arrow']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['arrow']['description'],
     )
     _add_common_mode_arguments(arrow_parser)
 
     backtick_parser = subparsers.add_parser(
         'backtick',
-        help='Extract text between the first pair of backticks on each line.',
+        help=MODE_DETAILS['backtick']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['backtick']['description'],
     )
     _add_common_mode_arguments(backtick_parser)
 
     csv_parser = subparsers.add_parser(
         'csv',
-        help='Extract fields from a CSV file.',
+        help=MODE_DETAILS['csv']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['csv']['description'],
     )
     _add_common_mode_arguments(csv_parser)
     csv_parser.add_argument(
@@ -315,22 +395,25 @@ def main():
 
     line_parser = subparsers.add_parser(
         'line',
-        help='Output each line as-is, subject to filtering.',
+        help=MODE_DETAILS['line']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['line']['description'],
     )
     _add_common_mode_arguments(line_parser)
 
     count_parser = subparsers.add_parser(
         'count',
-        help='Count word frequencies.',
+        help=MODE_DETAILS['count']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['count']['description'],
     )
     _add_common_mode_arguments(count_parser, include_process_output=False)
 
     filter_parser = subparsers.add_parser(
         'filterfragments',
-        help='Filter words that also appear in another file.',
+        help=MODE_DETAILS['filterfragments']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['filterfragments']['description'],
     )
     _add_common_mode_arguments(filter_parser)
     filter_parser.add_argument(
@@ -342,10 +425,17 @@ def main():
 
     check_parser = subparsers.add_parser(
         'check',
-        help='Report words that are both typos and corrections in a CSV.',
+        help=MODE_DETAILS['check']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['check']['description'],
     )
     _add_common_mode_arguments(check_parser)
+
+    return parser
+
+
+def main():
+    parser = _build_parser()
 
     args = parser.parse_args()
 

@@ -257,13 +257,39 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
         # all unique words for comparison.
         comparison_words = list(dict.fromkeys(comparison_words))
 
-        non_matches = []
-        for word in tqdm(list1, desc='Filtering words (substring match)', unit=' word'):
-            if not word:
-                continue
-            if any(word in comparison for comparison in comparison_words if len(comparison) >= len(word)):
-                continue
-            non_matches.append(word)
+        candidate_words = [word for word in list1 if word]
+        words_by_length = {}
+        for word in candidate_words:
+            words_by_length.setdefault(len(word), [])
+            if word not in words_by_length[len(word)]:
+                words_by_length[len(word)].append(word)
+
+        substring_patterns = {}
+        for length, words in words_by_length.items():
+            # Build a regex that uses a lookahead so overlapping matches are detected
+            # for all candidate words of the same length.
+            escaped = "|".join(re.escape(word) for word in words)
+            if escaped:
+                substring_patterns[length] = re.compile(f"(?=({escaped}))")
+
+        matched_words = set()
+        total_candidates = sum(len(words) for words in words_by_length.values())
+        sorted_lengths = sorted(substring_patterns.keys())
+
+        for comparison in tqdm(comparison_words, desc='Scanning comparison words', unit=' word'):
+            comp_length = len(comparison)
+            for length in sorted_lengths:
+                if length > comp_length:
+                    break
+                regex = substring_patterns[length]
+                for match in regex.finditer(comparison):
+                    matched_words.add(match.group(1))
+                if len(matched_words) == total_candidates:
+                    break
+            if len(matched_words) == total_candidates:
+                break
+
+        non_matches = [word for word in candidate_words if word not in matched_words]
 
         filtered_items = clean_and_filter(non_matches, min_length, max_length)
 

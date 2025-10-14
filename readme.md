@@ -141,6 +141,25 @@ excluded_folders:
   - "venv"
 ```
 
+### typostats.py
+
+Analyzes existing typo correction data to surface the most common letter replacements. Use the output to tune `gentypos.yaml` or to understand how mistakes happen in your projects.
+
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `input_file` | Path to the input file containing comma-separated typos and corrections. | Required |
+| `-o`, `--output` | Optional path to write the generated report. | Not set |
+| `-m`, `--min` | Minimum number of occurrences a replacement needs to appear in the report. | `1` |
+| `-s`, `--sort` | Sorting criterion for the report. Choices: `count`, `typo`, `correct`. | `count` |
+| `-f`, `--format` | Output format. Choices: `arrow` for human-readable text, `yaml` for a YAML-like list. | `arrow` |
+| `-2`, `--allow_two_char` | Allow counting one-to-two letter replacements (e.g., `m` → `rn`). | Disabled |
+
+**Example:**
+
+```bash
+python typostats.py corrections.csv -o stats.txt -m 5 -s typo -f yaml -2
+```
+
 
 ## Installation
 

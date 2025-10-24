@@ -378,6 +378,9 @@ def main():
         logging.warning(f"Unknown output format '{output_format}'. Defaulting to 'arrow'.")
         output_format = 'arrow'
 
+    if output_header is None and output_format == 'table':
+        output_header = "[default.extend-words]"
+
     typo_types = config['typo_types']
     replacement_options = config.get(
         'replacement_options',

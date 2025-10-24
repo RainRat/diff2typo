@@ -258,36 +258,12 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
         comparison_words = list(dict.fromkeys(comparison_words))
 
         candidate_words = [word for word in list1 if word]
-        words_by_length = {}
-        for word in candidate_words:
-            words_by_length.setdefault(len(word), [])
-            if word not in words_by_length[len(word)]:
-                words_by_length[len(word)].append(word)
-
-        substring_patterns = {}
-        for length, words in words_by_length.items():
-            # Build a regex that uses a lookahead so overlapping matches are detected
-            # for all candidate words of the same length.
-            escaped = "|".join(re.escape(word) for word in words)
-            if escaped:
-                substring_patterns[length] = re.compile(f"(?=({escaped}))")
-
         matched_words = set()
-        total_candidates = sum(len(words) for words in words_by_length.values())
-        sorted_lengths = sorted(substring_patterns.keys())
-
-        for comparison in tqdm(comparison_words, desc='Scanning comparison words', unit=' word'):
-            comp_length = len(comparison)
-            for length in sorted_lengths:
-                if length > comp_length:
+        for word in tqdm(candidate_words, desc="Finding matches"):
+            for comp in comparison_words:
+                if word in comp:
+                    matched_words.add(word)
                     break
-                regex = substring_patterns[length]
-                for match in regex.finditer(comparison):
-                    matched_words.add(match.group(1))
-                if len(matched_words) == total_candidates:
-                    break
-            if len(matched_words) == total_candidates:
-                break
 
         non_matches = [word for word in candidate_words if word not in matched_words]
 
@@ -465,24 +441,21 @@ def main():
 
     args = parser.parse_args()
 
-    if hasattr(args, 'min_length') and args.min_length < 1:
+    if args.min_length < 1:
         print("[Error] --min-length must be a positive integer.")
         sys.exit(1)
-    if hasattr(args, 'max_length') and args.max_length < args.min_length:
+    if args.max_length < args.min_length:
         print("[Error] --max-length must be greater than or equal to --min-length.")
         sys.exit(1)
 
     print(f"Selected Mode: {args.mode}")
-    if hasattr(args, 'input'):
-        print(f"Input File: {args.input}")
-    if hasattr(args, 'output'):
-        print(f"Output File: {args.output}")
+    print(f"Input File: {args.input}")
+    print(f"Output File: {args.output}")
 
-    if hasattr(args, 'min_length'):
-        print(f"Minimum String Length: {args.min_length}")
-        print(f"Maximum String Length: {args.max_length}")
+    print(f"Minimum String Length: {args.min_length}")
+    print(f"Maximum String Length: {args.max_length}")
 
-    if args.mode != 'count' and hasattr(args, 'process_output'):
+    if args.mode != 'count':
         print(f"Process Output: {'Enabled' if args.process_output else 'Disabled'}")
 
     if args.mode == 'filterfragments':

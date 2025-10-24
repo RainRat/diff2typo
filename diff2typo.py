@@ -314,7 +314,7 @@ def process_new_typos(candidates, args, valid_words):
     formatted = format_typos(filtered_candidates, args.output_format)
     return formatted
 
-def process_new_corrections(candidates, words_mapping, output_format):
+def process_new_corrections(candidates, args, words_mapping, output_format):
     """
     Process candidate typos to produce new corrections for known typos.
     It loads a words mapping file (ie. words.csv) and for each candidate correction,
@@ -324,6 +324,7 @@ def process_new_corrections(candidates, words_mapping, output_format):
 
     Args:
         candidates (list): Candidate "before -> after" strings.
+        args (Namespace): Deprecated placeholder kept for backwards compatibility.
         words_mapping (dict): Mapping of known typos to their corrections.
         output_format (str): Requested output format; formatting is applied by the caller.
     """
@@ -412,7 +413,7 @@ def main():
     # Process new corrections if requested.
     if args.mode in ['corrections', 'both']:
         print("\nProcessing new corrections to existing typos...")
-        new_corrections_raw = process_new_corrections(candidates, dictionary_mapping, args.output_format)
+        new_corrections_raw = process_new_corrections(candidates, args, dictionary_mapping, args.output_format)
         new_corrections_result = format_typos(new_corrections_raw, args.output_format)
         print(f"Found {len(new_corrections_result)} new correction(s).")
 

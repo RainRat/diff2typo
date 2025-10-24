@@ -324,7 +324,7 @@ def process_new_corrections(candidates, args, words_mapping, output_format):
 
     Args:
         candidates (list): Candidate "before -> after" strings.
-        args: Command-line arguments (currently unused).
+        args (Namespace): Deprecated placeholder kept for backwards compatibility.
         words_mapping (dict): Mapping of known typos to their corrections.
         output_format (str): Requested output format; formatting is applied by the caller.
     """
@@ -350,7 +350,8 @@ def main():
 
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(description="Process a git diff to identify typos for the `typos` utility.")
-    parser.add_argument('--input_file', type=str, default='diff.txt', help='Path to the input git diff file.')
+    parser.add_argument('--input_file', type=str, default='diff.txt',
+                        help="Path to the input git diff file. Use '-' to read from stdin.")
     parser.add_argument('--output_file', type=str, default='output.txt', help='Path to the output typos file.')
     parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], default='arrow',
                         help='Format of the output typos. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo). Default is arrow.')
@@ -364,18 +365,22 @@ def main():
 
     print("Starting typo extraction process...")
 
-    # Read the diff file.
-    try:
-        with open(args.input_file, 'r', encoding='utf-8') as f:
-            diff_text = f.read()
-        print(f"Successfully read input diff file '{args.input_file}'.")
-    except UnicodeDecodeError:
-        with open(args.input_file, 'r', encoding='latin-1') as f:
-            diff_text = f.read()
-        print(f"Successfully read input diff file '{args.input_file}' with 'latin-1' encoding.")
-    except FileNotFoundError:
-        print(f"Error: Input file '{args.input_file}' not found. Exiting.")
-        sys.exit(1)
+    # Read the diff file or stdin.
+    if args.input_file == '-':
+        diff_text = sys.stdin.read()
+        print("Successfully read input diff from stdin.")
+    else:
+        try:
+            with open(args.input_file, 'r', encoding='utf-8') as f:
+                diff_text = f.read()
+            print(f"Successfully read input diff file '{args.input_file}'.")
+        except UnicodeDecodeError:
+            with open(args.input_file, 'r', encoding='latin-1') as f:
+                diff_text = f.read()
+            print(f"Successfully read input diff file '{args.input_file}' with 'latin-1' encoding.")
+        except FileNotFoundError:
+            print(f"Error: Input file '{args.input_file}' not found. Exiting.")
+            sys.exit(1)
 
     # Load the dictionary (words mapping) once.
     dictionary_mapping = read_words_mapping(args.dictionary_file)

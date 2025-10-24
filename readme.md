@@ -41,7 +41,7 @@ Each tool can run on its own or be integrated into your development workflow.
 - **New cmdrunner.py:**  
   Run shell commands in every subdirectory of a base folder using a simple YAML configuration. This makes it easy to run commands (like `git diff`) across multiple projects.
 
-- **New typostats.py:**  
+- **New typostats.py Utility:**
   Analyze existing typo corrections to report common letter replacements. This tool can help customize `gentypos.yml`.
 
 ## Core Tools in the Suite
@@ -141,25 +141,6 @@ excluded_folders:
   - "venv"
 ```
 
-### typostats.py
-
-Analyzes existing typo correction data to surface the most common letter replacements. Use the output to tune `gentypos.yaml` or to understand how mistakes happen in your projects.
-
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `input_file` | Path to the input file containing comma-separated typos and corrections. | Required |
-| `-o`, `--output` | Optional path to write the generated report. | Not set |
-| `-m`, `--min` | Minimum number of occurrences a replacement needs to appear in the report. | `1` |
-| `-s`, `--sort` | Sorting criterion for the report. Choices: `count`, `typo`, `correct`. | `count` |
-| `-f`, `--format` | Output format. Choices: `arrow` for human-readable text, `yaml` for a YAML-like list. | `arrow` |
-| `-2`, `--allow_two_char` | Allow counting one-to-two letter replacements (e.g., `m` → `rn`). | Disabled |
-
-**Example:**
-
-```bash
-python typostats.py corrections.csv -o stats.txt -m 5 -s typo -f yaml -2
-```
-
 
 ## Installation
 
@@ -241,6 +222,17 @@ Each tool has its own set of options. For example:
 - **gentypos.py:**
   - `-c, --config`: YAML configuration file.
   - `-v, --verbose`: Enable detailed logging.
+
+- **typostats.py:**
+
+  | Argument | Description | Default |
+  |----------|-------------|---------|
+  | `input_file` | Path to the input file with comma-separated typos and corrections. | Required |
+  | `-o`, `--output` | Optional path to write the generated report. | Not set |
+  | `-m`, `--min` | Minimum occurrences required for inclusion. | `1` |
+  | `-s`, `--sort` | Sorting criterion: `count`, `typo`, or `correct`. | `count` |
+  | `-f`, `--format` | Output format: `arrow` or `yaml`. | `arrow` |
+  | `-2`, `--allow_two_char` | Allow one-to-two letter replacements (e.g., `m` → `rn`). | Disabled |
 
 For more details, run any tool with the `--help` flag.
 

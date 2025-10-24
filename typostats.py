@@ -89,8 +89,8 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
     if sort_by == 'count':
         sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
     elif sort_by == 'typo':
-        # k is (correct_char, typo_char), sort by correct_char then typo_char
-        sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][0], x[0][1]))
+        # k is (correct_char, typo_char), sort by typo_char then correct_char
+        sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][1], x[0][0]))
     elif sort_by == 'correct':
         # sort by correct_char then typo_char
         sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][0], x[0][1]))

@@ -298,6 +298,10 @@ def validate_config(config):
         config['word_length'] = {'min_length': 8, 'max_length': None}
         logging.info("No word_length specified in configuration. Setting 'min_length' to 8 and no 'max_length'.")
 
+    # Optional output header configuration
+    if 'output_header' not in config:
+        config['output_header'] = None
+
 
 def format_typos(typo_to_correct_word, output_format):
     """
@@ -366,12 +370,16 @@ def main():
     dictionary_file = config.get('dictionary_file', 'wordlist_large.txt')
     output_file = config.get('output_file', 'typos_mega.toml')
     output_format = config.get('output_format', 'table').lower()
+    output_header = config.get('output_header')
 
     # Validate output format
     valid_formats = {'arrow', 'csv', 'table', 'list'}
     if output_format not in valid_formats:
         logging.warning(f"Unknown output format '{output_format}'. Defaulting to 'arrow'.")
         output_format = 'arrow'
+
+    if output_header is None and output_format == 'table':
+        output_header = "[default.extend-words]"
 
     typo_types = config['typo_types']
     replacement_options = config.get(
@@ -514,14 +522,10 @@ def main():
     # Write to output file
     try:
         with open(output_file, 'w', encoding='utf-8') as file:
-            if output_format == 'table':
-                # If table format is used, format it as a typos.toml file
-                file.write("[default.extend-words]\n")
-                for typo in formatted_typos:
-                    file.write(f"{typo}\n")
-            else:
-                for typo in formatted_typos:
-                    file.write(f"{typo}\n")
+            if output_header:
+                file.write(output_header + "\n")
+            for typo in formatted_typos:
+                file.write(f"{typo}\n")
         logging.info(f"Successfully generated {len(formatted_typos)} synthetic typos and saved to '{output_file}'.")
     except Exception as e:
         logging.error(f"Error writing to '{output_file}': {e}")

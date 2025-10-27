@@ -1,5 +1,6 @@
 from collections import defaultdict
 import sys
+import logging
 
 def is_one_letter_replacement(typo, correction, allow_two_char=False):
     """
@@ -95,7 +96,7 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
         # sort by correct_char then typo_char
         sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][0], x[0][1]))
     else:
-        print(f"Invalid sort option: '{sort_by}'. Defaulting to 'count'.")
+        logging.warning("Invalid sort option: '%s'. Defaulting to 'count'.", sort_by)
         sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
 
     if output_format == 'arrow':
@@ -122,9 +123,9 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(report_content)
-            print(f"Report successfully written to '{output_file}'.")
+            logging.info("Report successfully written to '%s'.", output_file)
         except Exception as e:
-            print(f"Failed to write report to '{output_file}'. Error: {e}")
+            logging.error("Failed to write report to '%s'. Error: %s", output_file, e)
     else:
         print(report_content)
 
@@ -136,7 +137,7 @@ def detect_encoding(file_path):
     try:
         import chardet
     except ImportError:
-        print("chardet not installed. Install via 'pip install chardet'.")
+        logging.warning("chardet not installed. Install via 'pip install chardet'.")
         return None
 
     with open(file_path, 'rb') as f:
@@ -145,10 +146,10 @@ def detect_encoding(file_path):
         encoding = result['encoding']
         confidence = result['confidence']
         if encoding and confidence > 0.5:
-            print(f"Detected encoding: {encoding} (confidence {confidence})")
+            logging.info("Detected encoding: %s (confidence %.2f)", encoding, confidence)
             return encoding
         else:
-            print("Failed to reliably detect encoding.")
+            logging.warning("Failed to reliably detect encoding.")
             return None
 
 
@@ -164,6 +165,8 @@ def main():
     parser.add_argument('-2', '--allow_two_char', action='store_true', help="Allow one-to-two letter replacements.")
     args = parser.parse_args()
 
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
     file_path = args.input_file
     output_file = args.output
     min_occurrences = args.min
@@ -175,24 +178,24 @@ def main():
         with open(file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
     except UnicodeDecodeError:
-        print("UTF-8 decoding failed. Trying latin1...")
+        logging.warning("UTF-8 decoding failed. Trying latin1...")
         try:
             with open(file_path, 'r', encoding='latin1') as f:
                 lines = f.readlines()
         except UnicodeDecodeError as e:
-            print("latin1 decoding also failed.")
+            logging.warning("latin1 decoding also failed.")
             enc = detect_encoding(file_path)
             if enc:
                 try:
                     with open(file_path, 'r', encoding=enc) as f:
                         lines = f.readlines()
                 except UnicodeDecodeError as e2:
-                    print(f"Failed with detected encoding {enc}.")
+                    logging.error("Failed with detected encoding %s.", enc)
                     sys.exit(1)
             else:
                 sys.exit(1)
     except FileNotFoundError:
-        print(f"File not found: {file_path}")
+        logging.error("File not found: %s", file_path)
         sys.exit(1)
 
     counts = process_typos(lines, allow_two_char=allow_two_char)

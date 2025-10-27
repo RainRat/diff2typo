@@ -39,6 +39,7 @@ import argparse
 import csv
 import os
 import sys
+import logging
 
 
 def filter_to_letters(text):
@@ -76,11 +77,11 @@ def read_allowed_words(allowed_file):
                 for row in reader:
                     if row:
                         allowed_words.add(row[0].strip().lower())
-            print(f"Loaded {len(allowed_words)} allowed words from '{allowed_file}'.")
+            logging.info("Loaded %d allowed words from '%s'.", len(allowed_words), allowed_file)
         except Exception as e:
-            print(f"Error reading allowed words file '{allowed_file}': {e}")
+            logging.error("Error reading allowed words file '%s': %s", allowed_file, e)
     else:
-        print(f"Allowed words file '{allowed_file}' not found. Skipping allowed word filtering.")
+        logging.warning("Allowed words file '%s' not found. Skipping allowed word filtering.", allowed_file)
     return allowed_words
 
 def split_into_subwords(word):
@@ -119,7 +120,7 @@ def read_words_mapping(file_path):
     """
     mapping = {}
     if not os.path.exists(file_path):
-        print(f"Error: words mapping file '{file_path}' not found.")
+        logging.error("Words mapping file '%s' not found.", file_path)
         sys.exit(1)
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -129,9 +130,9 @@ def read_words_mapping(file_path):
                     incorrect = row[0].strip().lower()
                     corrections = {col.strip().lower() for col in row[1:] if col.strip()}
                     mapping[incorrect] = corrections
-        print(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
+        logging.info("Loaded mapping for %d words from '%s'.", len(mapping), file_path)
     except Exception as e:
-        print(f"Error reading words mapping file '{file_path}': {e}")
+        logging.error("Error reading words mapping file '%s': %s", file_path, e)
         sys.exit(1)
     return mapping
 
@@ -182,7 +183,7 @@ def find_typos(diff_text, min_length=2):
                                         ):
                                             typos.append(f"{before_clean} -> {after_clean}")
                 else:
-                    print("Warning: Number of removals and additions do not match. Skipping these changes.")
+                    logging.warning("Number of removals and additions do not match. Skipping these changes.")
                 # Reset the lists after processing
                 removals = []
                 additions = []
@@ -246,9 +247,9 @@ def process_new_typos(candidates, args, valid_words):
         with open(temp_file, 'w', encoding='utf-8') as f:
             for typo in candidates:
                 f.write(f"{typo}\n")
-        print(f"Saved candidate typos to temporary file '{temp_file}'.")
+        logging.info("Saved candidate typos to temporary file '%s'.", temp_file)
     except Exception as e:
-        print(f"Error writing to temporary file '{temp_file}': {e}")
+        logging.error("Error writing to temporary file '%s': %s", temp_file, e)
         sys.exit(1)
 
     # Run the typos tool to filter out already known typos
@@ -259,7 +260,7 @@ def process_new_typos(candidates, args, valid_words):
         else:
             typos_executable = args.typos_tool_path
 
-        print(f"Running typos tool at '{typos_executable}' to filter known typos...")
+        logging.info("Running typos tool at '%s' to filter known typos...", typos_executable)
         command = [typos_executable, '--format', 'brief', temp_file]
         try:
             result = subprocess.run(command, capture_output=True, text=True)
@@ -269,15 +270,15 @@ def process_new_typos(candidates, args, valid_words):
                 line for line in candidates 
                 if line.split(' -> ')[0].lower() not in [word.lower() for word in already_known]
             ]
-            print(f"Filtered out {len(already_known)} already-known typo(s).")
+            logging.info("Filtered out %d already-known typo(s).", len(already_known))
         except subprocess.CalledProcessError as e:
-            print("Warning: Typos tool returned a non-zero exit status. Skipping known typo filtering.")
+            logging.warning("Typos tool returned a non-zero exit status. Skipping known typo filtering.")
             filtered_candidates = candidates
         except FileNotFoundError:
-            print(f"Warning: Typos tool '{typos_executable}' not found. Skipping known typo filtering.")
+            logging.warning("Typos tool '%s' not found. Skipping known typo filtering.", typos_executable)
             filtered_candidates = candidates
     else:
-        print(f"Warning: Typos tool '{args.typos_tool_path}' not found. Skipping known typo filtering.")
+        logging.warning("Typos tool '%s' not found. Skipping known typo filtering.", args.typos_tool_path)
         filtered_candidates = candidates
 
     # Remove the temporary file.
@@ -294,7 +295,10 @@ def process_new_typos(candidates, args, valid_words):
             typo for typo in filtered_candidates
             if typo.split(' -> ')[0].lower() not in allowed_words
         ]
-        print(f"Excluded {before_count - len(filtered_candidates)} typo(s) based on allowed words.")
+        logging.info(
+            "Excluded %d typo(s) based on allowed words.",
+            before_count - len(filtered_candidates),
+        )
 
     # Filter out cases where the "before" word is in the valid dictionary.
     # It will filter out cases where the "before" word is anywhere in the mapping. Because
@@ -306,7 +310,10 @@ def process_new_typos(candidates, args, valid_words):
             typo for typo in filtered_candidates
             if typo.split(' -> ')[0].lower() not in valid_words
         ]
-        print(f"Excluded {before_count - len(filtered_candidates)} typo(s) based on valid dictionary words (or typos already in words.csv).")
+        logging.info(
+            "Excluded %d typo(s) based on valid dictionary words (or typos already in words.csv).",
+            before_count - len(filtered_candidates),
+        )
 
     # Deduplicate and sort.
     filtered_candidates = lowercase_sort_dedup(filtered_candidates)
@@ -314,7 +321,7 @@ def process_new_typos(candidates, args, valid_words):
     formatted = format_typos(filtered_candidates, args.output_format)
     return formatted
 
-def process_new_corrections(candidates, args, words_mapping, output_format):
+def process_new_corrections(candidates, words_mapping, output_format):
     """
     Process candidate typos to produce new corrections for known typos.
     It loads a words mapping file (ie. words.csv) and for each candidate correction,
@@ -324,16 +331,21 @@ def process_new_corrections(candidates, args, words_mapping, output_format):
 
     Args:
         candidates (list): Candidate "before -> after" strings.
-        args (Namespace): Deprecated placeholder kept for backwards compatibility.
         words_mapping (dict): Mapping of known typos to their corrections.
         output_format (str): Requested output format; formatting is applied by the caller.
     """
 
     new_corrections = []
 
+    if not words_mapping:
+        logging.info("Dictionary mapping is empty; skipping new corrections search.")
+        return new_corrections
+
     sample_key = next(iter(words_mapping))
     if not words_mapping[sample_key]:
-        print("If you only use a list of valid words, rather than a words.csv, you can't produce a list of new candidates for existing typos.")
+        logging.info(
+            "Dictionary contains only standalone words; cannot compute new corrections.",
+        )
         return new_corrections
 
     for candidate in candidates:
@@ -363,23 +375,28 @@ def main():
                         default='typos', help='Which mode to run: "typos", "corrections", or "both".')
     args = parser.parse_args()
 
-    print("Starting typo extraction process...")
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
+    logging.info("Starting typo extraction process...")
 
     # Read the diff file or stdin.
     if args.input_file == '-':
         diff_text = sys.stdin.read()
-        print("Successfully read input diff from stdin.")
+        logging.info("Successfully read input diff from stdin.")
     else:
         try:
             with open(args.input_file, 'r', encoding='utf-8') as f:
                 diff_text = f.read()
-            print(f"Successfully read input diff file '{args.input_file}'.")
+            logging.info("Successfully read input diff file '%s'.", args.input_file)
         except UnicodeDecodeError:
             with open(args.input_file, 'r', encoding='latin-1') as f:
                 diff_text = f.read()
-            print(f"Successfully read input diff file '{args.input_file}' with 'latin-1' encoding.")
+            logging.info(
+                "Successfully read input diff file '%s' with 'latin-1' encoding.",
+                args.input_file,
+            )
         except FileNotFoundError:
-            print(f"Error: Input file '{args.input_file}' not found. Exiting.")
+            logging.error("Input file '%s' not found. Exiting.", args.input_file)
             sys.exit(1)
 
     # Load the dictionary (words mapping) once.
@@ -395,10 +412,10 @@ def main():
             valid_words.add(typo)
 
     # Extract candidate typo corrections from the diff.
-    print("Identifying potential typo corrections from the diff...")
+    logging.info("Identifying potential typo corrections from the diff...")
     candidates = find_typos(diff_text, min_length=args.min_length)
     candidates = lowercase_sort_dedup(candidates)
-    print(f"Identified {len(candidates)} candidate typo correction(s).")
+    logging.info("Identified %d candidate typo correction(s).", len(candidates))
 
     # Prepare lists to hold results.
     new_typos_result = []
@@ -406,16 +423,16 @@ def main():
 
     # Process new typos if requested.
     if args.mode in ['typos', 'both']:
-        print("\nProcessing new typos (filtering out known typos)...")
+        logging.info("Processing new typos (filtering out known typos)...")
         new_typos_result = process_new_typos(candidates, args, valid_words)
-        print(f"Found {len(new_typos_result)} new typo(s).")
+        logging.info("Found %d new typo(s).", len(new_typos_result))
 
     # Process new corrections if requested.
     if args.mode in ['corrections', 'both']:
-        print("\nProcessing new corrections to existing typos...")
-        new_corrections_raw = process_new_corrections(candidates, args, dictionary_mapping, args.output_format)
+        logging.info("Processing new corrections to existing typos...")
+        new_corrections_raw = process_new_corrections(candidates, dictionary_mapping, args.output_format)
         new_corrections_result = format_typos(new_corrections_raw, args.output_format)
-        print(f"Found {len(new_corrections_result)} new correction(s).")
+        logging.info("Found %d new correction(s).", len(new_corrections_result))
 
     # Combine results if needed.
     final_output = []
@@ -437,12 +454,12 @@ def main():
         with open(args.output_file, 'w', encoding='utf-8') as f:
             for line in final_output:
                 f.write(f"{line}\n")
-        print(f"\nSuccessfully wrote {len(final_output)} line(s) to '{args.output_file}'.")
+        logging.info("Successfully wrote %d line(s) to '%s'.", len(final_output), args.output_file)
     except Exception as e:
-        print(f"Error writing to output file '{args.output_file}': {e}")
+        logging.error("Error writing to output file '%s': %s", args.output_file, e)
         sys.exit(1)
 
-    print("Processing complete.")
+    logging.info("Processing complete.")
 
 if __name__ == "__main__":
     main()

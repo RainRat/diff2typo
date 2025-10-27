@@ -3,6 +3,7 @@ import subprocess
 import yaml
 import sys
 import argparse
+import logging
 
 def load_config(config_path):
     """
@@ -13,10 +14,10 @@ def load_config(config_path):
             config = yaml.safe_load(file)
             return config
     except FileNotFoundError:
-        print(f"Error: Configuration file '{config_path}' not found.")
+        logging.error("Configuration file '%s' not found.", config_path)
         sys.exit(1)
     except yaml.YAMLError as exc:
-        print(f"Error parsing YAML file '{config_path}': {exc}")
+        logging.error("Error parsing YAML file '%s': %s", config_path, exc)
         sys.exit(1)
 
 def run_command_in_folders(base_dir, command, excluded_folders=None):
@@ -28,7 +29,7 @@ def run_command_in_folders(base_dir, command, excluded_folders=None):
         excluded_folders = []
 
     if not os.path.isdir(base_dir):
-        print(f"Error: The base directory '{base_dir}' does not exist or is not a directory.")
+        logging.error("The base directory '%s' does not exist or is not a directory.", base_dir)
         sys.exit(1)
 
     # Iterate through each item in the base directory
@@ -37,12 +38,12 @@ def run_command_in_folders(base_dir, command, excluded_folders=None):
         
         # Check if the item is a directory and not in the excluded list
         if os.path.isdir(item_path) and item not in excluded_folders:
-            print(f"\nRunning command in: {item_path}")
-            
+            logging.info("Running command in: %s", item_path)
+
             # Run the command in the directory
             try:
                 result = subprocess.run(
-                    command, 
+                    command,
                     cwd=item_path, 
                     shell=True, 
                     check=True, 
@@ -50,9 +51,9 @@ def run_command_in_folders(base_dir, command, excluded_folders=None):
                     stderr=subprocess.PIPE,
                     text=True  # Automatically decode to string
                 )
-                print(f"Command output for '{item_path}':\n{result.stdout}")
+                logging.info("Command output for '%s':\n%s", item_path, result.stdout)
             except subprocess.CalledProcessError as e:
-                print(f"Command failed in '{item_path}' with error:\n{e.stderr}")
+                logging.error("Command failed in '%s' with error:\n%s", item_path, e.stderr)
 
 def parse_arguments():
     """
@@ -74,6 +75,8 @@ def main():
     args = parse_arguments()
     config_file = args.config
 
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
     # Load configuration
     config = load_config(config_file)
 
@@ -84,11 +87,11 @@ def main():
 
     # Validate required configuration parameters
     if not base_directory:
-        print("Error: 'base_directory' is not specified in the configuration.")
+        logging.error("'base_directory' is not specified in the configuration.")
         sys.exit(1)
-    
+
     if not command_to_run:
-        print("Error: 'command_to_run' is not specified in the configuration.")
+        logging.error("'command_to_run' is not specified in the configuration.")
         sys.exit(1)
 
     # Run the command in the specified folders

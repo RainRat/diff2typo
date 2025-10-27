@@ -66,5 +66,5 @@ def test_process_new_typos(tmp_path, monkeypatch):
 def test_process_new_corrections():
     words_mapping = {'teh': {'the'}, 'mispell': {'misspell'}}
     candidates = ['teh -> the', 'teh -> thee', 'recieve -> receive']
-    result = diff2typo.process_new_corrections(candidates, SimpleNamespace(), words_mapping, 'arrow')
+    result = diff2typo.process_new_corrections(candidates, words_mapping, 'arrow')
     assert result == ['teh -> thee']

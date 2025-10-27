@@ -6,6 +6,41 @@ from collections import defaultdict
 from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 import os
 
+
+DEFAULT_CONFIG = {
+    'typo_types': {
+        'deletion': True,
+        'transposition': True,
+        'replacement': True,
+        'duplication': True,
+    },
+    'word_length': {
+        'min_length': 8,
+        'max_length': None,
+    },
+    'output_header': None,
+}
+
+
+def _merge_defaults(config, defaults, path=None):
+    """Recursively merge default configuration values into the provided config."""
+
+    if path is None:
+        path = []
+
+    for key, default_value in defaults.items():
+        dotted_path = '.'.join(path + [key])
+        if isinstance(default_value, dict):
+            existing = config.setdefault(key, {})
+            if not isinstance(existing, dict):
+                logging.error("Configuration value for '%s' must be a mapping.", dotted_path)
+                sys.exit(1)
+            _merge_defaults(existing, default_value, path + [key])
+        else:
+            if key not in config:
+                logging.info("Applying default for '%s': %s", dotted_path, default_value)
+            config.setdefault(key, default_value)
+
 def get_adjacent_keys(include_diagonals=True):
     """
     Returns a dictionary of adjacent keys on a QWERTY keyboard.
@@ -270,37 +305,18 @@ def validate_config(config):
     required_fields = ['input_file', 'dictionary_file', 'output_file', 'output_format']
     for field in required_fields:
         if field not in config:
-            logging.error(f"Missing required configuration field: '{field}'")
+            logging.error("Missing required configuration field: '%s'", field)
             sys.exit(1)
-    
-    # Validate typo_types
-    if 'typo_types' in config:
-        expected_typo_types = {'deletion', 'transposition', 'replacement', 'duplication'}
-        provided_typo_types = set(config['typo_types'].keys())
-        missing_typo_types = expected_typo_types - provided_typo_types
-        if missing_typo_types:
-            logging.warning(f"Missing typo types in configuration: {missing_typo_types}. Setting them to default (True).")
-            for typo_type in missing_typo_types:
-                config['typo_types'][typo_type] = True
-    else:
-        # Set all typo types to True by default if not specified
-        config['typo_types'] = {'deletion': True, 'transposition': True, 'replacement': True, 'duplication': True}
-        logging.info("No typo_types specified in configuration. Defaulting all to True.")
-    
-    # Validate word_length
-    if 'word_length' in config:
-        if 'min_length' not in config['word_length']:
-            logging.warning("Missing 'min_length' in 'word_length'. Setting to default (8).")
-            config['word_length']['min_length'] = 8
-        if 'max_length' not in config['word_length']:
-            config['word_length']['max_length'] = None  # No maximum
-    else:
-        config['word_length'] = {'min_length': 8, 'max_length': None}
-        logging.info("No word_length specified in configuration. Setting 'min_length' to 8 and no 'max_length'.")
 
-    # Optional output header configuration
-    if 'output_header' not in config:
-        config['output_header'] = None
+    if 'typo_types' in config and not isinstance(config['typo_types'], dict):
+        logging.error("Configuration field 'typo_types' must be a mapping.")
+        sys.exit(1)
+
+    if 'word_length' in config and not isinstance(config['word_length'], dict):
+        logging.error("Configuration field 'word_length' must be a mapping.")
+        sys.exit(1)
+
+    _merge_defaults(config, DEFAULT_CONFIG)
 
 
 def format_typos(typo_to_correct_word, output_format):

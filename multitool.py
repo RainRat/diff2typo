@@ -5,6 +5,7 @@ import sys
 import re
 from textwrap import dedent
 from tqdm import tqdm
+import logging
 
 
 def filter_to_letters(text):
@@ -21,17 +22,17 @@ def clean_and_filter(items, min_length, max_length):
 def print_processing_stats(raw_item_count, filtered_items, item_label="item"):
     """Print summary statistics for processed text items."""
     item_label_plural = f"{item_label}s"
-    print("Statistics:")
-    print(f"  Total {item_label_plural} encountered: {raw_item_count}")
-    print(f"  Total {item_label_plural} after filtering: {len(filtered_items)}")
+    logging.info("Statistics:")
+    logging.info("  Total %s encountered: %d", item_label_plural, raw_item_count)
+    logging.info("  Total %s after filtering: %d", item_label_plural, len(filtered_items))
     if filtered_items:
         unique_items = list(dict.fromkeys(filtered_items))
         shortest = min(unique_items, key=len)
         longest = max(unique_items, key=len)
-        print(f"  Shortest {item_label}: '{shortest}' (length: {len(shortest)})")
-        print(f"  Longest {item_label}: '{longest}' (length: {len(longest)})")
+        logging.info("  Shortest %s: '%s' (length: %d)", item_label, shortest, len(shortest))
+        logging.info("  Longest %s: '%s' (length: %d)", item_label, longest, len(longest))
     else:
-        print(f"  No {item_label_plural} passed the filtering criteria.")
+        logging.info("  No %s passed the filtering criteria.", item_label_plural)
 
 
 def _process_items(extractor_func, input_file, output_file, min_length, max_length, process_output, mode_name, success_msg):
@@ -45,9 +46,9 @@ def _process_items(extractor_func, input_file, output_file, min_length, max_leng
             for item in filtered_items:
                 outfile.write(item + '\n')
         print_processing_stats(len(raw_items), filtered_items)
-        print(f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'.")
+        logging.info("[%s Mode] %s Output written to '%s'.", mode_name, success_msg, output_file)
     except Exception as e:
-        print(f"[{mode_name} Mode] An error occurred: {e}")
+        logging.error("[%s Mode] An error occurred: %s", mode_name, e)
 
 
 def _extract_arrow_items(input_file):
@@ -146,9 +147,9 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
             for word, count in sorted_words:
                 out_file.write(f"{word}: {count}\n")
         print_processing_stats(raw_count, filtered_words, item_label="word")
-        print(f"[Count Mode] Word frequencies have been written to '{output_file}'.")
+        logging.info("[Count Mode] Word frequencies have been written to '%s'.", output_file)
     except Exception as e:
-        print(f"[Count Mode] An error occurred: {e}")
+        logging.error("[Count Mode] An error occurred: %s", e)
 
 def check_mode(input_file, output_file, min_length, max_length, process_output):
     """
@@ -182,9 +183,13 @@ def check_mode(input_file, output_file, min_length, max_length, process_output):
             for word in filtered_items:
                 outfile.write(word + '\n')
         print_processing_stats(len(duplicates), filtered_items)
-        print(f"[Check Mode] Found {len(filtered_items)} overlapping words. Output written to '{output_file}'.")
+        logging.info(
+            "[Check Mode] Found %d overlapping words. Output written to '%s'.",
+            len(filtered_items),
+            output_file,
+        )
     except Exception as e:
-        print(f"[Check Mode] An error occurred: {e}")
+        logging.error("[Check Mode] An error occurred: %s", e)
 
 
 def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False):
@@ -278,9 +283,12 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
                 f.write(word + '\n')
 
         print_processing_stats(len(list1), filtered_items)
-        print(f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'.")
+        logging.info(
+            "[FilterFragments Mode] Filtering complete. Results saved to '%s'.",
+            output_file,
+        )
     except Exception as e:
-        print(f"[FilterFragments Mode] An error occurred: {e}")
+        logging.error("[FilterFragments Mode] An error occurred: %s", e)
 
 MODE_DETAILS = {
     "arrow": {
@@ -441,27 +449,29 @@ def main():
 
     args = parser.parse_args()
 
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
     if args.min_length < 1:
-        print("[Error] --min-length must be a positive integer.")
+        logging.error("[Error] --min-length must be a positive integer.")
         sys.exit(1)
     if args.max_length < args.min_length:
-        print("[Error] --max-length must be greater than or equal to --min-length.")
+        logging.error("[Error] --max-length must be greater than or equal to --min-length.")
         sys.exit(1)
 
-    print(f"Selected Mode: {args.mode}")
-    print(f"Input File: {args.input}")
-    print(f"Output File: {args.output}")
+    logging.info("Selected Mode: %s", args.mode)
+    logging.info("Input File: %s", args.input)
+    logging.info("Output File: %s", args.output)
 
-    print(f"Minimum String Length: {args.min_length}")
-    print(f"Maximum String Length: {args.max_length}")
+    logging.info("Minimum String Length: %d", args.min_length)
+    logging.info("Maximum String Length: %d", args.max_length)
 
     if args.mode != 'count':
-        print(f"Process Output: {'Enabled' if args.process_output else 'Disabled'}")
+        logging.info("Process Output: %s", 'Enabled' if args.process_output else 'Disabled')
 
     if args.mode == 'filterfragments':
-        print(f"File2: {args.file2}")
+        logging.info("File2: %s", args.file2)
     if args.mode == 'csv':
-        print(f"First Column Only: {'Yes' if args.first_column else 'No'}")
+        logging.info("First Column Only: %s", 'Yes' if args.first_column else 'No')
 
     if args.mode == 'arrow':
         arrow_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)

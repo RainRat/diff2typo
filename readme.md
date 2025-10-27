@@ -223,6 +223,26 @@ Each tool has its own set of options. For example:
   - `-c, --config`: YAML configuration file.
   - `-v, --verbose`: Enable detailed logging.
 
+- **cmdrunner.py:**
+  - `config`: Path to the YAML configuration file that lists the base directory, command, and optional exclusions.
+
+- **multitool.py:**
+  - **Sub-commands:**
+    - `arrow`: Extract text before ` -> ` on each line.
+    - `backtick`: Extract text enclosed in backticks with heuristics for diagnostics.
+    - `csv`: Read CSV files and output either the first column or all correction columns.
+    - `line`: Pass each line through after optional filtering.
+    - `count`: Count word frequencies.
+    - `filterfragments`: Remove words that appear as substrings in a comparison file.
+    - `check`: Report overlaps where the same word appears as both a typo and a correction.
+  - **Common arguments:**
+    - `--input`: Path to the input file (default: `input.txt`).
+    - `--output`: Destination file for the processed data (default: `output.txt`).
+    - `--min-length`: Minimum string length to include (default: `3`).
+    - `--max-length`: Maximum string length to include (default: `1000`).
+    - `--process-output`: When supported, lowercase, deduplicate, and sort the output.
+    - Mode-specific options, such as `--first-column` for `csv` or `--file2` for `filterfragments`, are documented in `--help`.
+
 - **typostats.py:**
 
   | Argument | Description | Default |

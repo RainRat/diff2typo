@@ -85,3 +85,46 @@ def test_check_mode(tmp_path):
     output_file = tmp_path / "output.txt"
     multitool.check_mode(str(csv_file), str(output_file), 3, 10, True)
     assert output_file.read_text().splitlines() == ["bar", "foo"]
+
+
+def test_set_operation_mode(tmp_path):
+    file_a = tmp_path / "file_a.txt"
+    file_b = tmp_path / "file_b.txt"
+    file_a.write_text("Alpha\nBeta\nGamma\nAlpha\n")
+    file_b.write_text("beta\nDelta\nGamma\n")
+
+    intersection_output = tmp_path / "intersection.txt"
+    multitool.set_operation_mode(
+        str(file_a),
+        str(file_b),
+        str(intersection_output),
+        1,
+        10,
+        False,
+        'intersection',
+    )
+    assert intersection_output.read_text().splitlines() == ["beta", "gamma"]
+
+    union_output = tmp_path / "union.txt"
+    multitool.set_operation_mode(
+        str(file_a),
+        str(file_b),
+        str(union_output),
+        1,
+        10,
+        True,
+        'union',
+    )
+    assert union_output.read_text().splitlines() == ["alpha", "beta", "delta", "gamma"]
+
+    difference_output = tmp_path / "difference.txt"
+    multitool.set_operation_mode(
+        str(file_a),
+        str(file_b),
+        str(difference_output),
+        1,
+        10,
+        False,
+        'difference',
+    )
+    assert difference_output.read_text().splitlines() == ["alpha"]

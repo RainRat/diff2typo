@@ -290,6 +290,51 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
     except Exception as e:
         logging.error("[FilterFragments Mode] An error occurred: %s", e)
 
+
+def set_operation_mode(input_file, file2, output_file, min_length, max_length, process_output, operation):
+    """Perform set operations (intersection, union, difference) between two files."""
+
+    def _load_lines(path):
+        with open(path, 'r', encoding='utf-8') as handle:
+            return [line.strip() for line in handle if line.strip()]
+
+    try:
+        raw_items_a = _load_lines(input_file)
+        raw_items_b = _load_lines(file2)
+
+        cleaned_a = clean_and_filter(raw_items_a, min_length, max_length)
+        cleaned_b = clean_and_filter(raw_items_b, min_length, max_length)
+
+        unique_a = list(dict.fromkeys(cleaned_a))
+        unique_b = list(dict.fromkeys(cleaned_b))
+
+        set_b = set(unique_b)
+
+        if operation == 'intersection':
+            result_items = [item for item in unique_a if item in set_b]
+        elif operation == 'union':
+            result_items = list(dict.fromkeys(unique_a + unique_b))
+        else:  # difference
+            result_items = [item for item in unique_a if item not in set_b]
+
+        if process_output:
+            result_items = sorted(set(result_items))
+
+        with open(output_file, 'w', encoding='utf-8') as outfile:
+            for item in result_items:
+                outfile.write(item + '\n')
+
+        print_processing_stats(len(raw_items_a) + len(raw_items_b), result_items)
+        logging.info(
+            "[Set Operation Mode] Completed %s between '%s' and '%s'. Output written to '%s'.",
+            operation,
+            input_file,
+            file2,
+            output_file,
+        )
+    except Exception as e:
+        logging.error("[Set Operation Mode] An error occurred: %s", e)
+
 MODE_DETAILS = {
     "arrow": {
         "summary": "Extract text before ' -> ' from each line of a file.",
@@ -325,6 +370,11 @@ MODE_DETAILS = {
         "summary": "Report words that show up as both typos and corrections in a CSV file.",
         "description": "Useful sanity check for typo databases to avoid suggesting the same word as both wrong and right.",
         "example": "python multitool.py check --input typos.csv --output duplicates.txt",
+    },
+    "set_operation": {
+        "summary": "Perform set-based comparisons between two files.",
+        "description": "Supports intersection, union, and difference between the cleaned contents of the files.",
+        "example": "python multitool.py set_operation --input fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
     },
 }
 
@@ -441,6 +491,27 @@ def _build_parser():
     )
     _add_common_mode_arguments(check_parser)
 
+    set_parser = subparsers.add_parser(
+        'set_operation',
+        help=MODE_DETAILS['set_operation']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['set_operation']['description'],
+    )
+    _add_common_mode_arguments(set_parser)
+    set_parser.add_argument(
+        '--file2',
+        type=str,
+        required=True,
+        help='Path to the second input file for set comparisons.',
+    )
+    set_parser.add_argument(
+        '--operation',
+        type=str,
+        choices=['intersection', 'union', 'difference'],
+        required=True,
+        help='Set operation to perform between the two files.',
+    )
+
     return parser
 
 
@@ -468,8 +539,10 @@ def main():
     if args.mode != 'count':
         logging.info("Process Output: %s", 'Enabled' if args.process_output else 'Disabled')
 
-    if args.mode == 'filterfragments':
+    if args.mode in {'filterfragments', 'set_operation'}:
         logging.info("File2: %s", args.file2)
+    if args.mode == 'set_operation':
+        logging.info("Set Operation: %s", args.operation)
     if args.mode == 'csv':
         logging.info("First Column Only: %s", 'Yes' if args.first_column else 'No')
 
@@ -487,6 +560,16 @@ def main():
         filter_fragments_mode(args.input, args.file2, args.output, args.min_length, args.max_length, args.process_output)
     elif args.mode == 'check':
         check_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
+    elif args.mode == 'set_operation':
+        set_operation_mode(
+            args.input,
+            args.file2,
+            args.output,
+            args.min_length,
+            args.max_length,
+            args.process_output,
+            args.operation,
+        )
 
 
 if __name__ == "__main__":

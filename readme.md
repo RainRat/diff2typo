@@ -35,8 +35,8 @@ Each tool can run on its own or be integrated into your development workflow.
 - **New gentypos.py Tool:**  
   Create many synthetic typos from a word list using rules such as keyboard adjacency, deletion, transposition, and duplication. The tool is fully configurable with a YAML file.
 
-- **New multitool.py:**  
-  Performs various tasks related to processing one text file into a new one. Various modes (arrow, backtick, csv, count, line) along with sorting and deduping, and filtering by length.
+- **New multitool.py:**
+  Performs various tasks related to processing one text file into a new one. Various modes (arrow, backtick, csv, line, count, filterfragments, check, set_operation) along with sorting and deduping, and filtering by length.
 
 - **New cmdrunner.py:**  
   Run shell commands in every subdirectory of a base folder using a simple YAML configuration. This makes it easy to run commands (like `git diff`) across multiple projects.

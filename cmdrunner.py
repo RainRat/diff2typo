@@ -20,7 +20,7 @@ def load_config(config_path):
         logging.error("Error parsing YAML file '%s': %s", config_path, exc)
         sys.exit(1)
 
-def run_command_in_folders(base_dir, command, excluded_folders=None):
+def run_command_in_folders(base_dir, command, excluded_folders=None, dry_run=False):
     """
     Run a specified command in each subdirectory of the base directory,
     excluding specified folders.
@@ -38,16 +38,20 @@ def run_command_in_folders(base_dir, command, excluded_folders=None):
         
         # Check if the item is a directory and not in the excluded list
         if os.path.isdir(item_path) and item not in excluded_folders:
+            if dry_run:
+                logging.info("Dry run: would run command '%s' in '%s'", command, item_path)
+                continue
+
             logging.info("Running command in: %s", item_path)
 
             # Run the command in the directory
             try:
                 result = subprocess.run(
                     command,
-                    cwd=item_path, 
-                    shell=True, 
-                    check=True, 
-                    stdout=subprocess.PIPE, 
+                    cwd=item_path,
+                    shell=True,
+                    check=True,
+                    stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True  # Automatically decode to string
                 )
@@ -67,6 +71,11 @@ def parse_arguments():
         metavar='CONFIG_PATH',
         type=str,
         help='Path to the YAML configuration file.'
+    )
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show which directories would be processed without executing the command.'
     )
     return parser.parse_args()
 
@@ -95,7 +104,7 @@ def main():
         sys.exit(1)
 
     # Run the command in the specified folders
-    run_command_in_folders(base_directory, command_to_run, excluded)
+    run_command_in_folders(base_directory, command_to_run, excluded, dry_run=args.dry_run)
 
 if __name__ == "__main__":
     main()

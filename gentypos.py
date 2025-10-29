@@ -2,6 +2,7 @@ import sys
 import argparse
 import yaml
 import logging
+import time
 from collections import defaultdict
 from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 import os
@@ -439,7 +440,7 @@ def main():
     logging.info(f"Loaded {len(word_list)} words from the small dictionary ('{input_file}').")
 
     logging.info("Loading dictionary (large dictionary)...")
-    allwords = load_file(dictionary_file)  # Remains a set
+    allwords = set(load_file(dictionary_file))
     logging.info(f"Loaded {len(allwords)} words from the large dictionary ('{dictionary_file}').")
 
     # Load custom substitutions
@@ -511,6 +512,7 @@ def main():
 
     # Centralized Filtering: Remove typos that are in the large dictionary
     logging.info("Filtering typos against the large dictionary...")
+    filter_start_time = time.perf_counter()
     filtered_typo_to_correct_word = {}
     filtered_typos_count = 0
 
@@ -523,7 +525,11 @@ def main():
         filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
     final_typo_count = len(filtered_typo_to_correct_word)
-    logging.info(f"After filtering, {final_typo_count} typos remain (filtered out {filtered_typos_count} typos).")
+    filter_duration = time.perf_counter() - filter_start_time
+    logging.info(
+        f"After filtering, {final_typo_count} typos remain (filtered out {filtered_typos_count} typos) "
+        f"in {filter_duration:.2f} seconds."
+    )
 
     # Sort typos for consistency
     sorted_typos = sorted(filtered_typo_to_correct_word.items())

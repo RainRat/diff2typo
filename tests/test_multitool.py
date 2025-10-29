@@ -21,6 +21,33 @@ def test_clean_and_filter():
     assert multitool.clean_and_filter(items, 3, 5) == ["hello", "world"]
 
 
+def test_load_and_clean_file(tmp_path):
+    data_file = tmp_path / "data.txt"
+    data_file.write_text("Alpha\nbeta\nAlpha!!!\nGamma delta\n")
+
+    raw_items, cleaned_items, unique_items = multitool._load_and_clean_file(
+        str(data_file),
+        5,
+        10,
+    )
+
+    assert raw_items == ["Alpha", "beta", "Alpha!!!", "Gamma delta"]
+    assert cleaned_items == ["alpha", "alpha", "gammadelta"]
+    assert unique_items == ["alpha", "gammadelta"]
+
+    raw_ws, cleaned_ws, unique_ws = multitool._load_and_clean_file(
+        str(data_file),
+        1,
+        10,
+        split_whitespace=True,
+        apply_length_filter=False,
+    )
+
+    assert raw_ws == ["Alpha", "beta", "Alpha!!!", "Gamma", "delta"]
+    assert cleaned_ws == ["alpha", "beta", "alpha", "gamma", "delta"]
+    assert unique_ws == ["alpha", "beta", "gamma", "delta"]
+
+
 def test_arrow_mode(tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("hello -> world\nfoo -> bar\nnoarrow here\n")

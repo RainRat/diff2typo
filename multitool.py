@@ -19,6 +19,35 @@ def clean_and_filter(items, min_length, max_length):
     return [c for c in cleaned if min_length <= len(c) <= max_length]
 
 
+def _load_and_clean_file(path, min_length, max_length, *, split_whitespace=False, apply_length_filter=True):
+    """Load text items from *path* and normalize them for set-style operations."""
+
+    raw_items = []
+    cleaned_items = []
+
+    with open(path, 'r', encoding='utf-8') as handle:
+        for line in handle:
+            line_content = line.strip()
+            if not line_content:
+                continue
+
+            parts = line_content.split() if split_whitespace else [line_content]
+            for part in parts:
+                raw_items.append(part)
+                cleaned = filter_to_letters(part)
+                if cleaned:
+                    cleaned_items.append(cleaned)
+
+    if apply_length_filter:
+        upper_bound = max_length if max_length is not None else float('inf')
+        cleaned_items = [
+            item for item in cleaned_items if min_length <= len(item) <= upper_bound
+        ]
+
+    unique_items = list(dict.fromkeys(cleaned_items))
+    return raw_items, cleaned_items, unique_items
+
+
 def print_processing_stats(raw_item_count, filtered_items, item_label="item"):
     """Print summary statistics for processed text items."""
     item_label_plural = f"{item_label}s"
@@ -247,22 +276,25 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
     Finally, writes the filtered words to output_file and prints statistics.
     """
     try:
-        with open(input_file, 'r', encoding='utf-8') as f:
-            list1 = [filter_to_letters(line.strip()) for line in f]
-
-        comparison_words = []
-        with open(file2, 'r', encoding='utf-8') as f:
-            for line in f:
-                for raw_word in line.split():
-                    cleaned = filter_to_letters(raw_word)
-                    if cleaned:
-                        comparison_words.append(cleaned)
+        raw_list1, cleaned_list1, _ = _load_and_clean_file(
+            input_file,
+            min_length,
+            max_length,
+            apply_length_filter=False,
+        )
+        _, _, unique_list2 = _load_and_clean_file(
+            file2,
+            min_length,
+            max_length,
+            split_whitespace=True,
+            apply_length_filter=False,
+        )
 
         # Remove duplicates to reduce redundant substring checks while keeping
         # all unique words for comparison.
-        comparison_words = list(dict.fromkeys(comparison_words))
+        comparison_words = unique_list2
 
-        candidate_words = [word for word in list1 if word]
+        candidate_words = cleaned_list1
         matched_words = set()
         for word in tqdm(candidate_words, desc="Finding matches"):
             for comp in comparison_words:
@@ -282,7 +314,7 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
             for word in filtered_items:
                 f.write(word + '\n')
 
-        print_processing_stats(len(list1), filtered_items)
+        print_processing_stats(len(raw_list1), filtered_items)
         logging.info(
             "[FilterFragments Mode] Filtering complete. Results saved to '%s'.",
             output_file,
@@ -294,19 +326,13 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
 def set_operation_mode(input_file, file2, output_file, min_length, max_length, process_output, operation):
     """Perform set operations (intersection, union, difference) between two files."""
 
-    def _load_lines(path):
-        with open(path, 'r', encoding='utf-8') as handle:
-            return [line.strip() for line in handle if line.strip()]
-
     try:
-        raw_items_a = _load_lines(input_file)
-        raw_items_b = _load_lines(file2)
-
-        cleaned_a = clean_and_filter(raw_items_a, min_length, max_length)
-        cleaned_b = clean_and_filter(raw_items_b, min_length, max_length)
-
-        unique_a = list(dict.fromkeys(cleaned_a))
-        unique_b = list(dict.fromkeys(cleaned_b))
+        raw_items_a, _, unique_a = _load_and_clean_file(
+            input_file, min_length, max_length
+        )
+        raw_items_b, _, unique_b = _load_and_clean_file(
+            file2, min_length, max_length
+        )
 
         set_b = set(unique_b)
 

@@ -1,4 +1,5 @@
 from collections import defaultdict
+import json
 import sys
 import logging
 
@@ -78,10 +79,20 @@ def process_typos(lines, allow_two_char):
 
 def generate_report(replacement_counts, output_file=None, min_occurrences=1, sort_by='count', output_format='arrow'):
     """
-    Generate a report. If output_format='yaml', print in specified YAML-like format:
+    Generate a report.
+
+    If output_format='yaml', print in specified YAML-like format:
     <correct_char>:
       - <typo_char_or_chars>
       - ...
+
+    If output_format='json', emit a machine-readable document with the schema:
+    {
+        "replacements": [
+            {"correct": "<correct>", "typo": "<typo>", "count": <count>},
+            ...
+        ]
+    }
     """
     # Filter
     filtered = {k: v for k,v in replacement_counts.items() if v >= min_occurrences}
@@ -96,7 +107,7 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
         # sort by correct_char then typo_char
         sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][0], x[0][1]))
     else:
-        logging.warning("Invalid sort option: '%s'. Defaulting to 'count'.", sort_by)
+        logging.warning(f"Invalid sort option: '{sort_by}'. Defaulting to 'count'.")
         sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
 
     if output_format == 'arrow':
@@ -105,6 +116,16 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
         for (correct_char, typo_char), count in sorted_replacements:
             report_lines.append(f"{correct_char} -> {typo_char}: {count}")
         report_content = "\n".join(report_lines)
+    elif output_format == 'json':
+        replacements = [
+            {
+                "correct": correct_char,
+                "typo": typo_char,
+                "count": count,
+            }
+            for (correct_char, typo_char), count in sorted_replacements
+        ]
+        report_content = json.dumps({"replacements": replacements}, indent=2)
     else:
         # YAML-like
         # Group by correct_char
@@ -123,9 +144,9 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(report_content)
-            logging.info("Report successfully written to '%s'.", output_file)
+            logging.info(f"Report successfully written to '{output_file}'.")
         except Exception as e:
-            logging.error("Failed to write report to '%s'. Error: %s", output_file, e)
+            logging.error(f"Failed to write report to '{output_file}'. Error: {e}")
     else:
         print(report_content)
 
@@ -146,7 +167,7 @@ def detect_encoding(file_path):
         encoding = result['encoding']
         confidence = result['confidence']
         if encoding and confidence > 0.5:
-            logging.info("Detected encoding: %s (confidence %.2f)", encoding, confidence)
+            logging.info(f"Detected encoding: {encoding} (confidence {confidence:.2f})")
             return encoding
         else:
             logging.warning("Failed to reliably detect encoding.")
@@ -161,7 +182,15 @@ def main():
     parser.add_argument('-o', '--output', help="Path to the output file (optional).")
     parser.add_argument('-m', '--min', type=int, default=1, help="Minimum occurrences.")
     parser.add_argument('-s', '--sort', choices=['count', 'typo', 'correct'], default='count', help="Sorting criterion.")
-    parser.add_argument('-f', '--format', choices=['arrow', 'yaml'], default='arrow', help="Output format.")
+    parser.add_argument(
+        '-f',
+        '--format',
+        choices=['arrow', 'yaml', 'json'],
+        default='arrow',
+        help=(
+            "Output format. 'json' emits {\"replacements\": [{\"correct\", \"typo\", \"count\"}, ...]}"
+        ),
+    )
     parser.add_argument('-2', '--allow_two_char', action='store_true', help="Allow one-to-two letter replacements.")
     args = parser.parse_args()
 
@@ -190,12 +219,12 @@ def main():
                     with open(file_path, 'r', encoding=enc) as f:
                         lines = f.readlines()
                 except UnicodeDecodeError as e2:
-                    logging.error("Failed with detected encoding %s.", enc)
+                    logging.error(f"Failed with detected encoding {enc}.")
                     sys.exit(1)
             else:
                 sys.exit(1)
     except FileNotFoundError:
-        logging.error("File not found: %s", file_path)
+        logging.error(f"File not found: {file_path}")
         sys.exit(1)
 
     counts = process_typos(lines, allow_two_char=allow_two_char)

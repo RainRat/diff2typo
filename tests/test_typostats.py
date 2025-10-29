@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -37,3 +38,14 @@ def test_generate_report_arrow(capsys):
     captured = capsys.readouterr().out
     assert 's -> z: 3' in captured
     assert 'e -> a' not in captured
+
+
+def test_generate_report_json(capsys):
+    counts = {('s', 'z'): 3, ('e', 'a'): 1}
+    typostats.generate_report(counts, output_format='json')
+    captured = capsys.readouterr().out
+    data = json.loads(captured)
+    assert data["replacements"] == [
+        {"correct": "s", "typo": "z", "count": 3},
+        {"correct": "e", "typo": "a", "count": 1},
+    ]

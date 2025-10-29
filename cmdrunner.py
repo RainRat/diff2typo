@@ -14,10 +14,10 @@ def load_config(config_path):
             config = yaml.safe_load(file)
             return config
     except FileNotFoundError:
-        logging.error("Configuration file '%s' not found.", config_path)
+        logging.error(f"Configuration file '{config_path}' not found.")
         sys.exit(1)
     except yaml.YAMLError as exc:
-        logging.error("Error parsing YAML file '%s': %s", config_path, exc)
+        logging.error(f"Error parsing YAML file '{config_path}': {exc}")
         sys.exit(1)
 
 def run_command_in_folders(base_dir, command, excluded_folders=None, dry_run=False):
@@ -29,7 +29,7 @@ def run_command_in_folders(base_dir, command, excluded_folders=None, dry_run=Fal
         excluded_folders = []
 
     if not os.path.isdir(base_dir):
-        logging.error("The base directory '%s' does not exist or is not a directory.", base_dir)
+        logging.error(f"The base directory '{base_dir}' does not exist or is not a directory.")
         sys.exit(1)
 
     # Iterate through each item in the base directory
@@ -39,10 +39,10 @@ def run_command_in_folders(base_dir, command, excluded_folders=None, dry_run=Fal
         # Check if the item is a directory and not in the excluded list
         if os.path.isdir(item_path) and item not in excluded_folders:
             if dry_run:
-                logging.info("Dry run: would run command '%s' in '%s'", command, item_path)
+                logging.info(f"Dry run: would run command '{command}' in '{item_path}'")
                 continue
 
-            logging.info("Running command in: %s", item_path)
+            logging.info(f"Running command in: {item_path}")
 
             # Run the command in the directory
             try:
@@ -55,9 +55,9 @@ def run_command_in_folders(base_dir, command, excluded_folders=None, dry_run=Fal
                     stderr=subprocess.PIPE,
                     text=True  # Automatically decode to string
                 )
-                logging.info("Command output for '%s':\n%s", item_path, result.stdout)
+                logging.info(f"Command output for '{item_path}':\n{result.stdout}")
             except subprocess.CalledProcessError as e:
-                logging.error("Command failed in '%s' with error:\n%s", item_path, e.stderr)
+                logging.error(f"Command failed in '{item_path}' with error:\n{e.stderr}")
 
 def parse_arguments():
     """

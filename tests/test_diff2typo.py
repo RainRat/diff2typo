@@ -40,6 +40,28 @@ def test_find_typos():
     assert diff2typo.find_typos(diff_text) == ['eror -> error']
 
 
+def test_validate_adjacent_context():
+    before = ['a', 'eror', 'line']
+    after = ['a', 'error', 'line']
+    assert diff2typo._validate_adjacent_context(before, after, 1)
+    after_mismatch = ['a', 'error', 'change']
+    assert not diff2typo._validate_adjacent_context(before, after_mismatch, 1)
+
+
+def test_compare_word_lists():
+    before_words = ['This', 'eror', 'line']
+    after_words = ['This', 'error', 'line']
+    assert diff2typo._compare_word_lists(before_words, after_words, 2) == ['eror -> error']
+    assert diff2typo._compare_word_lists(['foo'], ['foo', 'bar'], 2) == []
+
+
+def test_process_diff_pairs():
+    removals = ['Buggy eror line']
+    additions = ['Buggy error line']
+    assert diff2typo._process_diff_pairs(removals, additions, 2) == ['eror -> error']
+    assert diff2typo._process_diff_pairs(['foo'], ['bar', 'baz'], 2) == []
+
+
 def test_lowercase_sort_dedup():
     items = ['Banana', 'apple', 'banana']
     assert diff2typo.lowercase_sort_dedup(items) == ['apple', 'banana']
@@ -57,7 +79,7 @@ def test_process_new_typos(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     allowed = tmp_path / 'allowed.csv'
     allowed.write_text('teh\n')
-    args = SimpleNamespace(typos_tool_path='nonexistent', allowed_file=str(allowed), output_format='arrow')
+    args = SimpleNamespace(typos_tool_path='nonexistent', allowed_file=str(allowed), output_format='arrow', quiet=True)
     candidates = ['mispell -> misspell', 'teh -> the', 'recieve -> receive', 'recieve -> receive']
     result = diff2typo.process_new_typos(candidates, args, {'mispell'})
     assert result == ['recieve -> receive']
@@ -66,5 +88,13 @@ def test_process_new_typos(tmp_path, monkeypatch):
 def test_process_new_corrections():
     words_mapping = {'teh': {'the'}, 'mispell': {'misspell'}}
     candidates = ['teh -> the', 'teh -> thee', 'recieve -> receive']
-    result = diff2typo.process_new_corrections(candidates, words_mapping, 'arrow')
+    result = diff2typo.process_new_corrections(candidates, words_mapping, 'arrow', quiet=True)
     assert result == ['teh -> thee']
+
+
+def test_temp_typo_file_cleanup(tmp_path):
+    with diff2typo.TempTypoFile() as temp_path:
+        path_obj = Path(temp_path)
+        path_obj.write_text('data')
+        assert path_obj.exists()
+    assert not Path(temp_path).exists()

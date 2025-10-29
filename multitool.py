@@ -52,16 +52,22 @@ def print_processing_stats(raw_item_count, filtered_items, item_label="item"):
     """Print summary statistics for processed text items."""
     item_label_plural = f"{item_label}s"
     logging.info("Statistics:")
-    logging.info("  Total %s encountered: %d", item_label_plural, raw_item_count)
-    logging.info("  Total %s after filtering: %d", item_label_plural, len(filtered_items))
+    logging.info(f"  Total {item_label_plural} encountered: {raw_item_count}")
+    logging.info(
+        f"  Total {item_label_plural} after filtering: {len(filtered_items)}"
+    )
     if filtered_items:
         unique_items = list(dict.fromkeys(filtered_items))
         shortest = min(unique_items, key=len)
         longest = max(unique_items, key=len)
-        logging.info("  Shortest %s: '%s' (length: %d)", item_label, shortest, len(shortest))
-        logging.info("  Longest %s: '%s' (length: %d)", item_label, longest, len(longest))
+        logging.info(
+            f"  Shortest {item_label}: '{shortest}' (length: {len(shortest)})"
+        )
+        logging.info(
+            f"  Longest {item_label}: '{longest}' (length: {len(longest)})"
+        )
     else:
-        logging.info("  No %s passed the filtering criteria.", item_label_plural)
+        logging.info(f"  No {item_label_plural} passed the filtering criteria.")
 
 
 def _process_items(extractor_func, input_file, output_file, min_length, max_length, process_output, mode_name, success_msg):
@@ -75,9 +81,11 @@ def _process_items(extractor_func, input_file, output_file, min_length, max_leng
             for item in filtered_items:
                 outfile.write(item + '\n')
         print_processing_stats(len(raw_items), filtered_items)
-        logging.info("[%s Mode] %s Output written to '%s'.", mode_name, success_msg, output_file)
+        logging.info(
+            f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'."
+        )
     except Exception as e:
-        logging.error("[%s Mode] An error occurred: %s", mode_name, e)
+        logging.error(f"[{mode_name} Mode] An error occurred: {e}")
 
 
 def _extract_arrow_items(input_file):
@@ -176,9 +184,11 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
             for word, count in sorted_words:
                 out_file.write(f"{word}: {count}\n")
         print_processing_stats(raw_count, filtered_words, item_label="word")
-        logging.info("[Count Mode] Word frequencies have been written to '%s'.", output_file)
+        logging.info(
+            f"[Count Mode] Word frequencies have been written to '{output_file}'."
+        )
     except Exception as e:
-        logging.error("[Count Mode] An error occurred: %s", e)
+        logging.error(f"[Count Mode] An error occurred: {e}")
 
 def check_mode(input_file, output_file, min_length, max_length, process_output):
     """
@@ -213,12 +223,10 @@ def check_mode(input_file, output_file, min_length, max_length, process_output):
                 outfile.write(word + '\n')
         print_processing_stats(len(duplicates), filtered_items)
         logging.info(
-            "[Check Mode] Found %d overlapping words. Output written to '%s'.",
-            len(filtered_items),
-            output_file,
+            f"[Check Mode] Found {len(filtered_items)} overlapping words. Output written to '{output_file}'."
         )
     except Exception as e:
-        logging.error("[Check Mode] An error occurred: %s", e)
+        logging.error(f"[Check Mode] An error occurred: {e}")
 
 
 def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False):
@@ -316,11 +324,10 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
 
         print_processing_stats(len(raw_list1), filtered_items)
         logging.info(
-            "[FilterFragments Mode] Filtering complete. Results saved to '%s'.",
-            output_file,
+            f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'."
         )
     except Exception as e:
-        logging.error("[FilterFragments Mode] An error occurred: %s", e)
+        logging.error(f"[FilterFragments Mode] An error occurred: {e}")
 
 
 def set_operation_mode(input_file, file2, output_file, min_length, max_length, process_output, operation):
@@ -352,14 +359,11 @@ def set_operation_mode(input_file, file2, output_file, min_length, max_length, p
 
         print_processing_stats(len(raw_items_a) + len(raw_items_b), result_items)
         logging.info(
-            "[Set Operation Mode] Completed %s between '%s' and '%s'. Output written to '%s'.",
-            operation,
-            input_file,
-            file2,
-            output_file,
+            f"[Set Operation Mode] Completed {operation} between '{input_file}' and "
+            f"'{file2}'. Output written to '{output_file}'."
         )
     except Exception as e:
-        logging.error("[Set Operation Mode] An error occurred: %s", e)
+        logging.error(f"[Set Operation Mode] An error occurred: {e}")
 
 MODE_DETAILS = {
     "arrow": {
@@ -555,22 +559,24 @@ def main():
         logging.error("[Error] --max-length must be greater than or equal to --min-length.")
         sys.exit(1)
 
-    logging.info("Selected Mode: %s", args.mode)
-    logging.info("Input File: %s", args.input)
-    logging.info("Output File: %s", args.output)
+    logging.info(f"Selected Mode: {args.mode}")
+    logging.info(f"Input File: {args.input}")
+    logging.info(f"Output File: {args.output}")
 
-    logging.info("Minimum String Length: %d", args.min_length)
-    logging.info("Maximum String Length: %d", args.max_length)
+    logging.info(f"Minimum String Length: {args.min_length}")
+    logging.info(f"Maximum String Length: {args.max_length}")
 
     if args.mode != 'count':
-        logging.info("Process Output: %s", 'Enabled' if args.process_output else 'Disabled')
+        logging.info(
+            f"Process Output: {'Enabled' if args.process_output else 'Disabled'}"
+        )
 
     if args.mode in {'filterfragments', 'set_operation'}:
-        logging.info("File2: %s", args.file2)
+        logging.info(f"File2: {args.file2}")
     if args.mode == 'set_operation':
-        logging.info("Set Operation: %s", args.operation)
+        logging.info(f"Set Operation: {args.operation}")
     if args.mode == 'csv':
-        logging.info("First Column Only: %s", 'Yes' if args.first_column else 'No')
+        logging.info(f"First Column Only: {'Yes' if args.first_column else 'No'}")
 
     if args.mode == 'arrow':
         arrow_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)

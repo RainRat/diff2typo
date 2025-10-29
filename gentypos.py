@@ -34,12 +34,12 @@ def _merge_defaults(config, defaults, path=None):
         if isinstance(default_value, dict):
             existing = config.setdefault(key, {})
             if not isinstance(existing, dict):
-                logging.error("Configuration value for '%s' must be a mapping.", dotted_path)
+                logging.error(f"Configuration value for '{dotted_path}' must be a mapping.")
                 sys.exit(1)
             _merge_defaults(existing, default_value, path + [key])
         else:
             if key not in config:
-                logging.info("Applying default for '%s': %s", dotted_path, default_value)
+                logging.info(f"Applying default for '{dotted_path}': {default_value}")
             config.setdefault(key, default_value)
 
 def get_adjacent_keys(include_diagonals=True):
@@ -306,7 +306,7 @@ def validate_config(config):
     required_fields = ['input_file', 'dictionary_file', 'output_file', 'output_format']
     for field in required_fields:
         if field not in config:
-            logging.error("Missing required configuration field: '%s'", field)
+            logging.error(f"Missing required configuration field: '{field}'")
             sys.exit(1)
 
     if 'typo_types' in config and not isinstance(config['typo_types'], dict):

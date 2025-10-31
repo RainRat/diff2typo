@@ -194,7 +194,7 @@ def main():
     parser.add_argument('-2', '--allow_two_char', action='store_true', help="Allow one-to-two letter replacements.")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     file_path = args.input_file
     output_file = args.output

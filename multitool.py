@@ -373,7 +373,7 @@ MODE_DETAILS = {
     },
     "backtick": {
         "summary": "Extract text between pairs of backticks on each line.",
-        "description": "Designed for compiler or linter diagnostics that enclose problematic identifiers in backticks.",
+        "description": "Designed for compiler or linter diagnostics that enclose problematic identifiers in backticks. Includes heuristics for handling diagnostic messages with `error:`, `warning:`, and `note:` prefixes.",
         "example": "python multitool.py backtick --input build.log --output suspects.txt",
     },
     "csv": {
@@ -550,7 +550,7 @@ def main():
 
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     if args.min_length < 1:
         logging.error("[Error] --min-length must be a positive integer.")

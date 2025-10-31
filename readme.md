@@ -102,7 +102,17 @@ Choose the output format based on what you are using the data for.
 **Example:**
 
 ```bash
-python diff2typo.py --input_file=diff.txt --output_file=typos.txt --output_format=list --mode both --typos_tool_path=/path/to/typos --allowed_file=allowed.csv --dictionary_file=words.csv --min_length 2
+python diff2typo.py --input_file=diff.txt --output_file=typos.txt --output_format=list --mode both --typos_tool_path=/path/to/typos --allowed_file=allowed.csv --dictionary_file=words.csv --min_length 2 --quiet
+```
+
+When using `--mode both` with `--output-format arrow`, the output will be separated into "New Typos" and "New Corrections":
+
+```
+=== New Typos ===
+teh -> the
+
+=== New Corrections ===
+seperate -> separate
 ```
 
 ### gentypos.py
@@ -139,6 +149,12 @@ command_to_run: "git diff >> ../diff.txt"
 excluded_folders:
   - "node_modules"
   - "venv"
+```
+
+To run commands in parallel with a timeout, you can use the `--jobs` and `--timeout` arguments:
+
+```bash
+python cmdrunner.py config.yaml --jobs 4 --timeout 60
 ```
 
 
@@ -225,6 +241,8 @@ Each tool has its own set of options. For example:
 
 - **cmdrunner.py:**
   - `config`: Path to the YAML configuration file that lists the base directory, command, and optional exclusions.
+  - `--jobs`: Number of parallel jobs to run.
+  - `--timeout`: Timeout in seconds for each command.
 
 - **multitool.py:**
   - **Sub-commands:**
@@ -251,7 +269,7 @@ Each tool has its own set of options. For example:
   | `-o`, `--output` | Optional path to write the generated report. | Not set |
   | `-m`, `--min` | Minimum occurrences required for inclusion. | `1` |
   | `-s`, `--sort` | Sorting criterion: `count`, `typo`, or `correct`. | `count` |
-  | `-f`, `--format` | Output format: `arrow` or `yaml`. | `arrow` |
+  | `-f`, `--format` | Output format: `arrow`, `yaml` or `json`. | `arrow` |
   | `-2`, `--allow_two_char` | Allow one-to-two letter replacements (e.g., `m` → `rn`). | Disabled |
 
 For more details, run any tool with the `--help` flag.
@@ -308,7 +326,21 @@ python multitool.py <mode> [options]
   teh
   ```
 
-- **backtick** – Extract strings between the first pair of backticks on each line (useful for the `typos` CLI output).
+  The `backtick` mode also handles `warning:` and `note:` prefixes, prioritizing `error:` messages. For example:
+
+  Input:
+  ```
+  warning: `foo` already defined
+  note: `bar` previously defined here
+  error: `baz` is not a valid identifier
+  ```
+
+  Output:
+  ```
+  baz
+  ```
+
+- **backtick** – Extract strings between the first pair of backticks on each line (useful for the `typos` CLI output). The tool includes heuristics to handle `error:`, `warning:`, and `note:` prefixes, prioritizing `error:` messages to improve accuracy.
 
   Input:
 

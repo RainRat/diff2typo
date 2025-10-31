@@ -4,8 +4,9 @@ import yaml
 import sys
 import argparse
 import logging
+from typing import List, Dict, Any, Optional
 
-def load_config(config_path):
+def load_config(config_path: str) -> Dict[str, Any]:
     """
     Load the YAML configuration file.
     """
@@ -20,7 +21,7 @@ def load_config(config_path):
         logging.error(f"Error parsing YAML file '{config_path}': {exc}")
         sys.exit(1)
 
-def run_command_in_folders(base_dir, command, excluded_folders=None, dry_run=False):
+def run_command_in_folders(base_dir: str, command: str, excluded_folders: Optional[List[str]] = None, dry_run: bool = False) -> None:
     """
     Run a specified command in each subdirectory of the base directory,
     excluding specified folders.
@@ -59,7 +60,7 @@ def run_command_in_folders(base_dir, command, excluded_folders=None, dry_run=Fal
             except subprocess.CalledProcessError as e:
                 logging.error(f"Command failed in '{item_path}' with error:\n{e.stderr}")
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """
     Parse command-line arguments to get the path to the YAML configuration file.
     """
@@ -79,12 +80,12 @@ def parse_arguments():
     )
     return parser.parse_args()
 
-def main():
+def main() -> None:
     # Parse command-line arguments
     args = parse_arguments()
     config_file = args.config
 
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Load configuration
     config = load_config(config_file)

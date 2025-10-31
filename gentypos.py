@@ -352,7 +352,7 @@ def main():
     Main function to generate synthetic typos and save them to a file based on YAML configuration.
     """
     # Configure logging
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(

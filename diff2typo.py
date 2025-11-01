@@ -175,21 +175,6 @@ def _compare_word_lists(before_words, after_words, min_length):
     return typos
 
 
-def _process_diff_pairs(removals, additions, min_length):
-    """Convert aligned removed/added lines into typo candidates."""
-
-    if len(removals) != len(additions):
-        logging.warning("Number of removals and additions do not match. Skipping these changes.")
-        return []
-
-    typos = []
-    for before, after in zip(removals, additions):
-        before_words = split_into_subwords(before)
-        after_words = split_into_subwords(after)
-        typos.extend(_compare_word_lists(before_words, after_words, min_length))
-    return typos
-
-
 def find_typos(diff_text, min_length=2):
     """
     Parses the diff text to identify typo corrections.
@@ -209,7 +194,11 @@ def find_typos(diff_text, min_length=2):
     def flush_pairs():
         nonlocal typos, removals, additions
         if removals and additions:
-            typos.extend(_process_diff_pairs(removals, additions, min_length))
+            before_text = " ".join(removals)
+            after_text = " ".join(additions)
+            before_words = split_into_subwords(before_text)
+            after_words = split_into_subwords(after_text)
+            typos.extend(_compare_word_lists(before_words, after_words, min_length))
         removals = []
         additions = []
 
@@ -388,7 +377,7 @@ def process_new_typos(candidates, args, valid_words):
     return formatted
 
 
-def process_new_corrections(candidates, words_mapping, output_format, quiet=False):
+def process_new_corrections(candidates, words_mapping, quiet=False):
     """
     Process candidate typos to produce new corrections for known typos.
     It loads a words mapping file (ie. words.csv) and for each candidate correction,
@@ -399,7 +388,7 @@ def process_new_corrections(candidates, words_mapping, output_format, quiet=Fals
     Args:
         candidates (list): Candidate "before -> after" strings.
         words_mapping (dict): Mapping of known typos to their corrections.
-        output_format (str): Requested output format; formatting is applied by the caller.
+        quiet (bool): When True, suppress progress display.
     """
 
     new_corrections = []
@@ -505,7 +494,7 @@ def main():
     # Process new corrections if requested.
     if args.mode in ['corrections', 'both']:
         logging.info("Processing new corrections to existing typos...")
-        new_corrections_raw = process_new_corrections(candidates, dictionary_mapping, args.output_format, quiet=args.quiet)
+        new_corrections_raw = process_new_corrections(candidates, dictionary_mapping, quiet=args.quiet)
         new_corrections_result = format_typos(new_corrections_raw, args.output_format)
         logging.info(f"Found {len(new_corrections_result)} new correction(s).")
 

@@ -40,6 +40,44 @@ def test_find_typos():
     assert diff2typo.find_typos(diff_text) == ['eror -> error']
 
 
+def test_find_typos_multiline_reflow():
+    diff_text = (
+        "--- a/f.txt\n"
+        "+++ b/f.txt\n"
+        "@@\n"
+        "-This is a long eror line.\n"
+        "+This is a long\n"
+        "+error line.\n"
+    )
+    assert diff2typo.find_typos(diff_text) == ['eror -> error']
+
+
+def test_find_typos_skips_unpaired_changes():
+    diff_text = (
+        "--- a/f.txt\n"
+        "+++ b/f.txt\n"
+        "@@\n"
+        "-Removed typo line\n"
+        " context\n"
+        "@@\n"
+        "+Added typo line\n"
+        " context\n"
+    )
+    assert diff2typo.find_typos(diff_text) == []
+
+
+def test_find_typos_large_input():
+    diff_lines = ["--- a/f.txt", "+++ b/f.txt", "@@"]
+    for index in range(200):
+        diff_lines.append(f"-Repeated eror line {index}")
+        diff_lines.append(f"+Repeated error line {index}")
+    diff_lines.append(" context")
+    diff_text = "\n".join(diff_lines)
+    result = diff2typo.find_typos(diff_text)
+    assert len(result) == 200
+    assert result[0] == 'eror -> error'
+
+
 def test_validate_adjacent_context():
     before = ['a', 'eror', 'line']
     after = ['a', 'error', 'line']
@@ -53,13 +91,6 @@ def test_compare_word_lists():
     after_words = ['This', 'error', 'line']
     assert diff2typo._compare_word_lists(before_words, after_words, 2) == ['eror -> error']
     assert diff2typo._compare_word_lists(['foo'], ['foo', 'bar'], 2) == []
-
-
-def test_process_diff_pairs():
-    removals = ['Buggy eror line']
-    additions = ['Buggy error line']
-    assert diff2typo._process_diff_pairs(removals, additions, 2) == ['eror -> error']
-    assert diff2typo._process_diff_pairs(['foo'], ['bar', 'baz'], 2) == []
 
 
 def test_lowercase_sort_dedup():
@@ -88,8 +119,15 @@ def test_process_new_typos(tmp_path, monkeypatch):
 def test_process_new_corrections():
     words_mapping = {'teh': {'the'}, 'mispell': {'misspell'}}
     candidates = ['teh -> the', 'teh -> thee', 'recieve -> receive']
-    result = diff2typo.process_new_corrections(candidates, words_mapping, 'arrow', quiet=True)
+    result = diff2typo.process_new_corrections(candidates, words_mapping, quiet=True)
     assert result == ['teh -> thee']
+
+
+def test_process_new_corrections_dedup_and_sort():
+    words_mapping = {'teh': {'the'}}
+    candidates = ['teh -> thee', 'Teh -> THEE', 'teh -> thea']
+    result = diff2typo.process_new_corrections(candidates, words_mapping, quiet=True)
+    assert result == ['teh -> thea', 'teh -> thee']
 
 
 def test_temp_typo_file_cleanup(tmp_path):

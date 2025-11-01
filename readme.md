@@ -1,11 +1,11 @@
 # diff2typo Suite
 
-The diff2typo Suite is a set of simple command-line tools that help you find, fix, and manage typos in your code. It works by analyzing Git diffs and text files and now includes several new features to make typo detection even easier.
+The diff2typo Suite is a set of simple command-line tools that help you find, fix, and manage typos in your code. It works by analyzing Git diffs and text files and includes several features to make typo detection even easier.
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [New Features](#new-features)
+- [Key Features](#key-features)
 - [Tools in the Suite](#tools-in-the-suite)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -24,24 +24,24 @@ The diff2typo Suite helps you:
 
 Each tool can run on its own or be integrated into your development workflow.
 
-## New Features
+## Key Features
 
-- **Multiple Modes in diff2typo.py:**  
+- **Multiple Modes in diff2typo.py:**
   Choose from three modes:
   - **typos** – list new typos.
   - **corrections** – list new corrections for known typos.
   - **both** – combine the above two.
 
-- **New gentypos.py Tool:**  
+- **gentypos.py Tool:**
   Create many synthetic typos from a word list using rules such as keyboard adjacency, deletion, transposition, and duplication. The tool is fully configurable with a YAML file.
 
-- **New multitool.py:**
+- **multitool.py:**
   Performs various tasks related to processing one text file into a new one. Various modes (arrow, backtick, csv, line, count, filterfragments, check, set_operation) along with sorting and deduping, and filtering by length.
 
-- **New cmdrunner.py:**  
+- **cmdrunner.py:**
   Run shell commands in every subdirectory of a base folder using a simple YAML configuration. This makes it easy to run commands (like `git diff`) across multiple projects.
 
-- **New typostats.py Utility:**
+- **typostats.py Utility:**
   Analyze existing typo corrections to report common letter replacements. This tool can help customize `gentypos.yml`.
 
 ## Core Tools in the Suite

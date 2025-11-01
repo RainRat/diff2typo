@@ -4,8 +4,8 @@ import yaml
 import logging
 import time
 from collections import defaultdict
+from types import SimpleNamespace
 from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
-import os
 
 
 DEFAULT_CONFIG = {
@@ -347,6 +347,179 @@ def format_typos(typo_to_correct_word, output_format):
     return formatted
 
 
+def _extract_config_settings(config):
+    """Extract validated configuration values into a structured namespace."""
+
+    input_file = config.get('input_file', 'wordlist_small.txt')
+    dictionary_file = config.get('dictionary_file', 'wordlist_large.txt')
+    output_file = config.get('output_file', 'typos_mega.toml')
+    output_format = config.get('output_format', 'table').lower()
+    output_header = config.get('output_header')
+
+    valid_formats = {'arrow', 'csv', 'table', 'list'}
+    if output_format not in valid_formats:
+        logging.warning(
+            f"Unknown output format '{output_format}'. Defaulting to 'arrow'."
+        )
+        output_format = 'arrow'
+
+    if output_header is None and output_format == 'table':
+        output_header = "[default.extend-words]"
+
+    replacement_options = config.get(
+        'replacement_options',
+        {
+            'include_diagonals': True,
+            'enable_adjacent_substitutions': True,
+            'enable_custom_substitutions': True,
+        },
+    )
+    include_diagonals = replacement_options.get('include_diagonals', True)
+    enable_adjacent_substitutions = replacement_options.get(
+        'enable_adjacent_substitutions', True
+    )
+    enable_custom_substitutions = replacement_options.get(
+        'enable_custom_substitutions', True
+    )
+
+    transposition_options = config.get('transposition_options', {'distance': 1})
+    transposition_distance = transposition_options.get('distance', 1)
+
+    repeat_modifications = int(config.get('repeat_modifications', 1))
+    repeat_modifications = max(1, repeat_modifications)
+
+    word_length = config.get('word_length', {'min_length': 8, 'max_length': None})
+    min_length = word_length.get('min_length', 8)
+    max_length = word_length.get('max_length', None)
+
+    settings = SimpleNamespace(
+        input_file=input_file,
+        dictionary_file=dictionary_file,
+        output_file=output_file,
+        output_format=output_format,
+        output_header=output_header,
+        typo_types=config['typo_types'],
+        include_diagonals=include_diagonals,
+        enable_adjacent_substitutions=enable_adjacent_substitutions,
+        enable_custom_substitutions=enable_custom_substitutions,
+        transposition_distance=transposition_distance,
+        repeat_modifications=repeat_modifications,
+        min_length=min_length,
+        max_length=max_length,
+        custom_substitutions_config=config.get('custom_substitutions', {}),
+    )
+
+    return settings
+
+
+def _setup_generation_tools(settings):
+    """Prepare substitution helpers based on configuration settings."""
+
+    logging.info("Loading custom substitutions...")
+    if not settings.enable_custom_substitutions:
+        logging.info("Custom substitutions disabled.")
+        custom_subs = {}
+    else:
+        custom_subs = load_custom_substitutions(settings.custom_substitutions_config)
+        if custom_subs:
+            total_custom_entries = len(custom_subs)
+            total_custom_replacements = sum(len(v) for v in custom_subs.values())
+            logging.info(
+                "Loaded %d custom substitution entries with a total of %d replacements.",
+                total_custom_entries,
+                total_custom_replacements,
+            )
+        else:
+            logging.info("No custom substitutions loaded.")
+
+    if settings.enable_adjacent_substitutions:
+        logging.info("Generating adjacent keys mapping...")
+        adjacent_keys = get_adjacent_keys(settings.include_diagonals)
+        total_adjacent_mappings = len(adjacent_keys)
+
+        adjacent_substitutions = set()
+        for char, adj_set in adjacent_keys.items():
+            for adj_char in adj_set:
+                adjacent_substitutions.add((char, adj_char))
+        total_adjacent_substitutions = len(adjacent_substitutions)
+        logging.info(
+            "Generated adjacent keys for %d characters with %d unique adjacent substitutions (non-reflexive).",
+            total_adjacent_mappings,
+            total_adjacent_substitutions,
+        )
+    else:
+        adjacent_keys = {}
+        logging.info("Adjacent substitutions disabled.")
+
+    return adjacent_keys, custom_subs
+
+
+def _run_typo_generation(word_list, all_words, settings, adjacent_keys, custom_subs):
+    """Generate, filter, and sort typos based on the provided settings."""
+
+    logging.info("Generating synthetic typos...")
+    typo_to_correct_word = defaultdict(list)
+
+    for word in tqdm(word_list, desc="Processing words"):
+        word_len = len(word)
+        if word_len < settings.min_length:
+            continue
+        if settings.max_length and word_len > settings.max_length:
+            continue
+
+        typos_current = {word}
+        accumulated_typos = set()
+        for _ in range(settings.repeat_modifications):
+            new_typos = set()
+            for base_word in typos_current:
+                new_typos.update(
+                    generate_all_typos(
+                        base_word,
+                        adjacent_keys,
+                        custom_subs,
+                        settings.typo_types,
+                        settings.transposition_distance,
+                        settings.enable_adjacent_substitutions,
+                        settings.enable_custom_substitutions,
+                    )
+                )
+            accumulated_typos.update(new_typos)
+            typos_current = new_typos
+        for typo in accumulated_typos:
+            typo_to_correct_word[typo].append(word)
+
+    total_typos_generated = len(typo_to_correct_word)
+    logging.info(
+        "Generated %d unique synthetic typos before filtering.", total_typos_generated
+    )
+
+    logging.info("Filtering typos against the large dictionary...")
+    filter_start_time = time.perf_counter()
+    filtered_typo_to_correct_word = {}
+    filtered_typos_count = 0
+
+    for typo, correct_words in typo_to_correct_word.items():
+        if typo in all_words:
+            filtered_typos_count += 1
+            logging.debug(
+                "Filtered out typo '%s' as it exists in the large dictionary.", typo
+            )
+            continue
+        filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
+
+    final_typo_count = len(filtered_typo_to_correct_word)
+    filter_duration = time.perf_counter() - filter_start_time
+    logging.info(
+        "After filtering, %d typos remain (filtered out %d typos) in %.2f seconds.",
+        final_typo_count,
+        filtered_typos_count,
+        filter_duration,
+    )
+
+    sorted_typos = sorted(filtered_typo_to_correct_word.items())
+    return dict(sorted_typos)
+
+
 def main():
     """
     Main function to generate synthetic typos and save them to a file based on YAML configuration.
@@ -382,175 +555,54 @@ def main():
     # Validate configuration
     validate_config(config)
 
-    # Extract configuration parameters
-    input_file = config.get('input_file', 'wordlist_small.txt')
-    dictionary_file = config.get('dictionary_file', 'wordlist_large.txt')
-    output_file = config.get('output_file', 'typos_mega.toml')
-    output_format = config.get('output_format', 'table').lower()
-    output_header = config.get('output_header')
-
-    # Validate output format
-    valid_formats = {'arrow', 'csv', 'table', 'list'}
-    if output_format not in valid_formats:
-        logging.warning(f"Unknown output format '{output_format}'. Defaulting to 'arrow'.")
-        output_format = 'arrow'
-
-    if output_header is None and output_format == 'table':
-        output_header = "[default.extend-words]"
-
-    typo_types = config['typo_types']
-    replacement_options = config.get(
-        'replacement_options',
-        {
-            'include_diagonals': True,
-            'enable_adjacent_substitutions': True,
-            'enable_custom_substitutions': True,
-        },
-    )
-    include_diagonals = replacement_options.get('include_diagonals', True)
-    enable_adjacent_substitutions = replacement_options.get(
-        'enable_adjacent_substitutions', True
-    )
-    enable_custom_substitutions = replacement_options.get(
-        'enable_custom_substitutions', True
-    )
-
-    transposition_options = config.get('transposition_options', {'distance': 1})
-    transposition_distance = transposition_options.get('distance', 1)
-
-    # How many times to repeat typo generation, stacking modifications
-    repeat_modifications = int(config.get('repeat_modifications', 1))
-    if repeat_modifications < 1:
-        repeat_modifications = 1
-
-    custom_subs = (
-        load_custom_substitutions(config.get('custom_substitutions', {}))
-        if enable_custom_substitutions
-        else {}
-    )
-
-    word_length = config.get('word_length', {'min_length': 8, 'max_length': None})
-    min_length = word_length.get('min_length', 8)
-    max_length = word_length.get('max_length', None)
+    settings = _extract_config_settings(config)
 
     # Load words and dictionary using the modified load_file function
     logging.info("Loading wordlist (small dictionary)...")
-    word_set = load_file(input_file)
+    word_set = load_file(settings.input_file)
     word_list = list(word_set)  # Convert set to list if needed
-    logging.info(f"Loaded {len(word_list)} words from the small dictionary ('{input_file}').")
-
-    logging.info("Loading dictionary (large dictionary)...")
-    allwords = set(load_file(dictionary_file))
-    logging.info(f"Loaded {len(allwords)} words from the large dictionary ('{dictionary_file}').")
-
-    # Load custom substitutions
-    logging.info("Loading custom substitutions...")
-    if not enable_custom_substitutions:
-        logging.info("Custom substitutions disabled.")
-    elif custom_subs:
-        total_custom_entries = len(custom_subs)
-        total_custom_replacements = sum(len(v) for v in custom_subs.values())
-        logging.info(
-            f"Loaded {total_custom_entries} custom substitution entries with a total of {total_custom_replacements} replacements."
-        )
-    else:
-        logging.info("No custom substitutions loaded.")
-
-    # Get adjacent keys
-    if enable_adjacent_substitutions:
-        logging.info("Generating adjacent keys mapping...")
-        adjacent_keys = get_adjacent_keys(include_diagonals)
-        total_adjacent_mappings = len(adjacent_keys)
-
-        # Calculate total non-reflexive adjacent substitutions (a->s is different from s->a)
-        adjacent_substitutions = set()
-        for char, adj_set in adjacent_keys.items():
-            for adj_char in adj_set:
-                adjacent_substitutions.add((char, adj_char))
-        total_adjacent_substitutions = len(adjacent_substitutions)
-        logging.info(
-            f"Generated adjacent keys for {total_adjacent_mappings} characters with {total_adjacent_substitutions} unique adjacent substitutions (non-reflexive)."
-        )
-    else:
-        adjacent_keys = {}
-        logging.info("Adjacent substitutions disabled.")
-
-    # Generate typos
-    logging.info("Generating synthetic typos...")
-    typo_to_correct_word = defaultdict(list)  # Using defaultdict to handle multiple correct words for the same typo
-
-    for word in tqdm(word_list, desc="Processing words"):
-        word_len = len(word)
-        if word_len < min_length:
-            continue
-        if max_length and word_len > max_length:
-            continue
-
-        typos_current = {word}
-        accumulated_typos = set()
-        for _ in range(repeat_modifications):
-            new_typos = set()
-            for base_word in typos_current:
-                new_typos.update(
-                    generate_all_typos(
-                        base_word,
-                        adjacent_keys,
-                        custom_subs,
-                        typo_types,
-                        transposition_distance,
-                        enable_adjacent_substitutions,
-                        enable_custom_substitutions,
-                    )
-                )
-            accumulated_typos.update(new_typos)
-            typos_current = new_typos
-        for typo in accumulated_typos:
-            typo_to_correct_word[typo].append(word)
-
-    total_typos_generated = len(typo_to_correct_word)
-    logging.info(f"Generated {total_typos_generated} unique synthetic typos before filtering.")
-
-    # Centralized Filtering: Remove typos that are in the large dictionary
-    logging.info("Filtering typos against the large dictionary...")
-    filter_start_time = time.perf_counter()
-    filtered_typo_to_correct_word = {}
-    filtered_typos_count = 0
-
-    for typo, correct_words in typo_to_correct_word.items():
-        if typo in allwords:
-            filtered_typos_count += 1
-            logging.debug(f"Filtered out typo '{typo}' as it exists in the large dictionary.")
-            continue
-        # If multiple correct words map to the same typo, join them with commas
-        filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
-
-    final_typo_count = len(filtered_typo_to_correct_word)
-    filter_duration = time.perf_counter() - filter_start_time
     logging.info(
-        f"After filtering, {final_typo_count} typos remain (filtered out {filtered_typos_count} typos) "
-        f"in {filter_duration:.2f} seconds."
+        "Loaded %d words from the small dictionary ('%s').",
+        len(word_list),
+        settings.input_file,
     )
 
-    # Sort typos for consistency
-    sorted_typos = sorted(filtered_typo_to_correct_word.items())
+    logging.info("Loading dictionary (large dictionary)...")
+    all_words = set(load_file(settings.dictionary_file))
+    logging.info(
+        "Loaded %d words from the large dictionary ('%s').",
+        len(all_words),
+        settings.dictionary_file,
+    )
 
-    # Convert sorted typos back to a dictionary
-    sorted_typo_dict = dict(sorted_typos)
+    adjacent_keys, custom_subs = _setup_generation_tools(settings)
+
+    sorted_typo_dict = _run_typo_generation(
+        word_list,
+        all_words,
+        settings,
+        adjacent_keys,
+        custom_subs,
+    )
 
     # Format typos based on the selected output format
-    logging.info(f"Formatting typos in '{output_format}' format...")
-    formatted_typos = format_typos(sorted_typo_dict, output_format)
+    logging.info("Formatting typos in '%s' format...", settings.output_format)
+    formatted_typos = format_typos(sorted_typo_dict, settings.output_format)
 
     # Write to output file
     try:
-        with open(output_file, 'w', encoding='utf-8') as file:
-            if output_header:
-                file.write(output_header + "\n")
+        with open(settings.output_file, 'w', encoding='utf-8') as file:
+            if settings.output_header:
+                file.write(settings.output_header + "\n")
             for typo in formatted_typos:
                 file.write(f"{typo}\n")
-        logging.info(f"Successfully generated {len(formatted_typos)} synthetic typos and saved to '{output_file}'.")
+        logging.info(
+            "Successfully generated %d synthetic typos and saved to '%s'.",
+            len(formatted_typos),
+            settings.output_file,
+        )
     except Exception as e:
-        logging.error(f"Error writing to '{output_file}': {e}")
+        logging.error("Error writing to '%s': %s", settings.output_file, e)
         sys.exit(1)
 
 

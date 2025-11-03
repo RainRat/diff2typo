@@ -34,6 +34,12 @@ def is_one_letter_replacement(typo, correction, allow_two_char=False):
 
     # One-to-two replacement scenario allowed only if difference in length is 1
     if allow_two_char and len(typo) == len(correction) + 1:
+        # First, check for the specific case of a character being doubled, as this is a common typo.
+        for i in range(len(correction)):
+            if typo == correction[:i] + correction[i] * 2 + correction[i+1:]:
+                return (correction[i], correction[i] * 2)
+
+        # If no doubling is found, check for a generic one-to-two replacement.
         # We want to find a position i where:
         # correction[i] is replaced by two chars in typo at position i and i+1.
         # i.e., correction[i] -> typo[i:i+2]

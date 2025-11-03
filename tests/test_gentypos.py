@@ -1,6 +1,8 @@
+import json
 import sys
 import types
 from pathlib import Path
+
 import pytest
 
 # Provide a minimal stub for the yaml module used by gentypos
@@ -47,3 +49,99 @@ def test_format_typos():
     assert gentypos.format_typos(mapping, 'csv') == ['teh,the']
     assert gentypos.format_typos(mapping, 'table') == ['teh = "the"']
     assert gentypos.format_typos(mapping, 'list') == ['teh']
+
+
+def test_load_file_missing(tmp_path):
+    with pytest.raises(SystemExit):
+        gentypos.load_file(str(tmp_path / 'missing.txt'))
+
+
+def test_parse_yaml_config_missing(tmp_path):
+    with pytest.raises(SystemExit):
+        gentypos.parse_yaml_config(str(tmp_path / 'missing.yaml'))
+
+
+def test_parse_yaml_config_malformed(tmp_path, monkeypatch):
+    bad_file = tmp_path / 'bad.yaml'
+    bad_file.write_text('::bad yaml::')
+
+    def bad_loader(stream):
+        raise gentypos.yaml.YAMLError('boom')
+
+    monkeypatch.setattr(gentypos.yaml, 'safe_load', bad_loader)
+
+    with pytest.raises(SystemExit):
+        gentypos.parse_yaml_config(str(bad_file))
+
+
+def test_validate_config_missing_field():
+    config = {
+        'dictionary_file': 'dict.txt',
+        'output_file': 'out.txt',
+        'output_format': 'list',
+        'typo_types': {},
+    }
+
+    with pytest.raises(SystemExit):
+        gentypos.validate_config(config)
+
+
+def test_run_typo_generation_filters_existing_words(monkeypatch):
+    monkeypatch.setattr(gentypos, 'tqdm', lambda iterable, *_, **__: iterable)
+
+    settings = types.SimpleNamespace(
+        min_length=1,
+        max_length=None,
+        typo_types={'deletion': False, 'transposition': False, 'replacement': True, 'duplication': False},
+        transposition_distance=1,
+        repeat_modifications=1,
+        enable_adjacent_substitutions=True,
+        enable_custom_substitutions=False,
+    )
+
+    adjacent_keys = {'c': {'b', 'x'}, 'a': set(), 't': set()}
+
+    result = gentypos._run_typo_generation(['cat'], {'bat'}, settings, adjacent_keys, {})
+
+    assert 'bat' not in result
+    assert result == {'xat': 'cat'}
+
+
+def test_main_integration_success(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(gentypos, 'tqdm', lambda iterable, *_, **__: iterable)
+
+    input_file = tmp_path / 'input.txt'
+    input_file.write_text('cat\n')
+
+    dictionary_file = tmp_path / 'dictionary.txt'
+    dictionary_file.write_text('dog\n')
+
+    output_file = tmp_path / 'output.txt'
+
+    config_data = {
+        'input_file': str(input_file),
+        'dictionary_file': str(dictionary_file),
+        'output_file': str(output_file),
+        'output_format': 'list',
+        'typo_types': {
+            'duplication': True,
+            'deletion': False,
+            'transposition': False,
+            'replacement': False,
+        },
+        'word_length': {'min_length': 3, 'max_length': None},
+    }
+
+    config_file = tmp_path / 'config.yaml'
+    config_file.write_text(json.dumps(config_data))
+
+    def fake_safe_load(stream):
+        return json.load(stream)
+
+    monkeypatch.setattr(gentypos.yaml, 'safe_load', fake_safe_load)
+    monkeypatch.setattr(sys, 'argv', ['gentypos.py', '--config', str(config_file)])
+
+    gentypos.main()
+
+    assert output_file.read_text().splitlines() == ['caat', 'catt', 'ccat']

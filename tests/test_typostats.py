@@ -49,3 +49,60 @@ def test_generate_report_json(capsys):
         {"correct": "s", "typo": "z", "count": 3},
         {"correct": "e", "typo": "a", "count": 1},
     ]
+
+
+def test_generate_report_yaml_format(capsys):
+    counts = {('c', 'x'): 2, ('a', 'b'): 1}
+    typostats.generate_report(counts, output_format='yaml')
+    output_lines = capsys.readouterr().out.splitlines()
+    assert output_lines == ['  a:', '  - "b"', '  c:', '  - "x"']
+
+
+def test_generate_report_sort_by_typo(capsys):
+    counts = {('b', 'z'): 1, ('a', 'y'): 2, ('a', 'x'): 3}
+    typostats.generate_report(counts, sort_by='typo', output_format='arrow')
+    lines = [line for line in capsys.readouterr().out.splitlines() if line]
+    assert lines[1:] == ['a -> x: 3', 'a -> y: 2', 'b -> z: 1']
+
+
+def test_generate_report_sort_by_correct(capsys):
+    counts = {('b', 'z'): 1, ('a', 'y'): 2, ('c', 'x'): 3}
+    typostats.generate_report(counts, sort_by='correct', output_format='arrow')
+    lines = [line for line in capsys.readouterr().out.splitlines() if line]
+    assert lines[1:] == ['a -> y: 2', 'b -> z: 1', 'c -> x: 3']
+
+
+def test_main_file_not_found(monkeypatch, tmp_path):
+    output_file = tmp_path / 'out.txt'
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['typostats.py', str(tmp_path / 'missing.csv'), '--output', str(output_file)],
+    )
+
+    with pytest.raises(SystemExit):
+        typostats.main()
+
+
+def test_main_encoding_fallback(monkeypatch, tmp_path):
+    input_file = tmp_path / 'latin1.csv'
+    input_file.write_text('fóo,foo\n', encoding='latin1')
+    output_file = tmp_path / 'report.txt'
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'typostats.py',
+            str(input_file),
+            '--output',
+            str(output_file),
+            '--format',
+            'arrow',
+        ],
+    )
+
+    typostats.main()
+
+    assert output_file.exists()

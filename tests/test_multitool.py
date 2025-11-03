@@ -155,3 +155,92 @@ def test_set_operation_mode(tmp_path):
         'difference',
     )
     assert difference_output.read_text().splitlines() == ["alpha"]
+
+
+def test_main_min_length_validation(monkeypatch, tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("data\n")
+    output_file = tmp_path / "output.txt"
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'multitool.py',
+            'line',
+            '--input',
+            str(input_file),
+            '--output',
+            str(output_file),
+            '--min-length',
+            '0',
+            '--max-length',
+            '5',
+        ],
+    )
+
+    with pytest.raises(SystemExit):
+        multitool.main()
+
+
+def test_main_max_less_than_min(monkeypatch, tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("data\n")
+    output_file = tmp_path / "output.txt"
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'multitool.py',
+            'line',
+            '--input',
+            str(input_file),
+            '--output',
+            str(output_file),
+            '--min-length',
+            '5',
+            '--max-length',
+            '4',
+        ],
+    )
+
+    with pytest.raises(SystemExit):
+        multitool.main()
+
+
+def test_main_set_operation_integration(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    file_a = tmp_path / "a.txt"
+    file_b = tmp_path / "b.txt"
+    file_a.write_text("Alpha\nBeta\n")
+    file_b.write_text("beta\nGamma\n")
+
+    output_file = tmp_path / "union.txt"
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'multitool.py',
+            'set_operation',
+            '--input',
+            str(file_a),
+            '--output',
+            str(output_file),
+            '--file2',
+            str(file_b),
+            '--operation',
+            'union',
+            '--min-length',
+            '1',
+            '--max-length',
+            '10',
+            '--process-output',
+        ],
+    )
+
+    multitool.main()
+
+    assert output_file.read_text().splitlines() == ['alpha', 'beta', 'gamma']

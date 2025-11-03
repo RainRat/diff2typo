@@ -1,5 +1,6 @@
 import json
 import sys
+import logging
 import types
 from pathlib import Path
 
@@ -81,6 +82,27 @@ def test_run_command_in_folders_creates_files(tmp_path):
         assert test_file.read_text() == 'test'
 
     assert not (base_dir / excluded / 'test_file.txt').exists()
+
+
+def test_run_command_in_folders_subprocess_failure(tmp_path, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    failing = base_dir / 'failing'
+    failing.mkdir()
+
+    command = "python -c \"import sys; sys.exit(1)\""
+
+    with caplog.at_level(logging.ERROR):
+        cmdrunner.run_command_in_folders(str(base_dir), command)
+
+    assert any("Command failed" in message for message in caplog.messages)
+
+
+def test_run_command_in_folders_invalid_base_dir(tmp_path):
+    missing_dir = tmp_path / 'missing'
+
+    with pytest.raises(SystemExit):
+        cmdrunner.run_command_in_folders(str(missing_dir), 'echo test')
 
 
 def test_run_command_in_folders_dry_run(tmp_path, caplog):
@@ -165,6 +187,30 @@ def test_main_integration_dry_run(tmp_path, monkeypatch, caplog):
 def test_main_missing_config(monkeypatch, tmp_path):
     missing_config = tmp_path / 'missing.yaml'
     monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(missing_config)])
+
+    with pytest.raises(SystemExit):
+        cmdrunner.main()
+
+
+def test_main_missing_base_directory(tmp_path, monkeypatch):
+    config = {'command_to_run': 'echo test'}
+    config_file = tmp_path / 'config_missing_base.yaml'
+    config_file.write_text(yaml.safe_dump(config))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
+
+    with pytest.raises(SystemExit):
+        cmdrunner.main()
+
+
+def test_main_missing_command_to_run(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    config = {'base_directory': str(base_dir)}
+    config_file = tmp_path / 'config_missing_command.yaml'
+    config_file.write_text(yaml.safe_dump(config))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
 
     with pytest.raises(SystemExit):
         cmdrunner.main()

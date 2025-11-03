@@ -106,6 +106,33 @@ def test_format_typos():
     assert diff2typo.format_typos(typos, 'list') == ['teh']
 
 
+def test_filter_known_typos(monkeypatch):
+    candidates = ['eror -> error', 'typo -> type']
+
+    # Mock subprocess.run to simulate the behavior of the typos tool
+    def mock_run(*args, **kwargs):
+        return SimpleNamespace(stdout='Found `eror` typo.')
+
+    monkeypatch.setattr('subprocess.run', mock_run)
+
+    # Create a dummy typos tool executable for path checking
+    Path('typos').touch()
+
+    result = diff2typo.filter_known_typos(candidates, 'typos')
+    assert result == ['typo -> type']
+
+def test_filter_allowed_words():
+    candidates = ['teh -> the', 'mispell -> misspell']
+    allowed_words = {'teh'}
+    result = diff2typo.filter_allowed_words(candidates, allowed_words, quiet=True)
+    assert result == ['mispell -> misspell']
+
+def test_filter_dictionary_words():
+    candidates = ['fluro -> fluoro', 'wierd -> weird']
+    valid_words = {'wierd'}
+    result = diff2typo.filter_dictionary_words(candidates, valid_words, quiet=True)
+    assert result == ['fluro -> fluoro']
+
 def test_process_new_typos(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     allowed = tmp_path / 'allowed.csv'

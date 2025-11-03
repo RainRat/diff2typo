@@ -276,6 +276,108 @@ class TempTypoFile:
                 logging.debug(f"Failed to remove temporary file '{self.path}'.")
 
 
+def filter_known_typos(candidates, typos_tool_path):
+    """
+    Filters out typos that are already known by the 'typos' tool.
+
+    Args:
+        candidates (list): A list of typo candidates in "before -> after" format.
+        typos_tool_path (str): The path to the 'typos' tool executable.
+
+    Returns:
+        list: A filtered list of typo candidates.
+    """
+    with TempTypoFile() as temp_file:
+        try:
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                for typo in candidates:
+                    f.write(f"{typo}\n")
+        except Exception as e:
+            logging.error(f"Error writing to temporary file '{temp_file}': {e}")
+            return candidates
+
+        typos_executable = typos_tool_path
+        if os.name == 'nt' and not typos_tool_path.lower().endswith('.exe'):
+            typos_executable = f"{typos_tool_path}.exe"
+
+        if not os.path.exists(typos_executable):
+            logging.warning(f"Typos tool '{typos_executable}' not found. Skipping known typo filtering.")
+            return candidates
+
+        command = [typos_executable, '--format', 'brief', temp_file]
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+            already_known = extract_backticks(result.stdout)
+            filtered = [
+                line for line in candidates
+                if line.split(' -> ')[0].lower() not in [word.lower() for word in already_known]
+            ]
+            logging.info(f"Filtered out {len(candidates) - len(filtered)} already-known typo(s).")
+            return filtered
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            logging.warning(f"Error running typos tool: {e}. Skipping known typo filtering.")
+            return candidates
+
+def filter_allowed_words(candidates, allowed_words, quiet=False):
+    """
+    Filters out candidates where the 'before' word is in the allowed list.
+
+    Args:
+        candidates (list): A list of typo candidates.
+        allowed_words (set): A set of lowercase allowed words.
+        quiet (bool): If True, suppresses the progress bar.
+
+    Returns:
+        list: A filtered list of typo candidates.
+    """
+    if not allowed_words:
+        return candidates
+
+    filtered_list = []
+    iterator = candidates
+    if not quiet:
+        iterator = tqdm(candidates, desc="Filtering allowed words", unit="typo", leave=False)
+
+    for typo in iterator:
+        if typo.split(' -> ')[0].lower() not in allowed_words:
+            filtered_list.append(typo)
+
+    if not quiet:
+        iterator.close()
+
+    logging.info(f"Excluded {len(candidates) - len(filtered_list)} typo(s) based on allowed words.")
+    return filtered_list
+
+def filter_dictionary_words(candidates, valid_words, quiet=False):
+    """
+    Filters out candidates where the 'before' word is in the dictionary of valid words.
+
+    Args:
+        candidates (list): A list of typo candidates.
+        valid_words (set): A set of lowercase valid words.
+        quiet (bool): If True, suppresses the progress bar.
+
+    Returns:
+        list: A filtered list of typo candidates.
+    """
+    if not valid_words:
+        return candidates
+
+    filtered_list = []
+    iterator = candidates
+    if not quiet:
+        iterator = tqdm(candidates, desc="Filtering dictionary words", unit="typo", leave=False)
+
+    for typo in iterator:
+        if typo.split(' -> ')[0].lower() not in valid_words:
+            filtered_list.append(typo)
+
+    if not quiet:
+        iterator.close()
+
+    logging.info(f"Excluded {len(candidates) - len(filtered_list)} typo(s) based on valid dictionary words.")
+    return filtered_list
+
 def process_new_typos(candidates, args, valid_words):
     """
     Process candidate typos (list of "before -> after") to produce
@@ -285,90 +387,13 @@ def process_new_typos(candidates, args, valid_words):
     words.csv file, where only the correction columns are treated as valid
     words. Returns the formatted list of new typos.
     """
-    filtered_candidates = candidates
-    with TempTypoFile() as temp_file:
-        # Save candidates to a temporary file for the typos tool.
-        try:
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                for typo in candidates:
-                    f.write(f"{typo}\n")
-            logging.info(f"Saved candidate typos to temporary file '{temp_file}'.")
-        except Exception as e:
-            logging.error(f"Error writing to temporary file '{temp_file}': {e}")
-            sys.exit(1)
+    # Pipeline of filtering functions
+    filtered_candidates = filter_known_typos(candidates, args.typos_tool_path)
 
-        # Run the typos tool to filter out already known typos
-        if os.path.exists(args.typos_tool_path) or os.path.exists(f"{args.typos_tool_path}.exe"):
-            # Determine the correct executable based on the operating system
-            if os.name == 'nt' and not args.typos_tool_path.lower().endswith('.exe'):
-                typos_executable = f"{args.typos_tool_path}.exe"
-            else:
-                typos_executable = args.typos_tool_path
-
-            logging.info(f"Running typos tool at '{typos_executable}' to filter known typos...")
-            command = [typos_executable, '--format', 'brief', temp_file]
-            try:
-                result = subprocess.run(command, capture_output=True, text=True)
-                already_known = extract_backticks(result.stdout)
-                # Remove any candidate whose "before" word is in the list of already known typos.
-                filtered_candidates = [
-                    line for line in candidates
-                    if line.split(' -> ')[0].lower() not in [word.lower() for word in already_known]
-                ]
-                logging.info(f"Filtered out {len(already_known)} already-known typo(s).")
-            except subprocess.CalledProcessError:
-                logging.warning("Typos tool returned a non-zero exit status. Skipping known typo filtering.")
-                filtered_candidates = candidates
-            except FileNotFoundError:
-                logging.warning(f"Typos tool '{typos_executable}' not found. Skipping known typo filtering.")
-                filtered_candidates = candidates
-        else:
-            logging.warning(f"Typos tool '{args.typos_tool_path}' not found. Skipping known typo filtering.")
-            filtered_candidates = candidates
-
-    # Filter out allowed words
     allowed_words = read_allowed_words(args.allowed_file)
-    if allowed_words:
-        before_count = len(filtered_candidates)
-        progress = None
-        iterator = filtered_candidates
-        if not getattr(args, 'quiet', False):
-            progress = tqdm(filtered_candidates, desc="Filtering allowed words", unit="typo", leave=False)
-            iterator = progress
-        filtered_list = []
-        for typo in iterator:
-            if typo.split(' -> ')[0].lower() not in allowed_words:
-                filtered_list.append(typo)
-        if progress:
-            progress.close()
-        filtered_candidates = filtered_list
-        logging.info(
-            f"Excluded {before_count - len(filtered_candidates)} typo(s) based on allowed words."
-        )
+    filtered_candidates = filter_allowed_words(filtered_candidates, allowed_words, getattr(args, 'quiet', False))
 
-    # Filter out cases where the "before" word is in the valid dictionary.
-    # It will filter out cases where the "before" word is anywhere in the mapping. Because
-    # for the new typos, you want it to be neither a correct word, nor an already-known typo.
-
-    if valid_words:
-        before_count = len(filtered_candidates)
-        progress = None
-        iterator = filtered_candidates
-        if not getattr(args, 'quiet', False):
-            progress = tqdm(filtered_candidates, desc="Filtering dictionary words", unit="typo", leave=False)
-            iterator = progress
-        filtered_list = []
-        for typo in iterator:
-            if typo.split(' -> ')[0].lower() not in valid_words:
-                filtered_list.append(typo)
-        if progress:
-            progress.close()
-        filtered_candidates = filtered_list
-        logging.info(
-            "Excluded "
-            f"{before_count - len(filtered_candidates)} typo(s) based on valid dictionary words "
-            "(or typos already in words.csv)."
-        )
+    filtered_candidates = filter_dictionary_words(filtered_candidates, valid_words, getattr(args, 'quiet', False))
 
     # Deduplicate and sort.
     filtered_candidates = lowercase_sort_dedup(filtered_candidates)

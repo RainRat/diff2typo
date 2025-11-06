@@ -80,6 +80,29 @@ def test_csv_mode(tmp_path):
     assert output_file2.read_text().splitlines() == ["typo", "word"]
 
 
+def test_csv_mode_delimiter(tmp_path):
+    # Comma-delimited
+    input_comma = tmp_path / "input_comma.csv"
+    input_comma.write_text("typo,correct\nword,another")
+    output_comma = tmp_path / "output_comma.txt"
+    multitool.csv_mode(str(input_comma), str(output_comma), 1, 10, True, delimiter=',')
+    assert output_comma.read_text().splitlines() == ["another", "correct"]
+
+    # Tab-delimited
+    input_tab = tmp_path / "input_tab.tsv"
+    input_tab.write_text("typo\tcorrect\nword\tanother")
+    output_tab = tmp_path / "output_tab.txt"
+    multitool.csv_mode(str(input_tab), str(output_tab), 1, 10, True, delimiter='\t')
+    assert output_tab.read_text().splitlines() == ["another", "correct"]
+
+    # Pipe-delimited
+    input_pipe = tmp_path / "input_pipe.psv"
+    input_pipe.write_text("typo|correct\nword|another")
+    output_pipe = tmp_path / "output_pipe.txt"
+    multitool.csv_mode(str(input_pipe), str(output_pipe), 1, 10, True, delimiter='|')
+    assert output_pipe.read_text().splitlines() == ["another", "correct"]
+
+
 def test_line_mode(tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("Hello\nWorld!\na\n")

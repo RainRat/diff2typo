@@ -6,6 +6,7 @@ import re
 from textwrap import dedent
 from tqdm import tqdm
 import logging
+import ahocorasick
 
 
 def filter_to_letters(text):
@@ -298,20 +299,18 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
             apply_length_filter=False,
         )
 
-        # Remove duplicates to reduce redundant substring checks while keeping
-        # all unique words for comparison.
-        comparison_words = unique_list2
+        # Aho-Corasick automaton for efficient substring matching
+        auto = ahocorasick.Automaton()
+        for keyword in cleaned_list1:
+            auto.add_word(keyword, keyword)
+        auto.make_automaton()
 
-        candidate_words = cleaned_list1
         matched_words = set()
-        for word in tqdm(candidate_words, desc="Finding matches"):
-            for comp in comparison_words:
-                if word in comp:
-                    matched_words.add(word)
-                    break
+        for item in tqdm(unique_list2, desc="Finding matches"):
+            for end_index, keyword in auto.iter(item):
+                matched_words.add(keyword)
 
-        non_matches = [word for word in candidate_words if word not in matched_words]
-
+        non_matches = [word for word in cleaned_list1 if word not in matched_words]
         filtered_items = clean_and_filter(non_matches, min_length, max_length)
 
         if process_output:

@@ -151,11 +151,6 @@ excluded_folders:
   - "venv"
 ```
 
-To run commands in parallel with a timeout, you can use the `--jobs` and `--timeout` arguments:
-
-```bash
-python cmdrunner.py config.yaml --jobs 4 --timeout 60
-```
 
 
 ## Installation

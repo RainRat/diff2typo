@@ -74,6 +74,15 @@ def test_generate_report_yaml_format(capsys):
     assert output_lines == ['  a:', '  - "b"', '  c:', '  - "x"']
 
 
+def test_generate_report_csv(capsys):
+    counts = {('s', 'z'): 3, ('e', 'a'): 1}
+    typostats.generate_report(counts, output_format='csv')
+    captured = capsys.readouterr().out
+    # The csv module in Python uses \r\n for line endings by default
+    expected_csv = "correct_char,typo_char,count\r\ns,z,3\r\ne,a,1\r\n"
+    assert captured == expected_csv
+
+
 def test_generate_report_sort_by_typo(capsys):
     counts = {('b', 'z'): 1, ('a', 'y'): 2, ('a', 'x'): 3}
     typostats.generate_report(counts, sort_by='typo', output_format='arrow')

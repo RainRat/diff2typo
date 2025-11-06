@@ -341,9 +341,6 @@ def format_typos(typo_to_correct_word, output_format):
             formatted.append(f'{typo} = "{correct_word}"')
         elif output_format == 'list':
             formatted.append(f"{typo}")
-        else:
-            # Default to arrow if unknown format
-            formatted.append(f"{typo} -> {correct_word}")
     return formatted
 
 

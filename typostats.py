@@ -2,6 +2,8 @@ from collections import defaultdict
 import json
 import sys
 import logging
+import csv
+import io
 
 def is_one_letter_replacement(typo: str, correction: str, allow_two_char: bool = False):
     """
@@ -127,6 +129,13 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
             for (correct_char, typo_char), count in sorted_replacements
         ]
         report_content = json.dumps({"replacements": replacements}, indent=2)
+    elif output_format == 'csv':
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['correct_char', 'typo_char', 'count'])
+        for (correct_char, typo_char), count in sorted_replacements:
+            writer.writerow([correct_char, typo_char, count])
+        report_content = output.getvalue()
     else:
         # YAML-like
         # Group by correct_char
@@ -149,7 +158,7 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
         except Exception as e:
             logging.error(f"Failed to write report to '{output_file}'. Error: {e}")
     else:
-        print(report_content)
+        print(report_content, end='')
 
 
 def detect_encoding(file_path):
@@ -186,7 +195,7 @@ def main():
     parser.add_argument(
         '-f',
         '--format',
-        choices=['arrow', 'yaml', 'json'],
+        choices=['arrow', 'yaml', 'json', 'csv'],
         default='arrow',
         help=(
             "Output format. 'json' emits {\"replacements\": [{\"correct\", \"typo\", \"count\"}, ...]}"

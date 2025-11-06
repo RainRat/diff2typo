@@ -11,14 +11,30 @@ import typostats
 
 
 def test_is_one_letter_replacement_basic():
-    assert typostats.is_one_letter_replacement('tezt', 'test') == ('s', 'z')
-    assert typostats.is_one_letter_replacement('test', 'test') is None
-    assert typostats.is_one_letter_replacement('abc', 'xyz') is None
+    assert typostats.is_one_letter_replacement('tezt', 'test') == [('s', 'z')]
+    assert typostats.is_one_letter_replacement('test', 'test') == []
+    assert typostats.is_one_letter_replacement('abc', 'xyz') == []
 
 
 def test_is_one_letter_replacement_one_to_two():
-    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=True) == ('a', 'aa')
-    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=False) is None
+    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=True) == [('a', 'aa')]
+    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=False) == []
+
+
+def test_is_one_letter_replacement_multiple_two_char():
+    # Example: cabt -> cat
+    # Two possible interpretations:
+    # 1. 'a' in 'cat' is replaced by 'ab' in 'cabt'
+    # 2. 't' in 'cat' is replaced by 'bt' in 'cabt'
+    assert typostats.is_one_letter_replacement('cabt', 'cat', allow_two_char=True) == [
+        ('a', 'ab'),
+        ('t', 'bt'),
+    ]
+
+
+def test_is_one_letter_replacement_double_letter_exception():
+    # For a doubled letter, we only want to count the doubling as the typo.
+    assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True) == [('a', 'aa')]
 
 
 def test_process_typos_counts_and_filtering():

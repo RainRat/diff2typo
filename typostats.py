@@ -3,15 +3,16 @@ import json
 import sys
 import logging
 
-def is_one_letter_replacement(typo, correction, allow_two_char=False):
+def is_one_letter_replacement(typo: str, correction: str, allow_two_char: bool = False):
     """
-    Check if 'typo' differs from 'correction' by exactly one "letter replacement".
+    Check if 'typo' differs from 'correction' by one or more "letter replacements".
+
     If allow_two_char is True, also check if 'typo' can be formed by replacing a single
     character in 'correction' with two characters in 'typo'.
 
     Returns:
-      (correct_char, typo_char_or_chars) if such a single replacement (one-to-one or one-to-two) is found,
-      otherwise None.
+      A list of (correct_char, typo_char_or_chars) tuples for each found replacement.
+      Returns an empty list if no replacements are found.
 
     correct_char: a single letter from the correction (correct spelling)
     typo_char_or_chars: one or two letters from the typo (incorrect spelling)
@@ -25,38 +26,32 @@ def is_one_letter_replacement(typo, correction, allow_two_char=False):
                 # t_char is from typo, c_char is from correction
                 # We want to store (correct_char, typo_char)
                 differences.append((c_char, t_char))
-                if len(differences) > 1:
-                    return None  # More than one difference
 
         if len(differences) == 1:
-            return differences[0]
-        return None
+            return differences
+        return []
 
     # One-to-two replacement scenario allowed only if difference in length is 1
     if allow_two_char and len(typo) == len(correction) + 1:
         # First, check for the specific case of a character being doubled, as this is a common typo.
         for i in range(len(correction)):
             if typo == correction[:i] + correction[i] * 2 + correction[i+1:]:
-                return (correction[i], correction[i] * 2)
+                return [(correction[i], correction[i] * 2)]
 
         # If no doubling is found, check for a generic one-to-two replacement.
-        # We want to find a position i where:
-        # correction[i] is replaced by two chars in typo at position i and i+1.
-        # i.e., correction[i] -> typo[i:i+2]
-        # and the rest matches appropriately.
+        # Find all positions i where correction[i] is replaced by typo[i:i+2].
+        replacements = []
         for i in range(len(correction)):
-            # Verify matching up to i
-            if typo[:i] != correction[:i]:
-                break
-            # Now check if we can replace correction[i] with typo[i:i+2]
-            # Then correction[i+1:] must match typo[i+2:]
-            if i+1 <= len(correction) and typo[i:i+2] and correction[i+1:] == typo[i+2:]:
-                # correction[i] replaced by typo[i:i+2]
-                return (correction[i], typo[i:i+2])
+            # To be a replacement of correction[i] with typo[i:i+2],
+            # the prefix correction[:i] must match typo[:i], and
+            # the suffix correction[i+1:] must match typo[i+2:].
+            if typo[:i] == correction[:i] and typo[i+2:] == correction[i+1:]:
+                replacements.append((correction[i], typo[i:i+2]))
+        return replacements
 
-    return None
+    return []
 
-def process_typos(lines, allow_two_char):
+def process_typos(lines: list[str], allow_two_char: bool):
     replacement_counts = defaultdict(int)
     for line in lines:
         line = line.strip()
@@ -76,8 +71,8 @@ def process_typos(lines, allow_two_char):
                 continue
             # Now we have: `typo` (incorrect word), `correction` (correct word)
             # Check replacements
-            replacement = is_one_letter_replacement(typo, correction, allow_two_char=allow_two_char)
-            if replacement:
+            replacements = is_one_letter_replacement(typo, correction, allow_two_char=allow_two_char)
+            for replacement in replacements:
                 # replacement is (correct_char, typo_char)
                 replacement_counts[replacement] += 1
     return replacement_counts

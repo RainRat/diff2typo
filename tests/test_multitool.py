@@ -106,6 +106,45 @@ def test_filter_fragments_mode(tmp_path):
     assert output_file.read_text().splitlines() == ["plane"]
 
 
+@pytest.mark.performance
+def test_filter_fragments_mode_performance(tmp_path):
+    # Create large temporary files for performance testing
+    num_words = 1000
+    word_length = 10
+
+    list1_path = tmp_path / "perf_list1.txt"
+    list2_path = tmp_path / "perf_list2.txt"
+    output_path = tmp_path / "perf_output.txt"
+
+    # Generate a list of unique words
+    words1 = {f"word{i}" for i in range(num_words)}
+    # Generate a larger set of words for the second list, ensuring some overlap
+    words2 = {f"longerword{i}" for i in range(num_words * 2)}
+
+    with open(list1_path, "w") as f:
+        for word in words1:
+            f.write(word + "\n")
+
+    with open(list2_path, "w") as f:
+        for word in words2:
+            f.write(word + "\n")
+
+    import time
+
+    start_time = time.time()
+    multitool.filter_fragments_mode(str(list1_path), str(list2_path), str(output_path), 1, 20, True)
+    end_time = time.time()
+
+    duration = end_time - start_time
+    print(f"filter_fragments_mode execution time: {duration:.4f} seconds")
+
+    # This is not a strict performance assertion, but rather a check to ensure
+    # the function completes within a reasonable timeframe. The actual performance
+    # gain is hard to assert without a baseline, but this test will fail on
+    # significant regressions.
+    assert duration < 1.0  # e.g., assert it runs in less than 1 second
+
+
 def test_check_mode(tmp_path):
     csv_file = tmp_path / "typos.csv"
     csv_file.write_text("mispelled,misspelled\nteh,the\nfoo,bar,foo\nbar,foo\n")

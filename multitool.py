@@ -40,7 +40,7 @@ def _load_and_clean_file(path, min_length, max_length, *, split_whitespace=False
                     cleaned_items.append(cleaned)
 
     if apply_length_filter:
-        upper_bound = max_length if max_length is not None else float('inf')
+        upper_bound = max_length
         cleaned_items = [
             item for item in cleaned_items if min_length <= len(item) <= upper_bound
         ]
@@ -85,8 +85,10 @@ def _process_items(extractor_func, input_file, output_file, min_length, max_leng
         logging.info(
             f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'."
         )
+    except FileNotFoundError:
+        logging.error(f"[{mode_name} Mode] Error: Input file not found at '{input_file}'")
     except Exception as e:
-        logging.error(f"[{mode_name} Mode] An error occurred: {e}")
+        logging.error(f"[{mode_name} Mode] An unexpected error occurred: {e}")
 
 
 def _extract_arrow_items(input_file):
@@ -127,10 +129,10 @@ def _extract_backtick_items(input_file):
                 yield selected
 
 
-def _extract_csv_items(input_file, first_column):
+def _extract_csv_items(input_file, first_column, delimiter=','):
     """Yield fields from CSV rows based on column selection."""
     with open(input_file, newline='', encoding='utf-8') as csvfile:
-        reader = csv.reader(csvfile)
+        reader = csv.reader(csvfile, delimiter=delimiter)
         for row in tqdm(reader, desc='Processing CSV rows', unit=' rows'):
             if first_column:
                 if row:
@@ -188,8 +190,10 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
         logging.info(
             f"[Count Mode] Word frequencies have been written to '{output_file}'."
         )
+    except FileNotFoundError:
+        logging.error(f"[Count Mode] Error: Input file not found at '{input_file}'")
     except Exception as e:
-        logging.error(f"[Count Mode] An error occurred: {e}")
+        logging.error(f"[Count Mode] An unexpected error occurred while processing '{input_file}': {e}")
 
 def check_mode(input_file, output_file, min_length, max_length, process_output):
     """
@@ -226,13 +230,15 @@ def check_mode(input_file, output_file, min_length, max_length, process_output):
         logging.info(
             f"[Check Mode] Found {len(filtered_items)} overlapping words. Output written to '{output_file}'."
         )
+    except FileNotFoundError:
+        logging.error(f"[Check Mode] Error: Input file not found at '{input_file}'")
     except Exception as e:
-        logging.error(f"[Check Mode] An error occurred: {e}")
+        logging.error(f"[Check Mode] An unexpected error occurred while processing '{input_file}': {e}")
 
 
-def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False):
+def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False, delimiter=','):
     """Wrapper for extracting fields from CSV files."""
-    extractor = lambda f: _extract_csv_items(f, first_column)
+    extractor = lambda f: _extract_csv_items(f, first_column, delimiter)
     _process_items(extractor, input_file, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.')
 
 
@@ -325,8 +331,10 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
         logging.info(
             f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'."
         )
+    except FileNotFoundError as e:
+        logging.error(f"[FilterFragments Mode] Error: File not found at '{e.filename}'")
     except Exception as e:
-        logging.error(f"[FilterFragments Mode] An error occurred: {e}")
+        logging.error(f"[FilterFragments Mode] An unexpected error occurred: {e}")
 
 
 def set_operation_mode(input_file, file2, output_file, min_length, max_length, process_output, operation):
@@ -361,8 +369,10 @@ def set_operation_mode(input_file, file2, output_file, min_length, max_length, p
             f"[Set Operation Mode] Completed {operation} between '{input_file}' and "
             f"'{file2}'. Output written to '{output_file}'."
         )
+    except FileNotFoundError as e:
+        logging.error(f"[Set Operation Mode] Error: File not found at '{e.filename}'")
     except Exception as e:
-        logging.error(f"[Set Operation Mode] An error occurred: {e}")
+        logging.error(f"[Set Operation Mode] An unexpected error occurred: {e}")
 
 MODE_DETAILS = {
     "arrow": {
@@ -481,6 +491,12 @@ def _build_parser():
         action='store_true',
         help='Extract the first column instead of subsequent columns.',
     )
+    csv_parser.add_argument(
+        '--delimiter',
+        type=str,
+        default=',',
+        help='The delimiter character for CSV files (default: ,).',
+    )
 
     line_parser = subparsers.add_parser(
         'line',
@@ -576,13 +592,14 @@ def main():
         logging.info(f"Set Operation: {args.operation}")
     if args.mode == 'csv':
         logging.info(f"First Column Only: {'Yes' if args.first_column else 'No'}")
+        logging.info(f"Delimiter: '{args.delimiter}'")
 
     if args.mode == 'arrow':
         arrow_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
     elif args.mode == 'backtick':
         backtick_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
     elif args.mode == 'csv':
-        csv_mode(args.input, args.output, args.min_length, args.max_length, args.process_output, args.first_column)
+        csv_mode(args.input, args.output, args.min_length, args.max_length, args.process_output, args.first_column, args.delimiter)
     elif args.mode == 'line':
         line_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
     elif args.mode == 'count':

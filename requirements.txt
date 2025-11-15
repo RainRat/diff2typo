@@ -1,3 +1,4 @@
 ahocorasick
 PyYAML
 pytest
+tqdm

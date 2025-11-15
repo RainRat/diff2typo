@@ -32,9 +32,10 @@ def test_is_one_letter_replacement_multiple_two_char():
     ]
 
 
-def test_is_one_letter_replacement_double_letter_exception():
+def test_is_one_letter_replacement_doubled_letter():
     # For a doubled letter, we only want to count the doubling as the typo.
     assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True) == [('a', 'aa')]
+    assert typostats.is_one_letter_replacement('catt', 'cat', allow_two_char=True) == [('t', 'tt')]
 
 
 def test_process_typos_counts_and_filtering():

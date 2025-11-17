@@ -219,6 +219,24 @@ def test_set_operation_mode(tmp_path):
     assert difference_output.read_text().splitlines() == ["alpha"]
 
 
+def test_set_operation_invalid_operation(tmp_path):
+    file_a = tmp_path / "file_a.txt"
+    file_b = tmp_path / "file_b.txt"
+    file_a.write_text("Alpha\n")
+    file_b.write_text("Beta\n")
+
+    with pytest.raises(ValueError):
+        multitool.set_operation_mode(
+            str(file_a),
+            str(file_b),
+            str(tmp_path / "out.txt"),
+            1,
+            10,
+            False,
+            'invalid',
+        )
+
+
 def test_main_min_length_validation(monkeypatch, tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("data\n")

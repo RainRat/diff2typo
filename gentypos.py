@@ -344,7 +344,7 @@ def format_typos(typo_to_correct_word, output_format):
     return formatted
 
 
-def _extract_config_settings(config):
+def _extract_config_settings(config, quiet=False):
     """Extract validated configuration values into a structured namespace."""
 
     input_file = config.get('input_file', 'wordlist_small.txt')
@@ -404,6 +404,7 @@ def _extract_config_settings(config):
         min_length=min_length,
         max_length=max_length,
         custom_substitutions_config=config.get('custom_substitutions', {}),
+        quiet=quiet,
     )
 
     return settings
@@ -457,7 +458,7 @@ def _run_typo_generation(word_list, all_words, settings, adjacent_keys, custom_s
     logging.info("Generating synthetic typos...")
     typo_to_correct_word = defaultdict(list)
 
-    for word in tqdm(word_list, desc="Processing words"):
+    for word in tqdm(word_list, desc="Processing words", disable=getattr(settings, 'quiet', False)):
         word_len = len(word)
         if word_len < settings.min_length:
             continue
@@ -521,9 +522,6 @@ def main():
     """
     Main function to generate synthetic typos and save them to a file based on YAML configuration.
     """
-    # Configure logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
         description="Synthetic Typo Generator: Generate synthetic typos for a list of words based on YAML configuration."
@@ -537,14 +535,21 @@ def main():
     parser.add_argument(
         '-v', '--verbose',
         action='store_true',
-        help="Enable verbose output."
+        help="Enable verbose output.",
+    )
+    parser.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        help="Suppress progress bars and reduce log verbosity.",
     )
     args = parser.parse_args()
 
-    # Set logging level based on verbose flag
+    log_level = logging.DEBUG if args.verbose else logging.WARNING if args.quiet else logging.INFO
+    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
         logging.debug("Verbose mode enabled.")
+    elif args.quiet:
+        logging.debug("Quiet mode enabled.")
 
     # Load configuration
     config = parse_yaml_config(args.config)
@@ -552,7 +557,7 @@ def main():
     # Validate configuration
     validate_config(config)
 
-    settings = _extract_config_settings(config)
+    settings = _extract_config_settings(config, quiet=args.quiet)
 
     # Load words and dictionary using the modified load_file function
     logging.info("Loading wordlist (small dictionary)...")

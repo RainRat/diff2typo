@@ -62,6 +62,45 @@ def test_load_config_malformed_yaml(tmp_path):
         cmdrunner.load_config(str(bad_file))
 
 
+@pytest.mark.parametrize(
+    "config_data,expected_message",
+    [
+        ({'command_to_run': 'echo test'}, "base_directory"),
+        ({'base_directory': '/tmp'}, "command_to_run"),
+    ],
+)
+def test_load_config_missing_required_fields(tmp_path, caplog, config_data, expected_message):
+    config_file = tmp_path / 'config.yaml'
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit):
+            cmdrunner.load_config(str(config_file))
+
+    assert any(expected_message in message for message in caplog.messages)
+
+
+def test_load_config_invalid_types(tmp_path, caplog):
+    config_file = tmp_path / 'config_invalid.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'base_directory': 123,
+                'command_to_run': ['echo', 'test'],
+                'excluded_folders': 'not-a-list',
+            }
+        )
+    )
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit):
+            cmdrunner.load_config(str(config_file))
+
+    assert any("'base_directory' must be a string" in message for message in caplog.messages)
+    assert any("'command_to_run' must be a string" in message for message in caplog.messages)
+    assert any("must be a list" in message for message in caplog.messages)
+
+
 def test_run_command_in_folders_creates_files(tmp_path):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

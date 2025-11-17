@@ -236,8 +236,6 @@ Each tool has its own set of options. For example:
 
 - **cmdrunner.py:**
   - `config`: Path to the YAML configuration file that lists the base directory, command, and optional exclusions.
-  - `--jobs`: Number of parallel jobs to run.
-  - `--timeout`: Timeout in seconds for each command.
 
 - **multitool.py:**
   - **Sub-commands:**

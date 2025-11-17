@@ -13,13 +13,37 @@ def load_config(config_path: str) -> Dict[str, Any]:
     try:
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
-            return config
     except FileNotFoundError:
         logging.error(f"Configuration file '{config_path}' not found.")
         sys.exit(1)
     except yaml.YAMLError as exc:
         logging.error(f"Error parsing YAML file '{config_path}': {exc}")
         sys.exit(1)
+
+    if not isinstance(config, dict):
+        logging.error(f"Configuration file '{config_path}' is empty or malformed.")
+        sys.exit(1)
+
+    errors = []
+    missing_fields = [field for field in ("base_directory", "command_to_run") if not config.get(field)]
+    if missing_fields:
+        errors.append(f"Missing required configuration field(s): {', '.join(missing_fields)}.")
+
+    if "base_directory" in config and not isinstance(config.get("base_directory"), str):
+        errors.append("'base_directory' must be a string.")
+
+    if "command_to_run" in config and not isinstance(config.get("command_to_run"), str):
+        errors.append("'command_to_run' must be a string.")
+
+    if "excluded_folders" in config and not isinstance(config.get("excluded_folders"), list):
+        errors.append("'excluded_folders' must be a list if provided.")
+
+    if errors:
+        for error in errors:
+            logging.error(error)
+        sys.exit(1)
+
+    return config
 
 def run_command_in_folders(base_dir: str, command: str, excluded_folders: Optional[List[str]] = None, dry_run: bool = False) -> None:
     """

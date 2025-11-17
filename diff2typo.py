@@ -263,17 +263,29 @@ class TempTypoFile:
     """Context manager that creates and cleans up a temporary typo candidate file."""
 
     def __enter__(self):
-        handle = tempfile.NamedTemporaryFile(prefix="typos_", suffix=".txt", delete=False)
-        self.path = handle.name
-        handle.close()
+        self._handle = tempfile.NamedTemporaryFile(
+            prefix="typos_", suffix=".txt", delete=False
+        )
+        self.path = self._handle.name
+        self._handle.close()
         return self.path
 
     def __exit__(self, exc_type, exc, exc_tb):
+        if getattr(self, "_handle", None) and not self._handle.closed:
+            try:
+                self._handle.close()
+            except Exception as close_error:  # pragma: no cover - extremely unlikely
+                logging.debug(
+                    f"Failed to close temporary file handle '{self.path}': {close_error}"
+                )
+
         if getattr(self, "path", None) and os.path.exists(self.path):
             try:
                 os.remove(self.path)
-            except OSError:
-                logging.debug(f"Failed to remove temporary file '{self.path}'.")
+            except OSError as remove_error:
+                logging.error(
+                    f"Failed to remove temporary file '{self.path}': {remove_error}"
+                )
 
 
 def filter_known_typos(candidates, typos_tool_path):
@@ -318,6 +330,32 @@ def filter_known_typos(candidates, typos_tool_path):
             logging.warning(f"Error running typos tool: {e}. Skipping known typo filtering.")
             return candidates
 
+def _filter_candidates_by_set(candidates, filter_set, desc, quiet=False):
+    """Return candidate typos whose ``before`` word is not in ``filter_set``."""
+
+    if not filter_set:
+        return candidates
+
+    filtered_list = []
+    progress = None
+    iterator = candidates
+    if not quiet:
+        progress = tqdm(candidates, desc=desc, unit="typo", leave=False)
+        iterator = progress
+
+    for typo in iterator:
+        if typo.split(' -> ')[0].lower() not in filter_set:
+            filtered_list.append(typo)
+
+    if progress:
+        progress.close()
+
+    logging.info(
+        f"Excluded {len(candidates) - len(filtered_list)} typo(s) based on {desc.lower()}."
+    )
+    return filtered_list
+
+
 def filter_allowed_words(candidates, allowed_words, quiet=False):
     """
     Filters out candidates where the 'before' word is in the allowed list.
@@ -330,23 +368,10 @@ def filter_allowed_words(candidates, allowed_words, quiet=False):
     Returns:
         list: A filtered list of typo candidates.
     """
-    if not allowed_words:
-        return candidates
+    return _filter_candidates_by_set(
+        candidates, allowed_words, "Filtering allowed words", quiet
+    )
 
-    filtered_list = []
-    iterator = candidates
-    if not quiet:
-        iterator = tqdm(candidates, desc="Filtering allowed words", unit="typo", leave=False)
-
-    for typo in iterator:
-        if typo.split(' -> ')[0].lower() not in allowed_words:
-            filtered_list.append(typo)
-
-    if not quiet:
-        iterator.close()
-
-    logging.info(f"Excluded {len(candidates) - len(filtered_list)} typo(s) based on allowed words.")
-    return filtered_list
 
 def filter_dictionary_words(candidates, valid_words, quiet=False):
     """
@@ -360,25 +385,11 @@ def filter_dictionary_words(candidates, valid_words, quiet=False):
     Returns:
         list: A filtered list of typo candidates.
     """
-    if not valid_words:
-        return candidates
+    return _filter_candidates_by_set(
+        candidates, valid_words, "Filtering dictionary words", quiet
+    )
 
-    filtered_list = []
-    iterator = candidates
-    if not quiet:
-        iterator = tqdm(candidates, desc="Filtering dictionary words", unit="typo", leave=False)
-
-    for typo in iterator:
-        if typo.split(' -> ')[0].lower() not in valid_words:
-            filtered_list.append(typo)
-
-    if not quiet:
-        iterator.close()
-
-    logging.info(f"Excluded {len(candidates) - len(filtered_list)} typo(s) based on valid dictionary words.")
-    return filtered_list
-
-def process_new_typos(candidates, args, valid_words):
+def process_new_typos(candidates, args, valid_words, allowed_words):
     """
     Process candidate typos (list of "before -> after") to produce
     new typos—that is, typo corrections not already registered by the typos tool.
@@ -390,8 +401,9 @@ def process_new_typos(candidates, args, valid_words):
     # Pipeline of filtering functions
     filtered_candidates = filter_known_typos(candidates, args.typos_tool_path)
 
-    allowed_words = read_allowed_words(args.allowed_file)
-    filtered_candidates = filter_allowed_words(filtered_candidates, allowed_words, getattr(args, 'quiet', False))
+    filtered_candidates = filter_allowed_words(
+        filtered_candidates, allowed_words, getattr(args, 'quiet', False)
+    )
 
     filtered_candidates = filter_dictionary_words(filtered_candidates, valid_words, getattr(args, 'quiet', False))
 
@@ -467,6 +479,15 @@ def main():
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+    valid_output_formats = {'arrow', 'csv', 'table', 'list'}
+    if args.output_format not in valid_output_formats:
+        logging.error(
+            "Invalid output_format '%s'. Choose from: %s.",
+            args.output_format,
+            ", ".join(sorted(valid_output_formats)),
+        )
+        sys.exit(2)
+
     logging.info("Starting typo extraction process...")
 
     # Read the diff file or stdin.
@@ -489,7 +510,29 @@ def main():
             sys.exit(1)
 
     # Load the dictionary (words mapping) once.
-    dictionary_mapping = read_words_mapping(args.dictionary_file)
+    if not os.path.exists(args.dictionary_file):
+        logging.error(
+            "Dictionary file '%s' not found. Please create it or specify a different file with --dictionary_file.",
+            args.dictionary_file,
+        )
+        sys.exit(1)
+
+    try:
+        dictionary_mapping = read_words_mapping(args.dictionary_file)
+    except SystemExit:
+        logging.error(
+            "Unable to read dictionary file '%s'. Please verify the file format and permissions.",
+            args.dictionary_file,
+        )
+        sys.exit(1)
+
+    try:
+        allowed_words = read_allowed_words(args.allowed_file)
+    except Exception as exc:
+        logging.error(
+            "Failed to read allowed words file '%s': %s", args.allowed_file, exc
+        )
+        sys.exit(1)
     # Build a set of valid words. For simple word lists, each entry is treated as
     # valid. For words.csv files, only the corrections (columns after the first)
     # are considered valid dictionary words.
@@ -513,7 +556,7 @@ def main():
     # Process new typos if requested.
     if args.mode in ['typos', 'both']:
         logging.info("Processing new typos (filtering out known typos)...")
-        new_typos_result = process_new_typos(candidates, args, valid_words)
+        new_typos_result = process_new_typos(candidates, args, valid_words, allowed_words)
         logging.info(f"Found {len(new_typos_result)} new typo(s).")
 
     # Process new corrections if requested.

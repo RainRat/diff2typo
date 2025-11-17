@@ -71,10 +71,10 @@ def print_processing_stats(raw_item_count, filtered_items, item_label="item"):
         logging.info(f"  No {item_label_plural} passed the filtering criteria.")
 
 
-def _process_items(extractor_func, input_file, output_file, min_length, max_length, process_output, mode_name, success_msg):
+def _process_items(extractor_func, input_file, output_file, min_length, max_length, process_output, mode_name, success_msg, quiet=False):
     """Generic processing for modes that extract raw string items from a file."""
     try:
-        raw_items = list(extractor_func(input_file))
+        raw_items = list(extractor_func(input_file, quiet=quiet))
         filtered_items = clean_and_filter(raw_items, min_length, max_length)
         if process_output:
             filtered_items = sorted(set(filtered_items))
@@ -91,21 +91,21 @@ def _process_items(extractor_func, input_file, output_file, min_length, max_leng
         logging.error(f"[{mode_name} Mode] An unexpected error occurred: {e}")
 
 
-def _extract_arrow_items(input_file):
+def _extract_arrow_items(input_file, quiet=False):
     """Yield text before ' -> ' from each line."""
     with open(input_file, 'r', encoding='utf-8') as infile:
-        for line in tqdm(infile, desc='Processing lines (arrow mode)', unit=' lines'):
+        for line in tqdm(infile, desc='Processing lines (arrow mode)', unit=' lines', disable=quiet):
             if " -> " in line:
                 yield line.split(" -> ", 1)[0].strip()
 
 
-def _extract_backtick_items(input_file):
+def _extract_backtick_items(input_file, quiet=False):
     """Yield text found between backticks with heuristics for diagnostics."""
 
     context_markers = ("error:", "warning:", "note:")
 
     with open(input_file, 'r', encoding='utf-8') as infile:
-        for line in tqdm(infile, desc='Processing lines (backtick mode)', unit=' lines'):
+        for line in tqdm(infile, desc='Processing lines (backtick mode)', unit=' lines', disable=quiet):
             # Split the line on backticks to inspect the surrounding context of
             # each candidate substring. This helps avoid extracting identifiers
             # from file paths when a later pair of backticks contains the actual
@@ -129,11 +129,11 @@ def _extract_backtick_items(input_file):
                 yield selected
 
 
-def _extract_csv_items(input_file, first_column, delimiter=','):
+def _extract_csv_items(input_file, first_column, delimiter=',', quiet=False):
     """Yield fields from CSV rows based on column selection."""
     with open(input_file, newline='', encoding='utf-8') as csvfile:
         reader = csv.reader(csvfile, delimiter=delimiter)
-        for row in tqdm(reader, desc='Processing CSV rows', unit=' rows'):
+        for row in tqdm(reader, desc='Processing CSV rows', unit=' rows', disable=quiet):
             if first_column:
                 if row:
                     yield row[0].strip()
@@ -143,23 +143,23 @@ def _extract_csv_items(input_file, first_column, delimiter=','):
                         yield field.strip()
 
 
-def _extract_line_items(input_file):
+def _extract_line_items(input_file, quiet=False):
     """Yield each line from the file."""
     with open(input_file, 'r', encoding='utf-8') as infile:
-        for line in tqdm(infile, desc='Processing lines (line mode)', unit=' lines'):
+        for line in tqdm(infile, desc='Processing lines (line mode)', unit=' lines', disable=quiet):
             yield line.rstrip('\n')
 
 
-def arrow_mode(input_file, output_file, min_length, max_length, process_output):
+def arrow_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
     """Wrapper for processing items separated by ' -> '."""
-    _process_items(_extract_arrow_items, input_file, output_file, min_length, max_length, process_output, 'Arrow', 'File processed successfully.')
+    _process_items(_extract_arrow_items, input_file, output_file, min_length, max_length, process_output, 'Arrow', 'File processed successfully.', quiet)
 
 
-def backtick_mode(input_file, output_file, min_length, max_length, process_output):
+def backtick_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
     """Wrapper for extracting text between backticks."""
-    _process_items(_extract_backtick_items, input_file, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.')
+    _process_items(_extract_backtick_items, input_file, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', quiet)
 
-def count_mode(input_file, output_file, min_length, max_length, process_output):
+def count_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
     """
     Counts the frequency of each word in the input file and writes the
     sorted results to the output file. Only words with length between
@@ -172,7 +172,7 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
         filtered_words = []
         word_counts = Counter()
         with open(input_file, 'r', encoding='utf-8') as file:
-            for line in tqdm(file, desc='Counting words', unit=' lines'):
+            for line in tqdm(file, desc='Counting words', unit=' lines', disable=quiet):
                 words = [word.strip() for word in line.split()]
                 raw_count += len(words)
                 filtered = []
@@ -195,7 +195,7 @@ def count_mode(input_file, output_file, min_length, max_length, process_output):
     except Exception as e:
         logging.error(f"[Count Mode] An unexpected error occurred while processing '{input_file}': {e}")
 
-def check_mode(input_file, output_file, min_length, max_length, process_output):
+def check_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
     """
     Checks a CSV file of typos and corrections for any words that appear
     as both a typo and a correction anywhere in the file. The CSV is
@@ -211,7 +211,7 @@ def check_mode(input_file, output_file, min_length, max_length, process_output):
         corrections = set()
         with open(input_file, newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
-            for row in tqdm(reader, desc='Checking CSV for overlaps', unit=' rows'):
+            for row in tqdm(reader, desc='Checking CSV for overlaps', unit=' rows', disable=quiet):
                 if not row:
                     continue
                 typos.add(row[0].strip())
@@ -236,15 +236,15 @@ def check_mode(input_file, output_file, min_length, max_length, process_output):
         logging.error(f"[Check Mode] An unexpected error occurred while processing '{input_file}': {e}")
 
 
-def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False, delimiter=','):
+def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False, delimiter=',', quiet=False):
     """Wrapper for extracting fields from CSV files."""
-    extractor = lambda f: _extract_csv_items(f, first_column, delimiter)
-    _process_items(extractor, input_file, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.')
+    extractor = lambda f, quiet=False: _extract_csv_items(f, first_column, delimiter, quiet=quiet)
+    _process_items(extractor, input_file, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.', quiet)
 
 
-def line_mode(input_file, output_file, min_length, max_length, process_output):
+def line_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
     """Wrapper for processing raw lines from a file."""
-    _process_items(_extract_line_items, input_file, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.')
+    _process_items(_extract_line_items, input_file, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', quiet)
 
 def _add_common_mode_arguments(subparser, include_process_output=True):
     """Attach shared CLI arguments to a mode-specific subparser."""
@@ -282,7 +282,7 @@ def _add_common_mode_arguments(subparser, include_process_output=True):
         subparser.set_defaults(process_output=False)
 
 
-def filter_fragments_mode(input_file, file2, output_file, min_length, max_length, process_output):
+def filter_fragments_mode(input_file, file2, output_file, min_length, max_length, process_output, quiet=False):
     """
     Filters words from input_file (list1) that do not appear as substrings of any
     word in file2 (list2).
@@ -312,7 +312,7 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
         auto.make_automaton()
 
         matched_words = set()
-        for item in tqdm(unique_list2, desc="Finding matches"):
+        for item in tqdm(unique_list2, desc="Finding matches", disable=quiet):
             for end_index, keyword in auto.iter(item):
                 matched_words.add(keyword)
 
@@ -337,8 +337,13 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
         logging.error(f"[FilterFragments Mode] An unexpected error occurred: {e}")
 
 
-def set_operation_mode(input_file, file2, output_file, min_length, max_length, process_output, operation):
+def set_operation_mode(input_file, file2, output_file, min_length, max_length, process_output, operation, quiet=False):
     """Perform set operations (intersection, union, difference) between two files."""
+    allowed_operations = {'intersection', 'union', 'difference'}
+    if operation not in allowed_operations:
+        raise ValueError(
+            f"Invalid operation '{operation}'. Must be one of: {', '.join(sorted(allowed_operations))}."
+        )
 
     try:
         raw_items_a, _, unique_a = _load_and_clean_file(
@@ -461,6 +466,12 @@ def _build_parser():
         help="Display extended documentation for a specific mode or all modes.",
     )
 
+    parser.add_argument(
+        '--quiet',
+        action='store_true',
+        help='Suppress progress bars and informational log output.',
+    )
+
     subparsers = parser.add_subparsers(dest='mode', required=True, metavar='mode')
 
     arrow_parser = subparsers.add_parser(
@@ -565,7 +576,8 @@ def main():
 
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    log_level = logging.WARNING if args.quiet else logging.INFO
+    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
 
     if args.min_length < 1:
         logging.error("[Error] --min-length must be a positive integer.")
@@ -586,38 +598,54 @@ def main():
             f"Process Output: {'Enabled' if args.process_output else 'Disabled'}"
         )
 
-    if args.mode in {'filterfragments', 'set_operation'}:
-        logging.info(f"File2: {args.file2}")
-    if args.mode == 'set_operation':
-        logging.info(f"Set Operation: {args.operation}")
-    if args.mode == 'csv':
-        logging.info(f"First Column Only: {'Yes' if args.first_column else 'No'}")
-        logging.info(f"Delimiter: '{args.delimiter}'")
+    file2 = getattr(args, 'file2', None)
+    operation = getattr(args, 'operation', None)
+    first_column = getattr(args, 'first_column', False)
+    delimiter = getattr(args, 'delimiter', ',')
 
-    if args.mode == 'arrow':
-        arrow_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
-    elif args.mode == 'backtick':
-        backtick_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
-    elif args.mode == 'csv':
-        csv_mode(args.input, args.output, args.min_length, args.max_length, args.process_output, args.first_column, args.delimiter)
-    elif args.mode == 'line':
-        line_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
-    elif args.mode == 'count':
-        count_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
-    elif args.mode == 'filterfragments':
-        filter_fragments_mode(args.input, args.file2, args.output, args.min_length, args.max_length, args.process_output)
-    elif args.mode == 'check':
-        check_mode(args.input, args.output, args.min_length, args.max_length, args.process_output)
-    elif args.mode == 'set_operation':
-        set_operation_mode(
-            args.input,
-            args.file2,
-            args.output,
-            args.min_length,
-            args.max_length,
-            args.process_output,
-            args.operation,
-        )
+    if args.mode in {'filterfragments', 'set_operation'} and file2:
+        logging.info(f"File2: {file2}")
+    if args.mode == 'set_operation' and operation:
+        logging.info(f"Set Operation: {operation}")
+    if args.mode == 'csv':
+        logging.info(f"First Column Only: {'Yes' if first_column else 'No'}")
+        logging.info(f"Delimiter: '{delimiter}'")
+
+    common_kwargs = {
+        'input_file': args.input,
+        'output_file': args.output,
+        'min_length': args.min_length,
+        'max_length': args.max_length,
+        'process_output': getattr(args, 'process_output', False),
+        'quiet': args.quiet,
+    }
+
+    handler_map = {
+        'arrow': (arrow_mode, dict(common_kwargs)),
+        'backtick': (backtick_mode, dict(common_kwargs)),
+        'csv': (
+            csv_mode,
+            {
+                **common_kwargs,
+                'first_column': first_column,
+                'delimiter': delimiter,
+            },
+        ),
+        'line': (line_mode, dict(common_kwargs)),
+        'count': (count_mode, dict(common_kwargs)),
+        'filterfragments': (
+            filter_fragments_mode,
+            {**common_kwargs, 'file2': file2},
+        ),
+        'check': (check_mode, dict(common_kwargs)),
+        'set_operation': (
+            set_operation_mode,
+            {**common_kwargs, 'file2': file2, 'operation': operation},
+        ),
+    }
+
+    handler, handler_args = handler_map[args.mode]
+    handler(**handler_args)
 
 
 if __name__ == "__main__":

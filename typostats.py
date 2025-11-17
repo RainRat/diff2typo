@@ -4,8 +4,11 @@ import sys
 import logging
 import csv
 import io
+from typing import Iterable
 
-def is_one_letter_replacement(typo: str, correction: str, allow_two_char: bool = False):
+def is_one_letter_replacement(
+    typo: str, correction: str, allow_two_char: bool = False
+) -> list[tuple[str, str]]:
     """
     Check if 'typo' differs from 'correction' by one or more "letter replacements".
 
@@ -53,7 +56,7 @@ def is_one_letter_replacement(typo: str, correction: str, allow_two_char: bool =
 
     return []
 
-def process_typos(lines: list[str], allow_two_char: bool):
+def process_typos(lines: Iterable[str], allow_two_char: bool) -> dict[tuple[str, str], int]:
     replacement_counts = defaultdict(int)
     for line in lines:
         line = line.strip()
@@ -80,7 +83,13 @@ def process_typos(lines: list[str], allow_two_char: bool):
     return replacement_counts
 
 
-def generate_report(replacement_counts, output_file=None, min_occurrences=1, sort_by='count', output_format='arrow'):
+def generate_report(
+    replacement_counts: dict[tuple[str, str], int],
+    output_file: str | None = None,
+    min_occurrences: int = 1,
+    sort_by: str = 'count',
+    output_format: str = 'arrow',
+) -> None:
     """
     Generate a report.
 
@@ -158,10 +167,11 @@ def generate_report(replacement_counts, output_file=None, min_occurrences=1, sor
         except Exception as e:
             logging.error(f"Failed to write report to '{output_file}'. Error: {e}")
     else:
-        print(report_content, end='')
+        sys.stdout.write(report_content)
+        logging.info("%s", report_content.rstrip("\n"))
 
 
-def detect_encoding(file_path):
+def detect_encoding(file_path: str) -> str | None:
     """
     Attempts to detect the encoding of the given file using chardet.
     """
@@ -184,7 +194,7 @@ def detect_encoding(file_path):
             return None
 
 
-def main():
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Analyze typo corrections and report frequent replacements.")

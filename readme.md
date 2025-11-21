@@ -172,13 +172,15 @@ excluded_folders:
 
 3. **Install Dependencies:**
 
-   Most tools use standard Python libraries. Some tools (like gentypos.py) need extra packages:
+   Most tools use standard Python libraries. Some tools (like `gentypos.py` and the CLI helpers) need extra packages:
 
    ```bash
    pip install tqdm pyyaml
    ```
 
-   The `typostats.py` script can optionally use `chardet` as a fallback when it cannot determine a file's encoding:
+   Optional dependencies:
+
+   - `typostats.py` will try to detect file encodings with `chardet` when it is available and log a warning when it is not.
 
    ```bash
    pip install chardet  # optional

@@ -4,23 +4,31 @@ from collections import Counter
 import sys
 import re
 from textwrap import dedent
+from typing import Callable, Iterable, Sequence
 from tqdm import tqdm
 import logging
 import ahocorasick
 
 
-def filter_to_letters(text):
+def filter_to_letters(text: str) -> str:
     """Return text containing only lowercase a-z characters."""
     return re.sub("[^a-z]", "", text.lower())
 
 
-def clean_and_filter(items, min_length, max_length):
+def clean_and_filter(items: Iterable[str], min_length: int, max_length: int) -> list[str]:
     """Clean items to letters only and apply length filtering."""
     cleaned = [filter_to_letters(item) for item in items]
     return [c for c in cleaned if min_length <= len(c) <= max_length]
 
 
-def _load_and_clean_file(path, min_length, max_length, *, split_whitespace=False, apply_length_filter=True):
+def _load_and_clean_file(
+    path: str,
+    min_length: int,
+    max_length: int,
+    *,
+    split_whitespace: bool = False,
+    apply_length_filter: bool = True,
+) -> tuple[list[str], list[str], list[str]]:
     """Load text items from *path* and normalize them for set-style operations."""
 
     raw_items = []
@@ -49,7 +57,9 @@ def _load_and_clean_file(path, min_length, max_length, *, split_whitespace=False
     return raw_items, cleaned_items, unique_items
 
 
-def print_processing_stats(raw_item_count, filtered_items, item_label="item"):
+def print_processing_stats(
+    raw_item_count: int, filtered_items: Sequence[str], item_label: str = "item"
+) -> None:
     """Print summary statistics for processed text items."""
     item_label_plural = f"{item_label}s"
     logging.info("Statistics:")
@@ -71,7 +81,17 @@ def print_processing_stats(raw_item_count, filtered_items, item_label="item"):
         logging.info(f"  No {item_label_plural} passed the filtering criteria.")
 
 
-def _process_items(extractor_func, input_file, output_file, min_length, max_length, process_output, mode_name, success_msg, quiet=False):
+def _process_items(
+    extractor_func: Callable[[str, bool], Iterable[str]],
+    input_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    mode_name: str,
+    success_msg: str,
+    quiet: bool = False,
+) -> None:
     """Generic processing for modes that extract raw string items from a file."""
     try:
         raw_items = list(extractor_func(input_file, quiet=quiet))
@@ -91,7 +111,7 @@ def _process_items(extractor_func, input_file, output_file, min_length, max_leng
         logging.error(f"[{mode_name} Mode] An unexpected error occurred: {e}")
 
 
-def _extract_arrow_items(input_file, quiet=False):
+def _extract_arrow_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield text before ' -> ' from each line."""
     with open(input_file, 'r', encoding='utf-8') as infile:
         for line in tqdm(infile, desc='Processing lines (arrow mode)', unit=' lines', disable=quiet):
@@ -99,7 +119,7 @@ def _extract_arrow_items(input_file, quiet=False):
                 yield line.split(" -> ", 1)[0].strip()
 
 
-def _extract_backtick_items(input_file, quiet=False):
+def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield text found between backticks with heuristics for diagnostics."""
 
     context_markers = ("error:", "warning:", "note:")
@@ -129,7 +149,9 @@ def _extract_backtick_items(input_file, quiet=False):
                 yield selected
 
 
-def _extract_csv_items(input_file, first_column, delimiter=',', quiet=False):
+def _extract_csv_items(
+    input_file: str, first_column: bool, delimiter: str = ',', quiet: bool = False
+) -> Iterable[str]:
     """Yield fields from CSV rows based on column selection."""
     with open(input_file, newline='', encoding='utf-8') as csvfile:
         reader = csv.reader(csvfile, delimiter=delimiter)
@@ -143,23 +165,44 @@ def _extract_csv_items(input_file, first_column, delimiter=',', quiet=False):
                         yield field.strip()
 
 
-def _extract_line_items(input_file, quiet=False):
+def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield each line from the file."""
     with open(input_file, 'r', encoding='utf-8') as infile:
         for line in tqdm(infile, desc='Processing lines (line mode)', unit=' lines', disable=quiet):
             yield line.rstrip('\n')
 
 
-def arrow_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
+def arrow_mode(
+    input_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+) -> None:
     """Wrapper for processing items separated by ' -> '."""
     _process_items(_extract_arrow_items, input_file, output_file, min_length, max_length, process_output, 'Arrow', 'File processed successfully.', quiet)
 
 
-def backtick_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
+def backtick_mode(
+    input_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+) -> None:
     """Wrapper for extracting text between backticks."""
     _process_items(_extract_backtick_items, input_file, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', quiet)
 
-def count_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
+def count_mode(
+    input_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+) -> None:
     """
     Counts the frequency of each word in the input file and writes the
     sorted results to the output file. Only words with length between
@@ -195,7 +238,14 @@ def count_mode(input_file, output_file, min_length, max_length, process_output, 
     except Exception as e:
         logging.error(f"[Count Mode] An unexpected error occurred while processing '{input_file}': {e}")
 
-def check_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
+def check_mode(
+    input_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+) -> None:
     """
     Checks a CSV file of typos and corrections for any words that appear
     as both a typo and a correction anywhere in the file. The CSV is
@@ -236,17 +286,35 @@ def check_mode(input_file, output_file, min_length, max_length, process_output, 
         logging.error(f"[Check Mode] An unexpected error occurred while processing '{input_file}': {e}")
 
 
-def csv_mode(input_file, output_file, min_length, max_length, process_output, first_column=False, delimiter=',', quiet=False):
+def csv_mode(
+    input_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    first_column: bool = False,
+    delimiter: str = ',',
+    quiet: bool = False,
+) -> None:
     """Wrapper for extracting fields from CSV files."""
     extractor = lambda f, quiet=False: _extract_csv_items(f, first_column, delimiter, quiet=quiet)
     _process_items(extractor, input_file, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.', quiet)
 
 
-def line_mode(input_file, output_file, min_length, max_length, process_output, quiet=False):
+def line_mode(
+    input_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+) -> None:
     """Wrapper for processing raw lines from a file."""
     _process_items(_extract_line_items, input_file, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', quiet)
 
-def _add_common_mode_arguments(subparser, include_process_output=True):
+def _add_common_mode_arguments(
+    subparser: argparse.ArgumentParser, include_process_output: bool = True
+) -> None:
     """Attach shared CLI arguments to a mode-specific subparser."""
     subparser.add_argument(
         '--input',
@@ -282,7 +350,15 @@ def _add_common_mode_arguments(subparser, include_process_output=True):
         subparser.set_defaults(process_output=False)
 
 
-def filter_fragments_mode(input_file, file2, output_file, min_length, max_length, process_output, quiet=False):
+def filter_fragments_mode(
+    input_file: str,
+    file2: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+) -> None:
     """
     Filters words from input_file (list1) that do not appear as substrings of any
     word in file2 (list2).
@@ -337,7 +413,16 @@ def filter_fragments_mode(input_file, file2, output_file, min_length, max_length
         logging.error(f"[FilterFragments Mode] An unexpected error occurred: {e}")
 
 
-def set_operation_mode(input_file, file2, output_file, min_length, max_length, process_output, operation, quiet=False):
+def set_operation_mode(
+    input_file: str,
+    file2: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    operation: str,
+    quiet: bool = False,
+) -> None:
     """Perform set operations (intersection, union, difference) between two files."""
     allowed_operations = {'intersection', 'union', 'difference'}
     if operation not in allowed_operations:
@@ -426,7 +511,13 @@ MODE_DETAILS = {
 class ModeHelpAction(argparse.Action):
     """Custom argparse action that prints detailed help for one or all modes."""
 
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: str | None,
+        option_string: str | None = None,
+    ) -> None:
         modes_to_show = MODE_DETAILS.keys() if values in (None, "all") else [values]
         help_blocks = []
         for mode in modes_to_show:
@@ -444,7 +535,7 @@ class ModeHelpAction(argparse.Action):
         parser.exit(message=f"\n{message}\n\n")
 
 
-def _build_parser():
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Multipurpose File Processing Tool",
         epilog=dedent(
@@ -571,7 +662,7 @@ def _build_parser():
     return parser
 
 
-def main():
+def main() -> None:
     parser = _build_parser()
 
     args = parser.parse_args()

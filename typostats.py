@@ -6,6 +6,14 @@ import csv
 import io
 from typing import Iterable
 
+try:
+    import chardet  # type: ignore
+
+    _CHARDET_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    chardet = None
+    _CHARDET_AVAILABLE = False
+
 def is_one_letter_replacement(
     typo: str, correction: str, allow_two_char: bool = False
 ) -> list[tuple[str, str]]:
@@ -175,9 +183,7 @@ def detect_encoding(file_path: str) -> str | None:
     """
     Attempts to detect the encoding of the given file using chardet.
     """
-    try:
-        import chardet
-    except ImportError:
+    if not _CHARDET_AVAILABLE:
         logging.warning("chardet not installed. Install via 'pip install chardet'.")
         return None
 

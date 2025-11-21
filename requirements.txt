@@ -1,4 +1,4 @@
-ahocorasick
+pyahocorasick
 PyYAML
 pytest
 tqdm

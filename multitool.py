@@ -4,7 +4,7 @@ from collections import Counter
 import sys
 import re
 from textwrap import dedent
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, List, Sequence, Tuple
 from tqdm import tqdm
 import logging
 import ahocorasick
@@ -15,7 +15,7 @@ def filter_to_letters(text: str) -> str:
     return re.sub("[^a-z]", "", text.lower())
 
 
-def clean_and_filter(items: Iterable[str], min_length: int, max_length: int) -> list[str]:
+def clean_and_filter(items: Iterable[str], min_length: int, max_length: int) -> List[str]:
     """Clean items to letters only and apply length filtering."""
     cleaned = [filter_to_letters(item) for item in items]
     return [c for c in cleaned if min_length <= len(c) <= max_length]
@@ -28,7 +28,7 @@ def _load_and_clean_file(
     *,
     split_whitespace: bool = False,
     apply_length_filter: bool = True,
-) -> tuple[list[str], list[str], list[str]]:
+) -> Tuple[List[str], List[str], List[str]]:
     """Load text items from *path* and normalize them for set-style operations."""
 
     raw_items = []

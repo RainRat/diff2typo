@@ -1,34 +1,9 @@
-import json
 import sys
 import logging
-import types
 from pathlib import Path
 
 import pytest
-
-try:
-    import yaml  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover - fallback for environments without PyYAML
-    yaml = types.ModuleType("yaml")
-
-    class YAMLError(Exception):
-        """Fallback YAML error used when PyYAML is unavailable."""
-
-    def safe_dump(data):
-        return json.dumps(data)
-
-    def safe_load(stream):
-        if hasattr(stream, 'read'):
-            stream = stream.read()
-        try:
-            return json.loads(stream)
-        except json.JSONDecodeError as exc:  # pragma: no cover - exercised via malformed test
-            raise YAMLError(str(exc)) from exc
-
-    yaml.safe_dump = safe_dump
-    yaml.safe_load = safe_load
-    yaml.YAMLError = YAMLError
-    sys.modules['yaml'] = yaml
+import yaml
 
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -190,6 +165,39 @@ def test_main_integration(tmp_path, monkeypatch):
         result_file = base_dir / name / 'integration.txt'
         assert result_file.exists()
         assert result_file.read_text() == 'run'
+
+
+def test_excluded_folders_integration(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    included = base_dir / 'proj1'
+    excluded = base_dir / 'skip'
+    included.mkdir()
+    excluded.mkdir()
+
+    command = (
+        "python -c \"from pathlib import Path; Path('integration_excluded.txt').write_text('ok')\""
+    )
+    config = {
+        'base_directory': str(base_dir),
+        'command_to_run': command,
+        'excluded_folders': [excluded.name],
+    }
+
+    config_file = tmp_path / 'config_excluded.yaml'
+    config_file.write_text(yaml.safe_dump(config))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
+
+    cmdrunner.main()
+
+    included_result = included / 'integration_excluded.txt'
+    excluded_result = excluded / 'integration_excluded.txt'
+
+    assert included_result.exists()
+    assert included_result.read_text() == 'ok'
+    assert not excluded_result.exists()
 
 
 def test_main_integration_dry_run(tmp_path, monkeypatch, caplog):

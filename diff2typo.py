@@ -41,6 +41,7 @@ import os
 import sys
 import logging
 import tempfile
+import inspect
 
 from tqdm import tqdm
 
@@ -61,6 +62,27 @@ def extract_backticks(input_text):
     """
     return [s for s in re.findall(r'`([^`]+)`', input_text) if len(s) > 1]
 
+def _read_csv_rows(file_path, description, required=False):
+    """Return CSV rows from ``file_path`` with shared error handling."""
+
+    if not os.path.exists(file_path):
+        message = f"{description} '{file_path}' not found."
+        if required:
+            logging.error(message)
+            sys.exit(1)
+        logging.warning(message + " Skipping.")
+        return []
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as file_handle:
+            return list(csv.reader(file_handle))
+    except Exception as exc:  # pragma: no cover - extremely unlikely
+        logging.error(f"Error reading {description.lower()} '{file_path}': {exc}")
+        if required:
+            sys.exit(1)
+        return []
+
+
 def read_allowed_words(allowed_file):
     """
     Reads allowed words from a CSV file and returns a set of lowercase words.
@@ -72,19 +94,10 @@ def read_allowed_words(allowed_file):
     Returns:
         set: A set of allowed words in lowercase.
     """
-    allowed_words = set()
-    if os.path.exists(allowed_file):
-        try:
-            with open(allowed_file, 'r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    if row:
-                        allowed_words.add(row[0].strip().lower())
-            logging.info(f"Loaded {len(allowed_words)} allowed words from '{allowed_file}'.")
-        except Exception as e:
-            logging.error(f"Error reading allowed words file '{allowed_file}': {e}")
-    else:
-        logging.warning(f"Allowed words file '{allowed_file}' not found. Skipping allowed word filtering.")
+    rows = _read_csv_rows(allowed_file, "Allowed words file", required=False)
+    allowed_words = {row[0].strip().lower() for row in rows if row}
+    if rows:
+        logging.info(f"Loaded {len(allowed_words)} allowed words from '{allowed_file}'.")
     return allowed_words
 
 def split_into_subwords(word):
@@ -114,7 +127,7 @@ def read_words_mapping(file_path):
     """
     Reads a CSV file of typo fixes and returns a mapping:
          incorrect_word (lowercase) -> set(corrections)
-    
+
     Each row should be in the form:
          incorrect_word, correction1, correction2, ...
 
@@ -122,21 +135,13 @@ def read_words_mapping(file_path):
         just map to nothing.
     """
     mapping = {}
-    if not os.path.exists(file_path):
-        logging.error(f"Words mapping file '{file_path}' not found.")
-        sys.exit(1)
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if row:
-                    incorrect = row[0].strip().lower()
-                    corrections = {col.strip().lower() for col in row[1:] if col.strip()}
-                    mapping[incorrect] = corrections
-        logging.info(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
-    except Exception as e:
-        logging.error(f"Error reading words mapping file '{file_path}': {e}")
-        sys.exit(1)
+    rows = _read_csv_rows(file_path, "Dictionary file", required=True)
+    for row in rows:
+        if row:
+            incorrect = row[0].strip().lower()
+            corrections = {col.strip().lower() for col in row[1:] if col.strip()}
+            mapping[incorrect] = corrections
+    logging.info(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
     return mapping
 
 def _validate_adjacent_context(before_words, after_words, index):
@@ -175,6 +180,19 @@ def _compare_word_lists(before_words, after_words, min_length):
     return typos
 
 
+def process_diff_block(removals, additions, min_length):
+    """Return typos generated from matching removal/addition blocks."""
+
+    if not removals or not additions:
+        return []
+
+    before_text = " ".join(removals)
+    after_text = " ".join(additions)
+    before_words = split_into_subwords(before_text)
+    after_words = split_into_subwords(after_text)
+    return _compare_word_lists(before_words, after_words, min_length)
+
+
 def find_typos(diff_text, min_length=2):
     """
     Parses the diff text to identify typo corrections.
@@ -187,20 +205,9 @@ def find_typos(diff_text, min_length=2):
         list: A list of typo candidates in the format "before -> after".
     """
     typos = []
-    lines = diff_text.split('\n')
+    lines = diff_text.split("\n")
     removals = []
     additions = []
-    
-    def flush_pairs():
-        nonlocal typos, removals, additions
-        if removals and additions:
-            before_text = " ".join(removals)
-            after_text = " ".join(additions)
-            before_words = split_into_subwords(before_text)
-            after_words = split_into_subwords(after_text)
-            typos.extend(_compare_word_lists(before_words, after_words, min_length))
-        removals = []
-        additions = []
 
     for line in lines:
         if line.startswith('---') or line.startswith('+++'):
@@ -210,9 +217,11 @@ def find_typos(diff_text, min_length=2):
         elif line.startswith('+'):
             additions.append(line[1:].strip())
         else:
-            flush_pairs()
+            typos.extend(process_diff_block(removals, additions, min_length))
+            removals = []
+            additions = []
 
-    flush_pairs()
+    typos.extend(process_diff_block(removals, additions, min_length))
 
     return typos
 
@@ -259,35 +268,6 @@ def format_typos(typos, output_format):
     return formatted
 
 
-class TempTypoFile:
-    """Context manager that creates and cleans up a temporary typo candidate file."""
-
-    def __enter__(self):
-        self._handle = tempfile.NamedTemporaryFile(
-            prefix="typos_", suffix=".txt", delete=False
-        )
-        self.path = self._handle.name
-        self._handle.close()
-        return self.path
-
-    def __exit__(self, exc_type, exc, exc_tb):
-        if getattr(self, "_handle", None) and not self._handle.closed:
-            try:
-                self._handle.close()
-            except Exception as close_error:  # pragma: no cover - extremely unlikely
-                logging.debug(
-                    f"Failed to close temporary file handle '{self.path}': {close_error}"
-                )
-
-        if getattr(self, "path", None) and os.path.exists(self.path):
-            try:
-                os.remove(self.path)
-            except OSError as remove_error:
-                logging.error(
-                    f"Failed to remove temporary file '{self.path}': {remove_error}"
-                )
-
-
 def filter_known_typos(candidates, typos_tool_path):
     """
     Filters out typos that are already known by the 'typos' tool.
@@ -299,7 +279,8 @@ def filter_known_typos(candidates, typos_tool_path):
     Returns:
         list: A filtered list of typo candidates.
     """
-    with TempTypoFile() as temp_file:
+    with tempfile.TemporaryDirectory(prefix="typos_") as temp_dir:
+        temp_file = os.path.join(temp_dir, "candidates.txt")
         try:
             with open(temp_file, 'w', encoding='utf-8') as f:
                 for typo in candidates:
@@ -356,6 +337,19 @@ def _filter_candidates_by_set(candidates, filter_set, desc, quiet=False):
     return filtered_list
 
 
+def filter_candidates(candidates, filters, quiet=False):
+    """Apply ``filters`` sequentially to typo candidates."""
+
+    result = candidates
+    for func, kwargs in filters:
+        call_kwargs = dict(kwargs or {})
+        parameters = inspect.signature(func).parameters
+        if "quiet" in parameters and "quiet" not in call_kwargs:
+            call_kwargs["quiet"] = quiet
+        result = func(result, **call_kwargs)
+    return result
+
+
 def filter_allowed_words(candidates, allowed_words, quiet=False):
     """
     Filters out candidates where the 'before' word is in the allowed list.
@@ -398,14 +392,15 @@ def process_new_typos(candidates, args, valid_words, allowed_words):
     words.csv file, where only the correction columns are treated as valid
     words. Returns the formatted list of new typos.
     """
-    # Pipeline of filtering functions
-    filtered_candidates = filter_known_typos(candidates, args.typos_tool_path)
+    filters = [
+        (filter_known_typos, {"typos_tool_path": args.typos_tool_path}),
+        (filter_allowed_words, {"allowed_words": allowed_words}),
+        (filter_dictionary_words, {"valid_words": valid_words}),
+    ]
 
-    filtered_candidates = filter_allowed_words(
-        filtered_candidates, allowed_words, getattr(args, 'quiet', False)
+    filtered_candidates = filter_candidates(
+        candidates, filters=filters, quiet=args.quiet
     )
-
-    filtered_candidates = filter_dictionary_words(filtered_candidates, valid_words, getattr(args, 'quiet', False))
 
     # Deduplicate and sort.
     filtered_candidates = lowercase_sort_dedup(filtered_candidates)
@@ -479,15 +474,6 @@ def main():
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    valid_output_formats = {'arrow', 'csv', 'table', 'list'}
-    if args.output_format not in valid_output_formats:
-        logging.error(
-            "Invalid output_format '%s'. Choose from: %s.",
-            args.output_format,
-            ", ".join(sorted(valid_output_formats)),
-        )
-        sys.exit(2)
-
     logging.info("Starting typo extraction process...")
 
     # Read the diff file or stdin.
@@ -510,21 +496,7 @@ def main():
             sys.exit(1)
 
     # Load the dictionary (words mapping) once.
-    if not os.path.exists(args.dictionary_file):
-        logging.error(
-            "Dictionary file '%s' not found. Please create it or specify a different file with --dictionary_file.",
-            args.dictionary_file,
-        )
-        sys.exit(1)
-
-    try:
-        dictionary_mapping = read_words_mapping(args.dictionary_file)
-    except SystemExit:
-        logging.error(
-            "Unable to read dictionary file '%s'. Please verify the file format and permissions.",
-            args.dictionary_file,
-        )
-        sys.exit(1)
+    dictionary_mapping = read_words_mapping(args.dictionary_file)
 
     try:
         allowed_words = read_allowed_words(args.allowed_file)

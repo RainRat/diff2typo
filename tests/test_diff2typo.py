@@ -1,4 +1,3 @@
-import argparse
 import io
 import logging
 import sys
@@ -159,23 +158,6 @@ def test_process_new_corrections_dedup_and_sort():
     candidates = ['teh -> thee', 'Teh -> THEE', 'teh -> thea']
     result = diff2typo.process_new_corrections(candidates, words_mapping, quiet=True)
     assert result == ['teh -> thea', 'teh -> thee']
-
-
-def test_temp_typo_file_cleanup(tmp_path):
-    with diff2typo.TempTypoFile() as temp_path:
-        path_obj = Path(temp_path)
-        path_obj.write_text('data')
-        assert path_obj.exists()
-    assert not Path(temp_path).exists()
-
-
-def test_temp_typo_file_cleanup_on_exception():
-    with pytest.raises(RuntimeError):
-        with diff2typo.TempTypoFile() as temp_path:
-            Path(temp_path).write_text('data')
-            raise RuntimeError('boom')
-
-    assert not Path(temp_path).exists()
 
 
 def test_read_words_mapping_file_not_found(tmp_path):
@@ -345,26 +327,57 @@ def test_main_reads_stdin(monkeypatch, tmp_path):
     assert output_file.read_text().strip().splitlines() == ['teh -> the']
 
 
-def test_main_invalid_output_format(monkeypatch, tmp_path, caplog):
-    monkeypatch.chdir(tmp_path)
+def test_process_new_typos_quiet_suppresses_progress(monkeypatch):
+    def fail_tqdm(*_, **__):
+        raise AssertionError('tqdm should not be called when quiet=True')
 
-    def fake_parse_args(self):
-        return SimpleNamespace(
-            input_file='-',
-            output_file=str(tmp_path / 'output.txt'),
-            output_format='invalid',
-            typos_tool_path='typos',
-            allowed_file=str(tmp_path / 'allowed.csv'),
-            min_length=2,
-            dictionary_file=str(tmp_path / 'words.csv'),
-            mode='typos',
-            quiet=True,
-        )
+    monkeypatch.setattr(diff2typo, 'tqdm', fail_tqdm)
 
-    monkeypatch.setattr(argparse.ArgumentParser, 'parse_args', fake_parse_args)
+    args = SimpleNamespace(
+        typos_tool_path='missing',
+        allowed_file='allowed.csv',
+        output_format='arrow',
+        quiet=True,
+    )
+    candidates = ['mispell -> misspell', 'eror -> error']
 
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(SystemExit):
-            diff2typo.main()
+    result = diff2typo.process_new_typos(candidates, args, valid_words=set(), allowed_words=set())
+    assert result == ['eror -> error', 'mispell -> misspell']
 
-    assert any('Invalid output_format' in message for message in caplog.messages)
+
+def test_process_new_corrections_quiet_suppresses_progress(monkeypatch):
+    def fail_tqdm(*_, **__):
+        raise AssertionError('tqdm should not be called when quiet=True')
+
+    monkeypatch.setattr(diff2typo, 'tqdm', fail_tqdm)
+
+    words_mapping = {'teh': {'the'}}
+    candidates = ['teh -> thee']
+
+    assert diff2typo.process_new_corrections(candidates, words_mapping, quiet=True) == ['teh -> thee']
+
+
+def test_filter_known_typos_cleans_temp_directory(monkeypatch, tmp_path):
+    created_paths = []
+
+    class DummyTempDir:
+        def __init__(self, *_, **__):
+            self.path = tmp_path / 'typos_temp'
+            self.path.mkdir(exist_ok=True)
+            created_paths.append(self.path)
+
+        def __enter__(self):
+            return str(self.path)
+
+        def __exit__(self, exc_type, exc, exc_tb):
+            for child in self.path.iterdir():
+                child.unlink()
+            self.path.rmdir()
+
+    monkeypatch.setattr(diff2typo.tempfile, 'TemporaryDirectory', DummyTempDir)
+
+    candidates = ['eror -> error']
+    result = diff2typo.filter_known_typos(candidates, typos_tool_path='missing')
+
+    assert result == candidates
+    assert created_paths and not created_paths[0].exists()

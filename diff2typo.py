@@ -13,7 +13,7 @@ Features:
     - Integrates with the `typos` tool to avoid duplicate typo entries.
     - Automatically detects dictionary file format (single-word or typo-correction pairs).
     - Allows customization via command-line options, including output format.
-    - Output new typos, new corrections for existing typos, or both.
+    - Uses the `--mode` option to output new typos, new corrections for existing typos, or both.
 
 Usage:
     python diff2typo.py \
@@ -25,6 +25,11 @@ Usage:
         --allowed_file=allowed.csv \
         --dictionary_file=/path/to/dictionary.txt \
         --min_length=2
+
+Examples:
+    - Only new typos: python diff2typo.py --input_file=diff.txt --output_file=typos.txt --mode typos
+    - Only corrections for existing typos: python diff2typo.py --input_file=diff.txt --output_file=typos.txt --mode corrections
+    - Both typos and corrections: python diff2typo.py --input_file=diff.txt --output_file=typos.txt --mode both
 
 Output Formats:
     - arrow: typo -> correction
@@ -38,6 +43,7 @@ import subprocess
 import argparse
 import csv
 import os
+import shutil
 import sys
 import logging
 import tempfile
@@ -289,12 +295,13 @@ def filter_known_typos(candidates, typos_tool_path):
             logging.error(f"Error writing to temporary file '{temp_file}': {e}")
             return candidates
 
-        typos_executable = typos_tool_path
-        if os.name == 'nt' and not typos_tool_path.lower().endswith('.exe'):
-            typos_executable = f"{typos_tool_path}.exe"
-
-        if not os.path.exists(typos_executable):
-            logging.warning(f"Typos tool '{typos_executable}' not found. Skipping known typo filtering.")
+        typos_executable = shutil.which(typos_tool_path)
+        if not typos_executable and os.path.exists(typos_tool_path):
+            typos_executable = typos_tool_path
+        if not typos_executable:
+            logging.warning(
+                f"Typos tool '{typos_tool_path}' not found in PATH. Skipping known typo filtering."
+            )
             return candidates
 
         command = [typos_executable, '--format', 'brief', temp_file]

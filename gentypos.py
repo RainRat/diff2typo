@@ -5,10 +5,11 @@ import logging
 import time
 from collections import defaultdict
 from types import SimpleNamespace
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set
 from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 
 
-DEFAULT_CONFIG = {
+DEFAULT_CONFIG: dict[str, Any] = {
     'typo_types': {
         'deletion': True,
         'transposition': True,
@@ -23,7 +24,11 @@ DEFAULT_CONFIG = {
 }
 
 
-def _merge_defaults(config, defaults, path=None):
+def _merge_defaults(
+    config: MutableMapping[str, Any],
+    defaults: Mapping[str, Any],
+    path: list[str] | None = None,
+) -> None:
     """Recursively merge default configuration values into the provided config."""
 
     if path is None:
@@ -42,7 +47,7 @@ def _merge_defaults(config, defaults, path=None):
                 logging.info(f"Applying default for '{dotted_path}': {default_value}")
             config.setdefault(key, default_value)
 
-def get_adjacent_keys(include_diagonals=True):
+def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
     Returns a dictionary of adjacent keys on a QWERTY keyboard.
     Can include diagonally adjacent keys based on the 'include_diagonals' flag.
@@ -60,12 +65,12 @@ def get_adjacent_keys(include_diagonals=True):
     ]
 
     # Map each character to its (row, column) coordinate for quick lookup
-    coords = {}
+    coords: dict[str, tuple[int, int]] = {}
     for r, row in enumerate(keyboard):
         for c, ch in enumerate(row):
             coords[ch] = (r, c)
 
-    adjacent = {ch: set() for ch in coords}
+    adjacent: dict[str, set[str]] = {ch: set() for ch in coords}
 
     for ch, (r, c) in coords.items():
         # Examine neighbouring positions within a 1-key radius
@@ -90,7 +95,9 @@ def get_adjacent_keys(include_diagonals=True):
     return adjacent
 
 
-def load_custom_substitutions(custom_subs):
+def load_custom_substitutions(
+    custom_subs: Mapping[str, Iterable[str]] | None,
+) -> dict[str, set[str]]:
     """
     Load custom substitution rules from a dictionary.
 
@@ -107,8 +114,13 @@ def load_custom_substitutions(custom_subs):
     return substitutions
 
 
-def generate_typos_by_replacement(word, adjacent_keys, custom_subs=None,
-                                  use_adjacent=True, use_custom=True):
+def generate_typos_by_replacement(
+    word: str,
+    adjacent_keys: Mapping[str, Set[str]],
+    custom_subs: Mapping[str, Set[str]] | None = None,
+    use_adjacent: bool = True,
+    use_custom: bool = True,
+) -> set[str]:
     """
     Generate typos by replacing each character with its adjacent keys and/or custom substitutions.
 
@@ -142,7 +154,9 @@ def generate_typos_by_replacement(word, adjacent_keys, custom_subs=None,
     return typos
 
 
-def generate_variations(word, typo_types, transposition_distance=1):
+def generate_variations(
+    word: str, typo_types: Mapping[str, bool], transposition_distance: int = 1
+) -> set[str]:
     """
     Generate deletion and transposition typos.
 
@@ -178,7 +192,7 @@ def generate_variations(word, typo_types, transposition_distance=1):
     return variations
 
 
-def generate_typos_by_duplication(word, typo_types):
+def generate_typos_by_duplication(word: str, typo_types: Mapping[str, bool]) -> set[str]:
     """
     Generate typos by duplicating each character in the word.
 
@@ -200,9 +214,15 @@ def generate_typos_by_duplication(word, typo_types):
     return typos
 
 
-def generate_all_typos(word, adjacent_keys, custom_subs, typo_types,
-                       transposition_distance=1, use_adjacent=True,
-                       use_custom=True):
+def generate_all_typos(
+    word: str,
+    adjacent_keys: Mapping[str, Set[str]],
+    custom_subs: Mapping[str, Set[str]],
+    typo_types: Mapping[str, bool],
+    transposition_distance: int = 1,
+    use_adjacent: bool = True,
+    use_custom: bool = True,
+) -> set[str]:
     """
     Generate all possible typos for a given word using selected typo types.
 
@@ -242,7 +262,7 @@ def generate_all_typos(word, adjacent_keys, custom_subs, typo_types,
     return typos
 
 
-def load_file(file_path):
+def load_file(file_path: str) -> set[str]:
     """
     Generic function to load words from a file into a set.
     Filters out non-ASCII words and converts them to lowercase.
@@ -270,7 +290,7 @@ def load_file(file_path):
         sys.exit(1)
 
 
-def parse_yaml_config(config_path):
+def parse_yaml_config(config_path: str) -> dict[str, Any]:
     """
     Parse the YAML configuration file.
 
@@ -296,7 +316,7 @@ def parse_yaml_config(config_path):
         sys.exit(1)
 
 
-def validate_config(config):
+def validate_config(config: MutableMapping[str, Any]) -> None:
     """
     Validate the YAML configuration to ensure all required fields are present.
 
@@ -320,7 +340,9 @@ def validate_config(config):
     _merge_defaults(config, DEFAULT_CONFIG)
 
 
-def format_typos(typo_to_correct_word, output_format):
+def format_typos(
+    typo_to_correct_word: Mapping[str, str], output_format: str
+) -> list[str]:
     """
     Formats the typos based on the specified output format.
 
@@ -344,7 +366,7 @@ def format_typos(typo_to_correct_word, output_format):
     return formatted
 
 
-def _extract_config_settings(config, quiet=False):
+def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = False) -> SimpleNamespace:
     """Extract validated configuration values into a structured namespace."""
 
     input_file = config.get('input_file', 'wordlist_small.txt')
@@ -410,7 +432,9 @@ def _extract_config_settings(config, quiet=False):
     return settings
 
 
-def _setup_generation_tools(settings):
+def _setup_generation_tools(
+    settings: SimpleNamespace,
+) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
     """Prepare substitution helpers based on configuration settings."""
 
     logging.info("Loading custom substitutions...")
@@ -452,13 +476,20 @@ def _setup_generation_tools(settings):
     return adjacent_keys, custom_subs
 
 
-def _run_typo_generation(word_list, all_words, settings, adjacent_keys, custom_subs):
+def _run_typo_generation(
+    word_list: Sequence[str],
+    all_words: set[str],
+    settings: SimpleNamespace,
+    adjacent_keys: Mapping[str, Set[str]],
+    custom_subs: Mapping[str, Set[str]],
+    quiet: bool = False,
+) -> dict[str, str]:
     """Generate, filter, and sort typos based on the provided settings."""
 
     logging.info("Generating synthetic typos...")
     typo_to_correct_word = defaultdict(list)
 
-    for word in tqdm(word_list, desc="Processing words", disable=getattr(settings, 'quiet', False)):
+    for word in tqdm(word_list, desc="Processing words", disable=quiet):
         word_len = len(word)
         if word_len < settings.min_length:
             continue
@@ -518,7 +549,7 @@ def _run_typo_generation(word_list, all_words, settings, adjacent_keys, custom_s
     return dict(sorted_typos)
 
 
-def main():
+def main() -> None:
     """
     Main function to generate synthetic typos and save them to a file based on YAML configuration.
     """
@@ -585,6 +616,7 @@ def main():
         settings,
         adjacent_keys,
         custom_subs,
+        quiet=settings.quiet,
     )
 
     # Format typos based on the selected output format

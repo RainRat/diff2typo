@@ -24,11 +24,10 @@ def is_one_letter_replacement(
     character in 'correction' with two characters in 'typo'.
 
     Returns:
-      A list of (correct_char, typo_char_or_chars) tuples for each found replacement.
-      Returns an empty list if no replacements are found.
-
-    correct_char: a single letter from the correction (correct spelling)
-    typo_char_or_chars: one or two letters from the typo (incorrect spelling)
+      A list of (correction_char, typo_char_or_chars) tuples for each found replacement.
+      The first value comes from the expected spelling (``correction``) and the second
+      value comes from the observed typo. Returns an empty list if no replacements are
+      found.
     """
 
     # Same length scenario: one-to-one replacement

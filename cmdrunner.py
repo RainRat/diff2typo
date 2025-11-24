@@ -6,23 +6,19 @@ import argparse
 import logging
 from typing import List, Dict, Any, Optional
 
+
+class ConfigError(Exception):
+    """Raised when a configuration file is invalid."""
+
 def load_config(config_path: str) -> Dict[str, Any]:
     """
     Load the YAML configuration file.
     """
-    try:
-        with open(config_path, 'r') as file:
-            config = yaml.safe_load(file)
-    except FileNotFoundError:
-        logging.error(f"Configuration file '{config_path}' not found.")
-        sys.exit(1)
-    except yaml.YAMLError as exc:
-        logging.error(f"Error parsing YAML file '{config_path}': {exc}")
-        sys.exit(1)
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
 
     if not isinstance(config, dict):
-        logging.error(f"Configuration file '{config_path}' is empty or malformed.")
-        sys.exit(1)
+        raise ConfigError(f"Configuration file '{config_path}' is empty or malformed.")
 
     errors = []
     missing_fields = [field for field in ("base_directory", "command_to_run") if not config.get(field)]
@@ -39,9 +35,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
         errors.append("'excluded_folders' must be a list if provided.")
 
     if errors:
-        for error in errors:
-            logging.error(error)
-        sys.exit(1)
+        raise ConfigError(" ".join(errors))
 
     return config
 
@@ -112,7 +106,17 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Load configuration
-    config = load_config(config_file)
+    try:
+        config = load_config(config_file)
+    except FileNotFoundError:
+        logging.error(f"Configuration file '{config_file}' not found.")
+        sys.exit(1)
+    except yaml.YAMLError as exc:
+        logging.error(f"Error parsing YAML file '{config_file}': {exc}")
+        sys.exit(1)
+    except ConfigError as exc:
+        logging.error(str(exc))
+        sys.exit(1)
 
     # Extract configuration parameters with defaults
     base_directory = config.get('base_directory', '')

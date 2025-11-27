@@ -164,7 +164,7 @@ excluded_folders:
 
 2. **Python Requirement:**
 
-   Make sure you have Python 3.6 or higher:
+   Make sure you have Python 3.10 or higher:
 
    ```bash
    python --version

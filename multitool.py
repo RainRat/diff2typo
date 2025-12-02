@@ -9,6 +9,14 @@ from tqdm import tqdm
 import logging
 import ahocorasick
 
+try:
+    import chardet  # type: ignore
+
+    _CHARDET_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    chardet = None
+    _CHARDET_AVAILABLE = False
+
 
 def filter_to_letters(text: str) -> str:
     """Return text containing only lowercase a-z characters."""
@@ -19,6 +27,31 @@ def clean_and_filter(items: Iterable[str], min_length: int, max_length: int) -> 
     """Clean items to letters only and apply length filtering."""
     cleaned = [filter_to_letters(item) for item in items]
     return [c for c in cleaned if min_length <= len(c) <= max_length]
+
+
+def detect_encoding(file_path: str) -> str | None:
+    """Attempt to detect a file's encoding using chardet if available."""
+
+    if not _CHARDET_AVAILABLE:
+        logging.warning("chardet not installed. Install via 'pip install chardet'.")
+        return None
+
+    with open(file_path, 'rb') as f:
+        raw_data = f.read()
+    result = chardet.detect(raw_data)
+    encoding = result.get('encoding')
+    confidence = result.get('confidence', 0)
+    if encoding and confidence > 0.5:
+        logging.info(
+            "Detected encoding '%s' for '%s' (confidence %.2f)",
+            encoding,
+            file_path,
+            confidence,
+        )
+        return encoding
+
+    logging.warning("Failed to reliably detect encoding for '%s'.", file_path)
+    return None
 
 
 def _load_and_clean_file(
@@ -33,19 +66,43 @@ def _load_and_clean_file(
 
     raw_items = []
     cleaned_items = []
+    lines = None
 
-    with open(path, 'r', encoding='utf-8') as handle:
-        for line in handle:
-            line_content = line.strip()
-            if not line_content:
-                continue
+    try:
+        with open(path, 'r', encoding='utf-8') as handle:
+            lines = handle.readlines()
+            used_encoding = 'utf-8'
+    except UnicodeDecodeError:
+        logging.warning("UTF-8 decoding failed for '%s'. Trying latin-1...", path)
+        try:
+            with open(path, 'r', encoding='latin-1') as handle:
+                lines = handle.readlines()
+                used_encoding = 'latin-1'
+        except UnicodeDecodeError:
+            detected_encoding = detect_encoding(path)
+            if detected_encoding:
+                logging.warning(
+                    "Using detected encoding '%s' for '%s'.", detected_encoding, path
+                )
+                with open(path, 'r', encoding=detected_encoding) as handle:
+                    lines = handle.readlines()
+                    used_encoding = detected_encoding
+            else:
+                raise
 
-            parts = line_content.split() if split_whitespace else [line_content]
-            for part in parts:
-                raw_items.append(part)
-                cleaned = filter_to_letters(part)
-                if cleaned:
-                    cleaned_items.append(cleaned)
+    logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
+
+    for line in lines or []:
+        line_content = line.strip()
+        if not line_content:
+            continue
+
+        parts = line_content.split() if split_whitespace else [line_content]
+        for part in parts:
+            raw_items.append(part)
+            cleaned = filter_to_letters(part)
+            if cleaned:
+                cleaned_items.append(cleaned)
 
     if apply_length_filter:
         upper_bound = max_length
@@ -312,6 +369,51 @@ def line_mode(
     """Wrapper for processing raw lines from a file."""
     _process_items(_extract_line_items, input_file, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', quiet)
 
+
+def combine_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+) -> None:
+    """Merge cleaned contents from multiple files into one deduplicated list."""
+
+    try:
+        raw_item_count = 0
+        combined_unique: list[str] = []
+
+        for file_path in input_files:
+            raw_items, cleaned_items, unique_items = _load_and_clean_file(
+                file_path,
+                min_length,
+                max_length,
+            )
+            raw_item_count += len(raw_items)
+            combined_unique.extend(unique_items)
+
+        combined_unique = list(dict.fromkeys(combined_unique))
+        if process_output:
+            combined_unique = sorted(set(combined_unique))
+        else:
+            combined_unique = sorted(combined_unique)
+
+        with open(output_file, 'w', encoding='utf-8') as outfile:
+            for item in combined_unique:
+                outfile.write(item + '\n')
+
+        print_processing_stats(raw_item_count, combined_unique)
+        logging.info(
+            "[Combine Mode] Combined %d file(s). Output written to '%s'.",
+            len(input_files),
+            output_file,
+        )
+    except FileNotFoundError as e:
+        logging.error(f"[Combine Mode] Error: File not found at '{e.filename}'")
+    except Exception as e:
+        logging.error(f"[Combine Mode] An unexpected error occurred: {e}")
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True
 ) -> None:
@@ -470,6 +572,11 @@ MODE_DETAILS = {
         "description": "Useful for processing conversion tables or mappings formatted as 'typo -> correction'.",
         "example": "python multitool.py arrow --input typos.log --output cleaned.txt",
     },
+    "combine": {
+        "summary": "Merge multiple files into one deduplicated list.",
+        "description": "Reads several input files, cleans their contents, and writes a unified sorted list.",
+        "example": "python multitool.py combine --input typos1.txt typos2.txt --output all_typos.txt",
+    },
     "backtick": {
         "summary": "Extract text between pairs of backticks on each line.",
         "description": "Designed for compiler or linter diagnostics that enclose problematic identifiers in backticks. Includes heuristics for handling diagnostic messages with `error:`, `warning:`, and `note:` prefixes.",
@@ -600,6 +707,43 @@ def _build_parser() -> argparse.ArgumentParser:
         help='The delimiter character for CSV files (default: ,).',
     )
 
+    combine_parser = subparsers.add_parser(
+        'combine',
+        help=MODE_DETAILS['combine']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['combine']['description'],
+    )
+    combine_parser.add_argument(
+        '--input',
+        type=str,
+        nargs='+',
+        required=True,
+        help='Paths to the input files to merge.',
+    )
+    combine_parser.add_argument(
+        '--output',
+        type=str,
+        default='output.txt',
+        help="Path to the output file (default: output.txt)",
+    )
+    combine_parser.add_argument(
+        '--min-length',
+        type=int,
+        default=3,
+        help="Minimum string length to process (default: 3)",
+    )
+    combine_parser.add_argument(
+        '--max-length',
+        type=int,
+        default=1000,
+        help="Maximum string length to process (default: 1000)",
+    )
+    combine_parser.add_argument(
+        '--process-output',
+        action='store_true',
+        help="If set, converts output to lowercase, sorts it, and removes duplicates.",
+    )
+
     line_parser = subparsers.add_parser(
         'line',
         help=MODE_DETAILS['line']['summary'],
@@ -678,7 +822,9 @@ def main() -> None:
         sys.exit(1)
 
     logging.info(f"Selected Mode: {args.mode}")
-    logging.info(f"Input File: {args.input}")
+    input_paths = args.input if isinstance(args.input, list) else [args.input]
+    input_label = "Input Files" if len(input_paths) > 1 else "Input File"
+    logging.info(f"{input_label}: {', '.join(input_paths)}")
     logging.info(f"Output File: {args.output}")
 
     logging.info(f"Minimum String Length: {args.min_length}")
@@ -732,6 +878,17 @@ def main() -> None:
         'set_operation': (
             set_operation_mode,
             {**common_kwargs, 'file2': file2, 'operation': operation},
+        ),
+        'combine': (
+            combine_mode,
+            {
+                'input_files': input_paths,
+                'output_file': args.output,
+                'min_length': args.min_length,
+                'max_length': args.max_length,
+                'process_output': getattr(args, 'process_output', False),
+                'quiet': args.quiet,
+            },
         ),
     }
 

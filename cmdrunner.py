@@ -6,6 +6,8 @@ import argparse
 import logging
 from typing import List, Dict, Any, Optional
 
+from tqdm import tqdm
+
 
 class ConfigError(Exception):
     """Raised when a configuration file is invalid."""
@@ -39,44 +41,54 @@ def load_config(config_path: str) -> Dict[str, Any]:
 
     return config
 
-def run_command_in_folders(base_dir: str, command: str, excluded_folders: Optional[List[str]] = None, dry_run: bool = False) -> None:
+def run_command_in_folders(
+    base_dir: str,
+    command: str,
+    excluded_folders: Optional[List[str]] = None,
+    dry_run: bool = False,
+    quiet: bool = False,
+) -> None:
     """
     Run a specified command in each subdirectory of the base directory,
     excluding specified folders.
     """
-    if excluded_folders is None:
-        excluded_folders = []
+    excluded_folders = excluded_folders or []
 
     if not os.path.isdir(base_dir):
         logging.error(f"The base directory '{base_dir}' does not exist or is not a directory.")
         sys.exit(1)
 
+    directories = [
+        item for item in os.listdir(base_dir)
+        if os.path.isdir(os.path.join(base_dir, item)) and item not in excluded_folders
+    ]
+
+    iterator = tqdm(directories, desc="Processing directories", unit="dir", disable=dry_run or quiet)
+
     # Iterate through each item in the base directory
-    for item in os.listdir(base_dir):
+    for item in iterator:
         item_path = os.path.join(base_dir, item)
-        
-        # Check if the item is a directory and not in the excluded list
-        if os.path.isdir(item_path) and item not in excluded_folders:
-            if dry_run:
-                logging.info(f"Dry run: would run command '{command}' in '{item_path}'")
-                continue
 
-            logging.info(f"Running command in: {item_path}")
+        if dry_run:
+            logging.info(f"Dry run: would run command '{command}' in '{item_path}'")
+            continue
 
-            # Run the command in the directory
-            try:
-                result = subprocess.run(
-                    command,
-                    cwd=item_path,
-                    shell=True,
-                    check=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True  # Automatically decode to string
-                )
-                logging.info(f"Command output for '{item_path}':\n{result.stdout}")
-            except subprocess.CalledProcessError as e:
-                logging.error(f"Command failed in '{item_path}' with error:\n{e.stderr}")
+        logging.info(f"Running command in: {item_path}")
+
+        # Run the command in the directory
+        try:
+            result = subprocess.run(
+                command,
+                cwd=item_path,
+                shell=True,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True  # Automatically decode to string
+            )
+            logging.info(f"Command output for '{item_path}':\n{result.stdout}")
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Command failed in '{item_path}' with error:\n{e.stderr}")
 
 def parse_arguments() -> argparse.Namespace:
     """
@@ -96,6 +108,11 @@ def parse_arguments() -> argparse.Namespace:
         action='store_true',
         help='Show which directories would be processed without executing the command.'
     )
+    parser.add_argument(
+        '--quiet',
+        action='store_true',
+        help='Suppress informational output.'
+    )
     return parser.parse_args()
 
 def main() -> None:
@@ -103,7 +120,12 @@ def main() -> None:
     args = parse_arguments()
     config_file = args.config
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+    )
+    if args.quiet:
+        logging.getLogger().setLevel(logging.WARNING)
 
     # Load configuration
     try:
@@ -133,7 +155,13 @@ def main() -> None:
         sys.exit(1)
 
     # Run the command in the specified folders
-    run_command_in_folders(base_directory, command_to_run, excluded, dry_run=args.dry_run)
+    run_command_in_folders(
+        base_directory,
+        command_to_run,
+        excluded,
+        dry_run=args.dry_run,
+        quiet=args.quiet,
+    )
 
 if __name__ == "__main__":
     main()

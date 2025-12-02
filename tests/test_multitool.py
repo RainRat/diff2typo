@@ -1,3 +1,4 @@
+import logging
 import sys
 from pathlib import Path
 import pytest
@@ -46,6 +47,23 @@ def test_load_and_clean_file(tmp_path):
     assert raw_ws == ["Alpha", "beta", "Alpha!!!", "Gamma", "delta"]
     assert cleaned_ws == ["alpha", "beta", "alpha", "gamma", "delta"]
     assert unique_ws == ["alpha", "beta", "gamma", "delta"]
+
+
+def test_load_and_clean_file_encoding_fallback(tmp_path, caplog):
+    data_file = tmp_path / "latin1.txt"
+    data_file.write_bytes("café\nnaïve\n".encode("latin-1"))
+
+    caplog.set_level(logging.WARNING)
+    raw_items, cleaned_items, unique_items = multitool._load_and_clean_file(
+        str(data_file),
+        1,
+        10,
+    )
+
+    assert raw_items == ["café", "naïve"]
+    assert cleaned_items == ["caf", "nave"]
+    assert unique_items == ["caf", "nave"]
+    assert "latin-1" in caplog.text
 
 
 def test_arrow_mode(tmp_path):
@@ -174,6 +192,29 @@ def test_check_mode(tmp_path):
     output_file = tmp_path / "output.txt"
     multitool.check_mode(str(csv_file), str(output_file), 3, 10, True)
     assert output_file.read_text().splitlines() == ["bar", "foo"]
+
+
+def test_combine_mode(tmp_path):
+    file_a = tmp_path / "file_a.txt"
+    file_b = tmp_path / "file_b.txt"
+    file_a.write_text("Alpha\nBeta\nAlpha\n")
+    file_b.write_text("gamma\ndelta\nbeta\n")
+
+    output_file = tmp_path / "combined.txt"
+    multitool.combine_mode(
+        [str(file_a), str(file_b)],
+        str(output_file),
+        1,
+        10,
+        False,
+    )
+
+    assert output_file.read_text().splitlines() == [
+        "alpha",
+        "beta",
+        "delta",
+        "gamma",
+    ]
 
 
 def test_set_operation_mode(tmp_path):

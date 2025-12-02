@@ -38,25 +38,27 @@ Output Formats:
     - list: typo
 '''
 
-import re
-import subprocess
 import argparse
 import csv
-import os
-import shutil
-import sys
-import logging
-import tempfile
+import glob
 import inspect
+import logging
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 from tqdm import tqdm
 
 
-def filter_to_letters(text):
+def filter_to_letters(text: str) -> str:
     """Return text containing only lowercase a-z characters."""
     return re.sub("[^a-z]", "", text.lower())
 
-def extract_backticks(input_text):
+def extract_backticks(input_text: str) -> List[str]:
     """
     Extracts all backtick-enclosed strings from the input text.
 
@@ -89,7 +91,7 @@ def _read_csv_rows(file_path, description, required=False):
         return []
 
 
-def read_allowed_words(allowed_file):
+def read_allowed_words(allowed_file: str) -> Set[str]:
     """
     Reads allowed words from a CSV file and returns a set of lowercase words.
     These are words that have been explicitly rejected from being considered typos.
@@ -106,7 +108,7 @@ def read_allowed_words(allowed_file):
         logging.info(f"Loaded {len(allowed_words)} allowed words from '{allowed_file}'.")
     return allowed_words
 
-def split_into_subwords(word):
+def split_into_subwords(word: str) -> List[str]:
     """
     Splits a word into subwords based on spaces, underscores, and casing boundaries.
 
@@ -129,7 +131,7 @@ def split_into_subwords(word):
             subwords.append(part)
     return subwords
 
-def read_words_mapping(file_path):
+def read_words_mapping(file_path: str) -> Dict[str, Set[str]]:
     """
     Reads a CSV file of typo fixes and returns a mapping:
          incorrect_word (lowercase) -> set(corrections)
@@ -140,7 +142,7 @@ def read_words_mapping(file_path):
     We can also accept a list of valid words. They will
         just map to nothing.
     """
-    mapping = {}
+    mapping: Dict[str, Set[str]] = {}
     rows = _read_csv_rows(file_path, "Dictionary file", required=True)
     for row in rows:
         if row:
@@ -150,7 +152,7 @@ def read_words_mapping(file_path):
     logging.info(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
     return mapping
 
-def _validate_adjacent_context(before_words, after_words, index):
+def _validate_adjacent_context(before_words: Sequence[str], after_words: Sequence[str], index: int) -> bool:
     """Return True when the neighbouring words surrounding ``index`` match."""
 
     previous_matches = index == 0 or before_words[index - 1] == after_words[index - 1]
@@ -161,13 +163,13 @@ def _validate_adjacent_context(before_words, after_words, index):
     return previous_matches and next_matches
 
 
-def _compare_word_lists(before_words, after_words, min_length):
+def _compare_word_lists(before_words: Sequence[str], after_words: Sequence[str], min_length: int) -> List[str]:
     """Return typo pairs discovered when comparing two word sequences."""
 
     if len(before_words) != len(after_words):
         return []
 
-    typos = []
+    typos: List[str] = []
     for index, (before_word, after_word) in enumerate(zip(before_words, after_words)):
         if before_word == after_word:
             continue
@@ -186,7 +188,7 @@ def _compare_word_lists(before_words, after_words, min_length):
     return typos
 
 
-def process_diff_block(removals, additions, min_length):
+def process_diff_block(removals: List[str], additions: List[str], min_length: int) -> List[str]:
     """Return typos generated from matching removal/addition blocks."""
 
     if not removals or not additions:
@@ -199,7 +201,7 @@ def process_diff_block(removals, additions, min_length):
     return _compare_word_lists(before_words, after_words, min_length)
 
 
-def find_typos(diff_text, min_length=2):
+def find_typos(diff_text: str, min_length: int = 2) -> List[str]:
     """
     Parses the diff text to identify typo corrections.
 
@@ -210,10 +212,10 @@ def find_typos(diff_text, min_length=2):
     Returns:
         list: A list of typo candidates in the format "before -> after".
     """
-    typos = []
+    typos: List[str] = []
     lines = diff_text.split("\n")
-    removals = []
-    additions = []
+    removals: List[str] = []
+    additions: List[str] = []
 
     for line in lines:
         if line.startswith('---') or line.startswith('+++'):
@@ -231,7 +233,7 @@ def find_typos(diff_text, min_length=2):
 
     return typos
 
-def lowercase_sort_dedup(input_list):
+def lowercase_sort_dedup(input_list: Iterable[str]) -> List[str]:
     """
     Converts all strings in the input list to lowercase, removes duplicates, and sorts them.
 
@@ -241,9 +243,9 @@ def lowercase_sort_dedup(input_list):
     Returns:
         list: Lowercased, sorted, and deduplicated list of strings.
     """
-    return sorted(set([line.lower() for line in input_list]))
+    return sorted({line.lower() for line in input_list})
 
-def format_typos(typos, output_format):
+def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     """
     Formats the list of typos based on the specified output format.
 
@@ -254,7 +256,7 @@ def format_typos(typos, output_format):
     Returns:
         list: Formatted list of typo strings.
     """
-    formatted = []
+    formatted: List[str] = []
     for typo in typos:
         if ' -> ' in typo:
             before, after = typo.split(' -> ')
@@ -272,6 +274,68 @@ def format_typos(typos, output_format):
             # In case the typo does not follow the expected format
             formatted.append(filter_to_letters(typo))
     return formatted
+
+
+def _decode_with_fallback(data: bytes, description: str) -> str:
+    """Decode ``data`` using UTF-8 with a latin-1 fallback and log the outcome."""
+
+    try:
+        text = data.decode("utf-8")
+        logging.info(f"Successfully read {description}.")
+        return text
+    except UnicodeDecodeError:
+        text = data.decode("latin-1")
+        logging.info(f"Successfully read {description} with 'latin-1' encoding.")
+        return text
+
+
+def _read_stdin_text() -> str:
+    """Return stdin contents, supporting both binary and text streams."""
+
+    stream = getattr(sys.stdin, "buffer", sys.stdin)
+    data = stream.read()
+    if isinstance(data, str):
+        logging.info("Successfully read input diff from stdin.")
+        return data
+    return _decode_with_fallback(data, "input diff from stdin")
+
+
+def _read_diff_file(file_path: str) -> str:
+    """Return diff text from ``file_path`` with encoding fallback."""
+
+    try:
+        with open(file_path, "rb") as file_handle:
+            data = file_handle.read()
+        return _decode_with_fallback(data, f"input diff file '{file_path}'")
+    except FileNotFoundError:
+        logging.error(f"Input file '{file_path}' not found. Exiting.")
+        sys.exit(1)
+
+
+def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
+    """Return concatenated diff text from stdin or the provided file patterns."""
+
+    if not input_files:
+        return _read_stdin_text()
+
+    contents: List[str] = []
+    for pattern in input_files:
+        if pattern == "-":
+            contents.append(_read_stdin_text())
+            continue
+
+        matches = glob.glob(pattern)
+        if not matches:
+            logging.error(f"Input file '{pattern}' not found. Exiting.")
+            sys.exit(1)
+
+        for match in matches:
+            if not os.path.isfile(match):
+                logging.error(f"Input file '{match}' not found. Exiting.")
+                sys.exit(1)
+            contents.append(_read_diff_file(match))
+
+    return "\n".join(contents)
 
 
 def filter_known_typos(candidates, typos_tool_path):
@@ -465,8 +529,17 @@ def main():
 
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(description="Process a git diff to identify typos for the `typos` utility.")
-    parser.add_argument('--input_file', type=str, default='diff.txt',
-                        help="Path to the input git diff file. Use '-' to read from stdin.")
+    parser.add_argument(
+        '--input_file',
+        '-i',
+        nargs='+',
+        type=str,
+        default=None,
+        help=(
+            "One or more input git diff files or glob patterns. "
+            "Use '-' to read from stdin. If omitted, stdin is read by default."
+        ),
+    )
     parser.add_argument('--output_file', type=str, default='output.txt', help='Path to the output typos file.')
     parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], default='arrow',
                         help='Format of the output typos. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo). Default is arrow.')
@@ -483,24 +556,7 @@ def main():
 
     logging.info("Starting typo extraction process...")
 
-    # Read the diff file or stdin.
-    if args.input_file == '-':
-        diff_text = sys.stdin.read()
-        logging.info("Successfully read input diff from stdin.")
-    else:
-        try:
-            with open(args.input_file, 'r', encoding='utf-8') as f:
-                diff_text = f.read()
-            logging.info(f"Successfully read input diff file '{args.input_file}'.")
-        except UnicodeDecodeError:
-            with open(args.input_file, 'r', encoding='latin-1') as f:
-                diff_text = f.read()
-            logging.info(
-                f"Successfully read input diff file '{args.input_file}' with 'latin-1' encoding."
-            )
-        except FileNotFoundError:
-            logging.error(f"Input file '{args.input_file}' not found. Exiting.")
-            sys.exit(1)
+    diff_text = _read_diff_sources(args.input_file)
 
     # Load the dictionary (words mapping) once.
     dictionary_mapping = read_words_mapping(args.dictionary_file)

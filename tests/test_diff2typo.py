@@ -1,5 +1,6 @@
 import io
 import logging
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -300,7 +301,7 @@ def test_main_reads_stdin(monkeypatch, tmp_path):
 
     diff_text = '--- a/file\n+++ b/file\n@@\n-teh value\n+the value\n'
 
-    monkeypatch.setattr(sys, 'stdin', io.StringIO(diff_text))
+    monkeypatch.setattr(sys, 'stdin', io.BytesIO(diff_text.encode('utf-8')))
     monkeypatch.setattr(
         sys,
         'argv',
@@ -325,6 +326,90 @@ def test_main_reads_stdin(monkeypatch, tmp_path):
     diff2typo.main()
 
     assert output_file.read_text().strip().splitlines() == ['teh -> the']
+
+
+def test_main_reads_stdin_by_default(tmp_path):
+    diff2typo_path = Path(__file__).resolve().parents[1] / 'diff2typo.py'
+
+    diff_text = '--- a/file\n+++ b/file\n@@\n-teh value\n+the value\n'
+
+    dictionary_file = tmp_path / 'words.csv'
+    dictionary_file.write_text('valid\n')
+
+    allowed_file = tmp_path / 'allowed.csv'
+    allowed_file.write_text('')
+
+    output_file = tmp_path / 'output.txt'
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(diff2typo_path),
+            '--output_file',
+            str(output_file),
+            '--dictionary_file',
+            str(dictionary_file),
+            '--allowed_file',
+            str(allowed_file),
+            '--typos_tool_path',
+            str(tmp_path / 'missing_tool'),
+            '--output_format',
+            'arrow',
+            '--quiet',
+        ],
+        input=diff_text.encode('utf-8'),
+        cwd=tmp_path,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert output_file.read_text().strip().splitlines() == ['teh -> the']
+
+
+def test_main_accepts_multiple_input_files(tmp_path):
+    diff2typo_path = Path(__file__).resolve().parents[1] / 'diff2typo.py'
+
+    diff1 = tmp_path / 'diff1.txt'
+    diff1.write_text('--- a/file\n+++ b/file\n@@\n-teh value\n+the value\n')
+
+    diff2 = tmp_path / 'diff2.txt'
+    diff2.write_text('--- a/another\n+++ b/another\n@@\n-recieve\n+receive\n')
+
+    dictionary_file = tmp_path / 'words.csv'
+    dictionary_file.write_text('valid\n')
+
+    allowed_file = tmp_path / 'allowed.csv'
+    allowed_file.write_text('')
+
+    output_file = tmp_path / 'output.txt'
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(diff2typo_path),
+            '--input_file',
+            str(tmp_path / 'diff*.txt'),
+            '--output_file',
+            str(output_file),
+            '--dictionary_file',
+            str(dictionary_file),
+            '--allowed_file',
+            str(allowed_file),
+            '--typos_tool_path',
+            str(tmp_path / 'missing_tool'),
+            '--output_format',
+            'arrow',
+            '--quiet',
+        ],
+        cwd=tmp_path,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert output_file.read_text().strip().splitlines() == [
+        'recieve -> receive',
+        'teh -> the',
+    ]
 
 
 def test_process_new_typos_quiet_suppresses_progress(monkeypatch):

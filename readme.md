@@ -58,7 +58,7 @@ Scans a Git diff file to find typo corrections. It:
 
 | Argument            | Description                                                                                       | Default       |
 |---------------------|---------------------------------------------------------------------------------------------------|---------------|
-| `--input_file`      | Path to the input Git diff file.                                                                   | `diff.txt`    |
+| `--input_file`      | One or more input Git diff files or glob patterns. Use `-` to read from stdin, or omit to read stdin automatically. | `stdin`       |
 | `--output_file`     | Path to the output typos file.                                                                     | `output.txt`   |
 | `--output_format`   | Format of the output typos. Choices: `arrow`, `csv`, `table`, `list`.                             | `arrow`       |
 | `--mode`            | Extract new typos, corrections to existing ones, or both. Choices: `typos`, `corrections`, `both` | `typos`       |
@@ -99,11 +99,25 @@ Choose the output format based on what you are using the data for.
   teh
   ```
 
-**Example:**
+**Examples:**
 
-```bash
-python diff2typo.py --input_file=diff.txt --output_file=typos.txt --output_format=list --mode both --typos_tool_path=/path/to/typos --allowed_file=allowed.csv --dictionary_file=words.csv --min_length 2 --quiet
-```
+- Process a single diff file and write results to `typos.txt`:
+
+  ```bash
+  python diff2typo.py --input_file=diff.txt --output_file=typos.txt --output_format=list --mode both --typos_tool_path=/path/to/typos --allowed_file=allowed.csv --dictionary_file=words.csv --min_length 2 --quiet
+  ```
+
+- Pipe a diff directly from `git diff` without specifying `--input_file`:
+
+  ```bash
+  git diff | python diff2typo.py --output_file=typos.txt --dictionary_file=words.csv --allowed_file=allowed.csv --quiet
+  ```
+
+- Combine multiple diff files (including glob patterns) in one run:
+
+  ```bash
+  python diff2typo.py --input_file diff1.txt diff2.txt "2024-*.diff" --output_file=typos.txt --dictionary_file=words.csv --allowed_file=allowed.csv
+  ```
 
 When using `--mode both` with `--output-format arrow`, the output will be separated into "New Typos" and "New Corrections":
 

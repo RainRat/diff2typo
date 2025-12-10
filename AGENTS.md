@@ -9,4 +9,4 @@ This file applies to the entire repository.
 - Do not split out logic into say, a new `utils.py`. The simplicity of a one tool, one file approach currently outweighs the downside of duplicated code.
 
 ## Testing
-- Run `pytest` from the repository root before submitting changes.
+- Always run `pytest` from the repository root before submitting changes, unless it is a documentation-only change. Try to fix any test failures, even if you don't think you caused them.

@@ -421,39 +421,6 @@ def filter_candidates(candidates, filters, quiet=False):
     return result
 
 
-def filter_allowed_words(candidates, allowed_words, quiet=False):
-    """
-    Filters out candidates where the 'before' word is in the allowed list.
-
-    Args:
-        candidates (list): A list of typo candidates.
-        allowed_words (set): A set of lowercase allowed words.
-        quiet (bool): If True, suppresses the progress bar.
-
-    Returns:
-        list: A filtered list of typo candidates.
-    """
-    return _filter_candidates_by_set(
-        candidates, allowed_words, "Filtering allowed words", quiet
-    )
-
-
-def filter_dictionary_words(candidates, valid_words, quiet=False):
-    """
-    Filters out candidates where the 'before' word is in the dictionary of valid words.
-
-    Args:
-        candidates (list): A list of typo candidates.
-        valid_words (set): A set of lowercase valid words.
-        quiet (bool): If True, suppresses the progress bar.
-
-    Returns:
-        list: A filtered list of typo candidates.
-    """
-    return _filter_candidates_by_set(
-        candidates, valid_words, "Filtering dictionary words", quiet
-    )
-
 def process_new_typos(candidates, args, valid_words, allowed_words):
     """
     Process candidate typos (list of "before -> after") to produce
@@ -465,8 +432,14 @@ def process_new_typos(candidates, args, valid_words, allowed_words):
     """
     filters = [
         (filter_known_typos, {"typos_tool_path": args.typos_tool_path}),
-        (filter_allowed_words, {"allowed_words": allowed_words}),
-        (filter_dictionary_words, {"valid_words": valid_words}),
+        (
+            _filter_candidates_by_set,
+            {"filter_set": allowed_words, "desc": "Filtering allowed words"},
+        ),
+        (
+            _filter_candidates_by_set,
+            {"filter_set": valid_words, "desc": "Filtering dictionary words"},
+        ),
     ]
 
     filtered_candidates = filter_candidates(

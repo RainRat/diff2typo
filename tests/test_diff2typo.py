@@ -125,16 +125,12 @@ def test_filter_known_typos(monkeypatch, tmp_path):
     result = diff2typo.filter_known_typos(candidates, str(typos_tool))
     assert result == ['typo -> type']
 
-def test_filter_allowed_words():
-    candidates = ['teh -> the', 'mispell -> misspell']
-    allowed_words = {'teh'}
-    result = diff2typo.filter_allowed_words(candidates, allowed_words, quiet=True)
-    assert result == ['mispell -> misspell']
-
-def test_filter_dictionary_words():
-    candidates = ['fluro -> fluoro', 'wierd -> weird']
-    valid_words = {'wierd'}
-    result = diff2typo.filter_dictionary_words(candidates, valid_words, quiet=True)
+def test_filter_candidates_by_set():
+    candidates = ['teh -> the', 'mispell -> misspell', 'fluro -> fluoro']
+    filter_set = {'teh', 'mispell'}
+    result = diff2typo._filter_candidates_by_set(
+        candidates, filter_set, "Filtering test", quiet=True
+    )
     assert result == ['fluro -> fluoro']
 
 def test_process_new_typos(tmp_path, monkeypatch):

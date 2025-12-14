@@ -601,7 +601,7 @@ def main() -> None:
     )
 
     logging.info("Loading dictionary (large dictionary)...")
-    all_words = set(load_file(settings.dictionary_file))
+    all_words = load_file(settings.dictionary_file)
     logging.info(
         "Loaded %d words from the large dictionary ('%s').",
         len(all_words),

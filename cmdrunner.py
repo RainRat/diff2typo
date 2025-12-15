@@ -145,15 +145,6 @@ def main() -> None:
     command_to_run = config.get('command_to_run', '')
     excluded = config.get('excluded_folders', [])
 
-    # Validate required configuration parameters
-    if not base_directory:
-        logging.error("'base_directory' is not specified in the configuration.")
-        sys.exit(1)
-
-    if not command_to_run:
-        logging.error("'command_to_run' is not specified in the configuration.")
-        sys.exit(1)
-
     # Run the command in the specified folders
     run_command_in_folders(
         base_directory,

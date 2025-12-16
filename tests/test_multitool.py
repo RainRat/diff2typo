@@ -365,3 +365,17 @@ def test_main_set_operation_integration(monkeypatch, tmp_path):
     multitool.main()
 
     assert output_file.read_text().splitlines() == ['alpha', 'beta', 'gamma']
+
+
+def test_backtick_mode_context_markers(tmp_path):
+    # Verify that warning and note markers are respected
+    input_file = tmp_path / "context.txt"
+    input_file.write_text(
+        "`noise` warning: `warning`\n"
+        "`noise` note: `note`\n"
+        "`noise` error: `error`\n"
+        "no marker `fallback`\n"
+    )
+    output_file = tmp_path / "output.txt"
+    multitool.backtick_mode(str(input_file), str(output_file), 1, 20, False)
+    assert output_file.read_text().splitlines() == ["warning", "note", "error", "fallback"]

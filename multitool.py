@@ -192,7 +192,7 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
             if len(parts) >= 3:
                 for index in range(1, len(parts)):
                     preceding = parts[index - 1].lower() if index - 1 >= 0 else ""
-                    if "error:" in preceding:
+                    if any(marker in preceding for marker in context_markers):
                         selected = parts[index].strip()
                         break
 

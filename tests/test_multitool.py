@@ -379,3 +379,17 @@ def test_backtick_mode_context_markers(tmp_path):
     output_file = tmp_path / "output.txt"
     multitool.backtick_mode(str(input_file), str(output_file), 1, 20, False)
     assert output_file.read_text().splitlines() == ["warning", "note", "error", "fallback"]
+
+def test_backtick_mode_marker_inside_backticks(tmp_path):
+    # Regression test: Markers inside backticks should not trigger extraction of subsequent text
+    input_file = tmp_path / "bug.txt"
+    input_file.write_text("Do not use `error:` as a variable name.\n")
+    output_file = tmp_path / "output.txt"
+
+    # We use a large max_length to ensure we don't filter out the long result
+    multitool.backtick_mode(str(input_file), str(output_file), 1, 100, False)
+
+    content = output_file.read_text().strip()
+
+    # Should fall back to extracting "error:" -> "error"
+    assert content == "error"

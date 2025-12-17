@@ -33,7 +33,7 @@ def test_generate_variations():
     assert typos == {'ord', 'wrd', 'wod', 'owrd', 'wrod', 'wodr'}
 
 def test_generate_typos_by_duplication():
-    typos = gentypos.generate_typos_by_duplication('cat', {'duplication': True})
+    typos = gentypos.generate_typos_by_duplication('cat')
     assert typos == {'ccat', 'caat', 'catt'}
 
 def test_generate_all_typos():

@@ -190,7 +190,7 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
             parts = line.split('`')
             selected = None
             if len(parts) >= 3:
-                for index in range(1, len(parts)):
+                for index in range(1, len(parts), 2):
                     preceding = parts[index - 1].lower() if index - 1 >= 0 else ""
                     for marker in context_markers:
                         if marker in preceding:

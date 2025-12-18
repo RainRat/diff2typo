@@ -145,3 +145,32 @@ def test_main_integration_success(monkeypatch, tmp_path):
     gentypos.main()
 
     assert output_file.read_text().splitlines() == ['caat', 'catt', 'ccat']
+
+
+def test_merge_defaults_recursive_merge():
+    config = {
+        'section': {
+            'custom': 10
+        }
+    }
+    defaults = {
+        'section': {
+            'custom': 1,
+            'default': 2
+        },
+        'other': 3
+    }
+
+    gentypos._merge_defaults(config, defaults)
+
+    assert config['section']['custom'] == 10
+    assert config['section']['default'] == 2
+    assert config['other'] == 3
+
+
+def test_merge_defaults_type_mismatch():
+    config = {'section': 'scalar'}
+    defaults = {'section': {'sub': 1}}
+
+    with pytest.raises(SystemExit):
+        gentypos._merge_defaults(config, defaults)

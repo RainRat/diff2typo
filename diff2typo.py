@@ -525,7 +525,8 @@ def main():
     parser.add_argument('--quiet', action='store_true', help='Suppress progress bars and other non-essential output.')
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    log_level = logging.WARNING if args.quiet else logging.INFO
+    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
 
     logging.info("Starting typo extraction process...")
 

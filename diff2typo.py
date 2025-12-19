@@ -58,18 +58,6 @@ def filter_to_letters(text: str) -> str:
     """Return text containing only lowercase a-z characters."""
     return re.sub("[^a-z]", "", text.lower())
 
-def extract_backticks(input_text: str) -> List[str]:
-    """
-    Extracts all backtick-enclosed strings from the input text.
-
-    Args:
-        input_text (str): The text to extract backtick-enclosed strings from.
-
-    Returns:
-        list: A list of extracted strings without the backticks.
-    """
-    return [s for s in re.findall(r'`([^`]+)`', input_text) if len(s) > 1]
-
 def _read_csv_rows(file_path, description, required=False):
     """Return CSV rows from ``file_path`` with shared error handling."""
 
@@ -371,7 +359,7 @@ def filter_known_typos(candidates, typos_tool_path):
         command = [typos_executable, '--format', 'brief', temp_file]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=False)
-            already_known = extract_backticks(result.stdout)
+            already_known = [s for s in re.findall(r'`([^`]+)`', result.stdout) if len(s) > 1]
             filtered = [
                 line for line in candidates
                 if line.split(' -> ')[0].lower() not in [word.lower() for word in already_known]

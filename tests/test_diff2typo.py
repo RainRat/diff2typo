@@ -15,11 +15,6 @@ def test_filter_to_letters():
     assert diff2typo.filter_to_letters('Hello, World!123') == 'helloworld'
 
 
-def test_extract_backticks():
-    text = 'use `code` and `more` but `x` is ignored'
-    assert diff2typo.extract_backticks(text) == ['code', 'more']
-
-
 def test_read_allowed_words(tmp_path):
     allowed_file = tmp_path / 'allowed.csv'
     allowed_file.write_text('Foo\nBar\n')

@@ -140,17 +140,6 @@ def read_words_mapping(file_path: str) -> Dict[str, Set[str]]:
     logging.info(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
     return mapping
 
-def _validate_adjacent_context(before_words: Sequence[str], after_words: Sequence[str], index: int) -> bool:
-    """Return True when the neighbouring words surrounding ``index`` match."""
-
-    previous_matches = index == 0 or before_words[index - 1] == after_words[index - 1]
-    next_matches = (
-        index == len(before_words) - 1
-        or before_words[index + 1] == after_words[index + 1]
-    )
-    return previous_matches and next_matches
-
-
 def _compare_word_lists(before_words: Sequence[str], after_words: Sequence[str], min_length: int) -> List[str]:
     """Return typo pairs discovered when comparing two word sequences."""
 
@@ -161,7 +150,10 @@ def _compare_word_lists(before_words: Sequence[str], after_words: Sequence[str],
     for index, (before_word, after_word) in enumerate(zip(before_words, after_words)):
         if before_word == after_word:
             continue
-        if not _validate_adjacent_context(before_words, after_words, index):
+
+        if index > 0 and before_words[index - 1] != after_words[index - 1]:
+            continue
+        if index < len(before_words) - 1 and before_words[index + 1] != after_words[index + 1]:
             continue
 
         before_clean = filter_to_letters(before_word)

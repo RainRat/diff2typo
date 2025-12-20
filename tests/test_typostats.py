@@ -132,3 +132,11 @@ def test_main_encoding_fallback(monkeypatch, tmp_path):
     typostats.main()
 
     assert output_file.exists()
+
+
+def test_process_typos_skips_non_ascii_corrections():
+    lines = [
+        'tezt, tézt, test',
+    ]
+    counts = typostats.process_typos(lines, allow_two_char=False)
+    assert counts == {('s', 'z'): 1}

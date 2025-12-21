@@ -49,7 +49,7 @@ git diff HEAD~5 HEAD > recent_changes.diff
 Use `diff2typo` to find spelling corrections you've already made.
 
 ```bash
-python diff2typo.py --input_file recent_changes.diff --output_file my_typos.txt --mode typos
+python diff2typo.py --input_file recent_changes.diff --output_file my_typos.txt --mode typos --output_format csv
 ```
 
 **3. Analyze Patterns:**

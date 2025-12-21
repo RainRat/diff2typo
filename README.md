@@ -13,8 +13,15 @@ The **diff2typo Suite** is a collection of standalone command-line tools designe
    ```
 
 2. **Install dependencies:**
+
+   You can install all required packages at once:
    ```bash
-   pip install tqdm pyyaml
+   pip install -r requirements.txt
+   ```
+
+   Or install them individually:
+   ```bash
+   pip install tqdm pyyaml pyahocorasick
    # Optional: for encoding detection in typostats
    pip install chardet
    ```

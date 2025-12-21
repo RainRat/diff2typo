@@ -76,19 +76,17 @@ def test_find_typos_large_input():
     assert result[0] == 'eror -> error'
 
 
-def test_validate_adjacent_context():
-    before = ['a', 'eror', 'line']
-    after = ['a', 'error', 'line']
-    assert diff2typo._validate_adjacent_context(before, after, 1)
-    after_mismatch = ['a', 'error', 'change']
-    assert not diff2typo._validate_adjacent_context(before, after_mismatch, 1)
-
-
 def test_compare_word_lists():
     before_words = ['This', 'eror', 'line']
     after_words = ['This', 'error', 'line']
     assert diff2typo._compare_word_lists(before_words, after_words, 2) == ['eror -> error']
     assert diff2typo._compare_word_lists(['foo'], ['foo', 'bar'], 2) == []
+
+    # Check context mismatch
+    before = ['a', 'eror', 'line']
+    after_mismatch = ['a', 'error', 'change']
+    # 'line' != 'change', so 'eror' -> 'error' should be rejected
+    assert diff2typo._compare_word_lists(before, after_mismatch, 2) == []
 
 
 def test_lowercase_sort_dedup():

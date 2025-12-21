@@ -41,7 +41,6 @@ Output Formats:
 import argparse
 import csv
 import glob
-import inspect
 import logging
 import os
 import re
@@ -388,19 +387,6 @@ def _filter_candidates_by_set(candidates, filter_set, desc, quiet=False):
     return filtered_list
 
 
-def filter_candidates(candidates, filters, quiet=False):
-    """Apply ``filters`` sequentially to typo candidates."""
-
-    result = candidates
-    for func, kwargs in filters:
-        call_kwargs = dict(kwargs or {})
-        parameters = inspect.signature(func).parameters
-        if "quiet" in parameters and "quiet" not in call_kwargs:
-            call_kwargs["quiet"] = quiet
-        result = func(result, **call_kwargs)
-    return result
-
-
 def process_new_typos(candidates, args, valid_words, allowed_words):
     """
     Process candidate typos (list of "before -> after") to produce
@@ -410,20 +396,18 @@ def process_new_typos(candidates, args, valid_words, allowed_words):
     words.csv file, where only the correction columns are treated as valid
     words. Returns the formatted list of new typos.
     """
-    filters = [
-        (filter_known_typos, {"typos_tool_path": args.typos_tool_path}),
-        (
-            _filter_candidates_by_set,
-            {"filter_set": allowed_words, "desc": "Filtering allowed words"},
-        ),
-        (
-            _filter_candidates_by_set,
-            {"filter_set": valid_words, "desc": "Filtering dictionary words"},
-        ),
-    ]
-
-    filtered_candidates = filter_candidates(
-        candidates, filters=filters, quiet=args.quiet
+    candidates = filter_known_typos(candidates, typos_tool_path=args.typos_tool_path)
+    candidates = _filter_candidates_by_set(
+        candidates,
+        filter_set=allowed_words,
+        desc="Filtering allowed words",
+        quiet=args.quiet,
+    )
+    filtered_candidates = _filter_candidates_by_set(
+        candidates,
+        filter_set=valid_words,
+        desc="Filtering dictionary words",
+        quiet=args.quiet,
     )
 
     # Deduplicate and sort.

@@ -111,7 +111,7 @@ def split_into_subwords(word: str) -> List[str]:
     for part in parts:
         # Split based on casing (camelCase, PascalCase)
         # This regex will split before uppercase letters that follow lowercase letters
-        split_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])', part)
+        split_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', part)
         if split_parts:
             subwords.extend(split_parts)
         else:

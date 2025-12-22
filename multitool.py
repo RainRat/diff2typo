@@ -571,48 +571,48 @@ def set_operation_mode(
 
 MODE_DETAILS = {
     "arrow": {
-        "summary": "Extract text before ' -> ' from each line of a file.",
-        "description": "Useful for processing conversion tables or mappings formatted as 'typo -> correction'.",
+        "summary": "Extract the left side of '->' arrows.",
+        "description": "Reads lines like 'typo -> correction' and saves just the 'typo' part. Useful for isolating original words from a list.",
         "example": "python multitool.py arrow --input typos.log --output cleaned.txt",
     },
     "combine": {
-        "summary": "Merge multiple files into one deduplicated list.",
-        "description": "Reads several input files, cleans their contents, and writes a unified sorted list.",
+        "summary": "Merge and sort multiple files.",
+        "description": "Reads multiple files, combines them into one list, removes duplicates, and sorts them alphabetically.",
         "example": "python multitool.py combine --input typos1.txt typos2.txt --output all_typos.txt",
     },
     "backtick": {
-        "summary": "Extract text between pairs of backticks on each line.",
-        "description": "Designed for compiler or linter diagnostics that enclose problematic identifiers in backticks. Includes heuristics for handling diagnostic messages with `error:`, `warning:`, and `note:` prefixes.",
+        "summary": "Extract text inside backticks.",
+        "description": "Extracts text enclosed in backticks (like `this`). Smartly picks the most relevant item from lines containing 'error:', 'warning:', or 'note:'.",
         "example": "python multitool.py backtick --input build.log --output suspects.txt",
     },
     "csv": {
-        "summary": "Extract typo or correction columns from a CSV file.",
-        "description": "By default skips the first column so you can gather every suggested correction in one list.",
+        "summary": "Extract columns from a CSV file.",
+        "description": "Extracts data from CSV files. By default, it grabs everything *except* the first column, which is perfect for getting a list of corrections.",
         "example": "python multitool.py csv --input typos.csv --output corrections.txt",
     },
     "line": {
-        "summary": "Output each input line as-is (after optional filtering).",
-        "description": "A simple pass-through mode that keeps one entry per line from the input file.",
+        "summary": "Process a file line by line.",
+        "description": "Reads each line, filters it (if requested), and writes it to the output. A simple way to clean up a text file.",
         "example": "python multitool.py line --input raw_words.txt --output filtered.txt",
     },
     "count": {
-        "summary": "Count word frequencies within the provided file.",
-        "description": "Reports how often each cleaned word appears, sorted by frequency then alphabetically.",
+        "summary": "Count how often words appear.",
+        "description": "Counts the frequency of each word in the file and lists them from most frequent to least frequent.",
         "example": "python multitool.py count --input typos.log --output counts.txt",
     },
     "filterfragments": {
-        "summary": "Remove words that appear as substrings in a comparison file.",
-        "description": "Helps filter out generated words that already exist within a dictionary or corpus.",
+        "summary": "Remove words found inside another file.",
+        "description": "Filters out words that are already present (even as substrings) in a second file, such as a dictionary.",
         "example": "python multitool.py filterfragments --input generated.txt --file2 dictionary.txt --output unique.txt",
     },
     "check": {
-        "summary": "Report words that show up as both typos and corrections in a CSV file.",
-        "description": "Useful sanity check for typo databases to avoid suggesting the same word as both wrong and right.",
+        "summary": "Find words that are both a typo and a correction.",
+        "description": "Identifies words that are listed as both a typo and a correction. This helps find errors in your typo database.",
         "example": "python multitool.py check --input typos.csv --output duplicates.txt",
     },
     "set_operation": {
-        "summary": "Perform set-based comparisons between two files.",
-        "description": "Supports intersection, union, and difference between the cleaned contents of the files.",
+        "summary": "Compare two files (intersection, union, difference).",
+        "description": "Finds common lines (intersection), combines all lines (union), or finds lines in one file but not the other (difference).",
         "example": "python multitool.py set_operation --input fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
     },
 }

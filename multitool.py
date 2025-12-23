@@ -73,22 +73,30 @@ def _load_and_clean_file(
             lines = handle.readlines()
             used_encoding = 'utf-8'
     except UnicodeDecodeError:
-        logging.warning("UTF-8 decoding failed for '%s'. Trying latin-1...", path)
-        try:
-            with open(path, 'r', encoding='latin-1') as handle:
-                lines = handle.readlines()
-                used_encoding = 'latin-1'
-        except UnicodeDecodeError:
-            detected_encoding = detect_encoding(path)
-            if detected_encoding:
-                logging.warning(
-                    "Using detected encoding '%s' for '%s'.", detected_encoding, path
-                )
+        logging.warning("UTF-8 decoding failed for '%s'. Attempting detection...", path)
+        detected_encoding = detect_encoding(path)
+        if detected_encoding:
+            logging.warning(
+                "Using detected encoding '%s' for '%s'.", detected_encoding, path
+            )
+            try:
                 with open(path, 'r', encoding=detected_encoding) as handle:
                     lines = handle.readlines()
-                    used_encoding = detected_encoding
-            else:
-                raise
+                used_encoding = detected_encoding
+            except UnicodeDecodeError:
+                logging.warning(
+                    "Detected encoding '%s' failed for '%s'. Fallback to latin-1.",
+                    detected_encoding,
+                    path,
+                )
+                with open(path, 'r', encoding='latin-1') as handle:
+                    lines = handle.readlines()
+                used_encoding = 'latin-1'
+        else:
+            logging.warning("Encoding detection failed. Fallback to latin-1 for '%s'.", path)
+            with open(path, 'r', encoding='latin-1') as handle:
+                lines = handle.readlines()
+            used_encoding = 'latin-1'
 
     logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
 

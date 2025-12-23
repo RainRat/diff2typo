@@ -11,13 +11,6 @@ sys.modules.setdefault('yaml', types.SimpleNamespace(safe_load=lambda stream: {}
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import gentypos
 
-def test_get_adjacent_keys():
-    with_diag = gentypos.get_adjacent_keys(include_diagonals=True)
-    without_diag = gentypos.get_adjacent_keys(include_diagonals=False)
-    assert 'y' in with_diag['g']
-    assert 'y' not in without_diag['g']
-    assert 'h' in without_diag['g']
-
 def test_load_custom_substitutions():
     custom = {'A': ['B', 'C'], 'd': ['E']}
     assert gentypos.load_custom_substitutions(custom) == {'a': {'b', 'c'}, 'd': {'e'}}

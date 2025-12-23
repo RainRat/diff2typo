@@ -367,10 +367,10 @@ def format_typos(
 def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = False) -> SimpleNamespace:
     """Extract validated configuration values into a structured namespace."""
 
-    input_file = config.get('input_file', 'wordlist_small.txt')
-    dictionary_file = config.get('dictionary_file', 'wordlist_large.txt')
-    output_file = config.get('output_file', 'typos_mega.toml')
-    output_format = config.get('output_format', 'table').lower()
+    input_file = config['input_file']
+    dictionary_file = config['dictionary_file']
+    output_file = config['output_file']
+    output_format = config['output_format'].lower()
     output_header = config.get('output_header')
 
     valid_formats = {'arrow', 'csv', 'table', 'list'}

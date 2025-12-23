@@ -22,7 +22,7 @@ python diff2typo.py [OPTIONS]
 | `--input_file`, `-i` | stdin | Input diff file(s). Supports glob patterns (e.g., `*.diff`). |
 | `--output_file` | `output.txt` | Where to write the results. |
 | `--mode` | `typos` | **`typos`**: Output the incorrect word.<br>**`corrections`**: Output the fix (if new).<br>**`both`**: Output separated lists. |
-| `--output_format` | `arrow` | `arrow` (a->b), `csv`, `table`, or `list`. |
+| `--output_format` | `arrow` | `arrow` (a->b), `csv` (required for `typostats`), `table`, or `list`. |
 | `--dictionary_file` | `words.csv` | A list of valid words to validate corrections against. |
 | `--allowed_file` | `allowed.csv` | A list of words to explicitly ignore (false positive suppression). |
 | `--min_length` | `2` | Minimum length of a word to be considered. |
@@ -39,4 +39,11 @@ python diff2typo.py --input_file feature.diff --mode typos --output_format list
 
 ```bash
 git diff | python diff2typo.py --output_file found_typos.txt --mode both
+```
+
+**Find patterns with typostats:**
+
+```bash
+python diff2typo.py --input_file recent_changes.diff --output_format csv --output_file typos.csv
+python typostats.py typos.csv
 ```

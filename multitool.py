@@ -158,22 +158,17 @@ def _process_items(
     quiet: bool = False,
 ) -> None:
     """Generic processing for modes that extract raw string items from a file."""
-    try:
-        raw_items = list(extractor_func(input_file, quiet=quiet))
-        filtered_items = clean_and_filter(raw_items, min_length, max_length)
-        if process_output:
-            filtered_items = sorted(set(filtered_items))
-        with open(output_file, 'w', encoding='utf-8') as outfile:
-            for item in filtered_items:
-                outfile.write(item + '\n')
-        print_processing_stats(len(raw_items), filtered_items)
-        logging.info(
-            f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'."
-        )
-    except FileNotFoundError:
-        logging.error(f"[{mode_name} Mode] Error: Input file not found at '{input_file}'")
-    except Exception as e:
-        logging.error(f"[{mode_name} Mode] An unexpected error occurred: {e}")
+    raw_items = list(extractor_func(input_file, quiet=quiet))
+    filtered_items = clean_and_filter(raw_items, min_length, max_length)
+    if process_output:
+        filtered_items = sorted(set(filtered_items))
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        for item in filtered_items:
+            outfile.write(item + '\n')
+    print_processing_stats(len(raw_items), filtered_items)
+    logging.info(
+        f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'."
+    )
 
 
 def _extract_arrow_items(input_file: str, quiet: bool = False) -> Iterable[str]:
@@ -278,33 +273,28 @@ def count_mode(
     The stats are based on the raw count of words versus the filtered words.
     Note: process_output is ignored in count mode.
     """
-    try:
-        raw_count = 0
-        filtered_words = []
-        word_counts = Counter()
-        with open(input_file, 'r', encoding='utf-8') as file:
-            for line in tqdm(file, desc='Counting words', unit=' lines', disable=quiet):
-                words = [word.strip() for word in line.split()]
-                raw_count += len(words)
-                filtered = []
-                for word in words:
-                    cleaned = filter_to_letters(word)
-                    if min_length <= len(cleaned) <= max_length:
-                        filtered.append(cleaned)
-                filtered_words.extend(filtered)
-                word_counts.update(filtered)
-        sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
-        with open(output_file, 'w', encoding='utf-8') as out_file:
-            for word, count in sorted_words:
-                out_file.write(f"{word}: {count}\n")
-        print_processing_stats(raw_count, filtered_words, item_label="word")
-        logging.info(
-            f"[Count Mode] Word frequencies have been written to '{output_file}'."
-        )
-    except FileNotFoundError:
-        logging.error(f"[Count Mode] Error: Input file not found at '{input_file}'")
-    except Exception as e:
-        logging.error(f"[Count Mode] An unexpected error occurred while processing '{input_file}': {e}")
+    raw_count = 0
+    filtered_words = []
+    word_counts = Counter()
+    with open(input_file, 'r', encoding='utf-8') as file:
+        for line in tqdm(file, desc='Counting words', unit=' lines', disable=quiet):
+            words = [word.strip() for word in line.split()]
+            raw_count += len(words)
+            filtered = []
+            for word in words:
+                cleaned = filter_to_letters(word)
+                if min_length <= len(cleaned) <= max_length:
+                    filtered.append(cleaned)
+            filtered_words.extend(filtered)
+            word_counts.update(filtered)
+    sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
+    with open(output_file, 'w', encoding='utf-8') as out_file:
+        for word, count in sorted_words:
+            out_file.write(f"{word}: {count}\n")
+    print_processing_stats(raw_count, filtered_words, item_label="word")
+    logging.info(
+        f"[Count Mode] Word frequencies have been written to '{output_file}'."
+    )
 
 def check_mode(
     input_file: str,
@@ -324,34 +314,29 @@ def check_mode(
     written to the output file. Standard length filtering and optional
     output processing (lowercasing, deduping, sorting) are applied.
     """
-    try:
-        typos = set()
-        corrections = set()
-        with open(input_file, newline='', encoding='utf-8') as csvfile:
-            reader = csv.reader(csvfile)
-            for row in tqdm(reader, desc='Checking CSV for overlaps', unit=' rows', disable=quiet):
-                if not row:
-                    continue
-                typos.add(row[0].strip())
-                for field in row[1:]:
-                    corrections.add(field.strip())
+    typos = set()
+    corrections = set()
+    with open(input_file, newline='', encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile)
+        for row in tqdm(reader, desc='Checking CSV for overlaps', unit=' rows', disable=quiet):
+            if not row:
+                continue
+            typos.add(row[0].strip())
+            for field in row[1:]:
+                corrections.add(field.strip())
 
-        duplicates = list(typos & corrections)
-        filtered_items = clean_and_filter(duplicates, min_length, max_length)
-        if process_output:
-            filtered_items = list(set(filtered_items))
-        filtered_items.sort()
-        with open(output_file, 'w', encoding='utf-8') as outfile:
-            for word in filtered_items:
-                outfile.write(word + '\n')
-        print_processing_stats(len(duplicates), filtered_items)
-        logging.info(
-            f"[Check Mode] Found {len(filtered_items)} overlapping words. Output written to '{output_file}'."
-        )
-    except FileNotFoundError:
-        logging.error(f"[Check Mode] Error: Input file not found at '{input_file}'")
-    except Exception as e:
-        logging.error(f"[Check Mode] An unexpected error occurred while processing '{input_file}': {e}")
+    duplicates = list(typos & corrections)
+    filtered_items = clean_and_filter(duplicates, min_length, max_length)
+    if process_output:
+        filtered_items = list(set(filtered_items))
+    filtered_items.sort()
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        for word in filtered_items:
+            outfile.write(word + '\n')
+    print_processing_stats(len(duplicates), filtered_items)
+    logging.info(
+        f"[Check Mode] Found {len(filtered_items)} overlapping words. Output written to '{output_file}'."
+    )
 
 
 def csv_mode(
@@ -391,39 +376,34 @@ def combine_mode(
 ) -> None:
     """Merge cleaned contents from multiple files into one deduplicated list."""
 
-    try:
-        raw_item_count = 0
-        combined_unique: list[str] = []
+    raw_item_count = 0
+    combined_unique: list[str] = []
 
-        for file_path in input_files:
-            raw_items, cleaned_items, unique_items = _load_and_clean_file(
-                file_path,
-                min_length,
-                max_length,
-            )
-            raw_item_count += len(raw_items)
-            combined_unique.extend(unique_items)
-
-        combined_unique = list(dict.fromkeys(combined_unique))
-        if process_output:
-            combined_unique = sorted(set(combined_unique))
-        else:
-            combined_unique = sorted(combined_unique)
-
-        with open(output_file, 'w', encoding='utf-8') as outfile:
-            for item in combined_unique:
-                outfile.write(item + '\n')
-
-        print_processing_stats(raw_item_count, combined_unique)
-        logging.info(
-            "[Combine Mode] Combined %d file(s). Output written to '%s'.",
-            len(input_files),
-            output_file,
+    for file_path in input_files:
+        raw_items, cleaned_items, unique_items = _load_and_clean_file(
+            file_path,
+            min_length,
+            max_length,
         )
-    except FileNotFoundError as e:
-        logging.error(f"[Combine Mode] Error: File not found at '{e.filename}'")
-    except Exception as e:
-        logging.error(f"[Combine Mode] An unexpected error occurred: {e}")
+        raw_item_count += len(raw_items)
+        combined_unique.extend(unique_items)
+
+    combined_unique = list(dict.fromkeys(combined_unique))
+    if process_output:
+        combined_unique = sorted(set(combined_unique))
+    else:
+        combined_unique = sorted(combined_unique)
+
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        for item in combined_unique:
+            outfile.write(item + '\n')
+
+    print_processing_stats(raw_item_count, combined_unique)
+    logging.info(
+        "[Combine Mode] Combined %d file(s). Output written to '%s'.",
+        len(input_files),
+        output_file,
+    )
 
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True
@@ -479,51 +459,46 @@ def filter_fragments_mode(
     Optionally converts the output to lowercase, sorts it, and removes duplicates.
     Finally, writes the filtered words to output_file and prints statistics.
     """
-    try:
-        raw_list1, cleaned_list1, _ = _load_and_clean_file(
-            input_file,
-            min_length,
-            max_length,
-            apply_length_filter=False,
-        )
-        _, _, unique_list2 = _load_and_clean_file(
-            file2,
-            min_length,
-            max_length,
-            split_whitespace=True,
-            apply_length_filter=False,
-        )
+    raw_list1, cleaned_list1, _ = _load_and_clean_file(
+        input_file,
+        min_length,
+        max_length,
+        apply_length_filter=False,
+    )
+    _, _, unique_list2 = _load_and_clean_file(
+        file2,
+        min_length,
+        max_length,
+        split_whitespace=True,
+        apply_length_filter=False,
+    )
 
-        # Aho-Corasick automaton for efficient substring matching
-        auto = ahocorasick.Automaton()
-        for keyword in cleaned_list1:
-            auto.add_word(keyword, keyword)
-        auto.make_automaton()
+    # Aho-Corasick automaton for efficient substring matching
+    auto = ahocorasick.Automaton()
+    for keyword in cleaned_list1:
+        auto.add_word(keyword, keyword)
+    auto.make_automaton()
 
-        matched_words = set()
-        for item in tqdm(unique_list2, desc="Finding matches", disable=quiet):
-            for end_index, keyword in auto.iter(item):
-                matched_words.add(keyword)
+    matched_words = set()
+    for item in tqdm(unique_list2, desc="Finding matches", disable=quiet):
+        for end_index, keyword in auto.iter(item):
+            matched_words.add(keyword)
 
-        non_matches = [word for word in cleaned_list1 if word not in matched_words]
-        filtered_items = clean_and_filter(non_matches, min_length, max_length)
+    non_matches = [word for word in cleaned_list1 if word not in matched_words]
+    filtered_items = clean_and_filter(non_matches, min_length, max_length)
 
-        if process_output:
-            filtered_items = list(set(filtered_items))
-            filtered_items.sort()
+    if process_output:
+        filtered_items = list(set(filtered_items))
+        filtered_items.sort()
 
-        with open(output_file, 'w', encoding='utf-8') as f:
-            for word in filtered_items:
-                f.write(word + '\n')
+    with open(output_file, 'w', encoding='utf-8') as f:
+        for word in filtered_items:
+            f.write(word + '\n')
 
-        print_processing_stats(len(raw_list1), filtered_items)
-        logging.info(
-            f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'."
-        )
-    except FileNotFoundError as e:
-        logging.error(f"[FilterFragments Mode] Error: File not found at '{e.filename}'")
-    except Exception as e:
-        logging.error(f"[FilterFragments Mode] An unexpected error occurred: {e}")
+    print_processing_stats(len(raw_list1), filtered_items)
+    logging.info(
+        f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'."
+    )
 
 
 def set_operation_mode(
@@ -543,39 +518,34 @@ def set_operation_mode(
             f"Invalid operation '{operation}'. Must be one of: {', '.join(sorted(allowed_operations))}."
         )
 
-    try:
-        raw_items_a, _, unique_a = _load_and_clean_file(
-            input_file, min_length, max_length
-        )
-        raw_items_b, _, unique_b = _load_and_clean_file(
-            file2, min_length, max_length
-        )
+    raw_items_a, _, unique_a = _load_and_clean_file(
+        input_file, min_length, max_length
+    )
+    raw_items_b, _, unique_b = _load_and_clean_file(
+        file2, min_length, max_length
+    )
 
-        set_b = set(unique_b)
+    set_b = set(unique_b)
 
-        if operation == 'intersection':
-            result_items = [item for item in unique_a if item in set_b]
-        elif operation == 'union':
-            result_items = list(dict.fromkeys(unique_a + unique_b))
-        else:  # difference
-            result_items = [item for item in unique_a if item not in set_b]
+    if operation == 'intersection':
+        result_items = [item for item in unique_a if item in set_b]
+    elif operation == 'union':
+        result_items = list(dict.fromkeys(unique_a + unique_b))
+    else:  # difference
+        result_items = [item for item in unique_a if item not in set_b]
 
-        if process_output:
-            result_items = sorted(set(result_items))
+    if process_output:
+        result_items = sorted(set(result_items))
 
-        with open(output_file, 'w', encoding='utf-8') as outfile:
-            for item in result_items:
-                outfile.write(item + '\n')
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        for item in result_items:
+            outfile.write(item + '\n')
 
-        print_processing_stats(len(raw_items_a) + len(raw_items_b), result_items)
-        logging.info(
-            f"[Set Operation Mode] Completed {operation} between '{input_file}' and "
-            f"'{file2}'. Output written to '{output_file}'."
-        )
-    except FileNotFoundError as e:
-        logging.error(f"[Set Operation Mode] Error: File not found at '{e.filename}'")
-    except Exception as e:
-        logging.error(f"[Set Operation Mode] An unexpected error occurred: {e}")
+    print_processing_stats(len(raw_items_a) + len(raw_items_b), result_items)
+    logging.info(
+        f"[Set Operation Mode] Completed {operation} between '{input_file}' and "
+        f"'{file2}'. Output written to '{output_file}'."
+    )
 
 MODE_DETAILS = {
     "arrow": {
@@ -904,7 +874,20 @@ def main() -> None:
     }
 
     handler, handler_args = handler_map[args.mode]
-    handler(**handler_args)
+    try:
+        handler(**handler_args)
+    except FileNotFoundError as e:
+        # If the exception has a filename attribute (common in OSError), use it.
+        # Otherwise, fall back to a generic message.
+        filename = getattr(e, 'filename', None)
+        if filename:
+            logging.error(f"[Error] File not found: '{filename}'")
+        else:
+            logging.error(f"[Error] File not found: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"[Error] An unexpected error occurred: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

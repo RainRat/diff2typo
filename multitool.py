@@ -410,10 +410,15 @@ def _add_common_mode_arguments(
 ) -> None:
     """Attach shared CLI arguments to a mode-specific subparser."""
     subparser.add_argument(
-        '--input',
-        type=str,
-        default='input.txt',
+        'input_file_pos',
+        nargs='?',
         help="Path to the input file (default: input.txt)",
+    )
+    subparser.add_argument(
+        '--input',
+        dest='input_file_flag',
+        type=str,
+        help="Path to the input file (legacy flag).",
     )
     subparser.add_argument(
         '--output',
@@ -551,47 +556,47 @@ MODE_DETAILS = {
     "arrow": {
         "summary": "Extract the left side of '->' arrows.",
         "description": "Reads lines like 'typo -> correction' and saves just the 'typo' part. Useful for isolating original words from a list.",
-        "example": "python multitool.py arrow --input typos.log --output cleaned.txt",
+        "example": "python multitool.py arrow typos.log --output cleaned.txt",
     },
     "combine": {
         "summary": "Merge and sort multiple files.",
         "description": "Reads multiple files, combines them into one list, removes duplicates, and sorts them alphabetically.",
-        "example": "python multitool.py combine --input typos1.txt typos2.txt --output all_typos.txt",
+        "example": "python multitool.py combine typos1.txt typos2.txt --output all_typos.txt",
     },
     "backtick": {
         "summary": "Extract text inside backticks.",
         "description": "Extracts text enclosed in backticks (like `this`). Smartly picks the most relevant item from lines containing 'error:', 'warning:', or 'note:'.",
-        "example": "python multitool.py backtick --input build.log --output suspects.txt",
+        "example": "python multitool.py backtick build.log --output suspects.txt",
     },
     "csv": {
         "summary": "Extract columns from a CSV file.",
         "description": "Extracts data from CSV files. By default, it grabs everything *except* the first column, which is perfect for getting a list of corrections.",
-        "example": "python multitool.py csv --input typos.csv --output corrections.txt",
+        "example": "python multitool.py csv typos.csv --output corrections.txt",
     },
     "line": {
         "summary": "Process a file line by line.",
         "description": "Reads each line, filters it (if requested), and writes it to the output. A simple way to clean up a text file.",
-        "example": "python multitool.py line --input raw_words.txt --output filtered.txt",
+        "example": "python multitool.py line raw_words.txt --output filtered.txt",
     },
     "count": {
         "summary": "Count how often words appear.",
         "description": "Counts the frequency of each word in the file and lists them from most frequent to least frequent.",
-        "example": "python multitool.py count --input typos.log --output counts.txt",
+        "example": "python multitool.py count typos.log --output counts.txt",
     },
     "filterfragments": {
         "summary": "Remove words found inside another file.",
         "description": "Filters out words that are already present (even as substrings) in a second file, such as a dictionary.",
-        "example": "python multitool.py filterfragments --input generated.txt --file2 dictionary.txt --output unique.txt",
+        "example": "python multitool.py filterfragments generated.txt --file2 dictionary.txt --output unique.txt",
     },
     "check": {
         "summary": "Find words that are both a typo and a correction.",
         "description": "Identifies words that are listed as both a typo and a correction. This helps find errors in your typo database.",
-        "example": "python multitool.py check --input typos.csv --output duplicates.txt",
+        "example": "python multitool.py check typos.csv --output duplicates.txt",
     },
     "set_operation": {
         "summary": "Compare two files (intersection, union, difference).",
         "description": "Finds common lines (intersection), combines all lines (union), or finds lines in one file but not the other (difference).",
-        "example": "python multitool.py set_operation --input fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
+        "example": "python multitool.py set_operation fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
     },
 }
 
@@ -695,11 +700,16 @@ def _build_parser() -> argparse.ArgumentParser:
         description=MODE_DETAILS['combine']['description'],
     )
     combine_parser.add_argument(
+        'input_files_pos',
+        nargs='*',
+        help='Paths to the input files to merge.',
+    )
+    combine_parser.add_argument(
         '--input',
+        dest='input_files_flag',
         type=str,
         nargs='+',
-        required=True,
-        help='Paths to the input files to merge.',
+        help='Paths to the input files to merge (legacy flag).',
     )
     combine_parser.add_argument(
         '--output',
@@ -803,7 +813,23 @@ def main() -> None:
         sys.exit(1)
 
     logging.info(f"Selected Mode: {args.mode}")
-    input_paths = args.input if isinstance(args.input, list) else [args.input]
+
+    # Resolve input arguments (positional vs flag)
+    if args.mode == 'combine':
+        pos_inputs = getattr(args, 'input_files_pos', []) or []
+        flag_inputs = getattr(args, 'input_files_flag', []) or []
+        input_paths = pos_inputs + flag_inputs
+        if not input_paths:
+            parser.error("No input files provided. Use positional arguments or --input.")
+        # Store for logging and handler
+        args.input = input_paths
+    else:
+        pos_input = getattr(args, 'input_file_pos', None)
+        flag_input = getattr(args, 'input_file_flag', None)
+        # Default to 'input.txt' if neither is provided
+        args.input = pos_input or flag_input or 'input.txt'
+        input_paths = [args.input]
+
     input_label = "Input Files" if len(input_paths) > 1 else "Input File"
     logging.info(f"{input_label}: {', '.join(input_paths)}")
     logging.info(f"Output File: {args.output}")

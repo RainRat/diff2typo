@@ -1,6 +1,7 @@
 import argparse
 import csv
 from collections import Counter
+import random
 import contextlib
 import sys
 import re
@@ -422,6 +423,62 @@ def combine_mode(
         output_file,
     )
 
+
+def sample_mode(
+    input_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    sample_count: int | None = None,
+    sample_percent: float | None = None,
+    quiet: bool = False,
+) -> None:
+    """Randomly sample lines from the input file."""
+
+    # We load all raw items first (no cleaning yet) to sample from valid lines.
+    # However, consistent with other modes, we usually use _load_and_clean_file
+    # or an extractor. Here, we probably want to sample the *extracted* items
+    # to be useful (e.g. sample lines, or sample arrows).
+    # But simplicity suggests acting like 'line' mode but with sampling.
+
+    # Extract raw items first
+    raw_items = list(_extract_line_items(input_file, quiet=quiet))
+
+    if not raw_items:
+        logging.warning("Input file is empty or no lines found.")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            pass
+        return
+
+    # Clean and filter BEFORE sampling to ensure the requested count is accurate relative to valid items
+    cleaned_items = clean_and_filter(raw_items, min_length, max_length)
+
+    total_valid_items = len(cleaned_items)
+
+    if sample_count is not None:
+        k = min(sample_count, total_valid_items)
+    elif sample_percent is not None:
+        k = int(total_valid_items * (sample_percent / 100.0))
+        k = max(0, min(k, total_valid_items))
+    else:
+        k = total_valid_items
+
+    sampled_items = random.sample(cleaned_items, k)
+
+    if process_output:
+        sampled_items = sorted(set(sampled_items))
+
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        for item in sampled_items:
+            outfile.write(item + '\n')
+
+    print_processing_stats(len(raw_items), sampled_items)
+    logging.info(
+        f"[Sample Mode] Sampled {k}/{total_valid_items} valid lines. Output written to '{output_file}'."
+    )
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True
 ) -> None:
@@ -614,6 +671,11 @@ MODE_DETAILS = {
         "summary": "Compare two files (intersection, union, difference).",
         "description": "Finds common lines (intersection), combines all lines (union), or finds lines in one file but not the other (difference).",
         "example": "python multitool.py set_operation fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
+    },
+    "sample": {
+        "summary": "Randomly sample lines from a file.",
+        "description": "Extracts a random subset of lines from the input file. You can specify exact count (--n) or percentage (--percent).",
+        "example": "python multitool.py sample big_log.txt --n 100 --output sample.txt",
     },
 }
 
@@ -811,6 +873,27 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Set operation to perform between the two files.',
     )
 
+    sample_parser = subparsers.add_parser(
+        'sample',
+        help=MODE_DETAILS['sample']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['sample']['description'],
+    )
+    _add_common_mode_arguments(sample_parser)
+    group = sample_parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        '--n',
+        dest='sample_count',
+        type=int,
+        help='Number of lines to sample.',
+    )
+    group.add_argument(
+        '--percent',
+        dest='sample_percent',
+        type=float,
+        help='Percentage of lines to sample (0-100).',
+    )
+
     return parser
 
 
@@ -863,6 +946,8 @@ def main() -> None:
     operation = getattr(args, 'operation', None)
     first_column = getattr(args, 'first_column', False)
     delimiter = getattr(args, 'delimiter', ',')
+    sample_count = getattr(args, 'sample_count', None)
+    sample_percent = getattr(args, 'sample_percent', None)
 
     if args.mode in {'filterfragments', 'set_operation'} and file2:
         logging.info(f"File2: {file2}")
@@ -871,6 +956,11 @@ def main() -> None:
     if args.mode == 'csv':
         logging.info(f"First Column Only: {'Yes' if first_column else 'No'}")
         logging.info(f"Delimiter: '{delimiter}'")
+    if args.mode == 'sample':
+        if sample_count is not None:
+            logging.info(f"Sampling Count: {sample_count}")
+        if sample_percent is not None:
+            logging.info(f"Sampling Percentage: {sample_percent}%")
 
     common_kwargs = {
         'input_file': args.input,
@@ -912,6 +1002,14 @@ def main() -> None:
                 'max_length': args.max_length,
                 'process_output': getattr(args, 'process_output', False),
                 'quiet': args.quiet,
+            },
+        ),
+        'sample': (
+            sample_mode,
+            {
+                **common_kwargs,
+                'sample_count': sample_count,
+                'sample_percent': sample_percent,
             },
         ),
     }

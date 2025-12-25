@@ -232,21 +232,28 @@ def main() -> None:
         with open(file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
     except UnicodeDecodeError:
-        logging.warning("UTF-8 decoding failed. Trying latin1...")
-        try:
-            with open(file_path, 'r', encoding='latin1') as f:
-                lines = f.readlines()
-        except UnicodeDecodeError as e:
-            logging.warning("latin1 decoding also failed.")
-            enc = detect_encoding(file_path)
-            if enc:
-                try:
-                    with open(file_path, 'r', encoding=enc) as f:
-                        lines = f.readlines()
-                except UnicodeDecodeError as e2:
-                    logging.error(f"Failed with detected encoding {enc}.")
-                    sys.exit(1)
-            else:
+        logging.warning("UTF-8 decoding failed. Attempting detection...")
+        lines = None
+
+        # Try to detect encoding
+        enc = detect_encoding(file_path)
+        if enc:
+            try:
+                logging.info(f"Using detected encoding: {enc}")
+                with open(file_path, 'r', encoding=enc) as f:
+                    lines = f.readlines()
+            except UnicodeDecodeError:
+                logging.warning(f"Detected encoding {enc} failed.")
+
+        # Fallback to latin1 if detection failed or wasn't possible
+        if lines is None:
+            logging.warning("Fallback to latin1...")
+            try:
+                with open(file_path, 'r', encoding='latin1') as f:
+                    lines = f.readlines()
+            except UnicodeDecodeError:
+                 # Should practically never happen for latin1
+                logging.error("Final fallback to latin1 failed.")
                 sys.exit(1)
     except FileNotFoundError:
         logging.error(f"File not found: {file_path}")

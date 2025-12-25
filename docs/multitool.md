@@ -55,7 +55,7 @@ python multitool.py count --input all_typos.txt
 
 ### `check`
 
-Sanity check. Finds words that appear as both a "typo" and a "correction" in a CSV.
+Identifies words that are both a typo and a correction in a CSV. This helps find errors in your typo database.
 
 ```bash
 python multitool.py check --input mappings.csv
@@ -71,7 +71,7 @@ python multitool.py filterfragments --input candidates.txt --file2 dictionary.tx
 
 ### `set_operation`
 
-Performs math on file contents.
+Performs set operations on file contents.
 
 - `--operation`: `union`, `intersection`, or `difference`.
 

@@ -1,10 +1,11 @@
 import argparse
 import csv
 from collections import Counter
+import contextlib
 import sys
 import re
 from textwrap import dedent
-from typing import Callable, Iterable, List, Sequence, Tuple
+from typing import Callable, Iterable, List, Sequence, Tuple, TextIO
 from tqdm import tqdm
 import logging
 import ahocorasick
@@ -146,6 +147,20 @@ def print_processing_stats(
         logging.info(f"  No {item_label_plural} passed the filtering criteria.")
 
 
+@contextlib.contextmanager
+def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO]:
+    """
+    Context manager that yields a file object for writing.
+    If filename is '-', yields sys.stdout.
+    Otherwise, opens the file for writing.
+    """
+    if filename == '-':
+        yield sys.stdout
+    else:
+        with open(filename, 'w', encoding=encoding) as f:
+            yield f
+
+
 def _process_items(
     extractor_func: Callable[[str, bool], Iterable[str]],
     input_file: str,
@@ -162,9 +177,11 @@ def _process_items(
     filtered_items = clean_and_filter(raw_items, min_length, max_length)
     if process_output:
         filtered_items = sorted(set(filtered_items))
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+
+    with smart_open_output(output_file) as outfile:
         for item in filtered_items:
             outfile.write(item + '\n')
+
     print_processing_stats(len(raw_items), filtered_items)
     logging.info(
         f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'."
@@ -288,7 +305,7 @@ def count_mode(
             filtered_words.extend(filtered)
             word_counts.update(filtered)
     sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
-    with open(output_file, 'w', encoding='utf-8') as out_file:
+    with smart_open_output(output_file) as out_file:
         for word, count in sorted_words:
             out_file.write(f"{word}: {count}\n")
     print_processing_stats(raw_count, filtered_words, item_label="word")
@@ -330,7 +347,7 @@ def check_mode(
     if process_output:
         filtered_items = list(set(filtered_items))
     filtered_items.sort()
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with smart_open_output(output_file) as outfile:
         for word in filtered_items:
             outfile.write(word + '\n')
     print_processing_stats(len(duplicates), filtered_items)
@@ -394,7 +411,7 @@ def combine_mode(
     else:
         combined_unique = sorted(combined_unique)
 
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with smart_open_output(output_file) as outfile:
         for item in combined_unique:
             outfile.write(item + '\n')
 
@@ -424,7 +441,7 @@ def _add_common_mode_arguments(
         '--output',
         type=str,
         default='output.txt',
-        help="Path to the output file (default: output.txt)",
+        help="Path to the output file (default: output.txt). Use '-' for stdout.",
     )
     subparser.add_argument(
         '--min-length',
@@ -496,7 +513,7 @@ def filter_fragments_mode(
         filtered_items = list(set(filtered_items))
         filtered_items.sort()
 
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with smart_open_output(output_file) as f:
         for word in filtered_items:
             f.write(word + '\n')
 
@@ -542,7 +559,7 @@ def set_operation_mode(
     if process_output:
         result_items = sorted(set(result_items))
 
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with smart_open_output(output_file) as outfile:
         for item in result_items:
             outfile.write(item + '\n')
 
@@ -715,7 +732,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '--output',
         type=str,
         default='output.txt',
-        help="Path to the output file (default: output.txt)",
+        help="Path to the output file (default: output.txt). Use '-' for stdout.",
     )
     combine_parser.add_argument(
         '--min-length',

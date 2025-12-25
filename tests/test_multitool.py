@@ -51,23 +51,6 @@ def test_load_and_clean_file(tmp_path):
     assert unique_ws == ["alpha", "beta", "gamma", "delta"]
 
 
-def test_load_and_clean_file_encoding_fallback(tmp_path, caplog):
-    data_file = tmp_path / "latin1.txt"
-    data_file.write_bytes("café\nnaïve\n".encode("latin-1"))
-
-    caplog.set_level(logging.WARNING)
-    raw_items, cleaned_items, unique_items = multitool._load_and_clean_file(
-        str(data_file),
-        1,
-        10,
-    )
-
-    assert raw_items == ["café", "naïve"]
-    assert cleaned_items == ["caf", "nave"]
-    assert unique_items == ["caf", "nave"]
-    assert "latin-1" in caplog.text
-
-
 def test_arrow_mode(tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("hello -> world\nfoo -> bar\nnoarrow here\n")

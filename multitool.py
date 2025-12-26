@@ -497,8 +497,8 @@ def _add_common_mode_arguments(
     subparser.add_argument(
         '--output',
         type=str,
-        default='output.txt',
-        help="Path to the output file (default: output.txt). Use '-' for stdout.",
+        default='-',
+        help="Path to the output file (default: stdout).",
     )
     subparser.add_argument(
         '--min-length',
@@ -793,8 +793,8 @@ def _build_parser() -> argparse.ArgumentParser:
     combine_parser.add_argument(
         '--output',
         type=str,
-        default='output.txt',
-        help="Path to the output file (default: output.txt). Use '-' for stdout.",
+        default='-',
+        help="Path to the output file (default: stdout).",
     )
     combine_parser.add_argument(
         '--min-length',

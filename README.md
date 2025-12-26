@@ -55,6 +55,8 @@ python diff2typo.py --input_file recent_changes.diff --output_file my_typos.txt 
 **3. Analyze Patterns:**
 Use `typostats` to see your most common finger-slips.
 
+> **Note:** `typostats` requires CSV input. If using `diff2typo`, ensure you used `--output_format csv`.
+
 ```bash
 python typostats.py my_typos.txt --sort count
 ```

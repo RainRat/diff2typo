@@ -13,6 +13,8 @@ python typostats.py input.txt [OPTIONS]
 The tool expects a simple text file where each line has a typo and its correction, separated by a comma:
 `typo, correction`
 
+> **Tip:** If you are feeding output from `diff2typo.py`, you **must** run it with `--output_format csv`. The default arrow format (`typo -> correction`) is not compatible.
+
 ## Options
 
 - `--min`: **(Default: 1)** Show only typos that happen at least this many times. Useful for ignoring one-off mistakes.

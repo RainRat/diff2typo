@@ -164,7 +164,7 @@ def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO
 
 def _process_items(
     extractor_func: Callable[[str, bool], Iterable[str]],
-    input_file: str,
+    input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
@@ -173,8 +173,13 @@ def _process_items(
     success_msg: str,
     quiet: bool = False,
 ) -> None:
-    """Generic processing for modes that extract raw string items from a file."""
-    raw_items = list(extractor_func(input_file, quiet=quiet))
+    """Generic processing for modes that extract raw string items from one or more files."""
+
+    def chained_extractor() -> Iterable[str]:
+        for input_file in input_files:
+            yield from extractor_func(input_file, quiet=quiet)
+
+    raw_items = list(chained_extractor())
     filtered_items = clean_and_filter(raw_items, min_length, max_length)
     if process_output:
         filtered_items = sorted(set(filtered_items))
@@ -192,7 +197,7 @@ def _process_items(
 def _extract_arrow_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield text before ' -> ' from each line."""
     with open(input_file, 'r', encoding='utf-8') as infile:
-        for line in tqdm(infile, desc='Processing lines (arrow mode)', unit=' lines', disable=quiet):
+        for line in tqdm(infile, desc=f'Processing {input_file} (arrow)', unit=' lines', disable=quiet):
             if " -> " in line:
                 yield line.split(" -> ", 1)[0].strip()
 
@@ -203,7 +208,7 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
     context_markers = ("error:", "warning:", "note:")
 
     with open(input_file, 'r', encoding='utf-8') as infile:
-        for line in tqdm(infile, desc='Processing lines (backtick mode)', unit=' lines', disable=quiet):
+        for line in tqdm(infile, desc=f'Processing {input_file} (backtick)', unit=' lines', disable=quiet):
             # Split the line on backticks to inspect the surrounding context of
             # each candidate substring. This helps avoid extracting identifiers
             # from file paths when a later pair of backticks contains the actual
@@ -236,7 +241,7 @@ def _extract_csv_items(
     """Yield fields from CSV rows based on column selection."""
     with open(input_file, newline='', encoding='utf-8') as csvfile:
         reader = csv.reader(csvfile, delimiter=delimiter)
-        for row in tqdm(reader, desc='Processing CSV rows', unit=' rows', disable=quiet):
+        for row in tqdm(reader, desc=f'Processing {input_file} (CSV)', unit=' rows', disable=quiet):
             if first_column:
                 if row:
                     yield row[0].strip()
@@ -249,12 +254,12 @@ def _extract_csv_items(
 def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield each line from the file."""
     with open(input_file, 'r', encoding='utf-8') as infile:
-        for line in tqdm(infile, desc='Processing lines (line mode)', unit=' lines', disable=quiet):
+        for line in tqdm(infile, desc=f'Processing {input_file} (lines)', unit=' lines', disable=quiet):
             yield line.rstrip('\n')
 
 
 def arrow_mode(
-    input_file: str,
+    input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
@@ -262,11 +267,11 @@ def arrow_mode(
     quiet: bool = False,
 ) -> None:
     """Wrapper for processing items separated by ' -> '."""
-    _process_items(_extract_arrow_items, input_file, output_file, min_length, max_length, process_output, 'Arrow', 'File processed successfully.', quiet)
+    _process_items(_extract_arrow_items, input_files, output_file, min_length, max_length, process_output, 'Arrow', 'File(s) processed successfully.', quiet)
 
 
 def backtick_mode(
-    input_file: str,
+    input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
@@ -274,10 +279,10 @@ def backtick_mode(
     quiet: bool = False,
 ) -> None:
     """Wrapper for extracting text between backticks."""
-    _process_items(_extract_backtick_items, input_file, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', quiet)
+    _process_items(_extract_backtick_items, input_files, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', quiet)
 
 def count_mode(
-    input_file: str,
+    input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
@@ -285,7 +290,7 @@ def count_mode(
     quiet: bool = False,
 ) -> None:
     """
-    Counts the frequency of each word in the input file and writes the
+    Counts the frequency of each word in the input file(s) and writes the
     sorted results to the output file. Only words with length between
     min_length and max_length are counted.
     The stats are based on the raw count of words versus the filtered words.
@@ -294,17 +299,20 @@ def count_mode(
     raw_count = 0
     filtered_words = []
     word_counts = Counter()
-    with open(input_file, 'r', encoding='utf-8') as file:
-        for line in tqdm(file, desc='Counting words', unit=' lines', disable=quiet):
-            words = [word.strip() for word in line.split()]
-            raw_count += len(words)
-            filtered = []
-            for word in words:
-                cleaned = filter_to_letters(word)
-                if min_length <= len(cleaned) <= max_length:
-                    filtered.append(cleaned)
-            filtered_words.extend(filtered)
-            word_counts.update(filtered)
+
+    for input_file in input_files:
+        with open(input_file, 'r', encoding='utf-8') as file:
+            for line in tqdm(file, desc=f'Counting words in {input_file}', unit=' lines', disable=quiet):
+                words = [word.strip() for word in line.split()]
+                raw_count += len(words)
+                filtered = []
+                for word in words:
+                    cleaned = filter_to_letters(word)
+                    if min_length <= len(cleaned) <= max_length:
+                        filtered.append(cleaned)
+                filtered_words.extend(filtered)
+                word_counts.update(filtered)
+
     sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
     with smart_open_output(output_file) as out_file:
         for word, count in sorted_words:
@@ -315,7 +323,7 @@ def count_mode(
     )
 
 def check_mode(
-    input_file: str,
+    input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
@@ -323,25 +331,21 @@ def check_mode(
     quiet: bool = False,
 ) -> None:
     """
-    Checks a CSV file of typos and corrections for any words that appear
-    as both a typo and a correction anywhere in the file. The CSV is
-    assumed to have the typo in the first column and one or more
-    corrections in subsequent columns.
-
-    The intersection of all typo words and all correction words is
-    written to the output file. Standard length filtering and optional
-    output processing (lowercasing, deduping, sorting) are applied.
+    Checks CSV file(s) of typos and corrections for any words that appear
+    as both a typo and a correction anywhere in the dataset.
     """
     typos = set()
     corrections = set()
-    with open(input_file, newline='', encoding='utf-8') as csvfile:
-        reader = csv.reader(csvfile)
-        for row in tqdm(reader, desc='Checking CSV for overlaps', unit=' rows', disable=quiet):
-            if not row:
-                continue
-            typos.add(row[0].strip())
-            for field in row[1:]:
-                corrections.add(field.strip())
+
+    for input_file in input_files:
+        with open(input_file, newline='', encoding='utf-8') as csvfile:
+            reader = csv.reader(csvfile)
+            for row in tqdm(reader, desc=f'Checking {input_file}', unit=' rows', disable=quiet):
+                if not row:
+                    continue
+                typos.add(row[0].strip())
+                for field in row[1:]:
+                    corrections.add(field.strip())
 
     duplicates = list(typos & corrections)
     filtered_items = clean_and_filter(duplicates, min_length, max_length)
@@ -353,12 +357,12 @@ def check_mode(
             outfile.write(word + '\n')
     print_processing_stats(len(duplicates), filtered_items)
     logging.info(
-        f"[Check Mode] Found {len(filtered_items)} overlapping words. Output written to '{output_file}'."
+        f"[Check Mode] Found {len(filtered_items)} overlapping words across {len(input_files)} file(s). Output written to '{output_file}'."
     )
 
 
 def csv_mode(
-    input_file: str,
+    input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
@@ -369,19 +373,19 @@ def csv_mode(
 ) -> None:
     """Wrapper for extracting fields from CSV files."""
     extractor = lambda f, quiet=False: _extract_csv_items(f, first_column, delimiter, quiet=quiet)
-    _process_items(extractor, input_file, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.', quiet)
+    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.', quiet)
 
 
 def line_mode(
-    input_file: str,
+    input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
     process_output: bool,
     quiet: bool = False,
 ) -> None:
-    """Wrapper for processing raw lines from a file."""
-    _process_items(_extract_line_items, input_file, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', quiet)
+    """Wrapper for processing raw lines from file(s)."""
+    _process_items(_extract_line_items, input_files, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', quiet)
 
 
 def combine_mode(
@@ -425,7 +429,7 @@ def combine_mode(
 
 
 def sample_mode(
-    input_file: str,
+    input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
@@ -434,19 +438,17 @@ def sample_mode(
     sample_percent: float | None = None,
     quiet: bool = False,
 ) -> None:
-    """Randomly sample lines from the input file."""
+    """Randomly sample lines from the input file(s)."""
 
-    # We load all raw items first (no cleaning yet) to sample from valid lines.
-    # However, consistent with other modes, we usually use _load_and_clean_file
-    # or an extractor. Here, we probably want to sample the *extracted* items
-    # to be useful (e.g. sample lines, or sample arrows).
-    # But simplicity suggests acting like 'line' mode but with sampling.
+    def chained_extractor() -> Iterable[str]:
+        for input_file in input_files:
+            yield from _extract_line_items(input_file, quiet=quiet)
 
     # Extract raw items first
-    raw_items = list(_extract_line_items(input_file, quiet=quiet))
+    raw_items = list(chained_extractor())
 
     if not raw_items:
-        logging.warning("Input file is empty or no lines found.")
+        logging.warning("Input is empty or no lines found.")
         with open(output_file, 'w', encoding='utf-8') as f:
             pass
         return
@@ -475,7 +477,7 @@ def sample_mode(
 
     print_processing_stats(len(raw_items), sampled_items)
     logging.info(
-        f"[Sample Mode] Sampled {k}/{total_valid_items} valid lines. Output written to '{output_file}'."
+        f"[Sample Mode] Sampled {k}/{total_valid_items} valid lines from {len(input_files)} file(s). Output written to '{output_file}'."
     )
 
 
@@ -484,15 +486,16 @@ def _add_common_mode_arguments(
 ) -> None:
     """Attach shared CLI arguments to a mode-specific subparser."""
     subparser.add_argument(
-        'input_file_pos',
-        nargs='?',
-        help="Path to the input file (default: input.txt)",
+        'input_files_pos',
+        nargs='*',
+        help="Path(s) to the input file(s). Defaults to 'input.txt' if none provided.",
     )
     subparser.add_argument(
         '--input',
-        dest='input_file_flag',
+        dest='input_files_flag',
         type=str,
-        help="Path to the input file (legacy flag).",
+        nargs='+',
+        help="Path(s) to the input file(s) (legacy flag, supports multiple).",
     )
     subparser.add_argument(
         '--output',
@@ -523,7 +526,7 @@ def _add_common_mode_arguments(
 
 
 def filter_fragments_mode(
-    input_file: str,
+    input_files: Sequence[str],
     file2: str,
     output_file: str,
     min_length: int,
@@ -532,18 +535,24 @@ def filter_fragments_mode(
     quiet: bool = False,
 ) -> None:
     """
-    Filters words from input_file (list1) that do not appear as substrings of any
+    Filters words from input_files (list1) that do not appear as substrings of any
     word in file2 (list2).
-    Then applies length filtering using min_length and max_length.
-    Optionally converts the output to lowercase, sorts it, and removes duplicates.
-    Finally, writes the filtered words to output_file and prints statistics.
     """
-    raw_list1, cleaned_list1, _ = _load_and_clean_file(
-        input_file,
-        min_length,
-        max_length,
-        apply_length_filter=False,
-    )
+
+    # Load and merge all input files
+    all_raw_list1 = []
+    all_cleaned_list1 = []
+
+    for input_file in input_files:
+        raw, cleaned, _ = _load_and_clean_file(
+            input_file,
+            min_length,
+            max_length,
+            apply_length_filter=False,
+        )
+        all_raw_list1.extend(raw)
+        all_cleaned_list1.extend(cleaned)
+
     _, _, unique_list2 = _load_and_clean_file(
         file2,
         min_length,
@@ -554,7 +563,7 @@ def filter_fragments_mode(
 
     # Aho-Corasick automaton for efficient substring matching
     auto = ahocorasick.Automaton()
-    for keyword in cleaned_list1:
+    for keyword in all_cleaned_list1:
         auto.add_word(keyword, keyword)
     auto.make_automaton()
 
@@ -563,7 +572,7 @@ def filter_fragments_mode(
         for end_index, keyword in auto.iter(item):
             matched_words.add(keyword)
 
-    non_matches = [word for word in cleaned_list1 if word not in matched_words]
+    non_matches = [word for word in all_cleaned_list1 if word not in matched_words]
     filtered_items = clean_and_filter(non_matches, min_length, max_length)
 
     if process_output:
@@ -574,14 +583,14 @@ def filter_fragments_mode(
         for word in filtered_items:
             f.write(word + '\n')
 
-    print_processing_stats(len(raw_list1), filtered_items)
+    print_processing_stats(len(all_raw_list1), filtered_items)
     logging.info(
         f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'."
     )
 
 
 def set_operation_mode(
-    input_file: str,
+    input_files: Sequence[str],
     file2: str,
     output_file: str,
     min_length: int,
@@ -590,16 +599,26 @@ def set_operation_mode(
     operation: str,
     quiet: bool = False,
 ) -> None:
-    """Perform set operations (intersection, union, difference) between two files."""
+    """Perform set operations (intersection, union, difference) between input files (merged) and a second file."""
     allowed_operations = {'intersection', 'union', 'difference'}
     if operation not in allowed_operations:
         raise ValueError(
             f"Invalid operation '{operation}'. Must be one of: {', '.join(sorted(allowed_operations))}."
         )
 
-    raw_items_a, _, unique_a = _load_and_clean_file(
-        input_file, min_length, max_length
-    )
+    # Load and merge all input files
+    raw_item_count_a = 0
+    unique_a_list = []
+
+    for input_file in input_files:
+        raw, _, unique = _load_and_clean_file(
+            input_file, min_length, max_length
+        )
+        raw_item_count_a += len(raw)
+        unique_a_list.extend(unique)
+
+    unique_a = list(dict.fromkeys(unique_a_list))
+
     raw_items_b, _, unique_b = _load_and_clean_file(
         file2, min_length, max_length
     )
@@ -620,9 +639,9 @@ def set_operation_mode(
         for item in result_items:
             outfile.write(item + '\n')
 
-    print_processing_stats(len(raw_items_a) + len(raw_items_b), result_items)
+    print_processing_stats(raw_item_count_a + len(raw_items_b), result_items)
     logging.info(
-        f"[Set Operation Mode] Completed {operation} between '{input_file}' and "
+        f"[Set Operation Mode] Completed {operation} between {len(input_files)} input file(s) and "
         f"'{file2}'. Output written to '{output_file}'."
     )
 
@@ -915,20 +934,16 @@ def main() -> None:
     logging.info(f"Selected Mode: {args.mode}")
 
     # Resolve input arguments (positional vs flag)
-    if args.mode == 'combine':
-        pos_inputs = getattr(args, 'input_files_pos', []) or []
-        flag_inputs = getattr(args, 'input_files_flag', []) or []
-        input_paths = pos_inputs + flag_inputs
-        if not input_paths:
-            parser.error("No input files provided. Use positional arguments or --input.")
-        # Store for logging and handler
-        args.input = input_paths
-    else:
-        pos_input = getattr(args, 'input_file_pos', None)
-        flag_input = getattr(args, 'input_file_flag', None)
-        # Default to 'input.txt' if neither is provided
-        args.input = pos_input or flag_input or 'input.txt'
-        input_paths = [args.input]
+    pos_inputs = getattr(args, 'input_files_pos', []) or []
+    flag_inputs = getattr(args, 'input_files_flag', []) or []
+    input_paths = pos_inputs + flag_inputs
+
+    # Default to 'input.txt' if neither is provided
+    if not input_paths:
+        input_paths = ['input.txt']
+
+    # Store for logging and handler
+    args.input = input_paths
 
     input_label = "Input Files" if len(input_paths) > 1 else "Input File"
     logging.info(f"{input_label}: {', '.join(input_paths)}")
@@ -963,7 +978,7 @@ def main() -> None:
             logging.info(f"Sampling Percentage: {sample_percent}%")
 
     common_kwargs = {
-        'input_file': args.input,
+        'input_files': args.input,
         'output_file': args.output,
         'min_length': args.min_length,
         'max_length': args.max_length,

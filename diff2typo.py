@@ -60,17 +60,16 @@ def filter_to_letters(text: str) -> str:
 def _read_csv_rows(file_path, description, required=False):
     """Return CSV rows from ``file_path`` with shared error handling."""
 
-    if not os.path.exists(file_path):
+    try:
+        with open(file_path, "r", encoding="utf-8") as file_handle:
+            return list(csv.reader(file_handle))
+    except FileNotFoundError:
         message = f"{description} '{file_path}' not found."
         if required:
             logging.error(message)
             sys.exit(1)
         logging.warning(message + " Skipping.")
         return []
-
-    try:
-        with open(file_path, "r", encoding="utf-8") as file_handle:
-            return list(csv.reader(file_handle))
     except Exception as exc:  # pragma: no cover - extremely unlikely
         logging.error(f"Error reading {description.lower()} '{file_path}': {exc}")
         if required:

@@ -70,9 +70,15 @@ def process_typos(lines: Iterable[str], allow_two_char: bool) -> dict[tuple[str,
         if not line:
             continue
 
-        parts = line.split(',')
-        typo = parts[0].strip()
-        corrections = [corr.strip() for corr in parts[1:]]
+        if " -> " in line:
+            parts = line.split(" -> ", 1)
+            typo = parts[0].strip()
+            # Arrow format usually implies single correction per line: typo -> correction
+            corrections = [parts[1].strip()]
+        else:
+            parts = line.split(',')
+            typo = parts[0].strip()
+            corrections = [corr.strip() for corr in parts[1:]]
 
         # Filter out non-ASCII words
         if not all(ord(c) < 128 for c in typo):
@@ -203,7 +209,11 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Analyze typo corrections and report frequent replacements.")
-    parser.add_argument('input_file', help="Path to the input file.")
+    parser.add_argument(
+        'input_files',
+        nargs='*',
+        help="Path to the input file(s). Reads from stdin if empty or '-'.",
+    )
     parser.add_argument('-o', '--output', help="Path to the output file (optional).")
     parser.add_argument('-m', '--min', type=int, default=1, help="Minimum occurrences.")
     parser.add_argument('-s', '--sort', choices=['count', 'typo', 'correct'], default='count', help="Sorting criterion.")
@@ -221,46 +231,61 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    file_path = args.input_file
+    input_files = args.input_files
     output_file = args.output
     min_occurrences = args.min
     sort_by = args.sort
     output_format = args.format
     allow_two_char = args.allow_two_char
 
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-    except UnicodeDecodeError:
-        logging.warning("UTF-8 decoding failed. Attempting detection...")
+    if not input_files:
+        input_files = ['-']
+
+    all_counts = defaultdict(int)
+
+    for file_path in input_files:
         lines = None
-
-        # Try to detect encoding
-        enc = detect_encoding(file_path)
-        if enc:
+        if file_path == '-':
+            logging.info("Reading from stdin...")
+            lines = sys.stdin.readlines()
+        else:
             try:
-                logging.info(f"Using detected encoding: {enc}")
-                with open(file_path, 'r', encoding=enc) as f:
+                with open(file_path, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
             except UnicodeDecodeError:
-                logging.warning(f"Detected encoding {enc} failed.")
+                logging.warning(f"UTF-8 decoding failed for {file_path}. Attempting detection...")
+                lines = None
 
-        # Fallback to latin1 if detection failed or wasn't possible
-        if lines is None:
-            logging.warning("Fallback to latin1...")
-            try:
-                with open(file_path, 'r', encoding='latin1') as f:
-                    lines = f.readlines()
-            except UnicodeDecodeError:
-                 # Should practically never happen for latin1
-                logging.error("Final fallback to latin1 failed.")
-                sys.exit(1)
-    except FileNotFoundError:
-        logging.error(f"File not found: {file_path}")
-        sys.exit(1)
+                # Try to detect encoding
+                enc = detect_encoding(file_path)
+                if enc:
+                    try:
+                        logging.info(f"Using detected encoding: {enc}")
+                        with open(file_path, 'r', encoding=enc) as f:
+                            lines = f.readlines()
+                    except UnicodeDecodeError:
+                        logging.warning(f"Detected encoding {enc} failed.")
 
-    counts = process_typos(lines, allow_two_char=allow_two_char)
-    generate_report(counts, output_file=output_file, min_occurrences=min_occurrences, sort_by=sort_by, output_format=output_format)
+                # Fallback to latin1 if detection failed or wasn't possible
+                if lines is None:
+                    logging.warning("Fallback to latin1...")
+                    try:
+                        with open(file_path, 'r', encoding='latin1') as f:
+                            lines = f.readlines()
+                    except UnicodeDecodeError:
+                        # Should practically never happen for latin1
+                        logging.error("Final fallback to latin1 failed.")
+                        continue
+            except FileNotFoundError:
+                logging.error(f"File not found: {file_path}")
+                continue
+
+        if lines:
+            file_counts = process_typos(lines, allow_two_char=allow_two_char)
+            for k, v in file_counts.items():
+                all_counts[k] += v
+
+    generate_report(all_counts, output_file=output_file, min_occurrences=min_occurrences, sort_by=sort_by, output_format=output_format)
 
 
 if __name__ == "__main__":

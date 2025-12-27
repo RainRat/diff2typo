@@ -107,8 +107,8 @@ def test_main_file_not_found(monkeypatch, tmp_path):
         ['typostats.py', str(tmp_path / 'missing.csv'), '--output', str(output_file)],
     )
 
-    with pytest.raises(SystemExit):
-        typostats.main()
+    # In batch processing, missing files are logged as errors but do not stop execution
+    typostats.main()
 
 
 def test_main_encoding_fallback(monkeypatch, tmp_path):

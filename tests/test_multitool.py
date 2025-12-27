@@ -352,6 +352,35 @@ def test_main_set_operation_integration(monkeypatch, tmp_path):
     assert output_file.read_text().splitlines() == ['alpha', 'beta', 'gamma']
 
 
+def test_main_accepts_mode_flag(monkeypatch, tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("Alpha\nBeta\n")
+    output_file = tmp_path / "output.txt"
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'multitool.py',
+            '--mode',
+            'line',
+            '--input',
+            str(input_file),
+            '--output',
+            str(output_file),
+            '--min-length',
+            '1',
+            '--max-length',
+            '10',
+            '--process-output',
+        ],
+    )
+
+    multitool.main()
+
+    assert output_file.read_text().splitlines() == ['alpha', 'beta']
+
+
 def test_backtick_mode_context_markers(tmp_path):
     # Verify that warning and note markers are respected
     input_file = tmp_path / "context.txt"

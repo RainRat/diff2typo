@@ -735,6 +735,7 @@ def _build_parser() -> argparse.ArgumentParser:
               python multitool.py --mode-help             # Show a summary of every mode
               python multitool.py --mode-help csv         # Describe the CSV extraction mode
               python multitool.py arrow --input file.txt  # Run a specific mode
+              python multitool.py --mode csv --input file.txt  # Legacy --mode flag
             """
         ).strip(),
         formatter_class=argparse.RawTextHelpFormatter,
@@ -916,10 +917,42 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _normalize_mode_args(
+    argv: Sequence[str], parser: argparse.ArgumentParser
+) -> List[str]:
+    """Normalize legacy --mode usage into a positional subcommand."""
+    if "--mode" not in argv:
+        return list(argv)
+
+    argv_list = list(argv)
+    if argv_list.count("--mode") > 1:
+        parser.error("Only one --mode flag may be provided.")
+
+    mode_index = argv_list.index("--mode")
+    if mode_index == len(argv_list) - 1:
+        parser.error("--mode requires a value.")
+
+    mode_value = argv_list[mode_index + 1]
+    positional_mode = (
+        argv_list[0] if argv_list and argv_list[0] in MODE_DETAILS else None
+    )
+    if positional_mode and positional_mode != mode_value:
+        parser.error(
+            f"--mode '{mode_value}' conflicts with positional mode '{positional_mode}'."
+        )
+
+    del argv_list[mode_index : mode_index + 2]
+    if not positional_mode:
+        argv_list.insert(0, mode_value)
+
+    return argv_list
+
+
 def main() -> None:
     parser = _build_parser()
+    argv = _normalize_mode_args(sys.argv[1:], parser)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     log_level = logging.WARNING if args.quiet else logging.INFO
     logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')

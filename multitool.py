@@ -55,6 +55,18 @@ def detect_encoding(file_path: str) -> str | None:
     logging.warning("Failed to reliably detect encoding for '%s'.", file_path)
     return None
 
+@contextlib.contextmanager
+def smart_open_input(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
+    """
+    Context manager that yields a file object for reading.
+    If filename is '-', yields sys.stdin.
+    Otherwise, opens the file for reading.
+    """
+    if filename == '-':
+        yield sys.stdin
+    else:
+        with open(filename, 'r', encoding=encoding, newline=newline) as f:
+            yield f
 
 def _load_and_clean_file(
     path: str,
@@ -69,36 +81,51 @@ def _load_and_clean_file(
     raw_items = []
     cleaned_items = []
     lines = None
+    used_encoding = 'utf-8'
 
-    try:
-        with open(path, 'r', encoding='utf-8') as handle:
-            lines = handle.readlines()
-            used_encoding = 'utf-8'
-    except UnicodeDecodeError:
-        logging.warning("UTF-8 decoding failed for '%s'. Attempting detection...", path)
-        detected_encoding = detect_encoding(path)
-        if detected_encoding:
-            logging.warning(
-                "Using detected encoding '%s' for '%s'.", detected_encoding, path
-            )
-            try:
-                with open(path, 'r', encoding=detected_encoding) as handle:
-                    lines = handle.readlines()
-                used_encoding = detected_encoding
-            except UnicodeDecodeError:
+    if path == '-':
+        # For stdin, we rely on sys.stdin which is already open.
+        # We assume text mode with default encoding (usually utf-8).
+        # Re-opening stdin with specific encoding is possible but might be overkill.
+        # We'll trust the environment or sys.stdin.encoding.
+        try:
+            lines = sys.stdin.readlines()
+            used_encoding = sys.stdin.encoding or 'utf-8'
+        except UnicodeDecodeError:
+             logging.warning("Reading from stdin failed with encoding errors.")
+             # Fallback logic for stdin is complex without buffering, so we might abort or try reading binary.
+             # For now, let's assume valid text stream.
+             lines = []
+    else:
+        try:
+            with open(path, 'r', encoding='utf-8') as handle:
+                lines = handle.readlines()
+                used_encoding = 'utf-8'
+        except UnicodeDecodeError:
+            logging.warning("UTF-8 decoding failed for '%s'. Attempting detection...", path)
+            detected_encoding = detect_encoding(path)
+            if detected_encoding:
                 logging.warning(
-                    "Detected encoding '%s' failed for '%s'. Fallback to latin-1.",
-                    detected_encoding,
-                    path,
+                    "Using detected encoding '%s' for '%s'.", detected_encoding, path
                 )
+                try:
+                    with open(path, 'r', encoding=detected_encoding) as handle:
+                        lines = handle.readlines()
+                    used_encoding = detected_encoding
+                except UnicodeDecodeError:
+                    logging.warning(
+                        "Detected encoding '%s' failed for '%s'. Fallback to latin-1.",
+                        detected_encoding,
+                        path,
+                    )
+                    with open(path, 'r', encoding='latin-1') as handle:
+                        lines = handle.readlines()
+                    used_encoding = 'latin-1'
+            else:
+                logging.warning("Encoding detection failed. Fallback to latin-1 for '%s'.", path)
                 with open(path, 'r', encoding='latin-1') as handle:
                     lines = handle.readlines()
                 used_encoding = 'latin-1'
-        else:
-            logging.warning("Encoding detection failed. Fallback to latin-1 for '%s'.", path)
-            with open(path, 'r', encoding='latin-1') as handle:
-                lines = handle.readlines()
-            used_encoding = 'latin-1'
 
     logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
 
@@ -196,7 +223,7 @@ def _process_items(
 
 def _extract_arrow_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield text before ' -> ' from each line."""
-    with open(input_file, 'r', encoding='utf-8') as infile:
+    with smart_open_input(input_file, encoding='utf-8') as infile:
         for line in tqdm(infile, desc=f'Processing {input_file} (arrow)', unit=' lines', disable=quiet):
             if " -> " in line:
                 yield line.split(" -> ", 1)[0].strip()
@@ -207,7 +234,7 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
 
     context_markers = ("error:", "warning:", "note:")
 
-    with open(input_file, 'r', encoding='utf-8') as infile:
+    with smart_open_input(input_file, encoding='utf-8') as infile:
         for line in tqdm(infile, desc=f'Processing {input_file} (backtick)', unit=' lines', disable=quiet):
             # Split the line on backticks to inspect the surrounding context of
             # each candidate substring. This helps avoid extracting identifiers
@@ -239,7 +266,7 @@ def _extract_csv_items(
     input_file: str, first_column: bool, delimiter: str = ',', quiet: bool = False
 ) -> Iterable[str]:
     """Yield fields from CSV rows based on column selection."""
-    with open(input_file, newline='', encoding='utf-8') as csvfile:
+    with smart_open_input(input_file, newline='', encoding='utf-8') as csvfile:
         reader = csv.reader(csvfile, delimiter=delimiter)
         for row in tqdm(reader, desc=f'Processing {input_file} (CSV)', unit=' rows', disable=quiet):
             if first_column:
@@ -253,7 +280,7 @@ def _extract_csv_items(
 
 def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield each line from the file."""
-    with open(input_file, 'r', encoding='utf-8') as infile:
+    with smart_open_input(input_file, encoding='utf-8') as infile:
         for line in tqdm(infile, desc=f'Processing {input_file} (lines)', unit=' lines', disable=quiet):
             yield line.rstrip('\n')
 
@@ -301,7 +328,7 @@ def count_mode(
     word_counts = Counter()
 
     for input_file in input_files:
-        with open(input_file, 'r', encoding='utf-8') as file:
+        with smart_open_input(input_file, encoding='utf-8') as file:
             for line in tqdm(file, desc=f'Counting words in {input_file}', unit=' lines', disable=quiet):
                 words = [word.strip() for word in line.split()]
                 raw_count += len(words)
@@ -338,7 +365,7 @@ def check_mode(
     corrections = set()
 
     for input_file in input_files:
-        with open(input_file, newline='', encoding='utf-8') as csvfile:
+        with smart_open_input(input_file, newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
             for row in tqdm(reader, desc=f'Checking {input_file}', unit=' rows', disable=quiet):
                 if not row:

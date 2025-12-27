@@ -55,7 +55,7 @@ def test_arrow_mode(tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("hello -> world\nfoo -> bar\nnoarrow here\n")
     output_file = tmp_path / "output.txt"
-    multitool.arrow_mode(str(input_file), str(output_file), 1, 10, True)
+    multitool.arrow_mode([str(input_file)], str(output_file), 1, 10, True)
     assert output_file.read_text().splitlines() == ["foo", "hello"]
 
 
@@ -68,7 +68,7 @@ def test_backtick_mode(tmp_path):
         "path Tests_for_ty's_`instbuiltins`_-_Built-ins error: `mdtest` should be `mstest`\n"
     )
     output_file = tmp_path / "output.txt"
-    multitool.backtick_mode(str(input_file), str(output_file), 1, 20, False)
+    multitool.backtick_mode([str(input_file)], str(output_file), 1, 20, False)
     assert output_file.read_text().splitlines() == ["data", "wordshere", "mdtest"]
 
 
@@ -76,10 +76,10 @@ def test_csv_mode(tmp_path):
     input_file = tmp_path / "input.csv"
     input_file.write_text("typo1,correct1\nword1,word2,word3\n")
     output_file = tmp_path / "output.txt"
-    multitool.csv_mode(str(input_file), str(output_file), 1, 10, True, first_column=False)
+    multitool.csv_mode([str(input_file)], str(output_file), 1, 10, True, first_column=False)
     assert output_file.read_text().splitlines() == ["correct", "word"]
     output_file2 = tmp_path / "output2.txt"
-    multitool.csv_mode(str(input_file), str(output_file2), 1, 10, True, first_column=True)
+    multitool.csv_mode([str(input_file)], str(output_file2), 1, 10, True, first_column=True)
     assert output_file2.read_text().splitlines() == ["typo", "word"]
 
 
@@ -88,21 +88,21 @@ def test_csv_mode_delimiter(tmp_path):
     input_comma = tmp_path / "input_comma.csv"
     input_comma.write_text("typo,correct\nword,another")
     output_comma = tmp_path / "output_comma.txt"
-    multitool.csv_mode(str(input_comma), str(output_comma), 1, 10, True, delimiter=',')
+    multitool.csv_mode([str(input_comma)], str(output_comma), 1, 10, True, delimiter=',')
     assert output_comma.read_text().splitlines() == ["another", "correct"]
 
     # Tab-delimited
     input_tab = tmp_path / "input_tab.tsv"
     input_tab.write_text("typo\tcorrect\nword\tanother")
     output_tab = tmp_path / "output_tab.txt"
-    multitool.csv_mode(str(input_tab), str(output_tab), 1, 10, True, delimiter='\t')
+    multitool.csv_mode([str(input_tab)], str(output_tab), 1, 10, True, delimiter='\t')
     assert output_tab.read_text().splitlines() == ["another", "correct"]
 
     # Pipe-delimited
     input_pipe = tmp_path / "input_pipe.psv"
     input_pipe.write_text("typo|correct\nword|another")
     output_pipe = tmp_path / "output_pipe.txt"
-    multitool.csv_mode(str(input_pipe), str(output_pipe), 1, 10, True, delimiter='|')
+    multitool.csv_mode([str(input_pipe)], str(output_pipe), 1, 10, True, delimiter='|')
     assert output_pipe.read_text().splitlines() == ["another", "correct"]
 
 
@@ -110,7 +110,7 @@ def test_line_mode(tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("Hello\nWorld!\na\n")
     output_file = tmp_path / "output.txt"
-    multitool.line_mode(str(input_file), str(output_file), 3, 10, True)
+    multitool.line_mode([str(input_file)], str(output_file), 3, 10, True)
     assert output_file.read_text().splitlines() == ["hello", "world"]
 
 
@@ -118,7 +118,7 @@ def test_count_mode(tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("Hello world hello HELLO test\nAnother line with world\n")
     output_file = tmp_path / "output.txt"
-    multitool.count_mode(str(input_file), str(output_file), 5, 10, False)
+    multitool.count_mode([str(input_file)], str(output_file), 5, 10, False)
     assert output_file.read_text().splitlines() == ["hello: 3", "world: 2", "another: 1"]
 
 
@@ -128,7 +128,7 @@ def test_filter_fragments_mode(tmp_path):
     list2 = tmp_path / "list2.txt"
     list2.write_text("an applepie\ncarpeted floor\ncar\n")
     output_file = tmp_path / "output.txt"
-    multitool.filter_fragments_mode(str(list1), str(list2), str(output_file), 1, 10, True)
+    multitool.filter_fragments_mode([str(list1)], str(list2), str(output_file), 1, 10, True)
     assert output_file.read_text().splitlines() == ["plane"]
 
 
@@ -158,7 +158,7 @@ def test_filter_fragments_mode_performance(tmp_path):
     import time
 
     start_time = time.time()
-    multitool.filter_fragments_mode(str(list1_path), str(list2_path), str(output_path), 1, 20, True)
+    multitool.filter_fragments_mode([str(list1_path)], str(list2_path), str(output_path), 1, 20, True)
     end_time = time.time()
 
     duration = end_time - start_time
@@ -175,7 +175,7 @@ def test_check_mode(tmp_path):
     csv_file = tmp_path / "typos.csv"
     csv_file.write_text("mispelled,misspelled\nteh,the\nfoo,bar,foo\nbar,foo\n")
     output_file = tmp_path / "output.txt"
-    multitool.check_mode(str(csv_file), str(output_file), 3, 10, True)
+    multitool.check_mode([str(csv_file)], str(output_file), 3, 10, True)
     assert output_file.read_text().splitlines() == ["bar", "foo"]
 
 
@@ -210,7 +210,7 @@ def test_set_operation_mode(tmp_path):
 
     intersection_output = tmp_path / "intersection.txt"
     multitool.set_operation_mode(
-        str(file_a),
+        [str(file_a)],
         str(file_b),
         str(intersection_output),
         1,
@@ -222,7 +222,7 @@ def test_set_operation_mode(tmp_path):
 
     union_output = tmp_path / "union.txt"
     multitool.set_operation_mode(
-        str(file_a),
+        [str(file_a)],
         str(file_b),
         str(union_output),
         1,
@@ -234,7 +234,7 @@ def test_set_operation_mode(tmp_path):
 
     difference_output = tmp_path / "difference.txt"
     multitool.set_operation_mode(
-        str(file_a),
+        [str(file_a)],
         str(file_b),
         str(difference_output),
         1,
@@ -253,7 +253,7 @@ def test_set_operation_invalid_operation(tmp_path):
 
     with pytest.raises(ValueError):
         multitool.set_operation_mode(
-            str(file_a),
+            [str(file_a)],
             str(file_b),
             str(tmp_path / "out.txt"),
             1,
@@ -362,7 +362,7 @@ def test_backtick_mode_context_markers(tmp_path):
         "no marker `fallback`\n"
     )
     output_file = tmp_path / "output.txt"
-    multitool.backtick_mode(str(input_file), str(output_file), 1, 20, False)
+    multitool.backtick_mode([str(input_file)], str(output_file), 1, 20, False)
     assert output_file.read_text().splitlines() == ["warning", "note", "error", "fallback"]
 
 def test_backtick_mode_marker_inside_backticks(tmp_path):
@@ -372,7 +372,7 @@ def test_backtick_mode_marker_inside_backticks(tmp_path):
     output_file = tmp_path / "output.txt"
 
     # We use a large max_length to ensure we don't filter out the long result
-    multitool.backtick_mode(str(input_file), str(output_file), 1, 100, False)
+    multitool.backtick_mode([str(input_file)], str(output_file), 1, 100, False)
 
     content = output_file.read_text().strip()
 

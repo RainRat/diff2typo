@@ -21,9 +21,13 @@ def test_generate_typos_by_replacement():
     typos = gentypos.generate_typos_by_replacement('cat', adjacent, custom)
     assert typos == {'xat', 'vat', 'cst', 'car', 'cay', 'kat'}
 
-def test_generate_variations():
-    typos = gentypos.generate_variations('word', {'deletion': True, 'transposition': True})
-    assert typos == {'ord', 'wrd', 'wod', 'owrd', 'wrod', 'wodr'}
+def test_generate_typos_by_deletion():
+    typos = gentypos.generate_typos_by_deletion('word')
+    assert typos == {'ord', 'wrd', 'wod'}
+
+def test_generate_typos_by_transposition():
+    typos = gentypos.generate_typos_by_transposition('word', distance=1)
+    assert typos == {'owrd', 'wrod', 'wodr'}
 
 def test_generate_typos_by_duplication():
     typos = gentypos.generate_typos_by_duplication('cat')

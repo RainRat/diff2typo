@@ -407,33 +407,3 @@ def test_backtick_mode_marker_inside_backticks(tmp_path):
 
     # Should fall back to extracting "error:" -> "error"
     assert content == "error"
-
-
-def test_detect_encoding(caplog, monkeypatch, tmp_path):
-    # Create a dummy file
-    f = tmp_path / "test.txt"
-    f.write_text("dummy")
-
-    # Case 1: chardet not available
-    monkeypatch.setattr(multitool, "_CHARDET_AVAILABLE", False)
-    with caplog.at_level(logging.WARNING):
-        assert multitool.detect_encoding(str(f)) is None
-    assert "chardet not installed" in caplog.text
-    caplog.clear()
-
-    # Case 2: chardet available, low confidence
-    monkeypatch.setattr(multitool, "_CHARDET_AVAILABLE", True)
-    mock_chardet = MagicMock()
-    mock_chardet.detect.return_value = {'encoding': 'utf-8', 'confidence': 0.3}
-    monkeypatch.setattr(multitool, "chardet", mock_chardet)
-
-    with caplog.at_level(logging.WARNING):
-        assert multitool.detect_encoding(str(f)) is None
-    assert "Failed to reliably detect" in caplog.text
-    caplog.clear()
-
-    # Case 3: chardet available, high confidence
-    mock_chardet.detect.return_value = {'encoding': 'utf-8', 'confidence': 0.9}
-    with caplog.at_level(logging.INFO):
-        assert multitool.detect_encoding(str(f)) == 'utf-8'
-    assert "Detected encoding 'utf-8'" in caplog.text

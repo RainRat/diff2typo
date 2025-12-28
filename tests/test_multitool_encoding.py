@@ -92,3 +92,59 @@ def test_load_and_clean_file_detected_encoding_fails(tmp_path, caplog):
     assert raw_items == ["ÿþý"]
     assert "Detected encoding 'utf-8' failed" in caplog.text
     assert "Fallback to latin-1" in caplog.text
+
+def test_detect_encoding(caplog, monkeypatch, tmp_path):
+    # Create a dummy file
+    f = tmp_path / "test.txt"
+    f.write_text("dummy")
+
+    # Case 1: chardet not available
+    monkeypatch.setattr(multitool, "_CHARDET_AVAILABLE", False)
+    with caplog.at_level(logging.WARNING):
+        assert multitool.detect_encoding(str(f)) is None
+    assert "chardet not installed" in caplog.text
+    caplog.clear()
+
+    # Case 2: chardet available, low confidence
+    monkeypatch.setattr(multitool, "_CHARDET_AVAILABLE", True)
+    mock_chardet = MagicMock()
+    mock_chardet.detect.return_value = {'encoding': 'utf-8', 'confidence': 0.3}
+    monkeypatch.setattr(multitool, "chardet", mock_chardet)
+
+    with caplog.at_level(logging.WARNING):
+        assert multitool.detect_encoding(str(f)) is None
+    assert "Failed to reliably detect" in caplog.text
+    caplog.clear()
+
+    # Case 3: chardet available, high confidence
+    mock_chardet.detect.return_value = {'encoding': 'utf-8', 'confidence': 0.9}
+    with caplog.at_level(logging.INFO):
+        assert multitool.detect_encoding(str(f)) == 'utf-8'
+    assert "Detected encoding 'utf-8'" in caplog.text
+
+def test_load_and_clean_file_stdin_success(monkeypatch):
+    """Test reading from stdin successfully."""
+    mock_stdin = MagicMock()
+    mock_stdin.readlines.return_value = ["line1\n", "line2\n"]
+    mock_stdin.encoding = 'utf-8'
+    monkeypatch.setattr(sys, "stdin", mock_stdin)
+
+    raw, cleaned, unique = multitool._load_and_clean_file('-', 1, 100)
+    assert raw == ["line1", "line2"]
+    assert cleaned == ["line", "line"]
+    assert unique == ["line"]
+
+def test_load_and_clean_file_stdin_unicode_error(monkeypatch, caplog):
+    """Test reading from stdin with UnicodeDecodeError."""
+    mock_stdin = MagicMock()
+    # Simulate readlines raising UnicodeDecodeError
+    mock_stdin.readlines.side_effect = UnicodeDecodeError('utf-8', b'', 0, 1, 'bad')
+    monkeypatch.setattr(sys, "stdin", mock_stdin)
+
+    with caplog.at_level(logging.WARNING):
+        raw, cleaned, unique = multitool._load_and_clean_file('-', 1, 100)
+
+    assert raw == []
+    assert cleaned == []
+    assert unique == []
+    assert "Reading from stdin failed with encoding errors" in caplog.text

@@ -58,6 +58,13 @@ def test_arrow_mode(tmp_path):
     multitool.arrow_mode([str(input_file)], str(output_file), 1, 10, True)
     assert output_file.read_text().splitlines() == ["foo", "hello"]
 
+def test_arrow_mode_right(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("hello -> world\nfoo -> bar\nnoarrow here\n")
+    output_file = tmp_path / "output.txt"
+    multitool.arrow_mode([str(input_file)], str(output_file), 1, 10, True, right_side=True)
+    assert output_file.read_text().splitlines() == ["bar", "world"]
+
 
 def test_backtick_mode(tmp_path):
     input_file = tmp_path / "input.txt"

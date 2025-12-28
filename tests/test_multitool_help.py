@@ -16,10 +16,12 @@ def test_mode_help_all_implicit(monkeypatch, capsys):
     captured = capsys.readouterr()
     output = captured.err + captured.out
 
-    # Check for presence of multiple modes
-    assert "Mode: arrow" in output
-    assert "Mode: csv" in output
-    assert "Summary: Extract the left side of '->' arrows." in output
+    # Check for presence of summary table header and content
+    assert "Available Modes:" in output
+    assert "arrow" in output
+    assert "csv" in output
+    # In table view, we print "Summary: ..." as just the text column
+    assert "Extract the left side of '->' arrows." in output
 
 def test_mode_help_all_explicit(monkeypatch, capsys):
     """Test 'multitool.py --mode-help all' displays help for all modes."""
@@ -31,8 +33,9 @@ def test_mode_help_all_explicit(monkeypatch, capsys):
     captured = capsys.readouterr()
     output = captured.err + captured.out
 
-    assert "Mode: arrow" in output
-    assert "Mode: csv" in output
+    assert "Available Modes:" in output
+    assert "arrow" in output
+    assert "csv" in output
 
 def test_mode_help_specific(monkeypatch, capsys):
     """Test 'multitool.py --mode-help arrow' displays help only for arrow mode."""

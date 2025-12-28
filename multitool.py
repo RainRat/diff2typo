@@ -5,6 +5,7 @@ import random
 import contextlib
 import sys
 import re
+import functools
 from textwrap import dedent
 from typing import Callable, Iterable, List, Sequence, Tuple, TextIO
 from tqdm import tqdm
@@ -191,13 +192,13 @@ def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO
 
 def _process_items(
     extractor_func: Callable[[str, bool], Iterable[str]],
+    mode_name: str,
+    success_msg: str,
     input_files: Sequence[str],
     output_file: str,
     min_length: int,
     max_length: int,
     process_output: bool,
-    mode_name: str,
-    success_msg: str,
     quiet: bool = False,
 ) -> None:
     """Generic processing for modes that extract raw string items from one or more files."""
@@ -285,28 +286,33 @@ def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
             yield line.rstrip('\n')
 
 
-def arrow_mode(
-    input_files: Sequence[str],
-    output_file: str,
-    min_length: int,
-    max_length: int,
-    process_output: bool,
-    quiet: bool = False,
-) -> None:
-    """Wrapper for processing items separated by ' -> '."""
-    _process_items(_extract_arrow_items, input_files, output_file, min_length, max_length, process_output, 'Arrow', 'File(s) processed successfully.', quiet)
+arrow_mode = functools.partial(
+    _process_items,
+    _extract_arrow_items,
+    'Arrow',
+    'File(s) processed successfully.'
+)
+arrow_mode.__doc__ = "Wrapper for processing items separated by ' -> '."
+arrow_mode.__name__ = "arrow_mode"
 
+backtick_mode = functools.partial(
+    _process_items,
+    _extract_backtick_items,
+    'Backtick',
+    'Strings extracted successfully.'
+)
+backtick_mode.__doc__ = "Wrapper for extracting text between backticks."
+backtick_mode.__name__ = "backtick_mode"
 
-def backtick_mode(
-    input_files: Sequence[str],
-    output_file: str,
-    min_length: int,
-    max_length: int,
-    process_output: bool,
-    quiet: bool = False,
-) -> None:
-    """Wrapper for extracting text between backticks."""
-    _process_items(_extract_backtick_items, input_files, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', quiet)
+line_mode = functools.partial(
+    _process_items,
+    _extract_line_items,
+    'Line',
+    'Lines processed successfully.'
+)
+line_mode.__doc__ = "Wrapper for processing raw lines from file(s)."
+line_mode.__name__ = "line_mode"
+
 
 def count_mode(
     input_files: Sequence[str],
@@ -400,19 +406,7 @@ def csv_mode(
 ) -> None:
     """Wrapper for extracting fields from CSV files."""
     extractor = lambda f, quiet=False: _extract_csv_items(f, first_column, delimiter, quiet=quiet)
-    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.', quiet)
-
-
-def line_mode(
-    input_files: Sequence[str],
-    output_file: str,
-    min_length: int,
-    max_length: int,
-    process_output: bool,
-    quiet: bool = False,
-) -> None:
-    """Wrapper for processing raw lines from file(s)."""
-    _process_items(_extract_line_items, input_files, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', quiet)
+    _process_items(extractor, 'CSV', 'CSV fields extracted successfully.', input_files, output_file, min_length, max_length, process_output, quiet)
 
 
 def combine_mode(

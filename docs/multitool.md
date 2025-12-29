@@ -21,8 +21,8 @@ Multitool operates in different "modes," each designed for a specific task.
 These modes help you pull specific data out of a messy file.
 
 - **`arrow`**
-  - **What it does:** Extracts the left side of an arrow (`typo -> correction`). Useful for getting a clean list of typos from a log.
-  - **Example:** `python multitool.py arrow --input typos.log`
+  - **What it does:** Extracts the left side of an arrow (`typo -> correction`). Useful for getting a clean list of typos from a log. You can also extract the right side (the correction) by adding the `--right` flag.
+  - **Example:** `python multitool.py arrow --input typos.log --right`
 
 - **`backtick`**
   - **What it does:** Extracts text found inside backticks (like \`code\`). It is smart enough to pick the most relevant item from lines that contain error messages or warnings.

@@ -221,12 +221,15 @@ def _process_items(
     )
 
 
-def _extract_arrow_items(input_file: str, quiet: bool = False) -> Iterable[str]:
-    """Yield text before ' -> ' from each line."""
+def _extract_arrow_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
+    """Yield text before (or after) ' -> ' from each line."""
     with smart_open_input(input_file, encoding='utf-8') as infile:
         for line in tqdm(infile, desc=f'Processing {input_file} (arrow)', unit=' lines', disable=quiet):
             if " -> " in line:
-                yield line.split(" -> ", 1)[0].strip()
+                parts = line.split(" -> ", 1)
+                idx = 1 if right_side else 0
+                if len(parts) > idx:
+                    yield parts[idx].strip()
 
 
 def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[str]:
@@ -291,10 +294,12 @@ def arrow_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    right_side: bool = False,
     quiet: bool = False,
 ) -> None:
     """Wrapper for processing items separated by ' -> '."""
-    _process_items(_extract_arrow_items, input_files, output_file, min_length, max_length, process_output, 'Arrow', 'File(s) processed successfully.', quiet)
+    extractor = lambda f, quiet=False: _extract_arrow_items(f, right_side=right_side, quiet=quiet)
+    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'Arrow', 'File(s) processed successfully.', quiet)
 
 
 def backtick_mode(
@@ -674,9 +679,9 @@ def set_operation_mode(
 
 MODE_DETAILS = {
     "arrow": {
-        "summary": "Extract the left side of '->' arrows.",
-        "description": "Reads lines like 'typo -> correction' and saves just the 'typo' part. Useful for isolating original words from a list.",
-        "example": "python multitool.py arrow typos.log --output cleaned.txt",
+        "summary": "Extract the left (or right) side of '->' arrows.",
+        "description": "Reads lines like 'typo -> correction' and saves just the 'typo' part. Use --right to extract the correction instead.",
+        "example": "python multitool.py arrow typos.log --right --output corrections.txt",
     },
     "combine": {
         "summary": "Merge and sort multiple files.",
@@ -797,6 +802,11 @@ def _build_parser() -> argparse.ArgumentParser:
         description=MODE_DETAILS['arrow']['description'],
     )
     _add_common_mode_arguments(arrow_parser)
+    arrow_parser.add_argument(
+        '--right',
+        action='store_true',
+        help="Extract the right side (correction) instead of the left side (typo).",
+    )
 
     backtick_parser = subparsers.add_parser(
         'backtick',
@@ -1052,8 +1062,11 @@ def main() -> None:
         'quiet': args.quiet,
     }
 
+    # Check for arrow-specific args
+    right_side = getattr(args, 'right', False)
+
     handler_map = {
-        'arrow': (arrow_mode, dict(common_kwargs)),
+        'arrow': (arrow_mode, {**common_kwargs, 'right_side': right_side}),
         'backtick': (backtick_mode, dict(common_kwargs)),
         'csv': (
             csv_mode,

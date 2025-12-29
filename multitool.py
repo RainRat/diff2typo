@@ -255,11 +255,10 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
                     if selected:
                         break
 
-            if selected is None:
-                start_index = line.find('`')
-                end_index = line.find('`', start_index + 1) if start_index != -1 else -1
-                if start_index != -1 and end_index != -1:
-                    selected = line[start_index + 1:end_index].strip()
+            if selected is None and len(parts) >= 3:
+                # Fallback: extract the content of the first backticked item.
+                # parts[0] is text before first `, parts[1] is text between first and second `, etc.
+                selected = parts[1].strip()
 
             if selected:
                 yield selected

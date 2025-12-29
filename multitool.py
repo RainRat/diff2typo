@@ -10,6 +10,7 @@ from typing import Callable, Iterable, List, Sequence, Tuple, TextIO
 from tqdm import tqdm
 import logging
 import ahocorasick
+import json
 
 try:
     import chardet  # type: ignore
@@ -265,6 +266,44 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
                 yield selected
 
 
+def _extract_json_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:
+    """Yield values from JSON objects based on a dotted key path."""
+
+    def traverse_json(data, path_parts):
+        # If it's a list, apply the current path traversal to every item
+        if isinstance(data, list):
+            for item in data:
+                yield from traverse_json(item, path_parts)
+            return
+
+        # If we are at the end of the path, yield the current item
+        if not path_parts:
+            # We yield the string representation of the data
+            yield str(data)
+            return
+
+        current_key = path_parts[0]
+        if isinstance(data, dict):
+            if current_key in data:
+                yield from traverse_json(data[current_key], path_parts[1:])
+
+    path_parts = key_path.split('.') if key_path else []
+
+    with smart_open_input(input_file, encoding='utf-8') as infile:
+        # Load the entire file content as JSON
+        # Note: Standard JSON parsers expect the whole file. Streaming JSON (JSONL) is handled differently.
+        # Here we assume standard JSON as output by typostats.py.
+        try:
+            content = infile.read()
+            if not content.strip():
+                return
+            data = json.loads(content)
+            yield from traverse_json(data, path_parts)
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse JSON in '{input_file}': {e}")
+            return
+
+
 def _extract_csv_items(
     input_file: str, first_column: bool, delimiter: str = ',', quiet: bool = False
 ) -> Iterable[str]:
@@ -312,6 +351,21 @@ def backtick_mode(
 ) -> None:
     """Wrapper for extracting text between backticks."""
     _process_items(_extract_backtick_items, input_files, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', quiet)
+
+
+def json_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    key: str,
+    quiet: bool = False,
+) -> None:
+    """Wrapper for extracting fields from JSON files."""
+    extractor = lambda f, quiet=False: _extract_json_items(f, key, quiet=quiet)
+    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'JSON', 'JSON values extracted successfully.', quiet)
+
 
 def count_mode(
     input_files: Sequence[str],
@@ -698,6 +752,11 @@ MODE_DETAILS = {
         "description": "Extracts data from CSV files. By default, it grabs everything *except* the first column, which is perfect for getting a list of corrections.",
         "example": "python multitool.py csv typos.csv --output corrections.txt",
     },
+    "json": {
+        "summary": "Extract values from JSON files.",
+        "description": "Extracts values associated with a specific key path from a JSON file. Supports dot notation for nested keys (e.g. 'replacements.typo'). Handles lists automatically.",
+        "example": "python multitool.py json report.json --key replacements.typo --output typos.txt",
+    },
     "line": {
         "summary": "Process a file line by line.",
         "description": "Reads each line, filters it (if requested), and writes it to the output. A simple way to clean up a text file.",
@@ -833,6 +892,20 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         default=',',
         help='The delimiter character for CSV files (default: ,).',
+    )
+
+    json_parser = subparsers.add_parser(
+        'json',
+        help=MODE_DETAILS['json']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['json']['description'],
+    )
+    _add_common_mode_arguments(json_parser)
+    json_parser.add_argument(
+        '--key',
+        type=str,
+        required=True,
+        help="The key path to extract (e.g. 'items.name').",
     )
 
     combine_parser = subparsers.add_parser(
@@ -1047,6 +1120,8 @@ def main() -> None:
     if args.mode == 'csv':
         logging.info(f"First Column Only: {'Yes' if first_column else 'No'}")
         logging.info(f"Delimiter: '{delimiter}'")
+    if args.mode == 'json':
+        logging.info(f"JSON Key Path: '{getattr(args, 'key', '')}'")
     if args.mode == 'sample':
         if sample_count is not None:
             logging.info(f"Sampling Count: {sample_count}")
@@ -1074,6 +1149,13 @@ def main() -> None:
                 **common_kwargs,
                 'first_column': first_column,
                 'delimiter': delimiter,
+            },
+        ),
+        'json': (
+            json_mode,
+            {
+                **common_kwargs,
+                'key': getattr(args, 'key', ''),
             },
         ),
         'line': (line_mode, dict(common_kwargs)),

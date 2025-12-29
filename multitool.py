@@ -736,21 +736,27 @@ class ModeHelpAction(argparse.Action):
         values: str | None,
         option_string: str | None = None,
     ) -> None:
-        modes_to_show = MODE_DETAILS.keys() if values in (None, "all") else [values]
-        help_blocks = []
-        for mode in modes_to_show:
-            details = MODE_DETAILS.get(mode)
+        if values in (None, "all"):
+            # Show a summary table of all modes
+            print("\nAvailable Modes:\n")
+            max_len = max(len(m) for m in MODE_DETAILS.keys())
+            width = max_len + 4
+            for mode, details in MODE_DETAILS.items():
+                print(f"  {mode:<{width}} {details['summary']}")
+            print("\nRun 'python multitool.py --mode-help <mode>' for details on a specific mode.\n")
+            parser.exit()
+        else:
+            # Show detailed help for a single mode
+            details = MODE_DETAILS.get(values)
             if not details:
-                continue
-            block = [f"Mode: {mode}", f"  Summary: {details['summary']}"]
+                parser.error(f"Unknown mode: {values}")
+
+            block = [f"Mode: {values}", f"  Summary: {details['summary']}"]
             if details.get("description"):
                 block.append(f"  Description: {details['description']}")
             if details.get("example"):
                 block.append(f"  Example: {details['example']}")
-            help_blocks.append("\n".join(block))
-
-        message = "\n\n".join(help_blocks)
-        parser.exit(message=f"\n{message}\n\n")
+            parser.exit(message="\n" + "\n".join(block) + "\n\n")
 
 
 def _build_parser() -> argparse.ArgumentParser:

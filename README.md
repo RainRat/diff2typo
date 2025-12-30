@@ -22,7 +22,7 @@ The **diff2typo Suite** is a collection of standalone command-line tools designe
    Or install them individually:
    ```bash
    pip install tqdm pyyaml pyahocorasick
-   # Optional: for encoding detection in typostats
+   # Optional: for encoding detection in typostats and multitool
    pip install chardet
    ```
 
@@ -54,8 +54,6 @@ python diff2typo.py --input_file recent_changes.diff --output_file my_typos.txt 
 
 **3. Analyze Patterns:**
 Use `typostats` to see your most common finger-slips.
-
-> **Note:** `typostats` requires CSV input. If using `diff2typo`, ensure you used `--output_format csv`.
 
 ```bash
 python typostats.py my_typos.txt --sort count

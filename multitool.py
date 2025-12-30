@@ -1014,9 +1014,9 @@ def main() -> None:
     flag_inputs = getattr(args, 'input_files_flag', []) or []
     input_paths = pos_inputs + flag_inputs
 
-    # Default to 'input.txt' if neither is provided
+    # Default to stdin ('-') if neither is provided
     if not input_paths:
-        input_paths = ['input.txt']
+        input_paths = ['-']
 
     # Store for logging and handler
     args.input = input_paths

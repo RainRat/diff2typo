@@ -789,6 +789,16 @@ MODE_DETAILS = {
 }
 
 
+def print_mode_summary() -> None:
+    """Print a summary table of all available modes."""
+    print("\nAvailable Modes:\n")
+    max_len = max(len(m) for m in MODE_DETAILS.keys())
+    width = max_len + 4
+    for mode, details in MODE_DETAILS.items():
+        print(f"  {mode:<{width}} {details['summary']}")
+    print("\nRun 'python multitool.py --mode-help <mode>' for details on a specific mode.\n")
+
+
 class ModeHelpAction(argparse.Action):
     """Custom argparse action that prints detailed help for one or all modes."""
 
@@ -801,12 +811,7 @@ class ModeHelpAction(argparse.Action):
     ) -> None:
         if values in (None, "all"):
             # Show a summary table of all modes
-            print("\nAvailable Modes:\n")
-            max_len = max(len(m) for m in MODE_DETAILS.keys())
-            width = max_len + 4
-            for mode, details in MODE_DETAILS.items():
-                print(f"  {mode:<{width}} {details['summary']}")
-            print("\nRun 'python multitool.py --mode-help <mode>' for details on a specific mode.\n")
+            print_mode_summary()
             parser.exit()
         else:
             # Show detailed help for a single mode
@@ -1064,6 +1069,10 @@ def _normalize_mode_args(
 
 
 def main() -> None:
+    if len(sys.argv) == 1:
+        print_mode_summary()
+        sys.exit(0)
+
     parser = _build_parser()
     argv = _normalize_mode_args(sys.argv[1:], parser)
 

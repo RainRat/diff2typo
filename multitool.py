@@ -6,7 +6,7 @@ import contextlib
 import sys
 import re
 from textwrap import dedent
-from typing import Callable, Iterable, List, Sequence, Tuple, TextIO
+from typing import Callable, Iterable, List, Sequence, Tuple, TextIO, Union
 from tqdm import tqdm
 import logging
 import ahocorasick
@@ -177,7 +177,7 @@ def print_processing_stats(
 
 
 @contextlib.contextmanager
-def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO]:
+def smart_open_output(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
     """
     Context manager that yields a file object for writing.
     If filename is '-', yields sys.stdout.
@@ -186,8 +186,43 @@ def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO
     if filename == '-':
         yield sys.stdout
     else:
-        with open(filename, 'w', encoding=encoding) as f:
+        with open(filename, 'w', encoding=encoding, newline=newline) as f:
             yield f
+
+def write_output(
+    items: Iterable[str],
+    output_file: str,
+    output_format: str = 'line',
+    quiet: bool = False
+) -> None:
+    """
+    Writes a collection of strings to the output file in the specified format.
+
+    Supported formats:
+      - line: One item per line (default)
+      - json: JSON array of strings
+      - csv: One item per row (vertical)
+      - markdown: Markdown bullet list
+    """
+    items_list = list(items)  # Consume generator to know length/content
+
+    # Use newline='' for CSV format to ensure correct line endings across platforms
+    newline = '' if output_format == 'csv' else None
+
+    with smart_open_output(output_file, newline=newline) as outfile:
+        if output_format == 'json':
+            json.dump(items_list, outfile, indent=2)
+            outfile.write('\n')
+        elif output_format == 'csv':
+            writer = csv.writer(outfile)
+            for item in items_list:
+                writer.writerow([item])
+        elif output_format == 'markdown':
+            for item in items_list:
+                outfile.write(f"- {item}\n")
+        else:  # 'line' or fallback
+            for item in items_list:
+                outfile.write(item + '\n')
 
 
 def _process_items(
@@ -199,6 +234,7 @@ def _process_items(
     process_output: bool,
     mode_name: str,
     success_msg: str,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Generic processing for modes that extract raw string items from one or more files."""
@@ -212,9 +248,7 @@ def _process_items(
     if process_output:
         filtered_items = sorted(set(filtered_items))
 
-    with smart_open_output(output_file) as outfile:
-        for item in filtered_items:
-            outfile.write(item + '\n')
+    write_output(filtered_items, output_file, output_format, quiet)
 
     print_processing_stats(len(raw_items), filtered_items)
     logging.info(
@@ -333,11 +367,12 @@ def arrow_mode(
     max_length: int,
     process_output: bool,
     right_side: bool = False,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Wrapper for processing items separated by ' -> '."""
     extractor = lambda f, quiet=False: _extract_arrow_items(f, right_side=right_side, quiet=quiet)
-    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'Arrow', 'File(s) processed successfully.', quiet)
+    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'Arrow', 'File(s) processed successfully.', output_format, quiet)
 
 
 def backtick_mode(
@@ -346,10 +381,11 @@ def backtick_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Wrapper for extracting text between backticks."""
-    _process_items(_extract_backtick_items, input_files, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', quiet)
+    _process_items(_extract_backtick_items, input_files, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', output_format, quiet)
 
 
 def json_mode(
@@ -359,11 +395,12 @@ def json_mode(
     max_length: int,
     process_output: bool,
     key: str,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Wrapper for extracting fields from JSON files."""
     extractor = lambda f, quiet=False: _extract_json_items(f, key, quiet=quiet)
-    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'JSON', 'JSON values extracted successfully.', quiet)
+    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'JSON', 'JSON values extracted successfully.', output_format, quiet)
 
 
 def count_mode(
@@ -413,6 +450,7 @@ def check_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """
@@ -437,9 +475,9 @@ def check_mode(
     if process_output:
         filtered_items = list(set(filtered_items))
     filtered_items.sort()
-    with smart_open_output(output_file) as outfile:
-        for word in filtered_items:
-            outfile.write(word + '\n')
+
+    write_output(filtered_items, output_file, output_format, quiet)
+
     print_processing_stats(len(duplicates), filtered_items)
     logging.info(
         f"[Check Mode] Found {len(filtered_items)} overlapping words across {len(input_files)} file(s). Output written to '{output_file}'."
@@ -454,11 +492,12 @@ def csv_mode(
     process_output: bool,
     first_column: bool = False,
     delimiter: str = ',',
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Wrapper for extracting fields from CSV files."""
     extractor = lambda f, quiet=False: _extract_csv_items(f, first_column, delimiter, quiet=quiet)
-    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.', quiet)
+    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.', output_format, quiet)
 
 
 def line_mode(
@@ -467,10 +506,11 @@ def line_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Wrapper for processing raw lines from file(s)."""
-    _process_items(_extract_line_items, input_files, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', quiet)
+    _process_items(_extract_line_items, input_files, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', output_format, quiet)
 
 
 def combine_mode(
@@ -479,6 +519,7 @@ def combine_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Merge cleaned contents from multiple files into one deduplicated list."""
@@ -501,9 +542,7 @@ def combine_mode(
     else:
         combined_unique = sorted(combined_unique)
 
-    with smart_open_output(output_file) as outfile:
-        for item in combined_unique:
-            outfile.write(item + '\n')
+    write_output(combined_unique, output_file, output_format, quiet)
 
     print_processing_stats(raw_item_count, combined_unique)
     logging.info(
@@ -521,6 +560,7 @@ def sample_mode(
     process_output: bool,
     sample_count: int | None = None,
     sample_percent: float | None = None,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Randomly sample lines from the input file(s)."""
@@ -534,8 +574,8 @@ def sample_mode(
 
     if not raw_items:
         logging.warning("Input is empty or no lines found.")
-        with open(output_file, 'w', encoding='utf-8') as f:
-            pass
+        # Create empty output using write_output to ensure consistent formatting (e.g. empty JSON list)
+        write_output([], output_file, output_format, quiet)
         return
 
     # Clean and filter BEFORE sampling to ensure the requested count is accurate relative to valid items
@@ -556,9 +596,7 @@ def sample_mode(
     if process_output:
         sampled_items = sorted(set(sampled_items))
 
-    with open(output_file, 'w', encoding='utf-8') as outfile:
-        for item in sampled_items:
-            outfile.write(item + '\n')
+    write_output(sampled_items, output_file, output_format, quiet)
 
     print_processing_stats(len(raw_items), sampled_items)
     logging.info(
@@ -589,6 +627,12 @@ def _add_common_mode_arguments(
         help="Path to the output file (default: stdout).",
     )
     subparser.add_argument(
+        '--output-format',
+        choices=['line', 'json', 'csv', 'markdown'],
+        default='line',
+        help="Format of the output (default: line). Options: line, json, csv, markdown.",
+    )
+    subparser.add_argument(
         '--min-length',
         type=int,
         default=3,
@@ -617,6 +661,7 @@ def filter_fragments_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """
@@ -664,9 +709,7 @@ def filter_fragments_mode(
         filtered_items = list(set(filtered_items))
         filtered_items.sort()
 
-    with smart_open_output(output_file) as f:
-        for word in filtered_items:
-            f.write(word + '\n')
+    write_output(filtered_items, output_file, output_format, quiet)
 
     print_processing_stats(len(all_raw_list1), filtered_items)
     logging.info(
@@ -682,6 +725,7 @@ def set_operation_mode(
     max_length: int,
     process_output: bool,
     operation: str,
+    output_format: str = 'line',
     quiet: bool = False,
 ) -> None:
     """Perform set operations (intersection, union, difference) between input files (merged) and a second file."""
@@ -720,9 +764,7 @@ def set_operation_mode(
     if process_output:
         result_items = sorted(set(result_items))
 
-    with smart_open_output(output_file) as outfile:
-        for item in result_items:
-            outfile.write(item + '\n')
+    write_output(result_items, output_file, output_format, quiet)
 
     print_processing_stats(raw_item_count_a + len(raw_items_b), result_items)
     logging.info(
@@ -932,6 +974,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the output file (default: stdout).",
     )
     combine_parser.add_argument(
+        '--output-format',
+        choices=['line', 'json', 'csv', 'markdown'],
+        default='line',
+        help="Format of the output (default: line). Options: line, json, csv, markdown.",
+    )
+    combine_parser.add_argument(
         '--min-length',
         type=int,
         default=3,
@@ -1111,6 +1159,7 @@ def main() -> None:
     delimiter = getattr(args, 'delimiter', ',')
     sample_count = getattr(args, 'sample_count', None)
     sample_percent = getattr(args, 'sample_percent', None)
+    output_format = getattr(args, 'output_format', 'line')
 
     if args.mode in {'filterfragments', 'set_operation'} and file2:
         logging.info(f"File2: {file2}")
@@ -1127,6 +1176,8 @@ def main() -> None:
         if sample_percent is not None:
             logging.info(f"Sampling Percentage: {sample_percent}%")
 
+    logging.info(f"Output Format: {output_format}")
+
     common_kwargs = {
         'input_files': args.input,
         'output_file': args.output,
@@ -1140,14 +1191,15 @@ def main() -> None:
     right_side = getattr(args, 'right', False)
 
     handler_map = {
-        'arrow': (arrow_mode, {**common_kwargs, 'right_side': right_side}),
-        'backtick': (backtick_mode, dict(common_kwargs)),
+        'arrow': (arrow_mode, {**common_kwargs, 'right_side': right_side, 'output_format': output_format}),
+        'backtick': (backtick_mode, {**common_kwargs, 'output_format': output_format}),
         'csv': (
             csv_mode,
             {
                 **common_kwargs,
                 'first_column': first_column,
                 'delimiter': delimiter,
+                'output_format': output_format,
             },
         ),
         'json': (
@@ -1155,18 +1207,19 @@ def main() -> None:
             {
                 **common_kwargs,
                 'key': getattr(args, 'key', ''),
+                'output_format': output_format,
             },
         ),
-        'line': (line_mode, dict(common_kwargs)),
-        'count': (count_mode, dict(common_kwargs)),
+        'line': (line_mode, {**common_kwargs, 'output_format': output_format}),
+        'count': (count_mode, dict(common_kwargs)), # count_mode ignores output_format
         'filterfragments': (
             filter_fragments_mode,
-            {**common_kwargs, 'file2': file2},
+            {**common_kwargs, 'file2': file2, 'output_format': output_format},
         ),
-        'check': (check_mode, dict(common_kwargs)),
+        'check': (check_mode, {**common_kwargs, 'output_format': output_format}),
         'set_operation': (
             set_operation_mode,
-            {**common_kwargs, 'file2': file2, 'operation': operation},
+            {**common_kwargs, 'file2': file2, 'operation': operation, 'output_format': output_format},
         ),
         'combine': (
             combine_mode,
@@ -1177,6 +1230,7 @@ def main() -> None:
                 'max_length': args.max_length,
                 'process_output': getattr(args, 'process_output', False),
                 'quiet': args.quiet,
+                'output_format': output_format,
             },
         ),
         'sample': (
@@ -1185,6 +1239,7 @@ def main() -> None:
                 **common_kwargs,
                 'sample_count': sample_count,
                 'sample_percent': sample_percent,
+                'output_format': output_format,
             },
         ),
     }

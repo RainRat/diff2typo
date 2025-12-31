@@ -611,7 +611,7 @@ def _add_common_mode_arguments(
     subparser.add_argument(
         'input_files_pos',
         nargs='*',
-        help="Path(s) to the input file(s). Defaults to 'input.txt' if none provided.",
+        help="Path(s) to the input file(s). Defaults to stdin ('-') if none provided.",
     )
     subparser.add_argument(
         '--input',
@@ -960,47 +960,7 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['combine']['description'],
     )
-    combine_parser.add_argument(
-        'input_files_pos',
-        nargs='*',
-        help='Paths to the input files to merge.',
-    )
-    combine_parser.add_argument(
-        '--input',
-        dest='input_files_flag',
-        type=str,
-        nargs='+',
-        help='Paths to the input files to merge (legacy flag).',
-    )
-    combine_parser.add_argument(
-        '--output',
-        type=str,
-        default='-',
-        help="Path to the output file (default: stdout).",
-    )
-    combine_parser.add_argument(
-        '--output-format',
-        choices=['line', 'json', 'csv', 'markdown'],
-        default='line',
-        help="Format of the output (default: line). Options: line, json, csv, markdown.",
-    )
-    combine_parser.add_argument(
-        '--min-length',
-        type=int,
-        default=3,
-        help="Minimum string length to process (default: 3)",
-    )
-    combine_parser.add_argument(
-        '--max-length',
-        type=int,
-        default=1000,
-        help="Maximum string length to process (default: 1000)",
-    )
-    combine_parser.add_argument(
-        '--process-output',
-        action='store_true',
-        help="If set, converts output to lowercase, sorts it, and removes duplicates.",
-    )
+    _add_common_mode_arguments(combine_parser)
 
     line_parser = subparsers.add_parser(
         'line',

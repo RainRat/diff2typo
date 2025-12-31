@@ -466,13 +466,19 @@ def main():
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(description="Process a git diff to identify typos for the `typos` utility.")
     parser.add_argument(
+        'input_files_pos',
+        nargs='*',
+        help="One or more input git diff files or glob patterns. Use '-' to read from stdin.",
+    )
+    parser.add_argument(
         '--input_file',
         '-i',
+        dest='input_files_flag',
         nargs='+',
         type=str,
         default=None,
         help=(
-            "One or more input git diff files or glob patterns. "
+            "One or more input git diff files or glob patterns (legacy flag). "
             "Use '-' to read from stdin. If omitted, stdin is read by default."
         ),
     )
@@ -493,7 +499,12 @@ def main():
 
     logging.info("Starting typo extraction process...")
 
-    diff_text = _read_diff_sources(args.input_file)
+    # Combine positional and flag inputs
+    pos_inputs = getattr(args, 'input_files_pos', []) or []
+    flag_inputs = getattr(args, 'input_files_flag', []) or []
+    input_files = pos_inputs + flag_inputs
+
+    diff_text = _read_diff_sources(input_files)
 
     # Load the dictionary (words mapping) once.
     dictionary_mapping = read_words_mapping(args.dictionary_file)

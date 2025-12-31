@@ -10,10 +10,11 @@ python typostats.py input.txt [OPTIONS]
 
 ## Input Format
 
-The tool expects a simple text file where each line has a typo and its correction, separated by a comma:
-`typo, correction`
+The tool accepts two input formats:
+1. **CSV:** `typo, correction`
+2. **Arrow:** `typo -> correction` (default output of `diff2typo`)
 
-> **Tip:** If you are feeding output from `diff2typo.py`, you **must** run it with `--output_format csv`. The default arrow format (`typo -> correction`) is not compatible.
+> **Tip:** You can pipe the output from `diff2typo.py` directly into `typostats.py`.
 
 ## Options
 

@@ -337,14 +337,6 @@ def validate_config(config: MutableMapping[str, Any]) -> None:
             logging.error(f"Missing required configuration field: '{field}'")
             sys.exit(1)
 
-    if 'typo_types' in config and not isinstance(config['typo_types'], dict):
-        logging.error("Configuration field 'typo_types' must be a mapping.")
-        sys.exit(1)
-
-    if 'word_length' in config and not isinstance(config['word_length'], dict):
-        logging.error("Configuration field 'word_length' must be a mapping.")
-        sys.exit(1)
-
     _merge_defaults(config, DEFAULT_CONFIG)
 
 

@@ -337,6 +337,48 @@ def _extract_json_items(input_file: str, key_path: str, quiet: bool = False) -> 
             return
 
 
+def _extract_yaml_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:
+    """Yield values from YAML objects based on a dotted key path."""
+
+    # Lazy import to avoid crashing if PyYAML is not installed and other modes are used
+    try:
+        import yaml
+    except ImportError:
+        logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML mode.")
+        sys.exit(1)
+
+    def traverse_yaml(data, path_parts):
+        # If it's a list, apply the current path traversal to every item
+        if isinstance(data, list):
+            for item in data:
+                yield from traverse_yaml(item, path_parts)
+            return
+
+        # If we are at the end of the path, yield the current item
+        if not path_parts:
+            # We yield the string representation of the data
+            yield str(data)
+            return
+
+        current_key = path_parts[0]
+        if isinstance(data, dict):
+            if current_key in data:
+                yield from traverse_yaml(data[current_key], path_parts[1:])
+
+    path_parts = key_path.split('.') if key_path else []
+
+    with smart_open_input(input_file, encoding='utf-8') as infile:
+        try:
+            # yaml.safe_load_all yields a generator of documents
+            for doc in yaml.safe_load_all(infile):
+                if doc is None:
+                    continue
+                yield from traverse_yaml(doc, path_parts)
+        except yaml.YAMLError as e:
+            logging.error(f"Failed to parse YAML in '{input_file}': {e}")
+            return
+
+
 def _extract_csv_items(
     input_file: str, first_column: bool, delimiter: str = ',', quiet: bool = False
 ) -> Iterable[str]:
@@ -401,6 +443,21 @@ def json_mode(
     """Wrapper for extracting fields from JSON files."""
     extractor = lambda f, quiet=False: _extract_json_items(f, key, quiet=quiet)
     _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'JSON', 'JSON values extracted successfully.', output_format, quiet)
+
+
+def yaml_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    key: str,
+    output_format: str = 'line',
+    quiet: bool = False,
+) -> None:
+    """Wrapper for extracting fields from YAML files."""
+    extractor = lambda f, quiet=False: _extract_yaml_items(f, key, quiet=quiet)
+    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'YAML', 'YAML values extracted successfully.', output_format, quiet)
 
 
 def count_mode(
@@ -801,6 +858,11 @@ MODE_DETAILS = {
         "description": "Extracts values associated with a specific key path from a JSON file. Supports dot notation for nested keys (e.g. 'replacements.typo'). Handles lists automatically.",
         "example": "python multitool.py json report.json --key replacements.typo --output typos.txt",
     },
+    "yaml": {
+        "summary": "Extract values from YAML files.",
+        "description": "Extracts values associated with a specific key path from a YAML file. Supports dot notation for nested keys (e.g. 'config.items'). Handles lists automatically.",
+        "example": "python multitool.py yaml config.yaml --key config.items --output items.txt",
+    },
     "line": {
         "summary": "Process a file line by line.",
         "description": "Reads each line, filters it (if requested), and writes it to the output. A simple way to clean up a text file.",
@@ -955,6 +1017,20 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         required=True,
         help="The key path to extract (e.g. 'items.name').",
+    )
+
+    yaml_parser = subparsers.add_parser(
+        'yaml',
+        help=MODE_DETAILS['yaml']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['yaml']['description'],
+    )
+    _add_common_mode_arguments(yaml_parser)
+    yaml_parser.add_argument(
+        '--key',
+        type=str,
+        required=True,
+        help="The key path to extract (e.g. 'config.items').",
     )
 
     combine_parser = subparsers.add_parser(
@@ -1142,6 +1218,8 @@ def main() -> None:
         logging.info(f"Delimiter: '{delimiter}'")
     if args.mode == 'json':
         logging.info(f"JSON Key Path: '{getattr(args, 'key', '')}'")
+    if args.mode == 'yaml':
+        logging.info(f"YAML Key Path: '{getattr(args, 'key', '')}'")
     if args.mode == 'sample':
         if sample_count is not None:
             logging.info(f"Sampling Count: {sample_count}")
@@ -1171,6 +1249,14 @@ def main() -> None:
                 **common_kwargs,
                 'first_column': first_column,
                 'delimiter': delimiter,
+                'output_format': output_format,
+            },
+        ),
+        'yaml': (
+            yaml_mode,
+            {
+                **common_kwargs,
+                'key': getattr(args, 'key', ''),
                 'output_format': output_format,
             },
         ),

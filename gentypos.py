@@ -593,9 +593,14 @@ def main() -> None:
         help="Suppress progress bars and reduce log verbosity.",
     )
     parser.add_argument(
+        'words',
+        nargs='*',
+        help="List of words to process directly (overrides input_file).",
+    )
+    parser.add_argument(
         '--word',
         nargs='+',
-        help="List of words to process directly (overrides input_file).",
+        help="List of words to process directly (overrides input_file). [Legacy flag, prefer positional args]",
     )
     parser.add_argument(
         '--output',
@@ -611,7 +616,12 @@ def main() -> None:
     args = parser.parse_args()
 
     # Determine if we are in CLI Mode (adhoc words provided)
-    is_cli_mode = bool(args.word)
+    # Support both legacy --word and new positional args
+    cli_words = args.words or []
+    if args.word:
+        cli_words.extend(args.word)
+
+    is_cli_mode = bool(cli_words)
 
     log_level = logging.DEBUG if args.verbose else logging.WARNING if args.quiet else logging.INFO
     logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -650,7 +660,7 @@ def main() -> None:
 
     # Apply CLI overrides
     if is_cli_mode:
-        config['input_file'] = None # Will use args.word
+        config['input_file'] = None # Will use CLI words
         if args.output:
             config['output_file'] = args.output
         elif 'output_file' not in config:
@@ -668,7 +678,7 @@ def main() -> None:
 
     # Load words
     if is_cli_mode:
-        word_list = [w.lower() for w in args.word]
+        word_list = [w.lower() for w in cli_words]
         logging.info(f"Processing {len(word_list)} words from CLI arguments.")
     else:
         logging.info("Loading wordlist (small dictionary)...")
@@ -683,13 +693,21 @@ def main() -> None:
     # Load dictionary if needed
     all_words: set[str] = set()
     if settings.dictionary_file:
-        logging.info("Loading dictionary (large dictionary)...")
-        all_words = load_file(settings.dictionary_file)
-        logging.info(
-            "Loaded %d words from the large dictionary ('%s').",
-            len(all_words),
-            settings.dictionary_file,
-        )
+        if is_cli_mode and not os.path.exists(settings.dictionary_file):
+            # In CLI mode, if the dictionary file (likely from default config) is missing,
+            # just log a warning and skip filtering instead of exiting.
+            logging.warning(
+                "Dictionary file '%s' not found. Skipping filtering in CLI mode.",
+                settings.dictionary_file,
+            )
+        else:
+            logging.info("Loading dictionary (large dictionary)...")
+            all_words = load_file(settings.dictionary_file)
+            logging.info(
+                "Loaded %d words from the large dictionary ('%s').",
+                len(all_words),
+                settings.dictionary_file,
+            )
 
     adjacent_keys, custom_subs = _setup_generation_tools(settings)
 

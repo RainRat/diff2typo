@@ -21,7 +21,7 @@ def test_mode_help_all_implicit(monkeypatch, capsys):
     assert "arrow" in output
     assert "csv" in output
     # In table view, we print "Summary: ..." as just the text column
-    assert "Extract the left (or right) side of '->' arrows." in output
+    assert "Extracts text from lines with arrows (->)." in output
 
 def test_mode_help_all_explicit(monkeypatch, capsys):
     """Test 'multitool.py --mode-help all' displays help for all modes."""
@@ -48,7 +48,7 @@ def test_mode_help_specific(monkeypatch, capsys):
     output = captured.err + captured.out
 
     assert "Mode: arrow" in output
-    assert "Summary: Extract the left (or right) side of '->' arrows." in output
+    assert "Summary: Extracts text from lines with arrows (->)." in output
 
     # Should not contain other modes
     assert "Mode: csv" not in output

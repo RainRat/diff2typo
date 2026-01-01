@@ -3,9 +3,11 @@ import argparse
 import yaml
 import logging
 import time
+import os
+import copy
 from collections import defaultdict
 from types import SimpleNamespace
-from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Optional
 from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 
 
@@ -44,7 +46,7 @@ def _merge_defaults(
             _merge_defaults(existing, default_value, path + [key])
         else:
             if key not in config:
-                logging.info(f"Applying default for '{dotted_path}': {default_value}")
+                logging.debug(f"Applying default for '{dotted_path}': {default_value}")
             config.setdefault(key, default_value)
 
 def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
@@ -270,17 +272,20 @@ def generate_all_typos(
     return typos
 
 
-def load_file(file_path: str) -> set[str]:
+def load_file(file_path: Optional[str]) -> set[str]:
     """
     Generic function to load words from a file into a set.
     Filters out non-ASCII words and converts them to lowercase.
 
     Args:
-        file_path (str): Path to the file containing words.
+        file_path (Optional[str]): Path to the file containing words.
 
     Returns:
         set: A set of cleaned words.
     """
+    if file_path is None:
+        return set()
+
     try:
         words = set()
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -324,20 +329,27 @@ def parse_yaml_config(config_path: str) -> dict[str, Any]:
         sys.exit(1)
 
 
-def validate_config(config: MutableMapping[str, Any]) -> None:
+def validate_config(config: MutableMapping[str, Any], cli_mode: bool = False, config_defaults: Mapping[str, Any] | None = None) -> None:
     """
     Validate the YAML configuration to ensure all required fields are present.
 
     Args:
         config (dict): Parsed YAML configuration.
+        cli_mode (bool): If True, relax some requirements (like dictionary_file).
+        config_defaults (dict): Defaults to merge into config.
     """
     required_fields = ['input_file', 'dictionary_file', 'output_file', 'output_format']
+
+    # In CLI mode, these might be overridden or managed by args
+    if cli_mode:
+        required_fields = []
+
     for field in required_fields:
         if field not in config:
             logging.error(f"Missing required configuration field: '{field}'")
             sys.exit(1)
 
-    _merge_defaults(config, DEFAULT_CONFIG)
+    _merge_defaults(config, config_defaults or DEFAULT_CONFIG)
 
 
 def format_typos(
@@ -369,10 +381,10 @@ def format_typos(
 def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = False) -> SimpleNamespace:
     """Extract validated configuration values into a structured namespace."""
 
-    input_file = config['input_file']
-    dictionary_file = config['dictionary_file']
-    output_file = config['output_file']
-    output_format = config['output_format'].lower()
+    input_file = config.get('input_file')
+    dictionary_file = config.get('dictionary_file')
+    output_file = config.get('output_file')
+    output_format = config.get('output_format', 'arrow').lower()
     output_header = config.get('output_header')
 
     valid_formats = {'arrow', 'csv', 'table', 'list'}
@@ -417,7 +429,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
         output_file=output_file,
         output_format=output_format,
         output_header=output_header,
-        typo_types=config['typo_types'],
+        typo_types=config.get('typo_types', DEFAULT_CONFIG['typo_types']),
         include_diagonals=include_diagonals,
         enable_adjacent_substitutions=enable_adjacent_substitutions,
         enable_custom_substitutions=enable_custom_substitutions,
@@ -522,28 +534,35 @@ def _run_typo_generation(
         "Generated %d unique synthetic typos before filtering.", total_typos_generated
     )
 
-    logging.info("Filtering typos against the large dictionary...")
-    filter_start_time = time.perf_counter()
     filtered_typo_to_correct_word = {}
     filtered_typos_count = 0
 
-    for typo, correct_words in typo_to_correct_word.items():
-        if typo in all_words:
-            filtered_typos_count += 1
-            logging.debug(
-                "Filtered out typo '%s' as it exists in the large dictionary.", typo
-            )
-            continue
-        filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
+    if all_words:
+        logging.info("Filtering typos against the large dictionary...")
+        filter_start_time = time.perf_counter()
 
-    final_typo_count = len(filtered_typo_to_correct_word)
-    filter_duration = time.perf_counter() - filter_start_time
-    logging.info(
-        "After filtering, %d typos remain (filtered out %d typos) in %.2f seconds.",
-        final_typo_count,
-        filtered_typos_count,
-        filter_duration,
-    )
+        for typo, correct_words in typo_to_correct_word.items():
+            if typo in all_words:
+                filtered_typos_count += 1
+                logging.debug(
+                    "Filtered out typo '%s' as it exists in the large dictionary.", typo
+                )
+                continue
+            filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
+
+        final_typo_count = len(filtered_typo_to_correct_word)
+        filter_duration = time.perf_counter() - filter_start_time
+        logging.info(
+            "After filtering, %d typos remain (filtered out %d typos) in %.2f seconds.",
+            final_typo_count,
+            filtered_typos_count,
+            filter_duration,
+        )
+    else:
+        # No dictionary filtering
+        logging.info("Skipping dictionary filtering (dictionary empty or disabled).")
+        for typo, correct_words in typo_to_correct_word.items():
+            filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
     sorted_typos = sorted(filtered_typo_to_correct_word.items())
     return dict(sorted_typos)
@@ -573,7 +592,26 @@ def main() -> None:
         action='store_true',
         help="Suppress progress bars and reduce log verbosity.",
     )
+    parser.add_argument(
+        '--word',
+        nargs='+',
+        help="List of words to process directly (overrides input_file).",
+    )
+    parser.add_argument(
+        '--output',
+        type=str,
+        help="Output file path (overrides config). Default to stdout (-) in CLI mode.",
+    )
+    parser.add_argument(
+        '--no-filter',
+        action='store_true',
+        help="Skip dictionary filtering (useful for quick checks).",
+    )
+
     args = parser.parse_args()
+
+    # Determine if we are in CLI Mode (adhoc words provided)
+    is_cli_mode = bool(args.word)
 
     log_level = logging.DEBUG if args.verbose else logging.WARNING if args.quiet else logging.INFO
     logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -583,30 +621,75 @@ def main() -> None:
         logging.debug("Quiet mode enabled.")
 
     # Load configuration
-    config = parse_yaml_config(args.config)
+    config: dict[str, Any] = {}
 
-    # Validate configuration
-    validate_config(config)
+    # Try loading config file
+    config_loaded = False
+    if os.path.exists(args.config):
+        config = parse_yaml_config(args.config)
+        config_loaded = True
+    elif args.config != "gentypos.yaml":
+        # User specified a config file that doesn't exist
+        logging.error(f"Configuration file '{args.config}' not found.")
+        sys.exit(1)
+
+    # If in CLI mode and no config found, start with empty to rely on defaults
+    if is_cli_mode and not config_loaded:
+        config = {}
+
+    # Prepare defaults for this run
+    # Avoid mutating global DEFAULT_CONFIG to ensure thread/process safety and testability
+    run_defaults = copy.deepcopy(DEFAULT_CONFIG)
+
+    # In CLI mode, we might want to adjust default word length if not specified in config
+    if is_cli_mode and 'word_length' not in config:
+        # Default to a smaller min_length for adhoc queries if user didn't provide a config
+        run_defaults['word_length']['min_length'] = 0
+
+    validate_config(config, cli_mode=is_cli_mode, config_defaults=run_defaults)
+
+    # Apply CLI overrides
+    if is_cli_mode:
+        config['input_file'] = None # Will use args.word
+        if args.output:
+            config['output_file'] = args.output
+        elif 'output_file' not in config:
+            config['output_file'] = '-' # Default to stdout
+            config['output_format'] = 'arrow' # Safer default for stdout
+
+        if args.no_filter:
+            config['dictionary_file'] = None
+    else:
+        # Standard mode overrides
+        if args.output:
+            config['output_file'] = args.output
 
     settings = _extract_config_settings(config, quiet=args.quiet)
 
-    # Load words and dictionary using the modified load_file function
-    logging.info("Loading wordlist (small dictionary)...")
-    word_set = load_file(settings.input_file)
-    word_list = list(word_set)  # Convert set to list if needed
-    logging.info(
-        "Loaded %d words from the small dictionary ('%s').",
-        len(word_list),
-        settings.input_file,
-    )
+    # Load words
+    if is_cli_mode:
+        word_list = [w.lower() for w in args.word]
+        logging.info(f"Processing {len(word_list)} words from CLI arguments.")
+    else:
+        logging.info("Loading wordlist (small dictionary)...")
+        word_set = load_file(settings.input_file)
+        word_list = list(word_set)
+        logging.info(
+            "Loaded %d words from the small dictionary ('%s').",
+            len(word_list),
+            settings.input_file,
+        )
 
-    logging.info("Loading dictionary (large dictionary)...")
-    all_words = load_file(settings.dictionary_file)
-    logging.info(
-        "Loaded %d words from the large dictionary ('%s').",
-        len(all_words),
-        settings.dictionary_file,
-    )
+    # Load dictionary if needed
+    all_words: set[str] = set()
+    if settings.dictionary_file:
+        logging.info("Loading dictionary (large dictionary)...")
+        all_words = load_file(settings.dictionary_file)
+        logging.info(
+            "Loaded %d words from the large dictionary ('%s').",
+            len(all_words),
+            settings.dictionary_file,
+        )
 
     adjacent_keys, custom_subs = _setup_generation_tools(settings)
 
@@ -625,16 +708,24 @@ def main() -> None:
 
     # Write to output file
     try:
-        with open(settings.output_file, 'w', encoding='utf-8') as file:
+        output_target = settings.output_file
+        if output_target == '-':
+            # Write to stdout
             if settings.output_header:
-                file.write(settings.output_header + "\n")
+                print(settings.output_header)
             for typo in formatted_typos:
-                file.write(f"{typo}\n")
-        logging.info(
-            "Successfully generated %d synthetic typos and saved to '%s'.",
-            len(formatted_typos),
-            settings.output_file,
-        )
+                print(typo)
+        else:
+            with open(output_target, 'w', encoding='utf-8') as file:
+                if settings.output_header:
+                    file.write(settings.output_header + "\n")
+                for typo in formatted_typos:
+                    file.write(f"{typo}\n")
+            logging.info(
+                "Successfully generated %d synthetic typos and saved to '%s'.",
+                len(formatted_typos),
+                output_target,
+            )
     except Exception as e:
         logging.error("Error writing to '%s': %s", settings.output_file, e)
         sys.exit(1)

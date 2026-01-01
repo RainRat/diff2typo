@@ -698,9 +698,12 @@ def filter_fragments_mode(
     auto.make_automaton()
 
     matched_words = set()
-    for item in tqdm(unique_list2, desc="Finding matches", disable=quiet):
-        for end_index, keyword in auto.iter(item):
-            matched_words.add(keyword)
+    # Optimization: Skip iteration if no keywords to search for.
+    # Also prevents potential issues with iterating an empty automaton in some library versions.
+    if len(all_cleaned_list1) > 0:
+        for item in tqdm(unique_list2, desc="Finding matches", disable=quiet):
+            for end_index, keyword in auto.iter(item):
+                matched_words.add(keyword)
 
     non_matches = [word for word in all_cleaned_list1 if word not in matched_words]
     filtered_items = clean_and_filter(non_matches, min_length, max_length)

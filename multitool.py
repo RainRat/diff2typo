@@ -236,6 +236,7 @@ def _process_items(
     success_msg: str,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Generic processing for modes that extract raw string items from one or more files."""
 
@@ -244,8 +245,19 @@ def _process_items(
             yield from extractor_func(input_file, quiet=quiet)
 
     raw_items = list(chained_extractor())
-    filtered_items = clean_and_filter(raw_items, min_length, max_length)
+    if clean_items:
+        filtered_items = clean_and_filter(raw_items, min_length, max_length)
+    else:
+        # If not cleaning, we still apply length filtering on raw string length
+        filtered_items = [
+            item for item in raw_items
+            if min_length <= len(item) <= max_length
+        ]
+
     if process_output:
+        # Note: If not cleaning, duplicates might differ by case/whitespace if user wants that.
+        # But process_output implies "normalize, sort, dedup".
+        # If clean_items is False, we just sort and dedup raw strings.
         filtered_items = sorted(set(filtered_items))
 
     write_output(filtered_items, output_file, output_format, quiet)
@@ -400,6 +412,26 @@ def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     with smart_open_input(input_file, encoding='utf-8') as infile:
         for line in tqdm(infile, desc=f'Processing {input_file} (lines)', unit=' lines', disable=quiet):
             yield line.rstrip('\n')
+
+
+def _extract_regex_items(input_file: str, pattern: str, quiet: bool = False) -> Iterable[str]:
+    """Yield text matching the compiled regex pattern from the file."""
+    try:
+        regex = re.compile(pattern)
+    except re.error as e:
+        logging.error(f"Invalid regular expression '{pattern}': {e}")
+        sys.exit(1)
+
+    with smart_open_input(input_file, encoding='utf-8') as infile:
+        for line in tqdm(infile, desc=f'Processing {input_file} (regex)', unit=' lines', disable=quiet):
+            matches = regex.findall(line)
+            for match in matches:
+                if isinstance(match, tuple):
+                    # If multiple groups, yield them as separate items
+                    for group in match:
+                        yield group
+                else:
+                    yield match
 
 
 def arrow_mode(
@@ -661,6 +693,36 @@ def sample_mode(
     )
 
 
+def regex_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    pattern: str,
+    output_format: str = 'line',
+    quiet: bool = False,
+) -> None:
+    """Wrapper for extracting text matching a regex pattern."""
+    # Regex mode skips the default 'clean_and_filter' (to lower, letters only)
+    # because users often want exact matches (e.g. Emails, URLs, IDs).
+    # Users can still use --process-output to sort/dedup, but we don't force lowercase/clean.
+    extractor = lambda f, quiet=False: _extract_regex_items(f, pattern, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Regex',
+        'Regex matches extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=False
+    )
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True
 ) -> None:
@@ -893,6 +955,11 @@ MODE_DETAILS = {
         "description": "Extracts a random subset of lines. You can specify an exact number (--n) or a percentage (--percent).",
         "example": "python multitool.py sample big_log.txt --n 100 --output sample.txt",
     },
+    "regex": {
+        "summary": "Extracts text matching a regular expression.",
+        "description": "Finds and extracts all substrings that match the provided Python regular expression.",
+        "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
+    },
 }
 
 
@@ -1121,6 +1188,20 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Percentage of lines to sample (0-100).',
     )
 
+    regex_parser = subparsers.add_parser(
+        'regex',
+        help=MODE_DETAILS['regex']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['regex']['description'],
+    )
+    _add_common_mode_arguments(regex_parser)
+    regex_parser.add_argument(
+        '--pattern',
+        type=str,
+        required=True,
+        help="The regular expression pattern to match.",
+    )
+
     return parser
 
 
@@ -1297,6 +1378,14 @@ def main() -> None:
                 **common_kwargs,
                 'sample_count': sample_count,
                 'sample_percent': sample_percent,
+                'output_format': output_format,
+            },
+        ),
+        'regex': (
+            regex_mode,
+            {
+                **common_kwargs,
+                'pattern': getattr(args, 'pattern', ''),
                 'output_format': output_format,
             },
         ),

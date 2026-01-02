@@ -777,58 +777,58 @@ def set_operation_mode(
 
 MODE_DETAILS = {
     "arrow": {
-        "summary": "Extract the left (or right) side of '->' arrows.",
-        "description": "Reads lines like 'typo -> correction' and saves just the 'typo' part. Use --right to extract the correction instead.",
+        "summary": "Extracts text from lines with arrows (->).",
+        "description": "Reads lines like 'typo -> correction'. Saves the 'typo' part by default. Use --right to save the 'correction' part instead.",
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
     },
     "combine": {
-        "summary": "Merge and sort multiple files.",
-        "description": "Reads multiple files, combines them into one list, removes duplicates, and sorts them alphabetically.",
+        "summary": "Merges, sorts, and cleans multiple files.",
+        "description": "Combines multiple files into one sorted, duplicate-free list.",
         "example": "python multitool.py combine typos1.txt typos2.txt --output all_typos.txt",
     },
     "backtick": {
-        "summary": "Extract text inside backticks.",
-        "description": "Extracts text enclosed in backticks (like `this`). Smartly picks the most relevant item from lines containing 'error:', 'warning:', or 'note:'.",
+        "summary": "Extracts text enclosed in backticks.",
+        "description": "Finds text inside backticks (like `code`). Prioritizes items near words like 'error', 'warning', or 'note'.",
         "example": "python multitool.py backtick build.log --output suspects.txt",
     },
     "csv": {
-        "summary": "Extract columns from a CSV file.",
+        "summary": "Extracts specific columns from a CSV file.",
         "description": "Extracts data from CSV files. By default, it grabs everything *except* the first column, which is perfect for getting a list of corrections.",
         "example": "python multitool.py csv typos.csv --output corrections.txt",
     },
     "json": {
-        "summary": "Extract values from JSON files.",
-        "description": "Extracts values associated with a specific key path from a JSON file. Supports dot notation for nested keys (e.g. 'replacements.typo'). Handles lists automatically.",
+        "summary": "Extracts values from a JSON file.",
+        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (e.g., 'user.name'). Works with lists automatically.",
         "example": "python multitool.py json report.json --key replacements.typo --output typos.txt",
     },
     "line": {
         "summary": "Process a file line by line.",
-        "description": "Reads each line, filters it (if requested), and writes it to the output. A simple way to clean up a text file.",
+        "description": "Reads each line, cleans it, and writes it to the output. Useful for simple filtering.",
         "example": "python multitool.py line raw_words.txt --output filtered.txt",
     },
     "count": {
-        "summary": "Count how often words appear.",
-        "description": "Counts the frequency of each word in the file and lists them from most frequent to least frequent.",
+        "summary": "Counts how often words appear.",
+        "description": "Counts word frequency and lists words from most frequent to least frequent.",
         "example": "python multitool.py count typos.log --output counts.txt",
     },
     "filterfragments": {
-        "summary": "Remove words found inside another file.",
-        "description": "Filters out words that are already present (even as substrings) in a second file, such as a dictionary.",
+        "summary": "Removes words that appear in a second file.",
+        "description": "Removes words from your list if they are found (even as part of a word) in a second file.",
         "example": "python multitool.py filterfragments generated.txt --file2 dictionary.txt --output unique.txt",
     },
     "check": {
-        "summary": "Find words that are both a typo and a correction.",
-        "description": "Identifies words that are listed as both a typo and a correction. This helps find errors in your typo database.",
+        "summary": "Checks for conflicts in typo lists.",
+        "description": "Finds words that appear as both a typo and a correction. Use this to spot errors in your data.",
         "example": "python multitool.py check typos.csv --output duplicates.txt",
     },
     "set_operation": {
-        "summary": "Compare two files (intersection, union, difference).",
-        "description": "Finds common lines (intersection), combines all lines (union), or finds lines in one file but not the other (difference).",
+        "summary": "Compares the contents of two files.",
+        "description": "Performs set operations: find common lines (intersection), merge all lines (union), or find unique lines (difference).",
         "example": "python multitool.py set_operation fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
     },
     "sample": {
-        "summary": "Randomly sample lines from a file.",
-        "description": "Extracts a random subset of lines from the input file. You can specify exact count (--n) or percentage (--percent).",
+        "summary": "Randomly samples lines from a file.",
+        "description": "Extracts a random subset of lines. You can specify an exact number (--n) or a percentage (--percent).",
         "example": "python multitool.py sample big_log.txt --n 100 --output sample.txt",
     },
 }

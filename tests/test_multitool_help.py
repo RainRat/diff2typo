@@ -18,6 +18,9 @@ def test_mode_help_all_implicit(monkeypatch, capsys):
 
     # Check for presence of summary table header and content
     assert "Available Modes:" in output
+    assert "Extraction:" in output
+    assert "Manipulation:" in output
+    assert "Analysis:" in output
     assert "arrow" in output
     assert "csv" in output
     # In table view, we print "Summary: ..." as just the text column

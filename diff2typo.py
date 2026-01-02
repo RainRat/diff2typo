@@ -211,17 +211,17 @@ def find_typos(diff_text: str, min_length: int = 2) -> List[str]:
 
     return typos
 
-def lowercase_sort_dedup(input_list: Iterable[str]) -> List[str]:
+def sort_and_deduplicate(input_list: Iterable[str]) -> List[str]:
     """
-    Converts all strings in the input list to lowercase, removes duplicates, and sorts them.
+    Removes duplicates from the input list and sorts them.
 
     Args:
         input_list (list): List of strings.
 
     Returns:
-        list: Lowercased, sorted, and deduplicated list of strings.
+        list: Sorted and deduplicated list of strings.
     """
-    return sorted({line.lower() for line in input_list})
+    return sorted(set(input_list))
 
 def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     """
@@ -410,7 +410,7 @@ def process_new_typos(candidates, args, valid_words, allowed_words):
     )
 
     # Deduplicate and sort.
-    filtered_candidates = lowercase_sort_dedup(filtered_candidates)
+    filtered_candidates = sort_and_deduplicate(filtered_candidates)
     # Format the output according to the requested output format.
     formatted = format_typos(filtered_candidates, args.output_format)
     return formatted
@@ -458,7 +458,7 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
                     new_corrections.append(f"{before} -> {after}")
     if progress:
         progress.close()
-    new_corrections = lowercase_sort_dedup(new_corrections)
+    new_corrections = sort_and_deduplicate(new_corrections)
     return new_corrections
 
 def main():
@@ -529,7 +529,7 @@ def main():
     # Extract candidate typo corrections from the diff.
     logging.info("Identifying potential typo corrections from the diff...")
     candidates = find_typos(diff_text, min_length=args.min_length)
-    candidates = lowercase_sort_dedup(candidates)
+    candidates = sort_and_deduplicate(candidates)
     logging.info(f"Identified {len(candidates)} candidate typo correction(s).")
 
     # Prepare lists to hold results.

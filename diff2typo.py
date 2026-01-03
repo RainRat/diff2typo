@@ -238,8 +238,6 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     for typo in typos:
         if ' -> ' in typo:
             before, after = typo.split(' -> ')
-            before = filter_to_letters(before)
-            after = filter_to_letters(after)
             if output_format == 'arrow':
                 formatted.append(f"{before} -> {after}")
             elif output_format == 'csv':

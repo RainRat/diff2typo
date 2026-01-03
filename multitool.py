@@ -897,13 +897,26 @@ MODE_DETAILS = {
 
 
 def print_mode_summary() -> None:
-    """Print a summary table of all available modes."""
+    """Print a summary table of all available modes, grouped by category."""
+    categories = {
+        "Extraction": ["arrow", "backtick", "csv", "json", "yaml", "line"],
+        "Manipulation": ["combine", "filterfragments", "set_operation", "sample"],
+        "Analysis": ["count", "check"],
+    }
+
     print("\nAvailable Modes:\n")
     max_len = max(len(m) for m in MODE_DETAILS.keys())
     width = max_len + 4
-    for mode, details in MODE_DETAILS.items():
-        print(f"  {mode:<{width}} {details['summary']}")
-    print("\nRun 'python multitool.py --mode-help <mode>' for details on a specific mode.\n")
+
+    for category, modes in categories.items():
+        print(f"  {category}:")
+        for mode in modes:
+            if mode in MODE_DETAILS:
+                details = MODE_DETAILS[mode]
+                print(f"    {mode:<{width}} {details['summary']}")
+        print()
+
+    print("Run 'python multitool.py --mode-help <mode>' for details on a specific mode.\n")
 
 
 class ModeHelpAction(argparse.Action):

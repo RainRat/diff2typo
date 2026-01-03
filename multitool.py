@@ -971,19 +971,29 @@ def print_mode_summary() -> None:
         "Analysis": ["count", "check"],
     }
 
-    print("\nAvailable Modes:\n")
+    # ANSI Color Codes
+    BLUE = "\033[1;34m"
+    GREEN = "\033[1;32m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    # Disable colors if not running in a terminal
+    if not sys.stdout.isatty():
+        BLUE = GREEN = RESET = BOLD = ""
+
+    print(f"\n{BOLD}Available Modes:{RESET}\n")
     max_len = max(len(m) for m in MODE_DETAILS.keys())
     width = max_len + 4
 
     for category, modes in categories.items():
-        print(f"  {category}:")
+        print(f"  {BLUE}{category}:{RESET}")
         for mode in modes:
             if mode in MODE_DETAILS:
                 details = MODE_DETAILS[mode]
-                print(f"    {mode:<{width}} {details['summary']}")
+                print(f"    {GREEN}{mode:<{width}}{RESET} {details['summary']}")
         print()
 
-    print("Run 'python multitool.py --mode-help <mode>' for details on a specific mode.\n")
+    print(f"Run '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
 
 
 class ModeHelpAction(argparse.Action):

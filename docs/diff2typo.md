@@ -5,7 +5,11 @@
 ## Usage
 
 ```bash
-python diff2typo.py [OPTIONS]
+# Read from files
+python diff2typo.py my_changes.diff [OPTIONS]
+
+# Read from stdin
+git diff | python diff2typo.py [OPTIONS]
 ```
 
 ## Core Features
@@ -19,7 +23,8 @@ python diff2typo.py [OPTIONS]
 
 | Argument | Default | Description |
 | :--- | :--- | :--- |
-| `--input_file`, `-i` | stdin | Input diff file(s). Supports glob patterns (e.g., `*.diff`). |
+| `INPUT_FILES` | stdin | Positional arguments for input diff file(s). Supports glob patterns (e.g., `*.diff`). |
+| `--input_file`, `-i` | None | **Legacy flag.** Alternative to positional arguments. |
 | `--output_file` | `output.txt` | Where to write the results. |
 | `--mode` | `typos` | **`typos`**: Output the incorrect word.<br>**`corrections`**: Output the fix (if new).<br>**`both`**: Output separated lists. |
 | `--output_format` | `arrow` | `arrow` (a->b), `csv` (required for `typostats`), `table`, or `list`. |
@@ -32,7 +37,7 @@ python diff2typo.py [OPTIONS]
 **Extract new typos from a specific diff file:**
 
 ```bash
-python diff2typo.py --input_file feature.diff --mode typos --output_format list
+python diff2typo.py feature.diff --mode typos --output_format list
 ```
 
 **Pipe directly from Git:**
@@ -44,6 +49,6 @@ git diff | python diff2typo.py --output_file found_typos.txt --mode both
 **Find patterns with typostats:**
 
 ```bash
-python diff2typo.py --input_file recent_changes.diff --output_format csv --output_file typos.csv
+python diff2typo.py recent_changes.diff --output_format csv --output_file typos.csv
 python typostats.py typos.csv
 ```

@@ -10,7 +10,7 @@ Run the tool with a mode and your input file:
 python multitool.py <MODE> [OPTIONS]
 ```
 
-Most modes default to reading from `input.txt` if you do not specify an input file.
+Most modes default to reading from **standard input (stdin)** if you do not specify an input file. This makes it easy to pipe data into Multitool.
 
 ## Modes
 
@@ -32,6 +32,14 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Extracts columns from a CSV file. By default, it skips the first column (often an ID or key) and keeps the rest. Use `--first-column` to keep *only* the first column.
   - **Example:** `python multitool.py csv --input data.csv`
 
+- **`json`**
+  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). It automatically handles lists.
+  - **Example:** `python multitool.py json report.json --key replacements.typo`
+
+- **`yaml`**
+  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (e.g., `config.items`) and handles lists.
+  - **Example:** `python multitool.py yaml config.yaml --key config.items`
+
 - **`line`**
   - **What it does:** Reads a file line by line. Use this to simply clean or filter a text file without special extraction logic.
   - **Example:** `python multitool.py line --input raw_words.txt`
@@ -49,7 +57,7 @@ These modes help you analyze your data or compare multiple files.
   - **Example:** `python multitool.py check --input mappings.csv`
 
 - **`combine`**
-  - **What it does:** Merges multiple files into one list, removes duplicates, and sorts the result alphabetically.
+  - **What it does:** Merges multiple files (or standard input) into one list, removes duplicates, and sorts the result alphabetically.
   - **Example:** `python multitool.py combine --input file1.txt file2.txt`
 
 - **`count`**
@@ -71,7 +79,7 @@ These modes help you analyze your data or compare multiple files.
 
 These options work with most modes:
 
-- `--input`: The file(s) to read. Defaults to `input.txt` if omitted (except for `combine` which needs explicit files).
+- `--input`: The file(s) to read. Defaults to **standard input (stdin)** if omitted.
 - `--output`: The file to write results to. Defaults to printing to the screen.
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--process-output`: Automatically sort, deduplicate, and lowercase the final list.

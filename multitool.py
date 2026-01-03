@@ -6,7 +6,7 @@ import contextlib
 import sys
 import re
 from textwrap import dedent
-from typing import Callable, Iterable, List, Sequence, Tuple, TextIO, Union
+from typing import Any, Callable, Iterable, List, Sequence, Tuple, TextIO, Union
 from tqdm import tqdm
 import logging
 import ahocorasick
@@ -311,26 +311,27 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
                 yield selected
 
 
+def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
+    """Recursively traverse a nested data structure (list/dict) to extract values."""
+    # If it's a list, apply the current path traversal to every item
+    if isinstance(data, list):
+        for item in data:
+            yield from _traverse_data(item, path_parts)
+        return
+
+    # If we are at the end of the path, yield the string representation of the data
+    if not path_parts:
+        yield str(data)
+        return
+
+    current_key = path_parts[0]
+    if isinstance(data, dict):
+        if current_key in data:
+            yield from _traverse_data(data[current_key], path_parts[1:])
+
+
 def _extract_json_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:
     """Yield values from JSON objects based on a dotted key path."""
-
-    def traverse_json(data, path_parts):
-        # If it's a list, apply the current path traversal to every item
-        if isinstance(data, list):
-            for item in data:
-                yield from traverse_json(item, path_parts)
-            return
-
-        # If we are at the end of the path, yield the current item
-        if not path_parts:
-            # We yield the string representation of the data
-            yield str(data)
-            return
-
-        current_key = path_parts[0]
-        if isinstance(data, dict):
-            if current_key in data:
-                yield from traverse_json(data[current_key], path_parts[1:])
 
     path_parts = key_path.split('.') if key_path else []
 
@@ -343,7 +344,7 @@ def _extract_json_items(input_file: str, key_path: str, quiet: bool = False) -> 
             if not content.strip():
                 return
             data = json.loads(content)
-            yield from traverse_json(data, path_parts)
+            yield from _traverse_data(data, path_parts)
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse JSON in '{input_file}': {e}")
             return
@@ -359,24 +360,6 @@ def _extract_yaml_items(input_file: str, key_path: str, quiet: bool = False) -> 
         logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML mode.")
         sys.exit(1)
 
-    def traverse_yaml(data, path_parts):
-        # If it's a list, apply the current path traversal to every item
-        if isinstance(data, list):
-            for item in data:
-                yield from traverse_yaml(item, path_parts)
-            return
-
-        # If we are at the end of the path, yield the current item
-        if not path_parts:
-            # We yield the string representation of the data
-            yield str(data)
-            return
-
-        current_key = path_parts[0]
-        if isinstance(data, dict):
-            if current_key in data:
-                yield from traverse_yaml(data[current_key], path_parts[1:])
-
     path_parts = key_path.split('.') if key_path else []
 
     with smart_open_input(input_file, encoding='utf-8') as infile:
@@ -385,7 +368,7 @@ def _extract_yaml_items(input_file: str, key_path: str, quiet: bool = False) -> 
             for doc in yaml.safe_load_all(infile):
                 if doc is None:
                     continue
-                yield from traverse_yaml(doc, path_parts)
+                yield from _traverse_data(doc, path_parts)
         except yaml.YAMLError as e:
             logging.error(f"Failed to parse YAML in '{input_file}': {e}")
             return

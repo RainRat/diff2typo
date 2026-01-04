@@ -205,6 +205,50 @@ def detect_encoding(file_path: str) -> str | None:
             return None
 
 
+def load_lines_from_file(file_path: str) -> list[str] | None:
+    """
+    Loads lines from a file, attempting to detect the encoding if UTF-8 fails.
+    Falls back to Latin-1 if detection fails or is unavailable.
+    """
+    if file_path == '-':
+        logging.info("Reading from stdin...")
+        return sys.stdin.readlines()
+
+    lines = None
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+    except UnicodeDecodeError:
+        logging.warning(f"UTF-8 decoding failed for {file_path}. Attempting detection...")
+        lines = None
+
+        # Try to detect encoding
+        enc = detect_encoding(file_path)
+        if enc:
+            try:
+                logging.info(f"Using detected encoding: {enc}")
+                with open(file_path, 'r', encoding=enc) as f:
+                    lines = f.readlines()
+            except UnicodeDecodeError:
+                logging.warning(f"Detected encoding {enc} failed.")
+
+        # Fallback to latin1 if detection failed or wasn't possible
+        if lines is None:
+            logging.warning("Fallback to latin1...")
+            try:
+                with open(file_path, 'r', encoding='latin1') as f:
+                    lines = f.readlines()
+            except UnicodeDecodeError:
+                # Should practically never happen for latin1
+                logging.error("Final fallback to latin1 failed.")
+                return None
+    except FileNotFoundError:
+        logging.error(f"File not found: {file_path}")
+        return None
+
+    return lines
+
+
 def main() -> None:
     import argparse
 
@@ -244,41 +288,7 @@ def main() -> None:
     all_counts = defaultdict(int)
 
     for file_path in input_files:
-        lines = None
-        if file_path == '-':
-            logging.info("Reading from stdin...")
-            lines = sys.stdin.readlines()
-        else:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-            except UnicodeDecodeError:
-                logging.warning(f"UTF-8 decoding failed for {file_path}. Attempting detection...")
-                lines = None
-
-                # Try to detect encoding
-                enc = detect_encoding(file_path)
-                if enc:
-                    try:
-                        logging.info(f"Using detected encoding: {enc}")
-                        with open(file_path, 'r', encoding=enc) as f:
-                            lines = f.readlines()
-                    except UnicodeDecodeError:
-                        logging.warning(f"Detected encoding {enc} failed.")
-
-                # Fallback to latin1 if detection failed or wasn't possible
-                if lines is None:
-                    logging.warning("Fallback to latin1...")
-                    try:
-                        with open(file_path, 'r', encoding='latin1') as f:
-                            lines = f.readlines()
-                    except UnicodeDecodeError:
-                        # Should practically never happen for latin1
-                        logging.error("Final fallback to latin1 failed.")
-                        continue
-            except FileNotFoundError:
-                logging.error(f"File not found: {file_path}")
-                continue
+        lines = load_lines_from_file(file_path)
 
         if lines:
             file_counts = process_typos(lines, allow_two_char=allow_two_char)

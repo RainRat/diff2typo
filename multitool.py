@@ -76,6 +76,7 @@ def _load_and_clean_file(
     *,
     split_whitespace: bool = False,
     apply_length_filter: bool = True,
+    clean_items: bool = True,
 ) -> Tuple[List[str], List[str], List[str]]:
     """Load text items from *path* and normalize them for set-style operations."""
 
@@ -138,9 +139,12 @@ def _load_and_clean_file(
         parts = line_content.split() if split_whitespace else [line_content]
         for part in parts:
             raw_items.append(part)
-            cleaned = filter_to_letters(part)
-            if cleaned:
-                cleaned_items.append(cleaned)
+            if clean_items:
+                cleaned = filter_to_letters(part)
+                if cleaned:
+                    cleaned_items.append(cleaned)
+            else:
+                cleaned_items.append(part)
 
     if apply_length_filter:
         upper_bound = max_length
@@ -443,10 +447,23 @@ def arrow_mode(
     right_side: bool = False,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Wrapper for processing items separated by ' -> '."""
     extractor = lambda f, quiet=False: _extract_arrow_items(f, right_side=right_side, quiet=quiet)
-    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'Arrow', 'File(s) processed successfully.', output_format, quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Arrow',
+        'File(s) processed successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
 
 
 def backtick_mode(
@@ -457,9 +474,22 @@ def backtick_mode(
     process_output: bool,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Wrapper for extracting text between backticks."""
-    _process_items(_extract_backtick_items, input_files, output_file, min_length, max_length, process_output, 'Backtick', 'Strings extracted successfully.', output_format, quiet)
+    _process_items(
+        _extract_backtick_items,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Backtick',
+        'Strings extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
 
 
 def json_mode(
@@ -471,10 +501,23 @@ def json_mode(
     key: str,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Wrapper for extracting fields from JSON files."""
     extractor = lambda f, quiet=False: _extract_json_items(f, key, quiet=quiet)
-    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'JSON', 'JSON values extracted successfully.', output_format, quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'JSON',
+        'JSON values extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
 
 
 def yaml_mode(
@@ -486,10 +529,23 @@ def yaml_mode(
     key: str,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Wrapper for extracting fields from YAML files."""
     extractor = lambda f, quiet=False: _extract_yaml_items(f, key, quiet=quiet)
-    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'YAML', 'YAML values extracted successfully.', output_format, quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'YAML',
+        'YAML values extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
 
 
 def count_mode(
@@ -499,6 +555,7 @@ def count_mode(
     max_length: int,
     process_output: bool,
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """
     Counts the frequency of each word in the input file(s) and writes the
@@ -518,9 +575,14 @@ def count_mode(
                 raw_count += len(words)
                 filtered = []
                 for word in words:
-                    cleaned = filter_to_letters(word)
-                    if min_length <= len(cleaned) <= max_length:
-                        filtered.append(cleaned)
+                    if clean_items:
+                        cleaned = filter_to_letters(word)
+                        if cleaned:
+                            if min_length <= len(cleaned) <= max_length:
+                                filtered.append(cleaned)
+                    else:
+                        if min_length <= len(word) <= max_length:
+                            filtered.append(word)
                 filtered_words.extend(filtered)
                 word_counts.update(filtered)
 
@@ -541,6 +603,7 @@ def check_mode(
     process_output: bool,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """
     Checks CSV file(s) of typos and corrections for any words that appear
@@ -560,7 +623,14 @@ def check_mode(
                     corrections.add(field.strip())
 
     duplicates = list(typos & corrections)
-    filtered_items = clean_and_filter(duplicates, min_length, max_length)
+    if clean_items:
+        filtered_items = clean_and_filter(duplicates, min_length, max_length)
+    else:
+        filtered_items = [
+            item for item in duplicates
+            if min_length <= len(item) <= max_length
+        ]
+
     if process_output:
         filtered_items = list(set(filtered_items))
     filtered_items.sort()
@@ -583,10 +653,23 @@ def csv_mode(
     delimiter: str = ',',
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Wrapper for extracting fields from CSV files."""
     extractor = lambda f, quiet=False: _extract_csv_items(f, first_column, delimiter, quiet=quiet)
-    _process_items(extractor, input_files, output_file, min_length, max_length, process_output, 'CSV', 'CSV fields extracted successfully.', output_format, quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'CSV',
+        'CSV fields extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
 
 
 def line_mode(
@@ -597,9 +680,22 @@ def line_mode(
     process_output: bool,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Wrapper for processing raw lines from file(s)."""
-    _process_items(_extract_line_items, input_files, output_file, min_length, max_length, process_output, 'Line', 'Lines processed successfully.', output_format, quiet)
+    _process_items(
+        _extract_line_items,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Line',
+        'Lines processed successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
 
 
 def combine_mode(
@@ -610,6 +706,7 @@ def combine_mode(
     process_output: bool,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Merge cleaned contents from multiple files into one deduplicated list."""
 
@@ -621,6 +718,7 @@ def combine_mode(
             file_path,
             min_length,
             max_length,
+            clean_items=clean_items,
         )
         raw_item_count += len(raw_items)
         combined_unique.extend(unique_items)
@@ -651,6 +749,7 @@ def sample_mode(
     sample_percent: float | None = None,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Randomly sample lines from the input file(s)."""
 
@@ -668,7 +767,13 @@ def sample_mode(
         return
 
     # Clean and filter BEFORE sampling to ensure the requested count is accurate relative to valid items
-    cleaned_items = clean_and_filter(raw_items, min_length, max_length)
+    if clean_items:
+        cleaned_items = clean_and_filter(raw_items, min_length, max_length)
+    else:
+        cleaned_items = [
+            item for item in raw_items
+            if min_length <= len(item) <= max_length
+        ]
 
     total_valid_items = len(cleaned_items)
 
@@ -763,6 +868,11 @@ def _add_common_mode_arguments(
         default=1000,
         help="Maximum string length to process (default: 1000)",
     )
+    subparser.add_argument(
+        '--raw',
+        action='store_true',
+        help="Do not normalize content to lowercase letters. Preserves punctuation and case.",
+    )
     if include_process_output:
         subparser.add_argument(
             '--process-output',
@@ -782,6 +892,7 @@ def filter_fragments_mode(
     process_output: bool,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """
     Filters words from input_files (list1) that do not appear as substrings of any
@@ -798,6 +909,7 @@ def filter_fragments_mode(
             min_length,
             max_length,
             apply_length_filter=False,
+            clean_items=clean_items,
         )
         all_raw_list1.extend(raw)
         all_cleaned_list1.extend(cleaned)
@@ -808,6 +920,7 @@ def filter_fragments_mode(
         max_length,
         split_whitespace=True,
         apply_length_filter=False,
+        clean_items=clean_items,
     )
 
     # Aho-Corasick automaton for efficient substring matching
@@ -849,6 +962,7 @@ def set_operation_mode(
     operation: str,
     output_format: str = 'line',
     quiet: bool = False,
+    clean_items: bool = True,
 ) -> None:
     """Perform set operations (intersection, union, difference) between input files (merged) and a second file."""
     allowed_operations = {'intersection', 'union', 'difference'}
@@ -863,7 +977,7 @@ def set_operation_mode(
 
     for input_file in input_files:
         raw, _, unique = _load_and_clean_file(
-            input_file, min_length, max_length
+            input_file, min_length, max_length, clean_items=clean_items
         )
         raw_item_count_a += len(raw)
         unique_a_list.extend(unique)
@@ -871,7 +985,7 @@ def set_operation_mode(
     unique_a = list(dict.fromkeys(unique_a_list))
 
     raw_items_b, _, unique_b = _load_and_clean_file(
-        file2, min_length, max_length
+        file2, min_length, max_length, clean_items=clean_items
     )
 
     set_b = set(unique_b)
@@ -1332,6 +1446,8 @@ def main() -> None:
 
     logging.info(f"Output Format: {output_format}")
 
+    clean_items = not getattr(args, 'raw', False)
+
     common_kwargs = {
         'input_files': args.input,
         'output_file': args.output,
@@ -1339,14 +1455,25 @@ def main() -> None:
         'max_length': args.max_length,
         'process_output': getattr(args, 'process_output', False),
         'quiet': args.quiet,
+        'clean_items': clean_items,
     }
 
     # Check for arrow-specific args
     right_side = getattr(args, 'right', False)
 
     handler_map = {
-        'arrow': (arrow_mode, {**common_kwargs, 'right_side': right_side, 'output_format': output_format}),
-        'backtick': (backtick_mode, {**common_kwargs, 'output_format': output_format}),
+        'arrow': (
+            arrow_mode,
+            {
+                **common_kwargs,
+                'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'backtick': (
+            backtick_mode,
+            {**common_kwargs, 'output_format': output_format},
+        ),
         'csv': (
             csv_mode,
             {
@@ -1373,15 +1500,26 @@ def main() -> None:
             },
         ),
         'line': (line_mode, {**common_kwargs, 'output_format': output_format}),
-        'count': (count_mode, dict(common_kwargs)), # count_mode ignores output_format
+        'count': (
+            count_mode,
+            dict(common_kwargs),
+        ),  # count_mode ignores output_format
         'filterfragments': (
             filter_fragments_mode,
             {**common_kwargs, 'file2': file2, 'output_format': output_format},
         ),
-        'check': (check_mode, {**common_kwargs, 'output_format': output_format}),
+        'check': (
+            check_mode,
+            {**common_kwargs, 'output_format': output_format},
+        ),
         'set_operation': (
             set_operation_mode,
-            {**common_kwargs, 'file2': file2, 'operation': operation, 'output_format': output_format},
+            {
+                **common_kwargs,
+                'file2': file2,
+                'operation': operation,
+                'output_format': output_format,
+            },
         ),
         'combine': (
             combine_mode,
@@ -1393,6 +1531,7 @@ def main() -> None:
                 'process_output': getattr(args, 'process_output', False),
                 'quiet': args.quiet,
                 'output_format': output_format,
+                'clean_items': clean_items,
             },
         ),
         'sample': (
@@ -1407,7 +1546,13 @@ def main() -> None:
         'regex': (
             regex_mode,
             {
-                **common_kwargs,
+                # regex_mode doesn't use clean_items from common_kwargs (it sets it to False)
+                'input_files': args.input,
+                'output_file': args.output,
+                'min_length': args.min_length,
+                'max_length': args.max_length,
+                'process_output': getattr(args, 'process_output', False),
+                'quiet': args.quiet,
                 'pattern': getattr(args, 'pattern', ''),
                 'output_format': output_format,
             },

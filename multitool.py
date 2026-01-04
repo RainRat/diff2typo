@@ -69,35 +69,21 @@ def smart_open_input(filename: str, encoding: str = 'utf-8', newline: str | None
         with open(filename, 'r', encoding=encoding, newline=newline) as f:
             yield f
 
-def _load_and_clean_file(
-    path: str,
-    min_length: int,
-    max_length: int,
-    *,
-    split_whitespace: bool = False,
-    apply_length_filter: bool = True,
-    clean_items: bool = True,
-) -> Tuple[List[str], List[str], List[str]]:
-    """Load text items from *path* and normalize them for set-style operations."""
-
-    raw_items = []
-    cleaned_items = []
-    lines = None
+def _read_file_lines_robust(path: str) -> List[str]:
+    """Read lines from a file with robust encoding fallback (UTF-8 -> Detect -> Latin-1)."""
+    lines = []
     used_encoding = 'utf-8'
 
     if path == '-':
         # For stdin, we rely on sys.stdin which is already open.
-        # We assume text mode with default encoding (usually utf-8).
-        # Re-opening stdin with specific encoding is possible but might be overkill.
-        # We'll trust the environment or sys.stdin.encoding.
         try:
             lines = sys.stdin.readlines()
             used_encoding = sys.stdin.encoding or 'utf-8'
         except UnicodeDecodeError:
-             logging.warning("Reading from stdin failed with encoding errors.")
-             # Fallback logic for stdin is complex without buffering, so we might abort or try reading binary.
-             # For now, let's assume valid text stream.
-             lines = []
+            logging.warning("Reading from stdin failed with encoding errors.")
+            # Fallback logic for stdin is complex without buffering.
+            # We assume valid text stream or return empty.
+            lines = []
     else:
         try:
             with open(path, 'r', encoding='utf-8') as handle:
@@ -130,8 +116,26 @@ def _load_and_clean_file(
                 used_encoding = 'latin-1'
 
     logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
+    return lines or []
 
-    for line in lines or []:
+
+def _load_and_clean_file(
+    path: str,
+    min_length: int,
+    max_length: int,
+    *,
+    split_whitespace: bool = False,
+    apply_length_filter: bool = True,
+    clean_items: bool = True,
+) -> Tuple[List[str], List[str], List[str]]:
+    """Load text items from *path* and normalize them for set-style operations."""
+
+    raw_items = []
+    cleaned_items = []
+
+    lines = _read_file_lines_robust(path)
+
+    for line in lines:
         line_content = line.strip()
         if not line_content:
             continue
@@ -382,16 +386,16 @@ def _extract_csv_items(
     input_file: str, first_column: bool, delimiter: str = ',', quiet: bool = False
 ) -> Iterable[str]:
     """Yield fields from CSV rows based on column selection."""
-    with smart_open_input(input_file, newline='', encoding='utf-8') as csvfile:
-        reader = csv.reader(csvfile, delimiter=delimiter)
-        for row in tqdm(reader, desc=f'Processing {input_file} (CSV)', unit=' rows', disable=quiet):
-            if first_column:
-                if row:
-                    yield row[0].strip()
-            else:
-                if len(row) >= 2:
-                    for field in row[1:]:
-                        yield field.strip()
+    lines = _read_file_lines_robust(input_file)
+    reader = csv.reader(lines, delimiter=delimiter)
+    for row in tqdm(reader, desc=f'Processing {input_file} (CSV)', unit=' rows', disable=quiet):
+        if first_column:
+            if row:
+                yield row[0].strip()
+        else:
+            if len(row) >= 2:
+                for field in row[1:]:
+                    yield field.strip()
 
 
 def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:

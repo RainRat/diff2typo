@@ -78,7 +78,7 @@ def test_load_lines_from_file_utf8_fail_detect_success(tmp_path, caplog, monkeyp
     mock_chardet.detect.return_value = {'encoding': 'shift_jis', 'confidence': 0.9}
     monkeypatch.setattr(typostats, "chardet", mock_chardet)
 
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.INFO):
         lines = typostats.load_lines_from_file(str(f))
 
     # "日本語" is read as a single line (or part of one)

@@ -815,49 +815,57 @@ def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True
 ) -> None:
     """Attach shared CLI arguments to a mode-specific subparser."""
+
+    # Positional input arguments stay in the default group for prominence
     subparser.add_argument(
         'input_files_pos',
         nargs='*',
         help="Path(s) to the input file(s). Defaults to stdin ('-') if none provided.",
     )
-    subparser.add_argument(
+
+    # Input/Output Group
+    io_group = subparser.add_argument_group("Input/Output")
+    io_group.add_argument(
         '--input',
         dest='input_files_flag',
         type=str,
         nargs='+',
         help="Path(s) to the input file(s) (legacy flag, supports multiple).",
     )
-    subparser.add_argument(
+    io_group.add_argument(
         '--output',
         type=str,
         default='-',
         help="Path to the output file (default: stdout).",
     )
-    subparser.add_argument(
+    io_group.add_argument(
         '--output-format',
         choices=['line', 'json', 'csv', 'markdown'],
         default='line',
         help="Format of the output (default: line). Options: line, json, csv, markdown.",
     )
-    subparser.add_argument(
+
+    # Processing Configuration Group
+    proc_group = subparser.add_argument_group("Processing Configuration")
+    proc_group.add_argument(
         '--min-length',
         type=int,
         default=3,
         help="Minimum string length to process (default: 3)",
     )
-    subparser.add_argument(
+    proc_group.add_argument(
         '--max-length',
         type=int,
         default=1000,
         help="Maximum string length to process (default: 1000)",
     )
-    subparser.add_argument(
+    proc_group.add_argument(
         '--raw',
         action='store_true',
         help="Do not normalize content to lowercase letters. Preserves punctuation and case.",
     )
     if include_process_output:
-        subparser.add_argument(
+        proc_group.add_argument(
             '--process-output',
             action='store_true',
             help="If set, converts output to lowercase, sorts it, and removes duplicates.",

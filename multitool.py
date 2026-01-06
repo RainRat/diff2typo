@@ -815,6 +815,131 @@ def regex_mode(
     )
 
 
+def _load_mapping_file(path: str, quiet: bool = False) -> dict[str, str]:
+    """Load a mapping file (CSV or Arrow) into a dictionary."""
+    mapping = {}
+    with smart_open_input(path, encoding='utf-8') as f:
+        # Check first line to detect format
+        try:
+            first_line = next(f)
+        except StopIteration:
+            return mapping
+
+        # Reset file pointer
+        # Since smart_open_input might be stdin which is not seekable, we need to handle this.
+        # But wait, we just consumed the first line.
+        # If it's stdin, we can't seek back.
+        # So we should process the first line and then the rest.
+        lines = [first_line]
+        lines.extend(f)
+
+    # Now process lines
+    # Heuristic: if ' -> ' in first line, assume Arrow. Else assume CSV.
+    is_arrow = " -> " in first_line
+
+    if is_arrow:
+        for line in lines:
+            if " -> " in line:
+                parts = line.split(" -> ", 1)
+                if len(parts) == 2:
+                    key, value = parts[0].strip(), parts[1].strip()
+                    mapping[key] = value
+    else:
+        # CSV parsing
+        # We use csv module to handle quoting correctly
+        # But we need an iterable. 'lines' is a list.
+        reader = csv.reader(lines)
+        for row in reader:
+            if len(row) >= 2:
+                key = row[0].strip()
+                value = row[1].strip()
+                mapping[key] = value
+
+    return mapping
+
+
+def map_mode(
+    input_files: Sequence[str],
+    mapping_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    drop_missing: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """
+    Transforms items based on a mapping file.
+    """
+    # Load mapping
+    raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
+
+    # If clean_items is True, we should also clean the mapping keys to match input
+    if clean_items:
+        cleaned_mapping = {}
+        for k, v in raw_mapping.items():
+            cleaned_k = filter_to_letters(k)
+            # We assume value is the replacement and should be used as is?
+            # Or should value also be cleaned?
+            # If I map "TeH" -> "The", and input is "teh".
+            # Cleaned input: "teh". Cleaned key: "teh". Value: "The".
+            # Output: "The".
+            # If output is also cleaned later (e.g. by process_output)?
+            # But here we are producing the item.
+            # Let's keep value as is, but clean key.
+            if cleaned_k:
+                cleaned_mapping[cleaned_k] = v
+        mapping = cleaned_mapping
+    else:
+        mapping = raw_mapping
+
+    raw_item_count = 0
+    transformed_items = []
+
+    for input_file in input_files:
+        # We reuse _load_and_clean_file logic to get items
+        # But _load_and_clean_file returns unique items in the third return value.
+        # We probably want raw_items (first return) to preserve count/order if process_output is False?
+        # Or we want cleaned_items (second return)?
+        # If clean_items=True, we want cleaned_items.
+        # If clean_items=False, we want raw_items.
+
+        raw, cleaned, _ = _load_and_clean_file(
+            input_file,
+            min_length,
+            max_length,
+            clean_items=clean_items,
+        )
+
+        source_items = cleaned if clean_items else raw
+        raw_item_count += len(source_items)
+
+        for item in source_items:
+            if item in mapping:
+                transformed_items.append(mapping[item])
+            elif not drop_missing:
+                transformed_items.append(item)
+
+    if process_output:
+        # If processing output, we sort and dedup.
+        # Also clean? The output might be "The" which is not "the".
+        # If user wanted clean output, they got clean input.
+        # The map result might introduce non-clean items.
+        # Usually process_output implies sorting and deduping.
+        # multitool usually assumes clean items for set operations.
+        # Here we trust the map result.
+        transformed_items = sorted(set(transformed_items))
+
+    write_output(transformed_items, output_file, output_format, quiet)
+
+    print_processing_stats(raw_item_count, transformed_items, item_label="item")
+    logging.info(
+        f"[Map Mode] Transformed items using '{mapping_file}'. Output written to '{output_file}'."
+    )
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True
 ) -> None:
@@ -1069,6 +1194,11 @@ MODE_DETAILS = {
         "description": "Finds and extracts all substrings that match the provided Python regular expression.",
         "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
     },
+    "map": {
+        "summary": "Transforms items based on a mapping file.",
+        "description": "Replaces items in the input list with values from a mapping file (CSV or Arrow). Useful for normalizing data or applying corrections.",
+        "example": "python multitool.py map input.txt --mapping corrections.csv --output fixed.txt",
+    },
 }
 
 
@@ -1076,7 +1206,7 @@ def print_mode_summary() -> None:
     """Print a summary table of all available modes, grouped by category."""
     categories = {
         "Extraction": ["arrow", "backtick", "csv", "json", "yaml", "line"],
-        "Manipulation": ["combine", "filterfragments", "set_operation", "sample"],
+        "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map"],
         "Analysis": ["count", "check"],
     }
 
@@ -1334,6 +1464,25 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The regular expression pattern to match.",
     )
 
+    map_parser = subparsers.add_parser(
+        'map',
+        help=MODE_DETAILS['map']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['map']['description'],
+    )
+    _add_common_mode_arguments(map_parser)
+    map_parser.add_argument(
+        '--mapping',
+        type=str,
+        required=True,
+        help='Path to the mapping file (CSV or Arrow format).',
+    )
+    map_parser.add_argument(
+        '--drop-missing',
+        action='store_true',
+        help='If set, items not found in the mapping are dropped. Default is to keep them.',
+    )
+
     return parser
 
 
@@ -1551,6 +1700,15 @@ def main() -> None:
                 'pattern': getattr(args, 'pattern', ''),
                 'output_format': output_format,
             },
+        ),
+        'map': (
+            map_mode,
+            {
+                **common_kwargs,
+                'mapping_file': getattr(args, 'mapping', ''),
+                'drop_missing': getattr(args, 'drop_missing', False),
+                'output_format': output_format,
+            }
         ),
     }
 

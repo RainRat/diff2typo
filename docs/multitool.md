@@ -48,6 +48,10 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Picks a random set of lines from a file. You can choose a specific number (`--n 100`) or a percentage (`--percent 10`).
   - **Example:** `python multitool.py sample --input big_log.txt --n 50`
 
+- **`regex`**
+  - **What it does:** Extracts text matching a Python regular expression pattern.
+  - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`
+
 ### 2. Analysis & Comparison Modes
 
 These modes help you analyze your data or compare multiple files.

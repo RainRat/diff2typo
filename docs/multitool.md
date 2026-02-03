@@ -96,6 +96,6 @@ These options work with most modes:
 - `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, and `markdown`.
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
-- `--process-output`: Sorts the final list and removes duplicates.
-- `--raw`: Keep punctuation and capitalization. By default, the tool converts everything to lowercase and removes non-letter characters.
+- `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
+- `--raw`: Keep punctuation and capitalization. By default, the tool converts everything to lowercase and removes non-letter characters. Use this flag if you need to preserve the exact appearance of the input text.
 - `--quiet`: Hide progress bars and log messages.

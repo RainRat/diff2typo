@@ -710,11 +710,7 @@ def combine_mode(
         raw_item_count += len(raw_items)
         combined_unique.extend(unique_items)
 
-    combined_unique = list(dict.fromkeys(combined_unique))
-    if process_output:
-        combined_unique = sorted(set(combined_unique))
-    else:
-        combined_unique = sorted(combined_unique)
+    combined_unique = sorted(dict.fromkeys(combined_unique))
 
     write_output(combined_unique, output_file, output_format, quiet)
 

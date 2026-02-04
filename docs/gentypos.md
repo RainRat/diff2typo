@@ -1,8 +1,24 @@
 # gentypos.py
 
-**Purpose:** Generates synthetic typos from a list of words. It simulates human error using keyboard adjacency maps, character deletion, transposition, and duplication.
+**Purpose:** Generates fake typos from a list of words. It mimics common mistakes like hitting the wrong key, skipping a letter, swapping two letters, or typing a letter twice.
 
 ## Usage
+
+You can use this tool in two ways: processing a list of words from a file or checking specific words directly.
+
+### 1. Process words directly (Quick Check)
+Pass words as arguments to see what typos are generated. By default, results are printed to your screen.
+
+```bash
+# Generate typos for a single word
+python gentypos.py hello --no-filter
+
+# Generate typos for multiple words
+python gentypos.py apple banana orange --no-filter
+```
+
+### 2. Process words from a file
+Use a configuration file to process a large word list and save the results.
 
 ```bash
 python gentypos.py --config gentypos.yaml
@@ -10,28 +26,57 @@ python gentypos.py --config gentypos.yaml
 
 ## Configuration (`gentypos.yaml`)
 
-This tool relies on a YAML configuration file.
+The tool uses a YAML file to control how typos are generated.
 
-### Structure
+### Example Configuration
 
 ```yaml
-input_file: "words_small.txt"      # Source words to mess up
-dictionary_file: "words_large.txt" # Valid words (to ensure we don't generate real words)
-output_file: "typos_mega.toml"     # Output destination
-output_format: "table"             # arrow, csv, table, or list
+# File Paths
+input_file: "words.txt"           # Source words to process
+dictionary_file: "dictionary.txt"  # Valid words (to filter out real words)
+output_file: "typos.txt"          # Where to save the results
 
+# Output Format: arrow (a -> b), csv (a,b), table (a = "b"), or list (a)
+output_format: "arrow"
+
+# How many times to repeat the process (makes more complex typos)
+repeat_modifications: 1
+
+# Types of typos to create
 typo_types:
-  deletion: true       # e.g., "word" -> "wrd"
-  transposition: true  # e.g., "word" -> "wrod"
-  replacement: true    # e.g., "word" -> "wprd" (adjacent key)
-  duplication: true    # e.g., "word" -> "woord"
+  deletion: true       # Skipping a letter: "word" becomes "wrd"
+  transposition: true  # Swapping neighbors: "word" becomes "wrod"
+  replacement: true    # Hitting a nearby key: "word" becomes "wprd"
+  duplication: true    # Double typing: "word" becomes "woord"
 
+# Advanced Replacement Options
+replacement_options:
+  include_diagonals: true               # Include keys that are diagonal on the keyboard
+  enable_adjacent_substitutions: true   # Use nearby keys
+  enable_custom_substitutions: true     # Use your own custom rules (see below)
+
+# Transposition Options
+transposition_options:
+  distance: 1                           # How far apart letters can be swapped
+
+# Word Length Filters
 word_length:
-  min_length: 8
-  max_length: null
+  min_length: 3
+  max_length: 20
 ```
 
-## Logic
+### Custom Substitutions
+You can define your own replacement rules in the config file. For example, if you often type "a" instead of "e":
 
-1. **Generation:** Applies configured error types to every word in the input list.
-2. **Filtering:** Checks generated typos against the `dictionary_file`. If a generated typo is actually a valid word (e.g., typing "form" instead of "from"), it is discarded to avoid flagging correct code as incorrect.
+```yaml
+custom_substitutions:
+  e:
+    - "a"
+    - "i"
+```
+
+## How it Works
+
+1.  **Generation:** The tool applies the selected mistake types to every word in your input.
+2.  **Filtering:** It checks the new "typos" against your `dictionary_file`. If a generated typo is actually a real word (like "form" instead of "from"), it is removed. This prevents the tool from flagging correct words as typos.
+3.  **Saving:** The final list is formatted and saved to your output file or printed to the screen.

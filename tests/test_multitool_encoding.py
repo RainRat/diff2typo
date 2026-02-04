@@ -148,3 +148,119 @@ def test_load_and_clean_file_stdin_unicode_error(monkeypatch, caplog):
     assert cleaned == []
     assert unique == []
     assert "Reading from stdin failed with encoding errors" in caplog.text
+
+
+def test_arrow_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1_arrow.txt"
+    input_file.write_bytes(b"caf\xe9 -> coffee\n")
+    output_file = tmp_path / "output.txt"
+
+    # Use clean_items=False to preserve the accent during verification
+    multitool.arrow_mode([str(input_file)], str(output_file), 1, 100, False, clean_items=False)
+    assert output_file.read_text(encoding="utf-8").strip() == "café"
+
+
+def test_line_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1_line.txt"
+    input_file.write_bytes(b"caf\xe9\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.line_mode(
+        [str(input_file)], str(output_file), 1, 100, False, clean_items=False
+    )
+    assert output_file.read_text(encoding="utf-8").strip() == "café"
+
+
+def test_csv_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1.csv"
+    input_file.write_bytes(b"caf\xe9,coffee\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.csv_mode(
+        [str(input_file)], str(output_file), 1, 100, False, first_column=True, clean_items=False
+    )
+    assert output_file.read_text(encoding="utf-8").strip() == "café"
+
+
+def test_yaml_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1.yaml"
+    input_file.write_bytes(b"key: caf\xe9\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.yaml_mode(
+        [str(input_file)], str(output_file), 1, 100, False, key="key", clean_items=False
+    )
+    assert output_file.read_text(encoding="utf-8").strip() == "café"
+
+
+def test_count_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1_count.txt"
+    input_file.write_bytes(b"caf\xe9 caf\xe9 coffee\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.count_mode(
+        [str(input_file)], str(output_file), 1, 100, False, clean_items=False
+    )
+    content = output_file.read_text(encoding="utf-8")
+    assert "café: 2" in content
+
+
+def test_regex_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1_regex.txt"
+    input_file.write_bytes(b"caf\xe9 coffee\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.regex_mode([str(input_file)], str(output_file), 1, 100, False, pattern=r"caf.")
+    assert output_file.read_text(encoding="utf-8").strip() == "café"
+
+
+def test_check_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1_check.csv"
+    input_file.write_bytes(b"caf\xe9,caf\xe9\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.check_mode(
+        [str(input_file)], str(output_file), 1, 100, False, clean_items=False
+    )
+    assert output_file.read_text(encoding="utf-8").strip() == "café"
+
+
+def test_map_mode_latin1(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("café", encoding="utf-8")
+    mapping_file = tmp_path / "mapping.csv"
+    mapping_file.write_bytes(b"caf\xe9,coffee\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.map_mode(
+        input_files=[str(input_file)],
+        mapping_file=str(mapping_file),
+        output_file=str(output_file),
+        min_length=1,
+        max_length=100,
+        process_output=False,
+        clean_items=False,
+    )
+    assert output_file.read_text(encoding="utf-8").strip() == "coffee"
+
+
+def test_json_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1.json"
+    input_file.write_bytes(b'{"key": "caf\xe9"}')
+    output_file = tmp_path / "output.txt"
+
+    multitool.json_mode(
+        [str(input_file)], str(output_file), 1, 100, False, key="key", clean_items=False
+    )
+    assert output_file.read_text(encoding="utf-8").strip() == "café"
+
+
+def test_backtick_mode_latin1(tmp_path):
+    input_file = tmp_path / "latin1_backtick.txt"
+    input_file.write_bytes(b"error: `caf\xe9` should be `coffee`\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.backtick_mode(
+        [str(input_file)], str(output_file), 1, 100, False, clean_items=False
+    )
+    assert output_file.read_text(encoding="utf-8").strip() == "café"

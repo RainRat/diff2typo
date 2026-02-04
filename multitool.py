@@ -913,7 +913,7 @@ def map_mode(
             clean_items=clean_items,
         )
 
-        source_items = cleaned if clean_items else raw
+        source_items = cleaned
         raw_item_count += len(source_items)
 
         for item in source_items:

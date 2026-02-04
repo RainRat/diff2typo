@@ -997,7 +997,7 @@ def _add_common_mode_arguments(
         proc_group.add_argument(
             '--process-output',
             action='store_true',
-            help="If set, converts output to lowercase, sorts it, and removes duplicates.",
+            help="Sort and deduplicate the final output list.",
         )
     else:
         subparser.set_defaults(process_output=False)

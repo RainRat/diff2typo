@@ -962,7 +962,7 @@ def _add_common_mode_arguments(
         help="Path(s) to the input file(s) (legacy flag, supports multiple).",
     )
     io_group.add_argument(
-        '--output',
+        '-o', '--output',
         type=str,
         default='-',
         help="Path to the output file (default: stdout).",
@@ -995,7 +995,7 @@ def _add_common_mode_arguments(
     )
     if include_process_output:
         proc_group.add_argument(
-            '--process-output',
+            '-P', '--process-output',
             action='store_true',
             help="Sort and deduplicate the final output list.",
         )
@@ -1205,7 +1205,7 @@ MODE_DETAILS = {
 def print_mode_summary() -> None:
     """Print a summary table of all available modes, grouped by category."""
     categories = {
-        "Extraction": ["arrow", "backtick", "csv", "json", "yaml", "line"],
+        "Extraction": ["arrow", "backtick", "csv", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map"],
         "Analysis": ["count", "check"],
     }
@@ -1255,11 +1255,25 @@ class ModeHelpAction(argparse.Action):
             if not details:
                 parser.error(f"Unknown mode: {values}")
 
-            block = [f"Mode: {values}", f"  Summary: {details['summary']}"]
+            # ANSI Color Codes
+            BLUE = "\033[1;34m"
+            GREEN = "\033[1;32m"
+            RESET = "\033[0m"
+            BOLD = "\033[1m"
+
+            # Disable colors if not running in a terminal
+            if not sys.stdout.isatty():
+                BLUE = GREEN = RESET = BOLD = ""
+
+            block = [
+                f"{BOLD}Mode:{RESET} {GREEN}{values}{RESET}",
+                f"  {BOLD}Summary:{RESET} {details['summary']}",
+            ]
             if details.get("description"):
-                block.append(f"  Description: {details['description']}")
+                block.append(f"  {BOLD}Description:{RESET} {details['description']}")
             if details.get("example"):
-                block.append(f"  Example: {details['example']}")
+                block.append(f"  {BOLD}Example:{RESET} {BLUE}{details['example']}{RESET}")
+
             parser.exit(message="\n" + "\n".join(block) + "\n\n")
 
 
@@ -1299,19 +1313,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['arrow']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['arrow']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['arrow']['example']}",
     )
-    _add_common_mode_arguments(arrow_parser)
-    arrow_parser.add_argument(
+    arrow_options = arrow_parser.add_argument_group("Arrow Options")
+    arrow_options.add_argument(
         '--right',
         action='store_true',
         help="Extract the right side (correction) instead of the left side (typo).",
     )
+    _add_common_mode_arguments(arrow_parser)
 
     backtick_parser = subparsers.add_parser(
         'backtick',
         help=MODE_DETAILS['backtick']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['backtick']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['backtick']['example']}",
     )
     _add_common_mode_arguments(backtick_parser)
 
@@ -1320,53 +1337,60 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['csv']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['csv']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['csv']['example']}",
     )
-    _add_common_mode_arguments(csv_parser)
-    csv_parser.add_argument(
+    csv_options = csv_parser.add_argument_group("CSV Options")
+    csv_options.add_argument(
         '--first-column',
         action='store_true',
         help='Extract the first column instead of subsequent columns.',
     )
-    csv_parser.add_argument(
+    csv_options.add_argument(
         '--delimiter',
         type=str,
         default=',',
         help='The delimiter character for CSV files (default: ,).',
     )
+    _add_common_mode_arguments(csv_parser)
 
     json_parser = subparsers.add_parser(
         'json',
         help=MODE_DETAILS['json']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['json']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['json']['example']}",
     )
-    _add_common_mode_arguments(json_parser)
-    json_parser.add_argument(
+    json_options = json_parser.add_argument_group("JSON Options")
+    json_options.add_argument(
         '--key',
         type=str,
         required=True,
         help="The key path to extract (e.g. 'items.name').",
     )
+    _add_common_mode_arguments(json_parser)
 
     yaml_parser = subparsers.add_parser(
         'yaml',
         help=MODE_DETAILS['yaml']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['yaml']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['yaml']['example']}",
     )
-    _add_common_mode_arguments(yaml_parser)
-    yaml_parser.add_argument(
+    yaml_options = yaml_parser.add_argument_group("YAML Options")
+    yaml_options.add_argument(
         '--key',
         type=str,
         required=True,
         help="The key path to extract (e.g. 'config.items').",
     )
+    _add_common_mode_arguments(yaml_parser)
 
     combine_parser = subparsers.add_parser(
         'combine',
         help=MODE_DETAILS['combine']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['combine']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['combine']['example']}",
     )
     _add_common_mode_arguments(combine_parser)
 
@@ -1375,6 +1399,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['line']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['line']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['line']['example']}",
     )
     _add_common_mode_arguments(line_parser)
 
@@ -1383,6 +1408,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['count']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['count']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['count']['example']}",
     )
     _add_common_mode_arguments(count_parser, include_process_output=False)
 
@@ -1391,20 +1417,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['filterfragments']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['filterfragments']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['filterfragments']['example']}",
     )
-    _add_common_mode_arguments(filter_parser)
-    filter_parser.add_argument(
+    filter_options = filter_parser.add_argument_group("Filter Options")
+    filter_options.add_argument(
         '--file2',
         type=str,
         required=True,
         help='Path to the second file used for comparison.',
     )
+    _add_common_mode_arguments(filter_parser)
 
     check_parser = subparsers.add_parser(
         'check',
         help=MODE_DETAILS['check']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['check']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['check']['example']}",
     )
     _add_common_mode_arguments(check_parser)
 
@@ -1413,30 +1442,33 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['set_operation']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['set_operation']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['set_operation']['example']}",
     )
-    _add_common_mode_arguments(set_parser)
-    set_parser.add_argument(
+    set_options = set_parser.add_argument_group("Set Operation Options")
+    set_options.add_argument(
         '--file2',
         type=str,
         required=True,
         help='Path to the second input file for set comparisons.',
     )
-    set_parser.add_argument(
+    set_options.add_argument(
         '--operation',
         type=str,
         choices=['intersection', 'union', 'difference'],
         required=True,
         help='Set operation to perform between the two files.',
     )
+    _add_common_mode_arguments(set_parser)
 
     sample_parser = subparsers.add_parser(
         'sample',
         help=MODE_DETAILS['sample']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['sample']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['sample']['example']}",
     )
-    _add_common_mode_arguments(sample_parser)
-    group = sample_parser.add_mutually_exclusive_group(required=True)
+    sample_options = sample_parser.add_argument_group("Sample Options")
+    group = sample_options.add_mutually_exclusive_group(required=True)
     group.add_argument(
         '--n',
         dest='sample_count',
@@ -1449,39 +1481,44 @@ def _build_parser() -> argparse.ArgumentParser:
         type=float,
         help='Percentage of lines to sample (0-100).',
     )
+    _add_common_mode_arguments(sample_parser)
 
     regex_parser = subparsers.add_parser(
         'regex',
         help=MODE_DETAILS['regex']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['regex']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['regex']['example']}",
     )
-    _add_common_mode_arguments(regex_parser)
-    regex_parser.add_argument(
-        '--pattern',
+    regex_options = regex_parser.add_argument_group("Regex Options")
+    regex_options.add_argument(
+        '-r', '--pattern',
         type=str,
         required=True,
         help="The regular expression pattern to match.",
     )
+    _add_common_mode_arguments(regex_parser)
 
     map_parser = subparsers.add_parser(
         'map',
         help=MODE_DETAILS['map']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['map']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['map']['example']}",
     )
-    _add_common_mode_arguments(map_parser)
-    map_parser.add_argument(
+    map_options = map_parser.add_argument_group("Map Options")
+    map_options.add_argument(
         '--mapping',
         type=str,
         required=True,
         help='Path to the mapping file (CSV or Arrow format).',
     )
-    map_parser.add_argument(
+    map_options.add_argument(
         '--drop-missing',
         action='store_true',
         help='If set, items not found in the mapping are dropped. Default is to keep them.',
     )
+    _add_common_mode_arguments(map_parser)
 
     return parser
 

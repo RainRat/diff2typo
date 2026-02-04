@@ -541,6 +541,9 @@ def count_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    min_count: int = 1,
+    max_count: int | None = None,
+    output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
 ) -> None:
@@ -574,12 +577,38 @@ def count_mode(
                 word_counts.update(filtered)
 
     sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
-    with smart_open_output(output_file) as out_file:
-        for word, count in sorted_words:
-            out_file.write(f"{word}: {count}\n")
+
+    # Apply frequency filtering
+    final_results = []
+    for word, count in sorted_words:
+        if count < min_count:
+            continue
+        if max_count is not None and count > max_count:
+            continue
+        final_results.append((word, count))
+
+    # Determine newline behavior for CSV
+    newline = '' if output_format == 'csv' else None
+
+    with smart_open_output(output_file, newline=newline) as out_file:
+        if output_format == 'json':
+            json_data = [{"item": word, "count": count} for word, count in final_results]
+            json.dump(json_data, out_file, indent=2)
+            out_file.write('\n')
+        elif output_format == 'csv':
+            writer = csv.writer(out_file)
+            for word, count in final_results:
+                writer.writerow([word, count])
+        elif output_format == 'markdown':
+            for word, count in final_results:
+                out_file.write(f"- {word}: {count}\n")
+        else:  # 'line' or fallback
+            for word, count in final_results:
+                out_file.write(f"{word}: {count}\n")
+
     print_processing_stats(raw_count, filtered_words, item_label="word")
     logging.info(
-        f"[Count Mode] Word frequencies have been written to '{output_file}'."
+        f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
     )
 
 def check_mode(
@@ -1162,8 +1191,8 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how often words appear.",
-        "description": "Counts word frequency and lists words from most frequent to least frequent.",
-        "example": "python multitool.py count typos.log --output counts.txt",
+        "description": "Counts word frequency and lists words from most frequent to least frequent. Supports filtering by frequency (--min-count, --max-count) and various output formats.",
+        "example": "python multitool.py count typos.log --min-count 5 --output-format json --output counts.json",
     },
     "filterfragments": {
         "summary": "Removes words that appear in a second file.",
@@ -1406,6 +1435,18 @@ def _build_parser() -> argparse.ArgumentParser:
         description=MODE_DETAILS['count']['description'],
         epilog=f"Example:\n  {MODE_DETAILS['count']['example']}",
     )
+    count_options = count_parser.add_argument_group("Count Options")
+    count_options.add_argument(
+        '--min-count',
+        type=int,
+        default=1,
+        help="Minimum occurrence count to include an item in the output (default: 1).",
+    )
+    count_options.add_argument(
+        '--max-count',
+        type=int,
+        help="Maximum occurrence count to include an item in the output.",
+    )
     _add_common_mode_arguments(count_parser, include_process_output=False)
 
     filter_parser = subparsers.add_parser(
@@ -1620,6 +1661,10 @@ def main() -> None:
             logging.info(f"Sampling Count: {sample_count}")
         if sample_percent is not None:
             logging.info(f"Sampling Percentage: {sample_percent}%")
+    if args.mode == 'count':
+        logging.info(f"Min Count Filter: {getattr(args, 'min_count', 1)}")
+        if getattr(args, 'max_count', None):
+            logging.info(f"Max Count Filter: {args.max_count}")
 
     logging.info(f"Output Format: {output_format}")
 
@@ -1679,8 +1724,13 @@ def main() -> None:
         'line': (line_mode, {**common_kwargs, 'output_format': output_format}),
         'count': (
             count_mode,
-            dict(common_kwargs),
-        ),  # count_mode ignores output_format
+            {
+                **common_kwargs,
+                'min_count': getattr(args, 'min_count', 1),
+                'max_count': getattr(args, 'max_count', None),
+                'output_format': output_format,
+            },
+        ),
         'filterfragments': (
             filter_fragments_mode,
             {**common_kwargs, 'file2': file2, 'output_format': output_format},

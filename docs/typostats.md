@@ -1,6 +1,6 @@
 # typostats.py
 
-**Purpose:** Finds common patterns in your typos. It looks at your list of corrections and tells you which keys you hit by mistake most often (like hitting `p` instead of `o`).
+**Purpose:** Finds common patterns in your typos. This tool analyzes your list of corrections and tells you which keys you hit by mistake most often (like hitting `p` instead of `o`).
 
 ## Usage
 
@@ -18,9 +18,9 @@ The tool accepts two input formats:
 
 ## Options
 
-- `--min`: **(Default: 1)** Show only typos that happen at least this many times. Useful for ignoring one-off mistakes.
+- `--min`: **(Default: 1)** Only show patterns that appear at least this many times. Useful for ignoring one-off mistakes.
 - `--allow_two_char`: Look for cases where one letter is replaced by two (like `m` becoming `rn`).
-- `--sort`: Organize the results. Options: `count` (most frequent first), `typo` (alphabetical), or `correct`.
+- `--sort`: How to sort the results. Options: `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by fix).
 - `--format`: Choose how the output looks:
   - `arrow`: Easy to read (`a -> b: 5`).
   - `json`: Good for other programs.

@@ -1233,7 +1233,9 @@ def get_mode_summary_text() -> str:
     header_summary = f"{'Summary':<55}"
     header_flags = "Quick Start / Primary Flags"
     lines.append(f"\n    {BOLD}{header_mode} {header_summary} {header_flags}{RESET}")
-    lines.append(f"    {'—' * (width + 55 + 30)}")
+    # Separator matches combined column widths + spacing
+    total_header_width = width + 55 + len(header_flags) + 2
+    lines.append(f"    {'-' * total_header_width}")
 
     for category, modes in categories.items():
         lines.append(f"  {BLUE}{category}:{RESET}")

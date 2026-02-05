@@ -26,10 +26,11 @@ def filter_to_letters(text: str) -> str:
     return re.sub("[^a-z]", "", text.lower())
 
 
-def clean_and_filter(items: Iterable[str], min_length: int, max_length: int) -> List[str]:
-    """Clean items to letters only and apply length filtering."""
-    cleaned = [filter_to_letters(item) for item in items]
-    return [c for c in cleaned if min_length <= len(c) <= max_length]
+def clean_and_filter(items: Iterable[str], min_length: int, max_length: int, clean: bool = True) -> List[str]:
+    """Clean items to letters only (if clean=True) and apply length filtering."""
+    if clean:
+        items = [filter_to_letters(item) for item in items]
+    return [c for c in items if min_length <= len(c) <= max_length]
 
 
 def detect_encoding(file_path: str) -> str | None:
@@ -240,14 +241,7 @@ def _process_items(
             yield from extractor_func(input_file, quiet=quiet)
 
     raw_items = list(chained_extractor())
-    if clean_items:
-        filtered_items = clean_and_filter(raw_items, min_length, max_length)
-    else:
-        # If not cleaning, we still apply length filtering on raw string length
-        filtered_items = [
-            item for item in raw_items
-            if min_length <= len(item) <= max_length
-        ]
+    filtered_items = clean_and_filter(raw_items, min_length, max_length, clean=clean_items)
 
     if process_output:
         # Note: If not cleaning, duplicates might differ by case/whitespace if user wants that.
@@ -627,13 +621,7 @@ def check_mode(
                 corrections.add(field.strip())
 
     duplicates = list(typos & corrections)
-    if clean_items:
-        filtered_items = clean_and_filter(duplicates, min_length, max_length)
-    else:
-        filtered_items = [
-            item for item in duplicates
-            if min_length <= len(item) <= max_length
-        ]
+    filtered_items = clean_and_filter(duplicates, min_length, max_length, clean=clean_items)
 
     if process_output:
         filtered_items = list(set(filtered_items))
@@ -767,13 +755,7 @@ def sample_mode(
         return
 
     # Clean and filter BEFORE sampling to ensure the requested count is accurate relative to valid items
-    if clean_items:
-        cleaned_items = clean_and_filter(raw_items, min_length, max_length)
-    else:
-        cleaned_items = [
-            item for item in raw_items
-            if min_length <= len(item) <= max_length
-        ]
+    cleaned_items = clean_and_filter(raw_items, min_length, max_length, clean=clean_items)
 
     total_valid_items = len(cleaned_items)
 
@@ -1062,7 +1044,8 @@ def filter_fragments_mode(
                 matched_words.add(keyword)
 
     non_matches = [word for word in all_cleaned_list1 if word not in matched_words]
-    filtered_items = clean_and_filter(non_matches, min_length, max_length)
+    # Items were already cleaned/processed during loading; only length filtering is needed now.
+    filtered_items = clean_and_filter(non_matches, min_length, max_length, clean=False)
 
     if process_output:
         filtered_items = list(set(filtered_items))

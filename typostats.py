@@ -252,25 +252,34 @@ def load_lines_from_file(file_path: str) -> list[str] | None:
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Analyze typo corrections and report frequent replacements.")
+    parser = argparse.ArgumentParser(
+        description="Find common patterns in your typos. This tool analyzes your list of corrections and tells you which keys you hit by mistake most often."
+    )
     parser.add_argument(
         'input_files',
         nargs='*',
-        help="Path to the input file(s). Reads from stdin if empty or '-'.",
+        help="One or more files containing typo corrections. If empty, it reads from standard input.",
     )
-    parser.add_argument('-o', '--output', help="Path to the output file (optional).")
-    parser.add_argument('-m', '--min', type=int, default=1, help="Minimum occurrences.")
-    parser.add_argument('-s', '--sort', choices=['count', 'typo', 'correct'], default='count', help="Sorting criterion.")
+    parser.add_argument('-o', '--output', help="Save the report to this file instead of printing it.")
+    parser.add_argument('-m', '--min', type=int, default=1, help="Only show patterns that appear at least this many times.")
+    parser.add_argument(
+        '-s', '--sort',
+        choices=['count', 'typo', 'correct'],
+        default='count',
+        help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by typo), or 'correct' (alphabetical by fix)."
+    )
     parser.add_argument(
         '-f',
         '--format',
         choices=['arrow', 'yaml', 'json', 'csv'],
         default='arrow',
-        help=(
-            "Output format. 'json' emits {\"replacements\": [{\"correct\", \"typo\", \"count\"}, ...]}"
-        ),
+        help="The format of the report."
     )
-    parser.add_argument('-2', '--allow_two_char', action='store_true', help="Allow one-to-two letter replacements.")
+    parser.add_argument(
+        '-2', '--allow_two_char',
+        action='store_true',
+        help="Look for cases where one letter is replaced by two (like 'm' becoming 'rn')."
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

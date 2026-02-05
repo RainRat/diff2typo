@@ -365,3 +365,17 @@ def test_backtick_mode_marker_inside_backticks(tmp_path):
 
     # Should fall back to extracting "error:" -> "error"
     assert content == "error"
+
+def test_backtick_multiple_no_markers(tmp_path):
+    input_file = tmp_path / "multiple.txt"
+    input_file.write_text("Extract `first` and `second` item.\n")
+    output_file = tmp_path / "output.txt"
+    multitool.backtick_mode([str(input_file)], str(output_file), 1, 20, False)
+    assert output_file.read_text().splitlines() == ["first", "second"]
+
+def test_backtick_multiple_with_markers(tmp_path):
+    input_file = tmp_path / "markers.txt"
+    input_file.write_text("error: `first` warning: `second` and `third` noise.\n")
+    output_file = tmp_path / "output.txt"
+    multitool.backtick_mode([str(input_file)], str(output_file), 1, 20, False)
+    assert output_file.read_text().splitlines() == ["first", "second"]

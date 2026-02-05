@@ -14,6 +14,31 @@ except ImportError:  # pragma: no cover - optional dependency
     chardet = None
     _CHARDET_AVAILABLE = False
 
+def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:
+    """
+    Check if 'typo' is formed by swapping two adjacent characters in 'correction'.
+
+    Returns:
+      A list containing a single (correction_chars, typo_chars) tuple if a
+      transposition is found, otherwise an empty list.
+    """
+    if len(typo) != len(correction):
+        return []
+
+    differences = []
+    for i in range(len(typo)):
+        if typo[i] != correction[i]:
+            differences.append(i)
+
+    if len(differences) == 2 and differences[1] == differences[0] + 1:
+        i, j = differences
+        if typo[i] == correction[j] and typo[j] == correction[i]:
+            # Found a transposition
+            return [(correction[i:j+1], typo[i:j+1])]
+
+    return []
+
+
 def is_one_letter_replacement(
     typo: str, correction: str, allow_two_char: bool = False
 ) -> list[tuple[str, str]]:
@@ -63,7 +88,9 @@ def is_one_letter_replacement(
 
     return []
 
-def process_typos(lines: Iterable[str], allow_two_char: bool) -> dict[tuple[str, str], int]:
+def process_typos(
+    lines: Iterable[str], allow_two_char: bool, allow_transposition: bool = False
+) -> dict[tuple[str, str], int]:
     replacement_counts = defaultdict(int)
     for line in lines:
         line = line.strip()
@@ -75,6 +102,11 @@ def process_typos(lines: Iterable[str], allow_two_char: bool) -> dict[tuple[str,
             typo = parts[0].strip()
             # Arrow format usually implies single correction per line: typo -> correction
             corrections = [parts[1].strip()]
+        elif " = " in line:
+            parts = line.split(" = ", 1)
+            typo = parts[0].strip()
+            correction = parts[1].strip().strip('"')
+            corrections = [correction]
         else:
             parts = line.split(',')
             typo = parts[0].strip()
@@ -88,8 +120,17 @@ def process_typos(lines: Iterable[str], allow_two_char: bool) -> dict[tuple[str,
             if not all(ord(c) < 128 for c in correction):
                 continue
             # Now we have: `typo` (incorrect word), `correction` (correct word)
-            # Check replacements
-            replacements = is_one_letter_replacement(typo, correction, allow_two_char=allow_two_char)
+            # Check for transpositions first if enabled, as they are a specific pattern
+            replacements = []
+            if allow_transposition:
+                replacements = is_transposition(typo, correction)
+
+            # If no transposition found, check for one-letter replacements
+            if not replacements:
+                replacements = is_one_letter_replacement(
+                    typo, correction, allow_two_char=allow_two_char
+                )
+
             for replacement in replacements:
                 # replacement is (correct_char, typo_char)
                 replacement_counts[replacement] += 1
@@ -102,6 +143,7 @@ def generate_report(
     min_occurrences: int = 1,
     sort_by: str = 'count',
     output_format: str = 'arrow',
+    limit: int | None = None,
 ) -> None:
     """
     Generate a report.
@@ -118,9 +160,17 @@ def generate_report(
             ...
         ]
     }
+
+    Args:
+        replacement_counts: Dictionary mapping (correct, typo) to frequency.
+        output_file: Path to write the report to (optional).
+        min_occurrences: Minimum count to include in the report.
+        sort_by: Criterion to sort results by ('count', 'typo', 'correct').
+        output_format: Format of the report ('arrow', 'yaml', 'json', 'csv').
+        limit: Maximum number of results to include in the report.
     """
     # Filter
-    filtered = {k: v for k,v in replacement_counts.items() if v >= min_occurrences}
+    filtered = {k: v for k, v in replacement_counts.items() if v >= min_occurrences}
 
     # Sort
     if sort_by == 'count':
@@ -134,6 +184,9 @@ def generate_report(
     else:
         logging.warning(f"Invalid sort option: '{sort_by}'. Defaulting to 'count'.")
         sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
+
+    if limit:
+        sorted_replacements = sorted_replacements[:limit]
 
     if output_format == 'arrow':
         # arrow
@@ -270,7 +323,24 @@ def main() -> None:
             "Output format. 'json' emits {\"replacements\": [{\"correct\", \"typo\", \"count\"}, ...]}"
         ),
     )
-    parser.add_argument('-2', '--allow_two_char', action='store_true', help="Allow one-to-two letter replacements.")
+    parser.add_argument(
+        '-2',
+        '--allow_two_char',
+        action='store_true',
+        help="Allow one-to-two letter replacements (e.g., 'm' to 'rn').",
+    )
+    parser.add_argument(
+        '-t',
+        '--transposition',
+        action='store_true',
+        help="Detect transpositions of adjacent characters (e.g., 'teh' to 'the').",
+    )
+    parser.add_argument(
+        '-n',
+        '--limit',
+        type=int,
+        help="Limit the report to the top N most frequent replacements.",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -281,6 +351,8 @@ def main() -> None:
     sort_by = args.sort
     output_format = args.format
     allow_two_char = args.allow_two_char
+    allow_transposition = args.transposition
+    limit = args.limit
 
     if not input_files:
         input_files = ['-']
@@ -291,11 +363,20 @@ def main() -> None:
         lines = load_lines_from_file(file_path)
 
         if lines:
-            file_counts = process_typos(lines, allow_two_char=allow_two_char)
+            file_counts = process_typos(
+                lines, allow_two_char=allow_two_char, allow_transposition=allow_transposition
+            )
             for k, v in file_counts.items():
                 all_counts[k] += v
 
-    generate_report(all_counts, output_file=output_file, min_occurrences=min_occurrences, sort_by=sort_by, output_format=output_format)
+    generate_report(
+        all_counts,
+        output_file=output_file,
+        min_occurrences=min_occurrences,
+        sort_by=sort_by,
+        output_format=output_format,
+        limit=limit,
+    )
 
 
 if __name__ == "__main__":

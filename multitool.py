@@ -56,20 +56,7 @@ def detect_encoding(file_path: str) -> str | None:
     logging.warning("Failed to reliably detect encoding for '%s'.", file_path)
     return None
 
-@contextlib.contextmanager
-def smart_open_input(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
-    """
-    Context manager that yields a file object for reading.
-    If filename is '-', yields sys.stdin.
-    Otherwise, opens the file for reading.
-    """
-    if filename == '-':
-        yield sys.stdin
-    else:
-        with open(filename, 'r', encoding=encoding, newline=newline) as f:
-            yield f
-
-def _read_file_lines_robust(path: str) -> List[str]:
+def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     """Read lines from a file with robust encoding fallback (UTF-8 -> Detect -> Latin-1)."""
     lines = []
     used_encoding = 'utf-8'
@@ -86,7 +73,7 @@ def _read_file_lines_robust(path: str) -> List[str]:
             lines = []
     else:
         try:
-            with open(path, 'r', encoding='utf-8') as handle:
+            with open(path, 'r', encoding='utf-8', newline=newline) as handle:
                 lines = handle.readlines()
                 used_encoding = 'utf-8'
         except UnicodeDecodeError:
@@ -97,7 +84,7 @@ def _read_file_lines_robust(path: str) -> List[str]:
                     "Using detected encoding '%s' for '%s'.", detected_encoding, path
                 )
                 try:
-                    with open(path, 'r', encoding=detected_encoding) as handle:
+                    with open(path, 'r', encoding=detected_encoding, newline=newline) as handle:
                         lines = handle.readlines()
                     used_encoding = detected_encoding
                 except UnicodeDecodeError:
@@ -106,12 +93,12 @@ def _read_file_lines_robust(path: str) -> List[str]:
                         detected_encoding,
                         path,
                     )
-                    with open(path, 'r', encoding='latin-1') as handle:
+                    with open(path, 'r', encoding='latin-1', newline=newline) as handle:
                         lines = handle.readlines()
                     used_encoding = 'latin-1'
             else:
                 logging.warning("Encoding detection failed. Fallback to latin-1 for '%s'.", path)
-                with open(path, 'r', encoding='latin-1') as handle:
+                with open(path, 'r', encoding='latin-1', newline=newline) as handle:
                     lines = handle.readlines()
                 used_encoding = 'latin-1'
 
@@ -278,13 +265,13 @@ def _process_items(
 
 def _extract_arrow_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
     """Yield text before (or after) ' -> ' from each line."""
-    with smart_open_input(input_file, encoding='utf-8') as infile:
-        for line in tqdm(infile, desc=f'Processing {input_file} (arrow)', unit=' lines', disable=quiet):
-            if " -> " in line:
-                parts = line.split(" -> ", 1)
-                idx = 1 if right_side else 0
-                if len(parts) > idx:
-                    yield parts[idx].strip()
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (arrow)', unit=' lines', disable=quiet):
+        if " -> " in line:
+            parts = line.split(" -> ", 1)
+            idx = 1 if right_side else 0
+            if len(parts) > idx:
+                yield parts[idx].strip()
 
 
 def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[str]:
@@ -292,31 +279,31 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
 
     context_markers = ("error:", "warning:", "note:")
 
-    with smart_open_input(input_file, encoding='utf-8') as infile:
-        for line in tqdm(infile, desc=f'Processing {input_file} (backtick)', unit=' lines', disable=quiet):
-            # Split the line on backticks to inspect the surrounding context of
-            # each candidate substring. This helps avoid extracting identifiers
-            # from file paths when a later pair of backticks contains the actual
-            # typo from messages such as "error: `foo` should be `bar`".
-            parts = line.split('`')
-            selected = None
-            if len(parts) >= 3:
-                for index in range(1, len(parts), 2):
-                    preceding = parts[index - 1].lower() if index - 1 >= 0 else ""
-                    for marker in context_markers:
-                        if marker in preceding:
-                            selected = parts[index].strip()
-                            break
-                    if selected:
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (backtick)', unit=' lines', disable=quiet):
+        # Split the line on backticks to inspect the surrounding context of
+        # each candidate substring. This helps avoid extracting identifiers
+        # from file paths when a later pair of backticks contains the actual
+        # typo from messages such as "error: `foo` should be `bar`".
+        parts = line.split('`')
+        selected = None
+        if len(parts) >= 3:
+            for index in range(1, len(parts), 2):
+                preceding = parts[index - 1].lower() if index - 1 >= 0 else ""
+                for marker in context_markers:
+                    if marker in preceding:
+                        selected = parts[index].strip()
                         break
+                if selected:
+                    break
 
-            if selected is None and len(parts) >= 3:
-                # Fallback: extract the content of the first backticked item.
-                # parts[0] is text before first `, parts[1] is text between first and second `, etc.
-                selected = parts[1].strip()
+        if selected is None and len(parts) >= 3:
+            # Fallback: extract the content of the first backticked item.
+            # parts[0] is text before first `, parts[1] is text between first and second `, etc.
+            selected = parts[1].strip()
 
-            if selected:
-                yield selected
+        if selected:
+            yield selected
 
 
 def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
@@ -343,19 +330,19 @@ def _extract_json_items(input_file: str, key_path: str, quiet: bool = False) -> 
 
     path_parts = key_path.split('.') if key_path else []
 
-    with smart_open_input(input_file, encoding='utf-8') as infile:
-        # Load the entire file content as JSON
-        # Note: Standard JSON parsers expect the whole file. Streaming JSON (JSONL) is handled differently.
-        # Here we assume standard JSON as output by typostats.py.
-        try:
-            content = infile.read()
-            if not content.strip():
-                return
-            data = json.loads(content)
-            yield from _traverse_data(data, path_parts)
-        except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse JSON in '{input_file}': {e}")
+    lines = _read_file_lines_robust(input_file)
+    content = "".join(lines)
+    # Load the entire file content as JSON
+    # Note: Standard JSON parsers expect the whole file. Streaming JSON (JSONL) is handled differently.
+    # Here we assume standard JSON as output by typostats.py.
+    try:
+        if not content.strip():
             return
+        data = json.loads(content)
+        yield from _traverse_data(data, path_parts)
+    except json.JSONDecodeError as e:
+        logging.error(f"Failed to parse JSON in '{input_file}': {e}")
+        return
 
 
 def _extract_yaml_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:
@@ -370,16 +357,17 @@ def _extract_yaml_items(input_file: str, key_path: str, quiet: bool = False) -> 
 
     path_parts = key_path.split('.') if key_path else []
 
-    with smart_open_input(input_file, encoding='utf-8') as infile:
-        try:
-            # yaml.safe_load_all yields a generator of documents
-            for doc in yaml.safe_load_all(infile):
-                if doc is None:
-                    continue
-                yield from _traverse_data(doc, path_parts)
-        except yaml.YAMLError as e:
-            logging.error(f"Failed to parse YAML in '{input_file}': {e}")
-            return
+    lines = _read_file_lines_robust(input_file)
+    content = "".join(lines)
+    try:
+        # yaml.safe_load_all yields a generator of documents
+        for doc in yaml.safe_load_all(content):
+            if doc is None:
+                continue
+            yield from _traverse_data(doc, path_parts)
+    except yaml.YAMLError as e:
+        logging.error(f"Failed to parse YAML in '{input_file}': {e}")
+        return
 
 
 def _extract_csv_items(
@@ -400,9 +388,9 @@ def _extract_csv_items(
 
 def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield each line from the file."""
-    with smart_open_input(input_file, encoding='utf-8') as infile:
-        for line in tqdm(infile, desc=f'Processing {input_file} (lines)', unit=' lines', disable=quiet):
-            yield line.rstrip('\n')
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (lines)', unit=' lines', disable=quiet):
+        yield line.rstrip('\n')
 
 
 def _extract_regex_items(input_file: str, pattern: str, quiet: bool = False) -> Iterable[str]:
@@ -413,16 +401,16 @@ def _extract_regex_items(input_file: str, pattern: str, quiet: bool = False) -> 
         logging.error(f"Invalid regular expression '{pattern}': {e}")
         sys.exit(1)
 
-    with smart_open_input(input_file, encoding='utf-8') as infile:
-        for line in tqdm(infile, desc=f'Processing {input_file} (regex)', unit=' lines', disable=quiet):
-            matches = regex.findall(line)
-            for match in matches:
-                if isinstance(match, tuple):
-                    # If multiple groups, yield them as separate items
-                    for group in match:
-                        yield group
-                else:
-                    yield match
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (regex)', unit=' lines', disable=quiet):
+        matches = regex.findall(line)
+        for match in matches:
+            if isinstance(match, tuple):
+                # If multiple groups, yield them as separate items
+                for group in match:
+                    yield group
+            else:
+                yield match
 
 
 def arrow_mode(
@@ -559,22 +547,22 @@ def count_mode(
     word_counts = Counter()
 
     for input_file in input_files:
-        with smart_open_input(input_file, encoding='utf-8') as file:
-            for line in tqdm(file, desc=f'Counting words in {input_file}', unit=' lines', disable=quiet):
-                words = [word.strip() for word in line.split()]
-                raw_count += len(words)
-                filtered = []
-                for word in words:
-                    if clean_items:
-                        cleaned = filter_to_letters(word)
-                        if cleaned:
-                            if min_length <= len(cleaned) <= max_length:
-                                filtered.append(cleaned)
-                    else:
-                        if min_length <= len(word) <= max_length:
-                            filtered.append(word)
-                filtered_words.extend(filtered)
-                word_counts.update(filtered)
+        lines = _read_file_lines_robust(input_file)
+        for line in tqdm(lines, desc=f'Counting words in {input_file}', unit=' lines', disable=quiet):
+            words = [word.strip() for word in line.split()]
+            raw_count += len(words)
+            filtered = []
+            for word in words:
+                if clean_items:
+                    cleaned = filter_to_letters(word)
+                    if cleaned:
+                        if min_length <= len(cleaned) <= max_length:
+                            filtered.append(cleaned)
+                else:
+                    if min_length <= len(word) <= max_length:
+                        filtered.append(word)
+            filtered_words.extend(filtered)
+            word_counts.update(filtered)
 
     sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
 
@@ -629,14 +617,14 @@ def check_mode(
     corrections = set()
 
     for input_file in input_files:
-        with smart_open_input(input_file, newline='', encoding='utf-8') as csvfile:
-            reader = csv.reader(csvfile)
-            for row in tqdm(reader, desc=f'Checking {input_file}', unit=' rows', disable=quiet):
-                if not row:
-                    continue
-                typos.add(row[0].strip())
-                for field in row[1:]:
-                    corrections.add(field.strip())
+        lines = _read_file_lines_robust(input_file, newline='')
+        reader = csv.reader(lines)
+        for row in tqdm(reader, desc=f'Checking {input_file}', unit=' rows', disable=quiet):
+            if not row:
+                continue
+            typos.add(row[0].strip())
+            for field in row[1:]:
+                corrections.add(field.strip())
 
     duplicates = list(typos & corrections)
     if clean_items:
@@ -843,20 +831,11 @@ def regex_mode(
 def _load_mapping_file(path: str, quiet: bool = False) -> dict[str, str]:
     """Load a mapping file (CSV or Arrow) into a dictionary."""
     mapping = {}
-    with smart_open_input(path, encoding='utf-8') as f:
-        # Check first line to detect format
-        try:
-            first_line = next(f)
-        except StopIteration:
-            return mapping
+    lines = _read_file_lines_robust(path)
+    if not lines:
+        return mapping
 
-        # Reset file pointer
-        # Since smart_open_input might be stdin which is not seekable, we need to handle this.
-        # But wait, we just consumed the first line.
-        # If it's stdin, we can't seek back.
-        # So we should process the first line and then the rest.
-        lines = [first_line]
-        lines.extend(f)
+    first_line = lines[0]
 
     # Now process lines
     # Heuristic: if ' -> ' in first line, assume Arrow. Else assume CSV.

@@ -38,6 +38,16 @@ def test_is_one_letter_replacement_doubled_letter():
     assert typostats.is_one_letter_replacement('catt', 'cat', allow_two_char=True) == [('t', 'tt')]
 
 
+def test_is_transposition():
+    assert typostats.is_transposition('teh', 'the') == [('he', 'eh')]
+    assert typostats.is_transposition('tehs', 'thes') == [('he', 'eh')]
+    assert typostats.is_transposition('test', 'test') == []
+    assert typostats.is_transposition('tset', 'test') == [('es', 'se')]
+    assert typostats.is_transposition('abcde', 'abced') == [('ed', 'de')]
+    # Non-adjacent transposition should return []
+    assert typostats.is_transposition('ecbad', 'abcde') == []
+
+
 def test_process_typos_counts_and_filtering():
     lines = [
         'tezt, test',
@@ -49,12 +59,56 @@ def test_process_typos_counts_and_filtering():
     assert counts == {('s', 'z'): 1, ('e', 'a'): 1, ('a', 'aa'): 1}
 
 
+def test_process_typos_table_format():
+    lines = [
+        'tezt = "test"',
+        'lavel = "level"',
+    ]
+    counts = typostats.process_typos(lines, allow_two_char=False)
+    assert counts == {('s', 'z'): 1, ('e', 'a'): 1}
+
+
+def test_process_typos_with_transposition():
+    lines = [
+        'teh -> the',
+        'tset -> test',
+    ]
+    # Without allow_transposition, these should return nothing (multi-letter diff)
+    counts = typostats.process_typos(lines, allow_two_char=False, allow_transposition=False)
+    assert counts == {}
+
+    # With allow_transposition, they should be detected
+    counts = typostats.process_typos(lines, allow_two_char=False, allow_transposition=True)
+    assert counts == {('he', 'eh'): 1, ('es', 'se'): 1}
+
+
 def test_generate_report_arrow(capsys):
     counts = {('s', 'z'): 3, ('e', 'a'): 1}
     typostats.generate_report(counts, min_occurrences=2, output_format='arrow')
     captured = capsys.readouterr().out
     assert 's -> z: 3' in captured
     assert 'e -> a' not in captured
+
+
+def test_generate_report_limit(capsys):
+    counts = {('a', 'b'): 10, ('c', 'd'): 5, ('e', 'f'): 2}
+    typostats.generate_report(counts, limit=2, output_format='arrow')
+    captured = capsys.readouterr().out
+    assert 'a -> b: 10' in captured
+    assert 'c -> d: 5' in captured
+    assert 'e -> f' not in captured
+
+
+def test_generate_report_limit_with_typo_sort(capsys):
+    # Counts are such that 'z' would be last in count sort, but first in reverse typo sort?
+    # Actually sort_by='typo' sorts alphabetically by typo char.
+    counts = {('a', 'z'): 10, ('b', 'x'): 5, ('c', 'y'): 2}
+    # Sorted by typo: ('b', 'x'), ('c', 'y'), ('a', 'z')
+    typostats.generate_report(counts, limit=2, sort_by='typo', output_format='arrow')
+    captured = capsys.readouterr().out
+    assert 'b -> x: 5' in captured
+    assert 'c -> y: 2' in captured
+    assert 'a -> z' not in captured
 
 
 def test_generate_report_json(capsys):

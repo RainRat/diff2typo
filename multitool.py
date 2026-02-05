@@ -959,7 +959,7 @@ def _add_common_mode_arguments(
     # Input/Output Group
     io_group = subparser.add_argument_group("Input/Output")
     io_group.add_argument(
-        '--input',
+        '-i', '--input',
         dest='input_files_flag',
         type=str,
         nargs='+',
@@ -972,7 +972,7 @@ def _add_common_mode_arguments(
         help="Path to the output file (default: stdout).",
     )
     io_group.add_argument(
-        '--output-format',
+        '-f', '--output-format',
         choices=['line', 'json', 'csv', 'markdown'],
         default='line',
         help="Format of the output (default: line). Options: line, json, csv, markdown.",
@@ -1151,17 +1151,17 @@ MODE_DETAILS = {
     "csv": {
         "summary": "Extracts specific columns from a CSV file.",
         "description": "Extracts data from CSV files. By default, it grabs everything *except* the first column, which is perfect for getting a list of corrections.",
-        "example": "python multitool.py csv typos.csv --output corrections.txt",
+        "example": "python multitool.py csv typos.csv -o corrections.txt",
     },
     "json": {
         "summary": "Extracts values from a JSON file.",
         "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (e.g., 'user.name'). Works with lists automatically.",
-        "example": "python multitool.py json report.json --key replacements.typo --output typos.txt",
+        "example": "python multitool.py json report.json -k replacements.typo -o typos.txt",
     },
     "yaml": {
         "summary": "Extract values from YAML files.",
         "description": "Extracts values associated with a specific key path from a YAML file. Supports dot notation for nested keys (e.g. 'config.items'). Handles lists automatically.",
-        "example": "python multitool.py yaml config.yaml --key config.items --output items.txt",
+        "example": "python multitool.py yaml config.yaml -k config.items -o items.txt",
     },
     "line": {
         "summary": "Process a file line by line.",
@@ -1190,8 +1190,8 @@ MODE_DETAILS = {
     },
     "sample": {
         "summary": "Randomly samples lines from a file.",
-        "description": "Extracts a random subset of lines. You can specify an exact number (--n) or a percentage (--percent).",
-        "example": "python multitool.py sample big_log.txt --n 100 --output sample.txt",
+        "description": "Extracts a random subset of lines. You can specify an exact number (-n) or a percentage (--percent).",
+        "example": "python multitool.py sample big_log.txt -n 100 -o sample.txt",
     },
     "regex": {
         "summary": "Extracts text matching a regular expression.",
@@ -1201,7 +1201,7 @@ MODE_DETAILS = {
     "map": {
         "summary": "Transforms items based on a mapping file.",
         "description": "Replaces items in the input list with values from a mapping file (CSV or Arrow). Useful for normalizing data or applying corrections.",
-        "example": "python multitool.py map input.txt --mapping corrections.csv --output fixed.txt",
+        "example": "python multitool.py map input.txt -m corrections.csv -o fixed.txt",
     },
 }
 
@@ -1300,6 +1300,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--mode-help",
         nargs="?",
         choices=[*MODE_DETAILS.keys(), "all"],
+        metavar="mode",
         action=ModeHelpAction,
         help="Display extended documentation for a specific mode or all modes.",
     )
@@ -1350,7 +1351,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Extract the first column instead of subsequent columns.',
     )
     csv_options.add_argument(
-        '--delimiter',
+        '-d', '--delimiter',
         type=str,
         default=',',
         help='The delimiter character for CSV files (default: ,).',
@@ -1366,7 +1367,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     json_options = json_parser.add_argument_group("JSON Options")
     json_options.add_argument(
-        '--key',
+        '-k', '--key',
         type=str,
         required=True,
         help="The key path to extract (e.g. 'items.name').",
@@ -1382,7 +1383,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     yaml_options = yaml_parser.add_argument_group("YAML Options")
     yaml_options.add_argument(
-        '--key',
+        '-k', '--key',
         type=str,
         required=True,
         help="The key path to extract (e.g. 'config.items').",
@@ -1486,7 +1487,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sample_options = sample_parser.add_argument_group("Sample Options")
     group = sample_options.add_mutually_exclusive_group(required=True)
     group.add_argument(
-        '--n',
+        '-n', '--n',
         dest='sample_count',
         type=int,
         help='Number of lines to sample.',
@@ -1524,7 +1525,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     map_options = map_parser.add_argument_group("Map Options")
     map_options.add_argument(
-        '--mapping',
+        '-m', '--mapping',
         type=str,
         required=True,
         help='Path to the mapping file (CSV or Arrow format).',

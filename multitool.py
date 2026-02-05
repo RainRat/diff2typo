@@ -1120,77 +1120,91 @@ MODE_DETAILS = {
         "summary": "Extracts text from lines with arrows (->).",
         "description": "Reads lines like 'typo -> correction'. Saves the 'typo' part by default. Use --right to save the 'correction' part instead.",
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
+        "flags": "[--right]",
     },
     "combine": {
         "summary": "Merges, sorts, and cleans multiple files.",
         "description": "Combines multiple files into one sorted, duplicate-free list.",
         "example": "python multitool.py combine typos1.txt typos2.txt --output all_typos.txt",
+        "flags": "[-P]",
     },
     "backtick": {
         "summary": "Extracts text enclosed in backticks.",
         "description": "Finds text inside backticks (like `code`). Prioritizes items near words like 'error', 'warning', or 'note'.",
         "example": "python multitool.py backtick build.log --output suspects.txt",
+        "flags": "",
     },
     "csv": {
         "summary": "Extracts specific columns from a CSV file.",
         "description": "Extracts data from CSV files. By default, it grabs everything *except* the first column, which is perfect for getting a list of corrections.",
         "example": "python multitool.py csv typos.csv -o corrections.txt",
+        "flags": "[--first-column]",
     },
     "json": {
         "summary": "Extracts values from a JSON file.",
         "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (e.g., 'user.name'). Works with lists automatically.",
         "example": "python multitool.py json report.json -k replacements.typo -o typos.txt",
+        "flags": "[-k KEY]",
     },
     "yaml": {
         "summary": "Extract values from YAML files.",
         "description": "Extracts values associated with a specific key path from a YAML file. Supports dot notation for nested keys (e.g. 'config.items'). Handles lists automatically.",
         "example": "python multitool.py yaml config.yaml -k config.items -o items.txt",
+        "flags": "[-k KEY]",
     },
     "line": {
         "summary": "Process a file line by line.",
         "description": "Reads each line, cleans it, and writes it to the output. Useful for simple filtering.",
         "example": "python multitool.py line raw_words.txt --output filtered.txt",
+        "flags": "",
     },
     "count": {
         "summary": "Counts how often words appear.",
         "description": "Counts word frequency and lists words from most frequent to least frequent. Supports filtering by frequency (--min-count, --max-count) and various output formats.",
         "example": "python multitool.py count typos.log --min-count 5 --output-format json --output counts.json",
+        "flags": "[--min-count N]",
     },
     "filterfragments": {
         "summary": "Removes words that appear in a second file.",
         "description": "Removes words from your list if they are found (even as part of a word) in a second file.",
         "example": "python multitool.py filterfragments generated.txt --file2 dictionary.txt --output unique.txt",
+        "flags": "[--file2 FILE]",
     },
     "check": {
         "summary": "Checks for conflicts in typo lists.",
         "description": "Finds words that appear as both a typo and a correction. Use this to spot errors in your data.",
         "example": "python multitool.py check typos.csv --output duplicates.txt",
+        "flags": "",
     },
     "set_operation": {
         "summary": "Compares the contents of two files.",
         "description": "Performs set operations: find common lines (intersection), merge all lines (union), or find unique lines (difference).",
         "example": "python multitool.py set_operation fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
+        "flags": "[--file2 FILE --operation OP]",
     },
     "sample": {
         "summary": "Randomly samples lines from a file.",
         "description": "Extracts a random subset of lines. You can specify an exact number (-n) or a percentage (--percent).",
         "example": "python multitool.py sample big_log.txt -n 100 -o sample.txt",
+        "flags": "[-n N|--percent P]",
     },
     "regex": {
         "summary": "Extracts text matching a regular expression.",
         "description": "Finds and extracts all substrings that match the provided Python regular expression.",
         "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
+        "flags": "[-r PATTERN]",
     },
     "map": {
         "summary": "Transforms items based on a mapping file.",
         "description": "Replaces items in the input list with values from a mapping file (CSV or Arrow). Useful for normalizing data or applying corrections.",
         "example": "python multitool.py map input.txt -m corrections.csv -o fixed.txt",
+        "flags": "[-m MAP]",
     },
 }
 
 
-def print_mode_summary() -> None:
-    """Print a summary table of all available modes, grouped by category."""
+def get_mode_summary_text() -> str:
+    """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "backtick", "csv", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map"],
@@ -1200,26 +1214,44 @@ def print_mode_summary() -> None:
     # ANSI Color Codes
     BLUE = "\033[1;34m"
     GREEN = "\033[1;32m"
+    YELLOW = "\033[1;33m"
     RESET = "\033[0m"
     BOLD = "\033[1m"
 
     # Disable colors if not running in a terminal
     if not sys.stdout.isatty():
-        BLUE = GREEN = RESET = BOLD = ""
+        BLUE = GREEN = YELLOW = RESET = BOLD = ""
 
-    print(f"\n{BOLD}Available Modes:{RESET}\n")
-    max_len = max(len(m) for m in MODE_DETAILS.keys())
-    width = max_len + 4
+    lines = []
+    lines.append(f"{BOLD}Available Modes:{RESET}")
+
+    max_mode_len = max(len(m) for m in MODE_DETAILS.keys())
+    width = max_mode_len + 4
+
+    # Table Header
+    header_mode = f"{'Mode':<{width}}"
+    header_summary = f"{'Summary':<55}"
+    header_flags = "Quick Start / Primary Flags"
+    lines.append(f"\n    {BOLD}{header_mode} {header_summary} {header_flags}{RESET}")
+    lines.append(f"    {'—' * (width + 55 + 30)}")
 
     for category, modes in categories.items():
-        print(f"  {BLUE}{category}:{RESET}")
+        lines.append(f"  {BLUE}{category}:{RESET}")
         for mode in modes:
             if mode in MODE_DETAILS:
                 details = MODE_DETAILS[mode]
-                print(f"    {GREEN}{mode:<{width}}{RESET} {details['summary']}")
-        print()
+                summary = details['summary']
+                flags = details.get('flags', '')
+                lines.append(f"    {GREEN}{mode:<{width}}{RESET} {summary:<55} {YELLOW}{flags}{RESET}")
+        lines.append("")
 
-    print(f"Run '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
+    lines.append(f"Run '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
+    return "\n".join(lines)
+
+
+def print_mode_summary() -> None:
+    """Print a summary table of all available modes, grouped by category."""
+    print("\n" + get_mode_summary_text())
 
 
 class ModeHelpAction(argparse.Action):
@@ -1265,6 +1297,9 @@ class ModeHelpAction(argparse.Action):
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    # Build a categorized mode summary for the epilog
+    mode_summary = get_mode_summary_text()
+
     parser = argparse.ArgumentParser(
         description="Multipurpose File Processing Tool",
         epilog=dedent(
@@ -1275,7 +1310,7 @@ def _build_parser() -> argparse.ArgumentParser:
               python multitool.py arrow --input file.txt  # Run a specific mode
               python multitool.py --mode csv --input file.txt  # Legacy --mode flag
             """
-        ).strip(),
+        ).strip() + "\n\n" + mode_summary,
         formatter_class=argparse.RawTextHelpFormatter,
     )
 

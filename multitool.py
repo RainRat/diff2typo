@@ -280,24 +280,26 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
         # from file paths when a later pair of backticks contains the actual
         # typo from messages such as "error: `foo` should be `bar`".
         parts = line.split('`')
-        selected = None
-        if len(parts) >= 3:
-            for index in range(1, len(parts), 2):
-                preceding = parts[index - 1].lower() if index - 1 >= 0 else ""
-                for marker in context_markers:
-                    if marker in preceding:
-                        selected = parts[index].strip()
-                        break
-                if selected:
-                    break
+        if len(parts) < 3:
+            continue
 
-        if selected is None and len(parts) >= 3:
-            # Fallback: extract the content of the first backticked item.
-            # parts[0] is text before first `, parts[1] is text between first and second `, etc.
-            selected = parts[1].strip()
+        line_items_with_markers = []
+        all_line_items = []
 
-        if selected:
-            yield selected
+        for index in range(1, len(parts), 2):
+            item = parts[index].strip()
+            if not item:
+                continue
+
+            all_line_items.append(item)
+            preceding = parts[index - 1].lower() if index - 1 >= 0 else ""
+            if any(marker in preceding for marker in context_markers):
+                line_items_with_markers.append(item)
+
+        if line_items_with_markers:
+            yield from line_items_with_markers
+        else:
+            yield from all_line_items
 
 
 def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:

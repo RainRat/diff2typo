@@ -365,3 +365,20 @@ def test_backtick_mode_marker_inside_backticks(tmp_path):
 
     # Should fall back to extracting "error:" -> "error"
     assert content == "error"
+
+def test_backtick_mode_multiple_items(tmp_path):
+    # Verify that multiple items are extracted correctly with/without markers
+    input_file = tmp_path / "multiple.txt"
+    input_file.write_text(
+        "multiple `apple` and `banana` and `cherry`\n"  # No markers: all extracted
+        "error: `easy` and `noise` error: `echo`\n" # Markers: only preceded items extracted
+        "warning: `work` note: `next` `no_marker`\n" # Mix: only preceded items extracted
+    )
+    output_file = tmp_path / "output.txt"
+    multitool.backtick_mode([str(input_file)], str(output_file), 1, 20, False)
+
+    results = output_file.read_text().splitlines()
+    # Line 1: apple, banana, cherry
+    # Line 2: easy, echo
+    # Line 3: work, next
+    assert results == ["apple", "banana", "cherry", "easy", "echo", "work", "next"]

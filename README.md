@@ -1,60 +1,62 @@
 # diff2typo Suite
 
-The **diff2typo Suite** is a collection of standalone command-line tools designed to help developers find, fix, and manage typos in codebases. It bridges the gap between Git history, synthetic typo generation, and linguistic analysis.
+The **diff2typo Suite** is a set of tools to help you find and fix typos in your code. It works with your Git history to learn from your past mistakes and helps you stop those typos from coming back.
+
+## ✨ Key Features
+- **Learn from history:** Automatically find typos you've already fixed in your Git logs.
+- **Predict mistakes:** Generate lists of likely typos based on how keyboards are laid out.
+- **Clean your data:** Powerful text processing tools to filter, merge, and organize typo lists.
+- **Find patterns:** See which keys you hit by mistake most often.
 
 ## 📦 Installation
 
-**Prerequisites:** Python 3.10+
+**Requirement:** Python 3.10 or newer.
 
-1. **Clone the repository:**
+1. **Download the code:**
    ```bash
    git clone https://github.com/yourusername/diff2typo.git
    cd diff2typo
    ```
 
-2. **Install dependencies:**
-
-   You can install all required packages at once:
+2. **Install the basics:**
    ```bash
    pip install -r requirements.txt
    ```
 
-   Or install them individually:
+3. **(Optional) Better file support:**
+   Install `chardet` to help the tools automatically handle files that use different text encodings (like UTF-8, Latin-1, etc.).
    ```bash
-   pip install tqdm pyyaml pyahocorasick
-   # Optional: for encoding detection in typostats and multitool
    pip install chardet
    ```
 
 ## 🛠️ Tools Overview
 
-| Tool | Purpose | Documentation |
+| Tool | What it does | Documentation |
 | :--- | :--- | :--- |
-| **diff2typo** | Extracts fixed typos from Git diffs to prevent regression. | [Read Docs](docs/diff2typo.md) |
-| **gentypos** | Generates synthetic typos based on keyboard adjacency and heuristics. | [Read Docs](docs/gentypos.md) |
-| **multitool** | A Swiss Army knife for text processing (extraction, filtering, set operations). | [Read Docs](docs/multitool.md) |
-| **cmdrunner** | Runs shell commands across multiple subdirectories based on a config. | [Read Docs](docs/cmdrunner.md) |
-| **typostats** | Analyzes correction lists to find common replacement patterns (e.g., `teh` -> `the`). | [Read Docs](docs/typostats.md) |
+| **diff2typo** | Finds typos you fixed in your Git history. | [Read Docs](docs/diff2typo.md) |
+| **gentypos** | Creates lists of "fake" typos based on common typing errors. | [Read Docs](docs/gentypos.md) |
+| **multitool** | A multipurpose tool for cleaning and processing text files. | [Read Docs](docs/multitool.md) |
+| **cmdrunner** | Runs commands across many folders at once. | [Read Docs](docs/cmdrunner.md) |
+| **typostats** | Analyzes your typos to find common finger-slips. | [Read Docs](docs/typostats.md) |
 
-## 🚀 Quick Start Workflow
+## 🚀 Quick Start
 
-**1. Generate a Diff:**
-Create a diff of recent changes in your project.
+Follow these steps to find typos you've fixed recently and see your common mistakes.
 
+**1. Get your recent changes:**
+Create a file containing your last few changes.
 ```bash
-git diff HEAD~5 HEAD > recent_changes.diff
+git diff HEAD~5 HEAD > changes.diff
 ```
 
-**2. Extract Typos:**
-Use `diff2typo` to find spelling corrections you've already made.
-
+**2. Extract the typos:**
+Run `diff2typo` on your changes to see what you fixed.
 ```bash
-python diff2typo.py --input_file recent_changes.diff --output_file my_typos.txt --mode typos --output_format csv
+python diff2typo.py changes.diff --output_file my_typos.txt --mode typos --output_format csv
 ```
 
-**3. Analyze Patterns:**
-Use `typostats` to see your most common finger-slips.
-
+**3. See the patterns:**
+Use `typostats` to find your most frequent mistakes.
 ```bash
 python typostats.py my_typos.txt --sort count
 ```

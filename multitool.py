@@ -545,18 +545,9 @@ def count_mode(
     for input_file in input_files:
         lines = _read_file_lines_robust(input_file)
         for line in tqdm(lines, desc=f'Counting words in {input_file}', unit=' lines', disable=quiet):
-            words = [word.strip() for word in line.split()]
+            words = line.split()
             raw_count += len(words)
-            filtered = []
-            for word in words:
-                if clean_items:
-                    cleaned = filter_to_letters(word)
-                    if cleaned:
-                        if min_length <= len(cleaned) <= max_length:
-                            filtered.append(cleaned)
-                else:
-                    if min_length <= len(word) <= max_length:
-                        filtered.append(word)
+            filtered = clean_and_filter(words, min_length, max_length, clean=clean_items)
             filtered_words.extend(filtered)
             word_counts.update(filtered)
 

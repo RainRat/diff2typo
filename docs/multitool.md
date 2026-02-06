@@ -61,7 +61,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py filterfragments --input candidates.txt --file2 dictionary.txt`
 
 - **`map`**
-  - **What it does:** Replaces items in your list with values from a mapping file (supporting both CSV and Arrow formats). By default, it keeps items that are not in the mapping. Use `--drop-missing` to remove unmatched items.
+  - **What it does:** Replaces items in your list with values from a mapping file. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, and YAML formats. By default, it keeps items that are not in the mapping. Use `--drop-missing` to remove unmatched items.
   - **Example:** `python multitool.py map input.txt --mapping corrections.csv`
 
 - **`sample`**

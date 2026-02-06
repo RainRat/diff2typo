@@ -141,15 +141,21 @@ def test_generate_report_csv(capsys):
 def test_generate_report_sort_by_typo(capsys):
     counts = {('b', 'z'): 1, ('a', 'y'): 2, ('a', 'x'): 3}
     typostats.generate_report(counts, sort_by='typo', output_format='arrow')
-    lines = [line for line in capsys.readouterr().out.splitlines() if line]
-    assert lines[1:] == ['a -> x: 3', 'a -> y: 2', 'b -> z: 1']
+    captured = capsys.readouterr()
+    lines = [line for line in captured.out.splitlines() if line]
+    # Header is now on stderr, so lines contains only data
+    assert lines == ['a -> x: 3', 'a -> y: 2', 'b -> z: 1']
+    assert "Most Frequent Letter Replacements" in captured.err
 
 
 def test_generate_report_sort_by_correct(capsys):
     counts = {('b', 'z'): 1, ('a', 'y'): 2, ('c', 'x'): 3}
     typostats.generate_report(counts, sort_by='correct', output_format='arrow')
-    lines = [line for line in capsys.readouterr().out.splitlines() if line]
-    assert lines[1:] == ['a -> y: 2', 'b -> z: 1', 'c -> x: 3']
+    captured = capsys.readouterr()
+    lines = [line for line in captured.out.splitlines() if line]
+    # Header is now on stderr, so lines contains only data
+    assert lines == ['a -> y: 2', 'b -> z: 1', 'c -> x: 3']
+    assert "Most Frequent Letter Replacements" in captured.err
 
 
 def test_main_file_not_found(monkeypatch, tmp_path):
@@ -185,6 +191,28 @@ def test_main_encoding_fallback(monkeypatch, tmp_path):
 
     typostats.main()
 
+    assert output_file.exists()
+
+
+def test_main_cli_flags(monkeypatch, tmp_path):
+    input_file = tmp_path / 'input.txt'
+    input_file.write_text('tezt -> test\n')
+    output_file = tmp_path / 'output.txt'
+
+    # Test kebab-case flag and quiet flag
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'typostats.py',
+            str(input_file),
+            '--output',
+            str(output_file),
+            '--allow-two-char',
+            '--quiet',
+        ],
+    )
+    typostats.main()
     assert output_file.exists()
 
 

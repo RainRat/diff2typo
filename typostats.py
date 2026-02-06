@@ -188,11 +188,28 @@ def generate_report(
     if limit:
         sorted_replacements = sorted_replacements[:limit]
 
+    # ANSI Color Codes
+    GREEN = "\033[1;32m"
+    RED = "\033[1;31m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    # Disable colors if not running in a terminal or if writing to a file
+    if output_file or not sys.stdout.isatty():
+        GREEN = RED = RESET = BOLD = ""
+
     if output_format == 'arrow':
         # arrow
-        report_lines = ["Most Frequent Letter Replacements in Typos:\n"]
+        header = "Most Frequent Letter Replacements in Typos:\n"
+        if not output_file:
+            # Move the human-readable header to stderr to keep stdout clean for piping
+            sys.stderr.write(header + "\n")
+            report_lines = []
+        else:
+            report_lines = [header]
+
         for (correct_char, typo_char), count in sorted_replacements:
-            report_lines.append(f"{correct_char} -> {typo_char}: {count}")
+            report_lines.append(f"{GREEN}{correct_char}{RESET} -> {RED}{typo_char}{RESET}: {BOLD}{count}{RESET}")
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
         replacements = [
@@ -229,12 +246,15 @@ def generate_report(
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(report_content)
+                if not report_content.endswith('\n'):
+                    f.write('\n')
             logging.info(f"Report successfully written to '{output_file}'.")
         except Exception as e:
             logging.error(f"Failed to write report to '{output_file}'. Error: {e}")
     else:
         sys.stdout.write(report_content)
-        logging.info("%s", report_content.rstrip("\n"))
+        if not report_content.endswith('\n'):
+            sys.stdout.write('\n')
 
 
 def detect_encoding(file_path: str) -> str | None:
@@ -306,36 +326,47 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Analyze typo corrections and report frequent replacements.")
-    parser.add_argument(
+
+    # Input/Output Group
+    io_group = parser.add_argument_group("Input/Output")
+    io_group.add_argument(
         'input_files',
         nargs='*',
         help="Path to the input file(s). Reads from stdin if empty or '-'.",
     )
-    parser.add_argument('-o', '--output', help="Path to the output file (optional).")
-    parser.add_argument('-m', '--min', type=int, default=1, help="Minimum occurrences.")
-    parser.add_argument('-s', '--sort', choices=['count', 'typo', 'correct'], default='count', help="Sorting criterion.")
-    parser.add_argument(
+    io_group.add_argument('-o', '--output', help="Path to the output file (optional).")
+    io_group.add_argument(
         '-f',
         '--format',
         choices=['arrow', 'yaml', 'json', 'csv'],
         default='arrow',
         help=(
-            "Output format. 'json' emits {\"replacements\": [{\"correct\", \"typo\", \"count\"}, ...]}"
+            "Output format (default: arrow). 'json' emits {\"replacements\": [{\"correct\", \"typo\", \"count\"}, ...]}"
         ),
     )
-    parser.add_argument(
+    io_group.add_argument('-q', '--quiet', action='store_true', help="Suppress informational log output.")
+
+    # Analysis Options Group
+    analysis_group = parser.add_argument_group("Analysis Options")
+    analysis_group.add_argument('-m', '--min', type=int, default=1, help="Minimum occurrences (default: 1).")
+    analysis_group.add_argument('-s', '--sort', choices=['count', 'typo', 'correct'], default='count', help="Sorting criterion (default: count).")
+    analysis_group.add_argument(
         '-2',
-        '--allow_two_char',
+        '--allow-two-char',
+        dest='allow_two_char',
         action='store_true',
         help="Allow one-to-two letter replacements (e.g., 'm' to 'rn').",
     )
-    parser.add_argument(
+    # Hidden alias for backward compatibility
+    parser.add_argument('--allow_two_char', action='store_true', help=argparse.SUPPRESS)
+
+    analysis_group.add_argument(
         '-t',
         '--transposition',
         action='store_true',
         help="Detect transpositions of adjacent characters (e.g., 'teh' to 'the').",
     )
-    parser.add_argument(
+    analysis_group.add_argument(
         '-n',
         '--limit',
         type=int,
@@ -343,7 +374,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    log_level = logging.WARNING if args.quiet else logging.INFO
+    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
 
     input_files = args.input_files
     output_file = args.output

@@ -203,17 +203,17 @@ def test_main_integration_success(monkeypatch, tmp_path):
         'argv',
         [
             'diff2typo.py',
-            '--input_file',
+            '--input',
             str(diff_file),
-            '--output_file',
+            '--output',
             str(output_file),
-            '--dictionary_file',
+            '--dictionary',
             str(dictionary_file),
-            '--allowed_file',
+            '--allowed',
             str(allowed_file),
-            '--typos_tool_path',
+            '--typos-path',
             str(typos_tool),
-            '--output_format',
+            '--format',
             'arrow',
             '--quiet',
         ],
@@ -233,9 +233,9 @@ def test_main_input_file_not_found(monkeypatch, tmp_path):
         'argv',
         [
             'diff2typo.py',
-            '--input_file',
+            '--input',
             str(tmp_path / 'missing.diff'),
-            '--dictionary_file',
+            '--dictionary',
             str(dictionary_file),
         ],
     )
@@ -260,11 +260,11 @@ def test_main_dictionary_file_missing_message(monkeypatch, tmp_path, caplog):
         'argv',
         [
             'diff2typo.py',
-            '--input_file',
+            '--input',
             str(diff_file),
-            '--dictionary_file',
+            '--dictionary',
             str(dictionary_file),
-            '--allowed_file',
+            '--allowed',
             str(allowed_file),
             '--quiet',
         ],
@@ -296,17 +296,17 @@ def test_main_reads_stdin(monkeypatch, tmp_path):
         'argv',
         [
             'diff2typo.py',
-            '--input_file',
+            '--input',
             '-',
-            '--output_file',
+            '--output',
             str(output_file),
-            '--dictionary_file',
+            '--dictionary',
             str(dictionary_file),
-            '--allowed_file',
+            '--allowed',
             str(allowed_file),
-            '--typos_tool_path',
+            '--typos-path',
             str(tmp_path / 'missing_tool'),
-            '--output_format',
+            '--format',
             'arrow',
             '--quiet',
         ],
@@ -334,15 +334,15 @@ def test_main_reads_stdin_by_default(tmp_path):
         [
             sys.executable,
             str(diff2typo_path),
-            '--output_file',
+            '--output',
             str(output_file),
-            '--dictionary_file',
+            '--dictionary',
             str(dictionary_file),
-            '--allowed_file',
+            '--allowed',
             str(allowed_file),
-            '--typos_tool_path',
+            '--typos-path',
             str(tmp_path / 'missing_tool'),
-            '--output_format',
+            '--format',
             'arrow',
             '--quiet',
         ],
@@ -376,17 +376,17 @@ def test_main_accepts_multiple_input_files(tmp_path):
         [
             sys.executable,
             str(diff2typo_path),
-            '--input_file',
+            '--input',
             str(tmp_path / 'diff*.txt'),
-            '--output_file',
+            '--output',
             str(output_file),
-            '--dictionary_file',
+            '--dictionary',
             str(dictionary_file),
-            '--allowed_file',
+            '--allowed',
             str(allowed_file),
-            '--typos_tool_path',
+            '--typos-path',
             str(tmp_path / 'missing_tool'),
-            '--output_format',
+            '--format',
             'arrow',
             '--quiet',
         ],
@@ -455,3 +455,44 @@ def test_filter_known_typos_cleans_temp_directory(monkeypatch, tmp_path):
 
     assert result == candidates
     assert created_paths and not created_paths[0].exists()
+
+def test_main_default_values_preserved(monkeypatch):
+    """Verify that default values are correctly preserved when no flags are passed."""
+    monkeypatch.setattr(sys, 'argv', ['diff2typo.py'])
+
+    # We mock _read_diff_sources to avoid stdin hanging
+    monkeypatch.setattr(diff2typo, '_read_diff_sources', lambda _: "")
+
+    # We mock read_words_mapping and read_allowed_words to avoid file not found errors
+    # during this specific test of the argument parser defaults.
+    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda _: {})
+    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda _: set())
+
+    # Use a dummy output to avoid writing to stdout during test
+    monkeypatch.setattr(sys, 'stdout', io.StringIO())
+
+    # We want to check the args object after parsing.
+    # Since main() doesn't return it, we can patch argparse.ArgumentParser.parse_args
+    import argparse
+    original_parse = argparse.ArgumentParser.parse_args
+    captured_args = []
+    def mock_parse(self, *args, **kwargs):
+        res = original_parse(self, *args, **kwargs)
+        captured_args.append(res)
+        return res
+
+    monkeypatch.setattr(argparse.ArgumentParser, 'parse_args', mock_parse)
+
+    try:
+        diff2typo.main()
+    except SystemExit:
+        pass
+
+    assert len(captured_args) > 0
+    args = captured_args[0]
+    assert args.output_file == '-'
+    assert args.output_format == 'arrow'
+    assert args.min_length == 2
+    assert args.dictionary_file == 'words.csv'
+    assert args.allowed_file == 'allowed.csv'
+    assert args.typos_tool_path == 'typos'

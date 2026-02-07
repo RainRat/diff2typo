@@ -173,16 +173,14 @@ def generate_report(
     filtered = {k: v for k, v in replacement_counts.items() if v >= min_occurrences}
 
     # Sort
-    if sort_by == 'count':
-        sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
-    elif sort_by == 'typo':
+    if sort_by == 'typo':
         # k is (correct_char, typo_char), sort by typo_char then correct_char
         sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][1], x[0][0]))
     elif sort_by == 'correct':
         # sort by correct_char then typo_char
         sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][0], x[0][1]))
     else:
-        logging.warning(f"Invalid sort option: '{sort_by}'. Defaulting to 'count'.")
+        # Default to sort by count
         sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
 
     if limit:

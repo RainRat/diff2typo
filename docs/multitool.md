@@ -24,6 +24,10 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Extracts the left side of an arrow (`typo -> correction`). Useful for getting a clean list of typos from a log. You can also extract the right side (the correction) by adding the `--right` flag.
   - **Example:** `python multitool.py arrow --input typos.log --right`
 
+- **`table`**
+  - **What it does:** Extracts the key or value from a table entry (`key = "value"`). Saves the key by default. Use the `--right` flag to extract the quoted value instead.
+  - **Example:** `python multitool.py table --input typos.toml --right`
+
 - **`backtick`**
   - **What it does:** Extracts text found inside backticks (like \`code\`). It is smart enough to pick the most relevant item from lines that contain error messages or warnings.
   - **Example:** `python multitool.py backtick --input build.log`
@@ -75,6 +79,10 @@ These modes help you transform or combine your data.
     - `difference`: Finds lines in the first file that are not in the second.
   - **Example:** `python multitool.py set_operation --input a.txt --file2 b.txt --operation difference`
 
+- **`zip`**
+  - **What it does:** Combines two files line-by-line into a paired format. Perfect for creating mapping files (like Arrow or Table) from two separate lists.
+  - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
+
 ### 3. Analysis Modes
 
 These modes help you analyze your data.
@@ -93,7 +101,7 @@ These options work with most modes:
 
 - `--input`: The file(s) to read. Defaults to **standard input (stdin)** if omitted.
 - `--output`: The file to write results to. Defaults to printing to the screen.
-- `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, and `markdown`.
+- `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, `markdown`, `arrow`, and `table`.
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.

@@ -268,6 +268,23 @@ def _extract_arrow_items(input_file: str, right_side: bool = False, quiet: bool 
                 yield parts[idx].strip()
 
 
+def _extract_table_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
+    """Yield text before (or after) ' = ' from each line, handling quotes for the value."""
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (table)', unit=' lines', disable=quiet):
+        if ' = "' in line:
+            parts = line.split(' = "', 1)
+            if right_side:
+                # Value is after ' = "' and ends with a quote. We strip the line/part to remove newline/whitespace.
+                val_part = parts[1].strip()
+                if val_part.endswith('"'):
+                    yield val_part[:-1]
+                else:
+                    yield val_part
+            else:
+                yield parts[0].strip()
+
+
 def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yield text found between backticks with heuristics for diagnostics."""
 
@@ -431,6 +448,34 @@ def arrow_mode(
         process_output,
         'Arrow',
         'File(s) processed successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
+
+
+def table_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    right_side: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """Wrapper for processing items in 'key = \"value\"' format."""
+    extractor = lambda f, quiet=False: _extract_table_items(f, right_side=right_side, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Table',
+        'Table fields extracted successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -720,6 +765,83 @@ def combine_mode(
     )
 
 
+def zip_mode(
+    input_files: Sequence[str],
+    file2: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """Combines items from input_files and file2 line-by-line into a paired format."""
+
+    def get_cleaned_lines(path: str) -> List[str]:
+        lines = _read_file_lines_robust(path)
+        cleaned = []
+        for line in lines:
+            item = line.strip()
+            if clean_items:
+                item = filter_to_letters(item)
+            cleaned.append(item)
+        return cleaned
+
+    # Merge all input files for the left side
+    left_items = []
+    for f in input_files:
+        left_items.extend(get_cleaned_lines(f))
+
+    # Read file2 for the right side
+    right_items = get_cleaned_lines(file2)
+
+    raw_pairs = list(zip(left_items, right_items))
+
+    # Filter pairs
+    filtered_pairs = []
+    for left, right in raw_pairs:
+        # Skip if both are empty after cleaning (if cleaning enabled)
+        if not left and not right:
+            continue
+        # Apply length filtering to BOTH sides to ensure they meet criteria
+        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+            filtered_pairs.append((left, right))
+
+    if process_output:
+        # Deduplicate while preserving order if not sorting? No, sorted(set()) sorts.
+        filtered_pairs = sorted(set(filtered_pairs))
+
+    # Determine newline behavior for CSV
+    newline = '' if output_format == 'csv' else None
+
+    with smart_open_output(output_file, newline=newline) as out_file:
+        if output_format == 'json':
+            json_data = {left: right for left, right in filtered_pairs}
+            json.dump(json_data, out_file, indent=2)
+            out_file.write('\n')
+        elif output_format == 'yaml':
+            for left, right in filtered_pairs:
+                out_file.write(f"{left}: {right}\n")
+        elif output_format == 'csv':
+            writer = csv.writer(out_file)
+            for left, right in filtered_pairs:
+                writer.writerow([left, right])
+        elif output_format == 'table':
+            for left, right in filtered_pairs:
+                out_file.write(f'{left} = "{right}"\n')
+        elif output_format == 'markdown':
+            for left, right in filtered_pairs:
+                out_file.write(f"- {left}: {right}\n")
+        else:  # 'arrow' or 'line' or fallback
+            for left, right in filtered_pairs:
+                out_file.write(f"{left} -> {right}\n")
+
+    logging.info(
+        f"[Zip Mode] Combined {len(filtered_pairs)} pairs. Output written to '{output_file}' in {output_format} format."
+    )
+
+
 def sample_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -1001,9 +1123,9 @@ def _add_common_mode_arguments(
     )
     io_group.add_argument(
         '-f', '--output-format',
-        choices=['line', 'json', 'csv', 'markdown'],
+        choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table'],
         default='line',
-        help="Format of the output (default: line). Options: line, json, csv, markdown.",
+        help="Format of the output (default: line). Options: line, json, csv, markdown, arrow, table.",
     )
 
     # Processing Configuration Group
@@ -1168,6 +1290,12 @@ MODE_DETAILS = {
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
         "flags": "[--right]",
     },
+    "table": {
+        "summary": "Extracts text from lines in table format (key = \"value\").",
+        "description": "Reads lines like 'typo = \"correction\"'. Saves the 'typo' (key) by default. Use --right to save the 'correction' (value) instead.",
+        "example": "python multitool.py table typos.toml --right -o corrections.txt",
+        "flags": "[--right]",
+    },
     "combine": {
         "summary": "Merges, sorts, and cleans multiple files.",
         "description": "Combines multiple files into one sorted, duplicate-free list.",
@@ -1246,14 +1374,20 @@ MODE_DETAILS = {
         "example": "python multitool.py map input.txt -m corrections.csv -o fixed.txt",
         "flags": "[-m MAP]",
     },
+    "zip": {
+        "summary": "Combines two files into a paired format.",
+        "description": "Joins two files line-by-line into a mapping format like Arrow (->), CSV, or Table (=). Useful for creating mapping files from separate lists of typos and corrections.",
+        "example": "python multitool.py zip typos.txt --file2 corrections.txt --output-format table --output typos.toml",
+        "flags": "[--file2 FILE]",
+    },
 }
 
 
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "backtick", "csv", "json", "yaml", "line", "regex"],
-        "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map"],
+        "Extraction": ["arrow", "table", "backtick", "csv", "json", "yaml", "line", "regex"],
+        "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip"],
         "Analysis": ["count", "check"],
     }
 
@@ -1393,6 +1527,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Extract the right side (correction) instead of the left side (typo).",
     )
     _add_common_mode_arguments(arrow_parser)
+
+    table_parser = subparsers.add_parser(
+        'table',
+        help=MODE_DETAILS['table']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['table']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['table']['example']}",
+    )
+    table_options = table_parser.add_argument_group("Table Options")
+    table_options.add_argument(
+        '--right',
+        action='store_true',
+        help="Extract the value (right side) instead of the key (left side).",
+    )
+    _add_common_mode_arguments(table_parser)
 
     backtick_parser = subparsers.add_parser(
         'backtick',
@@ -1603,6 +1752,22 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(map_parser)
 
+    zip_parser = subparsers.add_parser(
+        'zip',
+        help=MODE_DETAILS['zip']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['zip']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['zip']['example']}",
+    )
+    zip_options = zip_parser.add_argument_group("Zip Options")
+    zip_options.add_argument(
+        '--file2',
+        type=str,
+        required=True,
+        help='Path to the second file to zip with the first.',
+    )
+    _add_common_mode_arguments(zip_parser)
+
     return parser
 
 
@@ -1738,6 +1903,14 @@ def main() -> None:
                 'output_format': output_format,
             },
         ),
+        'table': (
+            table_mode,
+            {
+                **common_kwargs,
+                'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
         'backtick': (
             backtick_mode,
             {**common_kwargs, 'output_format': output_format},
@@ -1836,6 +2009,14 @@ def main() -> None:
                 **common_kwargs,
                 'mapping_file': getattr(args, 'mapping', ''),
                 'drop_missing': getattr(args, 'drop_missing', False),
+                'output_format': output_format,
+            }
+        ),
+        'zip': (
+            zip_mode,
+            {
+                **common_kwargs,
+                'file2': file2,
                 'output_format': output_format,
             }
         ),

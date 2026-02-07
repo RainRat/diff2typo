@@ -813,35 +813,88 @@ def regex_mode(
 
 
 def _load_mapping_file(path: str, quiet: bool = False) -> dict[str, str]:
-    """Load a mapping file (CSV or Arrow) into a dictionary."""
+    """Load a mapping file into a dictionary, supporting Arrow, CSV, Table, JSON, and YAML."""
     mapping = {}
+
+    # Handle structured formats by extension
+    ext = path.lower()
+    if ext.endswith('.json'):
+        try:
+            content = "".join(_read_file_lines_robust(path))
+            if content.strip():
+                data = json.loads(content)
+                if isinstance(data, dict):
+                    if 'replacements' in data and isinstance(data['replacements'], list):
+                        for item in data['replacements']:
+                            if 'typo' in item and 'correct' in item:
+                                mapping[str(item['typo'])] = str(item['correct'])
+                    else:
+                        mapping = {str(k): str(v) for k, v in data.items()}
+                elif isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict) and 'typo' in item and 'correct' in item:
+                            mapping[str(item['typo'])] = str(item['correct'])
+                return mapping
+        except Exception as e:
+            logging.error(f"Failed to parse JSON mapping in '{path}': {e}")
+            return {}
+
+    if ext.endswith('.yaml') or ext.endswith('.yml'):
+        try:
+            import yaml
+            content = "".join(_read_file_lines_robust(path))
+            data = yaml.safe_load(content)
+            if isinstance(data, dict):
+                mapping = {str(k): str(v) for k, v in data.items()}
+            return mapping
+        except ImportError:
+            logging.error("PyYAML not installed. Cannot parse YAML mapping.")
+        except Exception as e:
+            logging.error(f"Failed to parse YAML mapping in '{path}': {e}")
+            return {}
+
+    # Heuristic for text formats (Arrow, Table, CSV)
     lines = _read_file_lines_robust(path)
     if not lines:
         return mapping
 
-    first_line = lines[0]
+    # Skip empty lines and comments to find a representative line for format detection
+    sample_line = ""
+    for line in lines:
+        clean_line = line.strip()
+        if clean_line and not clean_line.startswith('#'):
+            sample_line = clean_line
+            break
 
-    # Now process lines
-    # Heuristic: if ' -> ' in first line, assume Arrow. Else assume CSV.
-    is_arrow = " -> " in first_line
+    if not sample_line:
+        return mapping
 
-    if is_arrow:
+    if " -> " in sample_line:
+        # Arrow format: typo -> correction
         for line in lines:
-            if " -> " in line:
+            if " -> " in line and not line.strip().startswith('#'):
                 parts = line.split(" -> ", 1)
                 if len(parts) == 2:
                     key, value = parts[0].strip(), parts[1].strip()
                     mapping[key] = value
+    elif ' = "' in sample_line:
+        # Table format: typo = "correction"
+        for line in lines:
+            if ' = "' in line and not line.strip().startswith('#'):
+                parts = line.split(' = "', 1)
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value = parts[1].rsplit('"', 1)[0]
+                    mapping[key] = value
     else:
-        # CSV parsing
-        # We use csv module to handle quoting correctly
-        # But we need an iterable. 'lines' is a list.
+        # Fallback to CSV
         reader = csv.reader(lines)
         for row in reader:
-            if len(row) >= 2:
-                key = row[0].strip()
-                value = row[1].strip()
-                mapping[key] = value
+            if row and not row[0].startswith('#'):
+                if len(row) >= 2:
+                    key = row[0].strip()
+                    value = row[1].strip()
+                    mapping[key] = value
 
     return mapping
 
@@ -1198,7 +1251,7 @@ MODE_DETAILS = {
     },
     "map": {
         "summary": "Transforms items based on a mapping file.",
-        "description": "Replaces items in the input list with values from a mapping file (CSV or Arrow). Useful for normalizing data or applying corrections.",
+        "description": "Replaces items in the input list with values from a mapping file (CSV, Arrow, Table, JSON, or YAML). Useful for normalizing data or applying corrections.",
         "example": "python multitool.py map input.txt -m corrections.csv -o fixed.txt",
         "flags": "[-m MAP]",
     },

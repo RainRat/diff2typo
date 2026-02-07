@@ -17,19 +17,19 @@ Features:
 
 Usage:
     python diff2typo.py \
-        --input_file=diff.txt \
-        --output_file=typos.txt \
-        --output_format=list \
+        --input=diff.txt \
+        --output=typos.txt \
+        --format=list \
         --mode [typos|corrections|both] \
-        --typos_tool_path=/path/to/typos \
-        --allowed_file=allowed.csv \
-        --dictionary_file=/path/to/dictionary.txt \
-        --min_length=2
+        --typos-path=/path/to/typos \
+        --allowed=allowed.csv \
+        --dictionary=/path/to/dictionary.txt \
+        --min-length=2
 
 Examples:
-    - Only new typos: python diff2typo.py --input_file=diff.txt --output_file=typos.txt --mode typos
-    - Only corrections for existing typos: python diff2typo.py --input_file=diff.txt --output_file=typos.txt --mode corrections
-    - Both typos and corrections: python diff2typo.py --input_file=diff.txt --output_file=typos.txt --mode both
+    - Only new typos: python diff2typo.py --input=diff.txt --output=typos.txt --mode typos
+    - Only corrections for existing typos: python diff2typo.py --input=diff.txt --output=typos.txt --mode corrections
+    - Both typos and corrections: python diff2typo.py --input=diff.txt --output=typos.txt --mode both
 
 Output Formats:
     - arrow: typo -> correction
@@ -39,6 +39,7 @@ Output Formats:
 '''
 
 import argparse
+import contextlib
 import csv
 import glob
 import logging
@@ -48,7 +49,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Dict, Iterable, List, Optional, Sequence, Set
+from typing import Dict, Iterable, List, Optional, Sequence, Set, TextIO
 
 from tqdm import tqdm
 
@@ -210,6 +211,20 @@ def find_typos(diff_text: str, min_length: int = 2) -> List[str]:
     typos.extend(process_diff_block(removals, additions, min_length))
 
     return typos
+
+@contextlib.contextmanager
+def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO]:
+    """
+    Context manager that yields a file object for writing.
+    If filename is '-', yields sys.stdout.
+    Otherwise, opens the file for writing.
+    """
+    if filename == '-':
+        yield sys.stdout
+    else:
+        with open(filename, 'w', encoding=encoding) as f:
+            yield f
+
 
 def sort_and_deduplicate(input_list: Iterable[str]) -> List[str]:
     """
@@ -463,33 +478,105 @@ def main():
 
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(description="Process a git diff to identify typos for the `typos` utility.")
-    parser.add_argument(
+
+    # Input/Output Options
+    io_group = parser.add_argument_group("Input/Output Options")
+    io_group.add_argument(
         'input_files_pos',
         nargs='*',
         help="One or more input git diff files or glob patterns. Use '-' to read from stdin.",
     )
-    parser.add_argument(
-        '--input_file',
+    io_group.add_argument(
+        '--input',
         '-i',
         dest='input_files_flag',
         nargs='+',
         type=str,
         default=None,
         help=(
-            "One or more input git diff files or glob patterns (legacy flag). "
+            "One or more input git diff files or glob patterns. "
             "Use '-' to read from stdin. If omitted, stdin is read by default."
         ),
     )
-    parser.add_argument('--output_file', type=str, default='output.txt', help='Path to the output typos file.')
-    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], default='arrow',
-                        help='Format of the output typos. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo). Default is arrow.')
-    parser.add_argument('--typos_tool_path', type=str, default='typos', help='Path to the typos tool executable.')
-    parser.add_argument('--allowed_file', type=str, default='allowed.csv', help='CSV file with allowed words to exclude from typos.')
-    parser.add_argument('--min_length', type=int, default=2, help='Minimum length of differing substrings to consider as typos.')
-    parser.add_argument('--dictionary_file', type=str, default='words.csv', help='Path to the dictionary file for filtering valid words.')
-    parser.add_argument('--mode', type=str, choices=['typos', 'corrections', 'both'],
-                        default='typos', help='Which mode to run: "typos", "corrections", or "both".')
-    parser.add_argument('--quiet', action='store_true', help='Suppress progress bars and other non-essential output.')
+    # Hidden alias for backward compatibility
+    parser.add_argument('--input_file', dest='input_files_flag', nargs='+', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+
+    io_group.add_argument(
+        '--output',
+        '-o',
+        dest='output_file',
+        type=str,
+        default='-',
+        help="Path to the output typos file. Use '-' for stdout (default: stdout).",
+    )
+    # Hidden alias for backward compatibility
+    parser.add_argument('--output_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+
+    io_group.add_argument(
+        '--format',
+        '-f',
+        dest='output_format',
+        type=str,
+        choices=['arrow', 'csv', 'table', 'list'],
+        default='arrow',
+        help='Format of the output typos. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo). Default is arrow.',
+    )
+    # Hidden alias for backward compatibility
+    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+
+    # Analysis Options
+    analysis_group = parser.add_argument_group("Analysis Options")
+    analysis_group.add_argument(
+        '--mode',
+        type=str,
+        choices=['typos', 'corrections', 'both'],
+        default='typos',
+        help='Which mode to run: "typos", "corrections", or "both".',
+    )
+    analysis_group.add_argument(
+        '--min-length',
+        '-m',
+        dest='min_length',
+        type=int,
+        default=2,
+        help='Minimum length of differing substrings to consider as typos (default: 2).',
+    )
+    # Hidden alias for backward compatibility
+    parser.add_argument('--min_length', type=int, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+
+    analysis_group.add_argument(
+        '--dictionary',
+        '-d',
+        dest='dictionary_file',
+        type=str,
+        default='words.csv',
+        help='Path to the dictionary file for filtering valid words (default: words.csv).',
+    )
+    # Hidden alias for backward compatibility
+    parser.add_argument('--dictionary_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+
+    analysis_group.add_argument(
+        '--allowed',
+        dest='allowed_file',
+        type=str,
+        default='allowed.csv',
+        help='CSV file with allowed words to exclude from typos (default: allowed.csv).',
+    )
+    # Hidden alias for backward compatibility
+    parser.add_argument('--allowed_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+
+    analysis_group.add_argument(
+        '--typos-path',
+        dest='typos_tool_path',
+        type=str,
+        default='typos',
+        help='Path to the typos tool executable (default: typos).',
+    )
+    # Hidden alias for backward compatibility
+    parser.add_argument('--typos_tool_path', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+
+    analysis_group.add_argument('--quiet', action='store_true', help='Suppress progress bars and other non-essential output.')
+
     args = parser.parse_args()
 
     log_level = logging.WARNING if args.quiet else logging.INFO
@@ -505,7 +592,13 @@ def main():
     diff_text = _read_diff_sources(input_files)
 
     # Load the dictionary (words mapping) once.
-    dictionary_mapping = read_words_mapping(args.dictionary_file)
+    # If the user is using the default 'words.csv' but it doesn't exist, we don't exit.
+    # Instead we just warn and proceed without filtering against it.
+    if args.dictionary_file == 'words.csv' and not os.path.exists(args.dictionary_file):
+        logging.warning("Default dictionary file 'words.csv' not found. Skipping valid word filtering.")
+        dictionary_mapping = {}
+    else:
+        dictionary_mapping = read_words_mapping(args.dictionary_file)
 
     try:
         allowed_words = read_allowed_words(args.allowed_file)
@@ -564,7 +657,7 @@ def main():
 
     # Write the final output to the specified file.
     try:
-        with open(args.output_file, 'w', encoding='utf-8') as f:
+        with smart_open_output(args.output_file, encoding='utf-8') as f:
             for line in final_output:
                 f.write(f"{line}\n")
         logging.info(

@@ -4,34 +4,54 @@
 
 ## Usage
 
+You can process one or more files, or pipe data directly from standard input.
+
 ```bash
-python typostats.py input.txt [OPTIONS]
+# Read from a file
+python typostats.py my_typos.txt [OPTIONS]
+
+# Read from multiple files
+python typostats.py file1.txt file2.txt [OPTIONS]
+
+# Read from standard input
+git diff | python diff2typo.py | python typostats.py [OPTIONS]
 ```
 
 ## Input Format
 
-The tool accepts two input formats:
-1. **CSV:** `typo, correction`
-2. **Arrow:** `typo -> correction` (default output of `diff2typo`)
+The tool automatically recognizes three input formats:
+1. **Arrow (Default):** `typo -> correction`
+2. **CSV:** `typo, correction`
+3. **Table:** `typo = "correction"`
 
 > **Tip:** You can pipe the output from `diff2typo.py` directly into `typostats.py`.
 
 ## Options
 
-- `--min`: **(Default: 1)** Show only typos that happen at least this many times. Useful for ignoring one-off mistakes.
-- `--allow_two_char`: Look for cases where one letter is replaced by two (like `m` becoming `rn`).
-- `--sort`: Organize the results. Options: `count` (most frequent first), `typo` (alphabetical), or `correct`.
-- `--format`: Choose how the output looks:
-  - `arrow`: Easy to read (`a -> b: 5`).
-  - `json`: Good for other programs.
-  - `yaml`: Good for config files.
-  - `csv`: Open in a spreadsheet.
-- `--output`: Save the results to a file instead of printing them to the screen.
+### Analysis Options
+- `-m`, `--min`: **(Default: 1)** Only show replacements that happen at least this many times.
+- `-s`, `--sort`: How to sort the results. Options: `count` (most frequent first), `typo`, or `correct`.
+- `-n`, `--limit`: Only show the top N results.
+- `-2`, `--allow-two-char`: Look for cases where one letter is replaced by two (like `m` becoming `rn`).
+- `-t`, `--transposition`: Detect when you swap two adjacent letters (like `teh` instead of `the`).
 
-## Example
+### Output Options
+- `-f`, `--format`: Choose the output format:
+  - `arrow` (Default): Easy to read (`a -> b: 5`).
+  - `csv`: Standard comma-separated values.
+  - `json`: Machine-readable data.
+  - `yaml`: Simple list format.
+- `-o`, `--output`: Save the report to a file instead of printing it to the screen.
+- `-q`, `--quiet`: Hide informational messages.
 
-Find typos that happened at least 5 times and save the report as JSON:
+## Examples
 
+**Find your top 5 most common mistakes, including transpositions:**
+```bash
+python typostats.py my_data.txt --limit 5 --transposition
+```
+
+**Find typos that happened at least 5 times and save the report as JSON:**
 ```bash
 python typostats.py my_data.txt --format json --min 5 --output report.json
 ```

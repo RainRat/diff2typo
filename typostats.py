@@ -70,21 +70,16 @@ def is_one_letter_replacement(
 
     # One-to-two replacement scenario allowed only if difference in length is 1
     if allow_two_char and len(typo) == len(correction) + 1:
-        # First, check for the specific case of a character being doubled, as this is a common typo.
-        for i in range(len(correction)):
-            if typo == correction[:i] + correction[i] * 2 + correction[i+1:]:
-                return [(correction[i], correction[i] * 2)]
-
-        # If no doubling is found, check for a generic one-to-two replacement.
         # Find all positions i where correction[i] is replaced by typo[i:i+2].
-        replacements = []
+        # We use a set to avoid counting identical interpretations (e.g. for doubled letters) multiple times.
+        replacements = set()
         for i in range(len(correction)):
             # To be a replacement of correction[i] with typo[i:i+2],
             # the prefix correction[:i] must match typo[:i], and
             # the suffix correction[i+1:] must match typo[i+2:].
             if typo[:i] == correction[:i] and typo[i+2:] == correction[i+1:]:
-                replacements.append((correction[i], typo[i:i+2]))
-        return replacements
+                replacements.add((correction[i], typo[i:i+2]))
+        return sorted(list(replacements))
 
     return []
 

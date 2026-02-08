@@ -24,13 +24,13 @@ git diff | python diff2typo.py [OPTIONS]
 | Argument | Default | Description |
 | :--- | :--- | :--- |
 | `INPUT_FILES` | stdin | Positional arguments for input diff file(s). Supports glob patterns (e.g., `*.diff`). |
-| `--input_file`, `-i` | None | **Legacy flag.** Alternative to positional arguments. |
-| `--output_file` | `output.txt` | Where to write the results. |
+| `--input`, `-i` | None | Alternative to positional arguments. |
+| `--output`, `-o` | `stdout` | Path to the output file. Use `-` for stdout. |
+| `--format`, `-f` | `arrow` | Output format: `arrow` (a->b), `csv`, `table`, or `list`. |
 | `--mode` | `typos` | **`typos`**: Output the incorrect word.<br>**`corrections`**: Output the fix (if new).<br>**`both`**: Output separated lists. |
-| `--output_format` | `arrow` | `arrow` (a->b), `csv` (required for `typostats`), `table`, or `list`. |
-| `--dictionary_file` | `words.csv` | A list of valid words to validate corrections against. |
-| `--allowed_file` | `allowed.csv` | A list of words to explicitly ignore (false positive suppression). |
-| `--min_length` | `2` | Minimum length of a word to be considered. |
+| `--dictionary`, `-d` | `words.csv` | A list of valid words to validate corrections against. |
+| `--allowed` | `allowed.csv` | A list of words to explicitly ignore (false positive suppression). |
+| `--min-length`, `-m` | `2` | Minimum length of a word to be considered. |
 
 ## Examples
 
@@ -43,12 +43,12 @@ python diff2typo.py feature.diff --mode typos --output_format list
 **Pipe directly from Git:**
 
 ```bash
-git diff | python diff2typo.py --output_file found_typos.txt --mode both
+git diff | python diff2typo.py --output found_typos.txt --mode both
 ```
 
 **Find patterns with typostats:**
 
 ```bash
-python diff2typo.py recent_changes.diff --output_format csv --output_file typos.csv
+python diff2typo.py recent_changes.diff --format csv --output typos.csv
 python typostats.py typos.csv
 ```

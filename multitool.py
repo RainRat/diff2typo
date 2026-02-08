@@ -1072,8 +1072,12 @@ def map_mode(
 
         for item in source_items:
             if item in mapping:
-                transformed_items.append(mapping[item])
+                transformed = mapping[item]
+                # Re-apply length filtering to the result of the mapping
+                if min_length <= len(transformed) <= max_length:
+                    transformed_items.append(transformed)
             elif not drop_missing:
+                # item already passed length filter in _load_and_clean_file
                 transformed_items.append(item)
 
     if process_output:

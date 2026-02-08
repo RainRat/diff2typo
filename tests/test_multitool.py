@@ -338,6 +338,40 @@ def test_main_accepts_mode_flag(monkeypatch, tmp_path):
 
     assert output_file.read_text().splitlines() == ['alpha', 'beta']
 
+def test_check_mode_empty_row(tmp_path):
+    # Verify that empty rows in CSV are skipped in check_mode (covers line 656)
+    csv_file = tmp_path / "check.csv"
+    output_file = tmp_path / "output.txt"
+    # check_mode looks for words that are both typos and corrections
+    # We include empty lines to verify they are skipped correctly.
+    csv_file.write_text("teh,the\nthe,teh\n\n")
+    multitool.check_mode([str(csv_file)], str(output_file), 1, 10, True)
+    # 'teh' and 'the' are both in typos and corrections.
+    assert sorted(output_file.read_text().splitlines()) == ["teh", "the"]
+
+def test_normalize_mode_args_errors():
+    # Verify error handling for argument normalization (covers lines 1787, 1791, 1798)
+    parser = multitool._build_parser()
+
+    # Multiple --mode flags (line 1787)
+    with pytest.raises(SystemExit):
+        multitool._normalize_mode_args(['--mode', 'line', '--mode', 'zip'], parser)
+
+    # --mode requires a value (line 1791)
+    with pytest.raises(SystemExit):
+        multitool._normalize_mode_args(['--mode'], parser)
+
+    # --mode conflicts with positional mode (line 1798)
+    with pytest.raises(SystemExit):
+        multitool._normalize_mode_args(['line', '--mode', 'zip'], parser)
+
+def test_main_no_args(monkeypatch):
+    # Verify that running without arguments prints summary and exits cleanly (covers lines 1811-1812)
+    monkeypatch.setattr(sys, 'argv', ['multitool.py'])
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+    assert excinfo.value.code == 0
+
 
 def test_backtick_mode_context_markers(tmp_path):
     # Verify that warning and note markers are respected

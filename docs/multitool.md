@@ -4,10 +4,10 @@
 
 ## Quick Start
 
-Run the tool with a mode and your input file:
+Run the tool with a mode and your input files:
 
 ```bash
-python multitool.py <MODE> [OPTIONS]
+python multitool.py <MODE> [INPUT_FILES...] [OPTIONS]
 ```
 
 Most modes default to reading from **standard input (stdin)** if you do not specify an input file. This makes it easy to pipe data into Multitool.
@@ -22,18 +22,18 @@ These modes help you pull specific data out of a messy file.
 
 - **`arrow`**
   - **What it does:** Extracts the left side of an arrow (`typo -> correction`). Useful for getting a clean list of typos from a log. You can also extract the right side (the correction) by adding the `--right` flag.
-  - **Example:** `python multitool.py arrow --input typos.log --right`
+  - **Example:** `python multitool.py arrow typos.log --right`
 
 - **`table`**
   - **What it does:** Extracts the key or value from a table entry (`key = "value"`). Saves the key by default. Use the `--right` flag to extract the quoted value instead.
-  - **Example:** `python multitool.py table --input typos.toml --right`
+  - **Example:** `python multitool.py table typos.toml --right`
 
 - **`backtick`**
   - **What it does:** Extracts text found inside backticks (like \`code\`). It is smart enough to pick the most relevant item from lines that contain error messages or warnings.
-  - **Example:** `python multitool.py backtick --input build.log`
+  - **Example:** `python multitool.py backtick build.log`
 
 - **`csv`**
-  - **What it does:** Extracts columns from a CSV file. By default, it skips the first column (often an ID or key) and keeps the rest. Use `--first-column` to keep *only* the first column.
+  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column.
   - **Example:** `python multitool.py csv data.csv`
 
 - **`json`**
@@ -46,10 +46,10 @@ These modes help you pull specific data out of a messy file.
 
 - **`line`**
   - **What it does:** Reads a file line by line. Use this to simply clean or filter a text file without special extraction logic.
-  - **Example:** `python multitool.py line --input raw_words.txt`
+  - **Example:** `python multitool.py line raw_words.txt`
 
 - **`regex`**
-  - **What it does:** Extracts text matching a Python regular expression pattern.
+  - **What it does:** Extracts text matching a Python regular expression pattern. Unlike other modes, it **preserves exact text** (it does not convert to lowercase or remove punctuation) by default.
   - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`
 
 ### 2. Manipulation Modes
@@ -58,14 +58,14 @@ These modes help you transform or combine your data.
 
 - **`combine`**
   - **What it does:** Merges multiple files (or standard input) into one list, removes duplicates, and sorts the result alphabetically.
-  - **Example:** `python multitool.py combine --input file1.txt file2.txt`
+  - **Example:** `python multitool.py combine file1.txt file2.txt`
 
 - **`filterfragments`**
   - **What it does:** Removes words from your input file if they appear anywhere inside a second file (`--file2`).
-  - **Example:** `python multitool.py filterfragments --input candidates.txt --file2 dictionary.txt`
+  - **Example:** `python multitool.py filterfragments candidates.txt --file2 dictionary.txt`
 
 - **`map`**
-  - **What it does:** Replaces items in your list with values from a mapping file. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, and YAML formats. By default, it keeps items that are not in the mapping. Use `--drop-missing` to remove unmatched items.
+  - **What it does:** Replaces items in your list with values from a mapping file. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, and YAML formats. By default, it keeps items that are not in the mapping. The `--min-length` and `--max-length` filters are **re-applied** to items after they are transformed. Use `--drop-missing` to remove unmatched items.
   - **Example:** `python multitool.py map input.txt --mapping corrections.csv`
 
 - **`sample`**
@@ -77,10 +77,11 @@ These modes help you transform or combine your data.
     - `intersection`: Finds lines common to both files.
     - `union`: Combines all lines from both files.
     - `difference`: Finds lines in the first file that are not in the second.
-  - **Example:** `python multitool.py set_operation --input a.txt --file2 b.txt --operation difference`
+  - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation difference`
 
 - **`zip`**
-  - **What it does:** Combines two files line-by-line into a paired format. Perfect for creating mapping files (like Arrow or Table) from two separate lists.
+  - **What it does:** Combines two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**.
+  - **Supported Formats:** `line`, `json`, `csv`, `markdown`, `arrow`, and `table`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
 ### 3. Analysis Modes
@@ -89,21 +90,21 @@ These modes help you analyze your data.
 
 - **`check`**
   - **What it does:** Finds words that appear as both a typo *and* a correction. This is useful for spotting errors in your typo database (loops).
-  - **Example:** `python multitool.py check --input mappings.csv`
+  - **Example:** `python multitool.py check mappings.csv`
 
 - **`count`**
   - **What it does:** Counts how many times each word appears in a file and sorts them by frequency.
-  - **Example:** `python multitool.py count --input all_typos.txt`
+  - **Example:** `python multitool.py count all_typos.txt`
 
 ## Common Options
 
 These options work with most modes:
 
-- `--input`: The file(s) to read. Defaults to **standard input (stdin)** if omitted.
+- `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input (stdin)** if omitted.
 - `--output`: The file to write results to. Defaults to printing to the screen.
 - `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, `markdown`, `arrow`, and `table`.
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
-- `--raw`: Keep punctuation and capitalization. By default, the tool converts everything to lowercase and removes non-letter characters. Use this flag if you need to preserve the exact appearance of the input text.
+- `--raw`: Keep punctuation and capitalization. By default, most tools convert everything to lowercase and remove non-letter characters. Use this flag if you need to preserve the exact appearance of the input text.
 - `--quiet`: Hide progress bars and log messages.

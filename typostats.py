@@ -46,7 +46,8 @@ def is_one_letter_replacement(
     Check if 'typo' differs from 'correction' by one or more "letter replacements".
 
     If allow_two_char is True, also check if 'typo' can be formed by replacing a single
-    character in 'correction' with two characters in 'typo'.
+    character in 'correction' with two characters in 'typo', or two characters in
+    'correction' with a single character in 'typo'.
 
     Returns:
       A list of (correction_char, typo_char_or_chars) tuples for each found replacement.
@@ -79,6 +80,17 @@ def is_one_letter_replacement(
             # the suffix correction[i+1:] must match typo[i+2:].
             if typo[:i] == correction[:i] and typo[i+2:] == correction[i+1:]:
                 replacements.add((correction[i], typo[i:i+2]))
+        return sorted(list(replacements))
+
+    # Two-to-one replacement scenario (e.g. 'ph' -> 'f')
+    if allow_two_char and len(typo) == len(correction) - 1:
+        replacements = set()
+        for i in range(len(typo)):
+            # To be a replacement of correction[i:i+2] with typo[i],
+            # the prefix correction[:i] must match typo[:i], and
+            # the suffix correction[i+2:] must match typo[i+1:].
+            if correction[:i] == typo[:i] and correction[i+2:] == typo[i+1:]:
+                replacements.add((correction[i:i+2], typo[i]))
         return sorted(list(replacements))
 
     return []
@@ -348,7 +360,7 @@ def main() -> None:
         '--allow-two-char',
         dest='allow_two_char',
         action='store_true',
-        help="Allow one-to-two letter replacements (e.g., 'm' to 'rn').",
+        help="Allow multi-character letter replacements (e.g., 'm' to 'rn' or 'ph' to 'f').",
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--allow_two_char', action='store_true', help=argparse.SUPPRESS)

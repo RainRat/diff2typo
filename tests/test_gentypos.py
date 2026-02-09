@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 
 # Provide a minimal stub for the yaml module used by gentypos
-sys.modules.setdefault('yaml', types.SimpleNamespace(safe_load=lambda stream: {}, YAMLError=Exception))
+# We include dump for compatibility with other tests in the suite
+sys.modules.setdefault('yaml', types.SimpleNamespace(
+    safe_load=lambda stream: json.load(stream) if hasattr(stream, "read") else json.loads(stream),
+    dump=lambda data, **kwargs: json.dumps(data),
+    YAMLError=Exception
+))
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import gentypos

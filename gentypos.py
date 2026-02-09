@@ -199,12 +199,12 @@ def generate_typos_by_replacement(
     use_custom: bool = True,
 ) -> set[str]:
     """
-    Generate typos by replacing each character with its adjacent keys and/or custom substitutions.
+    Generate typos by replacing characters or substrings with adjacent keys or custom substitutions.
 
     Args:
         word (str): The input word.
         adjacent_keys (dict): Mapping of each character to its adjacent keys.
-        custom_subs (dict, optional): Custom substitution rules.
+        custom_subs (dict, optional): Custom substitution rules (supports multi-character keys).
         use_adjacent (bool): Whether to include adjacent key substitutions.
         use_custom (bool): Whether to include custom substitutions.
 
@@ -213,6 +213,7 @@ def generate_typos_by_replacement(
     """
     typos = set()
 
+    # Character-by-character replacements (handles adjacent keys and single-char custom subs)
     for i, char in enumerate(word):
         replacement_chars = set()
 
@@ -220,13 +221,27 @@ def generate_typos_by_replacement(
         if use_adjacent and char in adjacent_keys:
             replacement_chars.update(adjacent_keys[char])
 
-        # Custom substitutions
+        # Custom substitutions (single character)
         if use_custom and custom_subs and char in custom_subs:
             replacement_chars.update(custom_subs[char])
 
         for replace_char in replacement_chars:
             typo = word[:i] + replace_char + word[i+1:]
             typos.add(typo)
+
+    # Multi-character substring replacements
+    if use_custom and custom_subs:
+        for sub_key, sub_values in custom_subs.items():
+            if len(sub_key) > 1:
+                start = 0
+                while True:
+                    idx = word.find(sub_key, start)
+                    if idx == -1:
+                        break
+                    for replace_val in sub_values:
+                        typo = word[:idx] + replace_val + word[idx + len(sub_key):]
+                        typos.add(typo)
+                    start = idx + 1
 
     return typos
 

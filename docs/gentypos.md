@@ -66,10 +66,12 @@ word_length:
 ```
 
 ### Custom Substitutions
-You can define your own replacement rules in the config file. For example, if you often type "a" instead of "e":
+You can define your own replacement rules in the config file. These rules can include multi-character substrings. For example, if you often type "f" instead of "ph":
 
 ```yaml
 custom_substitutions:
+  ph:
+    - "f"
   e:
     - "a"
     - "i"

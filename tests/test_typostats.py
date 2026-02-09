@@ -33,9 +33,17 @@ def test_is_one_letter_replacement_multiple_two_char():
 
 
 def test_is_one_letter_replacement_doubled_letter():
-    # For a doubled letter, we only want to count the doubling as the typo.
-    assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True) == [('a', 'aa')]
-    assert typostats.is_one_letter_replacement('catt', 'cat', allow_two_char=True) == [('t', 'tt')]
+    # For a doubled letter, we capture all valid one-to-two interpretations.
+    # While 'a' -> 'aa' is the most likely, 'c' -> 'ca' and 't' -> 'at' are also technically valid.
+    assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True) == [
+        ('a', 'aa'),
+        ('c', 'ca'),
+        ('t', 'at'),
+    ]
+    assert typostats.is_one_letter_replacement('catt', 'cat', allow_two_char=True) == [
+        ('a', 'at'),
+        ('t', 'tt'),
+    ]
 
 
 def test_is_transposition():

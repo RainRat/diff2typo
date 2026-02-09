@@ -52,7 +52,7 @@ git diff HEAD~5 HEAD > changes.diff
 **2. Extract the typos:**
 Run `diff2typo` on your changes to see what you fixed.
 ```bash
-python diff2typo.py changes.diff --output_file my_typos.txt --mode typos --output_format csv
+python diff2typo.py changes.diff --output my_typos.txt --mode typos --format csv
 ```
 
 **3. See the patterns:**

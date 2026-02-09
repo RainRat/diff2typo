@@ -37,7 +37,7 @@ git diff | python diff2typo.py [OPTIONS]
 **Extract new typos from a specific diff file:**
 
 ```bash
-python diff2typo.py feature.diff --mode typos --output_format list
+python diff2typo.py feature.diff --mode typos --format list
 ```
 
 **Pipe directly from Git:**

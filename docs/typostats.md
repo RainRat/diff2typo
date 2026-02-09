@@ -32,7 +32,7 @@ The tool automatically recognizes three input formats:
 - `-m`, `--min`: **(Default: 1)** Only show replacements that happen at least this many times.
 - `-s`, `--sort`: How to sort the results. Options: `count` (most frequent first), `typo`, or `correct`.
 - `-n`, `--limit`: Only show the top N results.
-- `-2`, `--allow-two-char`: Look for cases where one letter is replaced by two (like `m` becoming `rn`).
+- `-2`, `--allow-two-char`: Look for cases where one character is replaced by two (like `m` becoming `rn`), or two characters are replaced by one (like `ph` becoming `f`).
 - `-t`, `--transposition`: Detect when you swap two adjacent letters (like `teh` instead of `the`).
 
 ### Output Options

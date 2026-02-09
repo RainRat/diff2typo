@@ -275,12 +275,11 @@ def _extract_table_items(input_file: str, right_side: bool = False, quiet: bool 
         if ' = "' in line:
             parts = line.split(' = "', 1)
             if right_side:
-                # Value is after ' = "' and ends with a quote. We strip the line/part to remove newline/whitespace.
-                val_part = parts[1].strip()
-                if val_part.endswith('"'):
-                    yield val_part[:-1]
+                # Value is after ' = "' and ends with a quote. We extract everything up to the last quote.
+                if '"' in parts[1]:
+                    yield parts[1].rsplit('"', 1)[0]
                 else:
-                    yield val_part
+                    yield parts[1].strip()
             else:
                 yield parts[0].strip()
 

@@ -5,6 +5,8 @@ import logging
 import time
 import os
 import copy
+import json
+import csv
 from collections import defaultdict
 from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Optional
@@ -95,6 +97,79 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
                 adjacent[ch].add(adjacent_char)
 
     return adjacent
+
+
+def _load_substitutions_file(path: str) -> dict[str, list[str]]:
+    """
+    Load substitution rules from a file. Supports JSON, CSV, and YAML.
+    JSON and CSV formats match the output of typostats.py.
+    """
+    subs = defaultdict(list)
+    if not os.path.exists(path):
+        logging.error(f"Substitutions file '{path}' not found.")
+        sys.exit(1)
+
+    ext = os.path.splitext(path)[1].lower()
+    try:
+        if ext == '.json':
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # typostats format: {"replacements": [{"correct": "a", "typo": "e", ...}, ...]}
+                if isinstance(data, dict) and 'replacements' in data:
+                    for item in data['replacements']:
+                        if 'correct' in item and 'typo' in item:
+                            subs[str(item['correct'])].append(str(item['typo']))
+                # Plain mapping: {"a": ["e", "i"], ...}
+                elif isinstance(data, dict):
+                    for k, v in data.items():
+                        if isinstance(v, list):
+                            subs[str(k)].extend([str(i) for i in v])
+                        else:
+                            subs[str(k)].append(str(v))
+        elif ext == '.csv':
+            with open(path, 'r', encoding='utf-8') as f:
+                # Use a simple check for typostats header instead of complex sniffing
+                first_line = f.readline()
+                f.seek(0)
+                if 'correct_char' in first_line and 'typo_char' in first_line:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        if row.get('correct_char') and row.get('typo_char'):
+                            subs[str(row['correct_char'])].append(str(row['typo_char']))
+                else:
+                    # Fallback: plain typo,correction CSV.
+                    # If it has a header like "typo,correction", skip it.
+                    reader = csv.reader(f)
+                    first_row = next(reader, None)
+                    if first_row:
+                        # Check if first row looks like a header
+                        header_keywords = {'typo', 'correction', 'before', 'after', 'correct', 'word'}
+                        if any(k in first_row[0].lower() or (len(first_row) > 1 and k in first_row[1].lower()) for k in header_keywords):
+                            # Skip header, process remaining
+                            pass
+                        else:
+                            # Process first row as data
+                            if len(first_row) >= 2:
+                                subs[str(first_row[0])].append(str(first_row[1]))
+
+                    for row in reader:
+                        if len(row) >= 2:
+                            subs[str(row[0])].append(str(row[1]))
+        else:
+            # Assume YAML
+            with open(path, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+                if isinstance(data, dict):
+                    for k, v in data.items():
+                        if isinstance(v, list):
+                            subs[str(k)].extend([str(i) for i in v])
+                        else:
+                            subs[str(k)].append(str(v))
+    except Exception as e:
+        logging.error(f"Error loading substitutions from '{path}': {e}")
+        sys.exit(1)
+
+    return dict(subs)
 
 
 def load_custom_substitutions(
@@ -438,6 +513,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
         min_length=min_length,
         max_length=max_length,
         custom_substitutions_config=config.get('custom_substitutions', {}),
+        substitutions_file=config.get('substitutions_file'),
         quiet=quiet,
     )
 
@@ -450,11 +526,27 @@ def _setup_generation_tools(
     """Prepare substitution helpers based on configuration settings."""
 
     logging.info("Loading custom substitutions...")
+
+    # Start with substitutions from config
+    custom_subs_raw = copy.deepcopy(settings.custom_substitutions_config)
+
+    # Merge substitutions from file if provided
+    if hasattr(settings, 'substitutions_file') and settings.substitutions_file:
+        file_subs = _load_substitutions_file(settings.substitutions_file)
+        for k, v in file_subs.items():
+            if k in custom_subs_raw:
+                if isinstance(custom_subs_raw[k], list):
+                    custom_subs_raw[k].extend(v)
+                else:
+                    custom_subs_raw[k] = [custom_subs_raw[k]] + v
+            else:
+                custom_subs_raw[k] = v
+
     if not settings.enable_custom_substitutions:
         logging.info("Custom substitutions disabled.")
         custom_subs = {}
     else:
-        custom_subs = load_custom_substitutions(settings.custom_substitutions_config)
+        custom_subs = load_custom_substitutions(custom_subs_raw)
         if custom_subs:
             total_custom_entries = len(custom_subs)
             total_custom_replacements = sum(len(v) for v in custom_subs.values())
@@ -612,6 +704,11 @@ def main() -> None:
         action='store_true',
         help="Skip dictionary filtering (useful for quick checks).",
     )
+    parser.add_argument(
+        '-s', '--substitutions',
+        type=str,
+        help="Path to a file containing custom substitutions (JSON, CSV, or YAML). Compatible with typostats.py output.",
+    )
 
     args = parser.parse_args()
 
@@ -669,10 +766,15 @@ def main() -> None:
 
         if args.no_filter:
             config['dictionary_file'] = None
+
+        if args.substitutions:
+            config['substitutions_file'] = args.substitutions
     else:
         # Standard mode overrides
         if args.output:
             config['output_file'] = args.output
+        if args.substitutions:
+            config['substitutions_file'] = args.substitutions
 
     settings = _extract_config_settings(config, quiet=args.quiet)
 

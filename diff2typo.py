@@ -16,20 +16,12 @@ Features:
     - Uses the `--mode` option to output new typos, new corrections for existing typos, or both.
 
 Usage:
-    python diff2typo.py \
-        --input=diff.txt \
-        --output=typos.txt \
-        --format=list \
-        --mode [typos|corrections|both] \
-        --typos-path=/path/to/typos \
-        --allowed=allowed.csv \
-        --dictionary=/path/to/dictionary.txt \
-        --min-length=2
+    python diff2typo.py diff.txt --output=typos.txt --format=list
 
 Examples:
-    - Only new typos: python diff2typo.py --input=diff.txt --output=typos.txt --mode typos
-    - Only corrections for existing typos: python diff2typo.py --input=diff.txt --output=typos.txt --mode corrections
-    - Both typos and corrections: python diff2typo.py --input=diff.txt --output=typos.txt --mode both
+    - Only new typos: python diff2typo.py diff.txt --output=typos.txt --mode typos
+    - Only corrections for existing typos: python diff2typo.py diff.txt --output=typos.txt --mode corrections
+    - Both typos and corrections: python diff2typo.py diff.txt --output=typos.txt --mode both
 
 Output Formats:
     - arrow: typo -> correction
@@ -477,13 +469,17 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
 def main():
 
     # Setup command-line argument parsing
-    parser = argparse.ArgumentParser(description="Process a git diff to identify typos for the `typos` utility.")
+    parser = argparse.ArgumentParser(
+        description="Process a git diff to identify typos for the `typos` utility.",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
 
     # Input/Output Options
     io_group = parser.add_argument_group("Input/Output Options")
     io_group.add_argument(
-        'input_files_pos',
+        'input_files',
         nargs='*',
+        metavar='FILE',
         help="One or more input git diff files or glob patterns. Use '-' to read from stdin.",
     )
     io_group.add_argument(
@@ -493,10 +489,7 @@ def main():
         nargs='+',
         type=str,
         default=None,
-        help=(
-            "One or more input git diff files or glob patterns. "
-            "Use '-' to read from stdin. If omitted, stdin is read by default."
-        ),
+        help=argparse.SUPPRESS,
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--input_file', dest='input_files_flag', nargs='+', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
@@ -531,7 +524,12 @@ def main():
         type=str,
         choices=['typos', 'corrections', 'both'],
         default='typos',
-        help='Which mode to run: "typos", "corrections", or "both".',
+        help=(
+            "Analysis mode:\n"
+            "  typos:       Find new typo corrections not in dictionary (default).\n"
+            "  corrections: Find new corrections for existing typos in dictionary.\n"
+            "  both:        Run both analyses and label output groups."
+        ),
     )
     analysis_group.add_argument(
         '--min-length',
@@ -585,7 +583,7 @@ def main():
     logging.info("Starting typo extraction process...")
 
     # Combine positional and flag inputs
-    pos_inputs = getattr(args, 'input_files_pos', []) or []
+    pos_inputs = getattr(args, 'input_files', []) or []
     flag_inputs = getattr(args, 'input_files_flag', []) or []
     input_files = pos_inputs + flag_inputs
 

@@ -34,6 +34,7 @@ The tool automatically recognizes three input formats:
 - `-n`, `--limit`: Only show the top N results.
 - `-2`, `--allow-two-char`: Look for cases where one character is replaced by two (like `m` becoming `rn`), or two characters are replaced by one (like `ph` becoming `f`).
 - `-t`, `--transposition`: Detect when you swap two adjacent letters (like `teh` instead of `the`).
+- `-k`, `--keyboard`: Include keyboard adjacency analysis. This calculates what percentage of your typos are "finger-slips" (keys that are right next to each other on a QWERTY keyboard).
 
 ### Output Options
 - `-f`, `--format`: Choose the output format:

@@ -313,13 +313,8 @@ def load_lines_from_file(file_path: str) -> list[str] | None:
         # Fallback to latin1 if detection failed or wasn't possible
         if lines is None:
             logging.warning("Fallback to latin1...")
-            try:
-                with open(file_path, 'r', encoding='latin1') as f:
-                    lines = f.readlines()
-            except UnicodeDecodeError:
-                # Should practically never happen for latin1
-                logging.error("Final fallback to latin1 failed.")
-                return None
+            with open(file_path, 'r', encoding='latin1') as f:
+                lines = f.readlines()
     except FileNotFoundError:
         logging.error(f"File not found: {file_path}")
         return None

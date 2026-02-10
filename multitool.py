@@ -1106,6 +1106,7 @@ def _add_common_mode_arguments(
     subparser.add_argument(
         'input_files_pos',
         nargs='*',
+        metavar='FILE',
         help="Path(s) to the input file(s). Defaults to stdin ('-') if none provided.",
     )
 
@@ -1116,19 +1117,20 @@ def _add_common_mode_arguments(
         dest='input_files_flag',
         type=str,
         nargs='+',
+        metavar='FILE',
         help="Path(s) to the input file(s) (legacy flag, supports multiple).",
     )
     io_group.add_argument(
         '-o', '--output',
         type=str,
         default='-',
-        help="Path to the output file (default: stdout).",
+        help="Where to save the results. Use '-' for the screen (default: screen).",
     )
     io_group.add_argument(
         '-f', '--output-format',
         choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table'],
         default='line',
-        help="Format of the output (default: line). Options: line, json, csv, markdown, arrow, table.",
+        help="Choose the format for the output (default: line).",
     )
 
     # Processing Configuration Group
@@ -1137,24 +1139,24 @@ def _add_common_mode_arguments(
         '--min-length',
         type=int,
         default=3,
-        help="Minimum string length to process (default: 3)",
+        help="Skip items shorter than this (default: 3).",
     )
     proc_group.add_argument(
         '--max-length',
         type=int,
         default=1000,
-        help="Maximum string length to process (default: 1000)",
+        help="Skip items longer than this (default: 1000).",
     )
     proc_group.add_argument(
         '--raw',
         action='store_true',
-        help="Do not normalize content to lowercase letters. Preserves punctuation and case.",
+        help="Keep the original text. Do not change it to lowercase or remove punctuation.",
     )
     if include_process_output:
         proc_group.add_argument(
             '-P', '--process-output',
             action='store_true',
-            help="Sort and deduplicate the final output list.",
+            help="Sort the list and remove duplicates.",
         )
     else:
         subparser.set_defaults(process_output=False)
@@ -1289,97 +1291,97 @@ def set_operation_mode(
 MODE_DETAILS = {
     "arrow": {
         "summary": "Extracts text from lines with arrows (->).",
-        "description": "Reads lines like 'typo -> correction'. Saves the 'typo' part by default. Use --right to save the 'correction' part instead.",
+        "description": "Finds text in lines that use arrows (like 'typo -> correction'). It saves the left side by default. Use --right to save the right side instead.",
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
         "flags": "[--right]",
     },
     "table": {
-        "summary": "Extracts text from lines in table format (key = \"value\").",
-        "description": "Reads lines like 'typo = \"correction\"'. Saves the 'typo' (key) by default. Use --right to save the 'correction' (value) instead.",
+        "summary": "Extracts text from table-style entries (key = \"value\").",
+        "description": "Gets keys or values from entries like 'key = \"value\"'. It saves the key by default. Use --right to save the quoted value instead.",
         "example": "python multitool.py table typos.toml --right -o corrections.txt",
         "flags": "[--right]",
     },
     "combine": {
-        "summary": "Merges, sorts, and cleans multiple files.",
-        "description": "Combines multiple files into one sorted, duplicate-free list.",
+        "summary": "Merges multiple files into one clean list.",
+        "description": "Combines several files into one list. It removes duplicates and sorts the results alphabetically.",
         "example": "python multitool.py combine typos1.txt typos2.txt --output all_typos.txt",
         "flags": "[-P]",
     },
     "backtick": {
-        "summary": "Extracts text enclosed in backticks.",
-        "description": "Finds text inside backticks (like `code`). Prioritizes items near words like 'error', 'warning', or 'note'.",
+        "summary": "Extracts text found inside backticks.",
+        "description": "Finds text inside backticks (like `code`). It prioritizes items near words like 'error' or 'warning' to find the most relevant data.",
         "example": "python multitool.py backtick build.log --output suspects.txt",
         "flags": "",
     },
     "csv": {
         "summary": "Extracts specific columns from a CSV file.",
-        "description": "Extracts data from CSV files. By default, it grabs everything *except* the first column, which is perfect for getting a list of corrections.",
+        "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column.",
         "example": "python multitool.py csv typos.csv -o corrections.txt",
         "flags": "[--first-column]",
     },
     "json": {
-        "summary": "Extracts values from a JSON file.",
-        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (e.g., 'user.name'). Works with lists automatically.",
+        "summary": "Extracts values from a JSON file using a key.",
+        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). It automatically handles lists of objects.",
         "example": "python multitool.py json report.json -k replacements.typo -o typos.txt",
         "flags": "[-k KEY]",
     },
     "yaml": {
-        "summary": "Extract values from YAML files.",
-        "description": "Extracts values associated with a specific key path from a YAML file. Supports dot notation for nested keys (e.g. 'config.items'). Handles lists automatically.",
+        "summary": "Extracts values from a YAML file using a key.",
+        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). It automatically handles lists.",
         "example": "python multitool.py yaml config.yaml -k config.items -o items.txt",
         "flags": "[-k KEY]",
     },
     "line": {
-        "summary": "Process a file line by line.",
-        "description": "Reads each line, cleans it, and writes it to the output. Useful for simple filtering.",
+        "summary": "Reads a file line by line.",
+        "description": "Reads every line from a file, cleans the text, and writes it to the output. Useful for simple cleaning and filtering.",
         "example": "python multitool.py line raw_words.txt --output filtered.txt",
         "flags": "",
     },
     "count": {
-        "summary": "Counts how often words appear.",
-        "description": "Counts word frequency and lists words from most frequent to least frequent. Supports filtering by frequency (--min-count, --max-count) and various output formats.",
+        "summary": "Counts how many times each word appears.",
+        "description": "Counts word frequency and sorts the list from most frequent to least frequent.",
         "example": "python multitool.py count typos.log --min-count 5 --output-format json --output counts.json",
         "flags": "[--min-count N]",
     },
     "filterfragments": {
-        "summary": "Removes words that appear in a second file.",
-        "description": "Removes words from your list if they are found (even as part of a word) in a second file.",
+        "summary": "Removes words if they are found inside words in another file.",
+        "description": "Removes words from your list if they appear anywhere (even as a fragment) inside words in a second file.",
         "example": "python multitool.py filterfragments generated.txt --file2 dictionary.txt --output unique.txt",
         "flags": "[--file2 FILE]",
     },
     "check": {
-        "summary": "Checks for conflicts in typo lists.",
-        "description": "Finds words that appear as both a typo and a correction. Use this to spot errors in your data.",
+        "summary": "Finds words that are both typos and corrections.",
+        "description": "Checks for words that appear in both the typo and correction columns of a file. Use this to find errors in your typo lists.",
         "example": "python multitool.py check typos.csv --output duplicates.txt",
         "flags": "",
     },
     "set_operation": {
-        "summary": "Compares the contents of two files.",
-        "description": "Performs set operations: find common lines (intersection), merge all lines (union), or find unique lines (difference).",
+        "summary": "Compares two files using set logic.",
+        "description": "Compares two files to find shared lines (intersection), all lines (union), or lines unique to the first file (difference).",
         "example": "python multitool.py set_operation fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
         "flags": "[--file2 FILE --operation OP]",
     },
     "sample": {
-        "summary": "Randomly samples lines from a file.",
-        "description": "Extracts a random subset of lines. You can specify an exact number (-n) or a percentage (--percent).",
+        "summary": "Picks a random set of lines from a file.",
+        "description": "Selects a random subset of lines. You can choose a specific number of lines (-n) or a percentage (--percent).",
         "example": "python multitool.py sample big_log.txt -n 100 -o sample.txt",
         "flags": "[-n N|--percent P]",
     },
     "regex": {
-        "summary": "Extracts text matching a regular expression.",
-        "description": "Finds and extracts all substrings that match the provided Python regular expression.",
+        "summary": "Finds text that matches a pattern (regular expression).",
+        "description": "Finds and extracts all text that matches a Python regular expression pattern.",
         "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
         "flags": "[-r PATTERN]",
     },
     "map": {
-        "summary": "Transforms items based on a mapping file.",
-        "description": "Replaces items in the input list with values from a mapping file (CSV, Arrow, Table, JSON, or YAML). Useful for normalizing data or applying corrections.",
+        "summary": "Replaces items using a mapping file.",
+        "description": "Replaces items in your list with new values from a mapping file. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py map input.txt -m corrections.csv -o fixed.txt",
         "flags": "[-m MAP]",
     },
     "zip": {
-        "summary": "Combines two files into a paired format.",
-        "description": "Joins two files line-by-line into a mapping format like Arrow (->), CSV, or Table (=). Useful for creating mapping files from separate lists of typos and corrections.",
+        "summary": "Pairs lines from two files together.",
+        "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists.",
         "example": "python multitool.py zip typos.txt --file2 corrections.txt --output-format table --output typos.toml",
         "flags": "[--file2 FILE]",
     },
@@ -1492,8 +1494,8 @@ def _build_parser() -> argparse.ArgumentParser:
             Examples:
               python multitool.py --mode-help             # Show a summary of every mode
               python multitool.py --mode-help csv         # Describe the CSV extraction mode
-              python multitool.py arrow --input file.txt  # Run a specific mode
-              python multitool.py --mode csv --input file.txt  # Legacy --mode flag
+              python multitool.py arrow file.txt          # Run a specific mode
+              python multitool.py --mode csv --input file.txt  # Old way to run the tool
             """
         ).strip() + "\n\n" + mode_summary,
         formatter_class=argparse.RawTextHelpFormatter,

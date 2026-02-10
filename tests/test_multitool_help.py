@@ -25,6 +25,7 @@ def test_mode_help_all_implicit(monkeypatch, capsys):
     assert "csv" in output
     # In table view, we print "Summary: ..." as just the text column
     assert "Extracts text from lines with arrows (->)." in output
+    assert "Merges multiple files into one clean list." in output
 
 def test_mode_help_all_explicit(monkeypatch, capsys):
     """Test 'multitool.py --mode-help all' displays help for all modes."""

@@ -39,6 +39,39 @@ def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:
     return []
 
 
+def is_keyboard_adjacent(char1: str, char2: str) -> bool:
+    """
+    Check if two characters are adjacent on a QWERTY keyboard (including diagonals).
+    """
+    # Normalize to lowercase for comparison
+    c1 = char1.lower()
+    c2 = char2.lower()
+
+    if c1 == c2:
+        return False
+
+    keyboard = [
+        'qwertyuiop',
+        'asdfghjkl',
+        'zxcvbnm',
+    ]
+
+    # Map each character to its (row, column) coordinate
+    coords = {}
+    for r, row in enumerate(keyboard):
+        for c, ch in enumerate(row):
+            coords[ch] = (r, c)
+
+    if c1 not in coords or c2 not in coords:
+        return False
+
+    r1, col1 = coords[c1]
+    r2, col2 = coords[c2]
+
+    # Adjacent if they are within one row and one column of each other
+    return abs(r1 - r2) <= 1 and abs(col1 - col2) <= 1
+
+
 def is_one_letter_replacement(
     typo: str, correction: str, allow_two_char: bool = False
 ) -> list[tuple[str, str]]:
@@ -151,6 +184,7 @@ def generate_report(
     sort_by: str = 'count',
     output_format: str = 'arrow',
     limit: int | None = None,
+    show_keyboard_stats: bool = False,
 ) -> None:
     """
     Generate a report.
@@ -175,9 +209,20 @@ def generate_report(
         sort_by: Criterion to sort results by ('count', 'typo', 'correct').
         output_format: Format of the report ('arrow', 'yaml', 'json', 'csv').
         limit: Maximum number of results to include in the report.
+        show_keyboard_stats: Whether to include keyboard adjacency analysis.
     """
     # Filter
     filtered = {k: v for k, v in replacement_counts.items() if v >= min_occurrences}
+
+    # Keyboard Stats
+    adj_count = 0
+    total_one_to_one = 0
+    if show_keyboard_stats:
+        for (correct, typo), count in filtered.items():
+            if len(correct) == 1 and len(typo) == 1:
+                total_one_to_one += count
+                if is_keyboard_adjacent(correct, typo):
+                    adj_count += count
 
     # Sort
     if sort_by == 'typo':
@@ -215,6 +260,20 @@ def generate_report(
 
         for (correct_char, typo_char), count in sorted_replacements:
             report_lines.append(f"{GREEN}{correct_char}{RESET} -> {RED}{typo_char}{RESET}: {BOLD}{count}{RESET}")
+
+        if show_keyboard_stats and total_one_to_one > 0:
+            percentage = (adj_count / total_one_to_one) * 100
+            kb_summary = (
+                f"\nKeyboard Adjacency (1-to-1 replacements):\n"
+                f"  Adjacent: {adj_count}\n"
+                f"  Total:    {total_one_to_one}\n"
+                f"  Percent:  {percentage:.1f}%\n"
+            )
+            if not output_file:
+                sys.stderr.write(kb_summary)
+            else:
+                report_lines.append(kb_summary)
+
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
         replacements = [
@@ -225,13 +284,27 @@ def generate_report(
             }
             for (correct_char, typo_char), count in sorted_replacements
         ]
-        report_content = json.dumps({"replacements": replacements}, indent=2)
+        output_data = {"replacements": replacements}
+        if show_keyboard_stats:
+            output_data["statistics"] = {
+                "total_one_to_one": total_one_to_one,
+                "adjacent_count": adj_count,
+                "adjacent_percentage": round((adj_count / total_one_to_one * 100), 1) if total_one_to_one > 0 else 0
+            }
+        report_content = json.dumps(output_data, indent=2)
     elif output_format == 'csv':
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['correct_char', 'typo_char', 'count'])
+        header_row = ['correct_char', 'typo_char', 'count']
+        if show_keyboard_stats:
+            header_row.append('is_adjacent')
+        writer.writerow(header_row)
         for (correct_char, typo_char), count in sorted_replacements:
-            writer.writerow([correct_char, typo_char, count])
+            row = [correct_char, typo_char, count]
+            if show_keyboard_stats:
+                adj = is_keyboard_adjacent(correct_char, typo_char) if (len(correct_char) == 1 and len(typo_char) == 1) else False
+                row.append(adj)
+            writer.writerow(row)
         report_content = output.getvalue()
     else:
         # YAML-like
@@ -372,6 +445,12 @@ def main() -> None:
         help="Detect transpositions of adjacent characters (e.g., 'teh' to 'the').",
     )
     analysis_group.add_argument(
+        '-k',
+        '--keyboard',
+        action='store_true',
+        help="Include keyboard adjacency analysis (Finger-slip vs other).",
+    )
+    analysis_group.add_argument(
         '-n',
         '--limit',
         type=int,
@@ -413,6 +492,7 @@ def main() -> None:
         sort_by=sort_by,
         output_format=output_format,
         limit=limit,
+        show_keyboard_stats=args.keyboard,
     )
 
 

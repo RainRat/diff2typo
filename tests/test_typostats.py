@@ -92,19 +92,20 @@ def test_process_typos_with_transposition():
 
 def test_generate_report_arrow(capsys):
     counts = {('s', 'z'): 3, ('e', 'a'): 1}
-    typostats.generate_report(counts, min_occurrences=2, output_format='arrow')
+    typostats.generate_report(counts, min_occurrences=2, output_format='arrow', quiet=True)
     captured = capsys.readouterr().out
-    assert 's -> z: 3' in captured
-    assert 'e -> a' not in captured
+    # 's' should be padded with 6 spaces (max_c=7)
+    assert '       s -> z    :     3' in captured
+    assert 'e' not in captured
 
 
 def test_generate_report_limit(capsys):
     counts = {('a', 'b'): 10, ('c', 'd'): 5, ('e', 'f'): 2}
-    typostats.generate_report(counts, limit=2, output_format='arrow')
+    typostats.generate_report(counts, limit=2, output_format='arrow', quiet=True)
     captured = capsys.readouterr().out
-    assert 'a -> b: 10' in captured
-    assert 'c -> d: 5' in captured
-    assert 'e -> f' not in captured
+    assert '       a -> b    :    10' in captured
+    assert '       c -> d    :     5' in captured
+    assert 'e' not in captured
 
 
 def test_generate_report_limit_with_typo_sort(capsys):
@@ -112,10 +113,10 @@ def test_generate_report_limit_with_typo_sort(capsys):
     # Actually sort_by='typo' sorts alphabetically by typo char.
     counts = {('a', 'z'): 10, ('b', 'x'): 5, ('c', 'y'): 2}
     # Sorted by typo: ('b', 'x'), ('c', 'y'), ('a', 'z')
-    typostats.generate_report(counts, limit=2, sort_by='typo', output_format='arrow')
+    typostats.generate_report(counts, limit=2, sort_by='typo', output_format='arrow', quiet=True)
     captured = capsys.readouterr().out
-    assert 'b -> x: 5' in captured
-    assert 'c -> y: 2' in captured
+    assert '       b -> x    :     5' in captured
+    assert '       c -> y    :     2' in captured
     assert 'a -> z' not in captured
 
 
@@ -152,7 +153,9 @@ def test_generate_report_sort_by_typo(capsys):
     captured = capsys.readouterr()
     lines = [line for line in captured.out.splitlines() if line]
     # Header is now on stderr, so lines contains only data
-    assert lines == ['a -> x: 3', 'a -> y: 2', 'b -> z: 1']
+    assert '       a -> x    :     3' in lines[0]
+    assert '       a -> y    :     2' in lines[1]
+    assert '       b -> z    :     1' in lines[2]
     assert "Most Frequent Letter Replacements" in captured.err
 
 
@@ -162,7 +165,9 @@ def test_generate_report_sort_by_correct(capsys):
     captured = capsys.readouterr()
     lines = [line for line in captured.out.splitlines() if line]
     # Header is now on stderr, so lines contains only data
-    assert lines == ['a -> y: 2', 'b -> z: 1', 'c -> x: 3']
+    assert '       a -> y    :     2' in lines[0]
+    assert '       b -> z    :     1' in lines[1]
+    assert '       c -> x    :     3' in lines[2]
     assert "Most Frequent Letter Replacements" in captured.err
 
 

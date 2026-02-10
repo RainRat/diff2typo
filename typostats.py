@@ -7,6 +7,13 @@ import io
 from typing import Iterable
 
 try:
+    from tqdm import tqdm
+    _TQDM_AVAILABLE = True
+except ImportError:
+    tqdm = None
+    _TQDM_AVAILABLE = False
+
+try:
     import chardet  # type: ignore
 
     _CHARDET_AVAILABLE = True
@@ -151,6 +158,7 @@ def generate_report(
     sort_by: str = 'count',
     output_format: str = 'arrow',
     limit: int | None = None,
+    quiet: bool = False,
 ) -> None:
     """
     Generate a report.
@@ -205,16 +213,35 @@ def generate_report(
 
     if output_format == 'arrow':
         # arrow
-        header = "Most Frequent Letter Replacements in Typos:\n"
+        title = "Most Frequent Letter Replacements in Typos:"
+
+        # Calculate padding for alignment (default to header labels' lengths)
+        max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
+        max_c = max(max_c, 7)  # 'CORRECT' is 7
+        max_t = max((len(t) for (c, t), count in sorted_replacements), default=4)
+        max_t = max(max_t, 4)  # 'TYPO' is 4
+        max_n = max((len(str(count)) for (c, t), count in sorted_replacements), default=5)
+        max_n = max(max_n, 5)  # 'COUNT' is 5
+
+        # Header row
+        header_row = f"{'CORRECT':>{max_c}}    {'TYPO':<{max_t}}   {'COUNT':>{max_n}}"
+        divider = "-" * len(header_row)
+
         if not output_file:
             # Move the human-readable header to stderr to keep stdout clean for piping
-            sys.stderr.write(header + "\n")
+            if not quiet:
+                sys.stderr.write(f"\n {title}\n\n")
+                sys.stderr.write(f" {header_row}\n")
+                sys.stderr.write(f" {divider}\n")
+                sys.stderr.flush()
             report_lines = []
         else:
-            report_lines = [header]
+            report_lines = [title, "", header_row, divider]
 
         for (correct_char, typo_char), count in sorted_replacements:
-            report_lines.append(f"{GREEN}{correct_char}{RESET} -> {RED}{typo_char}{RESET}: {BOLD}{count}{RESET}")
+            report_lines.append(
+                f" {GREEN}{correct_char:>{max_c}}{RESET} -> {RED}{typo_char:<{max_t}}{RESET} : {BOLD}{count:>{max_n}}{RESET}"
+            )
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
         replacements = [
@@ -400,6 +427,9 @@ def main() -> None:
         lines = load_lines_from_file(file_path)
 
         if lines:
+            if not args.quiet and _TQDM_AVAILABLE:
+                lines = tqdm(lines, desc=f"Processing {file_path}", unit="lines", leave=False)
+
             file_counts = process_typos(
                 lines, allow_two_char=allow_two_char, allow_transposition=allow_transposition
             )
@@ -413,6 +443,7 @@ def main() -> None:
         sort_by=sort_by,
         output_format=output_format,
         limit=limit,
+        quiet=args.quiet,
     )
 
 

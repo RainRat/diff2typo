@@ -308,7 +308,7 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
                 continue
 
             all_line_items.append(item)
-            preceding = parts[index - 1].lower() if index - 1 >= 0 else ""
+            preceding = parts[index - 1].lower()
             if any(marker in preceding for marker in context_markers):
                 line_items_with_markers.append(item)
 

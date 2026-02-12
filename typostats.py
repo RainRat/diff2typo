@@ -46,6 +46,54 @@ def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:
     return []
 
 
+def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
+    """
+    Returns a dictionary of adjacent keys on a QWERTY keyboard.
+    Can include diagonally adjacent keys based on the 'include_diagonals' flag.
+
+    Args:
+        include_diagonals (bool): Whether to include diagonally adjacent keys.
+
+    Returns:
+        dict: A mapping from each character to its adjacent characters.
+    """
+    keyboard = [
+        'qwertyuiop',
+        'asdfghjkl',
+        'zxcvbnm',
+    ]
+
+    # Map each character to its (row, column) coordinate for quick lookup
+    coords: dict[str, tuple[int, int]] = {}
+    for r, row in enumerate(keyboard):
+        for c, ch in enumerate(row):
+            coords[ch] = (r, c)
+
+    adjacent: dict[str, set[str]] = {ch: set() for ch in coords}
+
+    for ch, (r, c) in coords.items():
+        # Examine neighbouring positions within a 1-key radius
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                if dr == 0 and dc == 0:
+                    continue  # Skip the key itself
+
+                nr, nc = r + dr, c + dc
+                if nr < 0 or nr >= len(keyboard):
+                    continue
+                if nc < 0 or nc >= len(keyboard[nr]):
+                    continue
+
+                # Exclude diagonal keys if requested
+                if not include_diagonals and dr != 0 and dc != 0:
+                    continue
+
+                adjacent_char = keyboard[nr][nc]
+                adjacent[ch].add(adjacent_char)
+
+    return adjacent
+
+
 def is_one_letter_replacement(
     typo: str, correction: str, allow_two_char: bool = False
 ) -> list[tuple[str, str]]:
@@ -159,6 +207,7 @@ def generate_report(
     output_format: str = 'arrow',
     limit: int | None = None,
     quiet: bool = False,
+    keyboard: bool = False,
 ) -> None:
     """
     Generate a report.
@@ -215,6 +264,22 @@ def generate_report(
         # arrow
         title = "Most Frequent Letter Replacements in Typos:"
 
+        keyboard_summary = ""
+        adjacent_map = {}
+        if keyboard:
+            adjacent_map = get_adjacent_keys(include_diagonals=True)
+            total_single_char = 0
+            adjacent_count = 0
+            for (c, t), count in sorted_replacements:
+                if len(c) == 1 and len(t) == 1:
+                    total_single_char += count
+                    if t.lower() in adjacent_map.get(c.lower(), set()):
+                        adjacent_count += count
+
+            if total_single_char > 0:
+                percent = (adjacent_count / total_single_char) * 100
+                keyboard_summary = f"Keyboard Adjacency: {adjacent_count}/{total_single_char} ({percent:.1f}%)"
+
         # Calculate padding for alignment (default to header labels' lengths)
         max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
         max_c = max(max_c, 7)  # 'CORRECT' is 7
@@ -233,25 +298,47 @@ def generate_report(
                 sys.stderr.write(f"\n {title}\n\n")
                 sys.stderr.write(f" {header_row}\n")
                 sys.stderr.write(f" {divider}\n")
+                if keyboard_summary:
+                    sys.stderr.write(f" {keyboard_summary}\n")
+                    sys.stderr.write(f" {divider}\n")
                 sys.stderr.flush()
             report_lines = []
         else:
             report_lines = [title, "", header_row, divider]
+            if keyboard_summary:
+                report_lines.append(keyboard_summary)
+                report_lines.append(divider)
 
         for (correct_char, typo_char), count in sorted_replacements:
+            marker = ""
+            if keyboard and len(correct_char) == 1 and len(typo_char) == 1:
+                if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+                    marker = f" {BOLD}[K]{RESET}"
+
             report_lines.append(
-                f" {GREEN}{correct_char:>{max_c}}{RESET} -> {RED}{typo_char:<{max_t}}{RESET} : {BOLD}{count:>{max_n}}{RESET}"
+                f" {GREEN}{correct_char:>{max_c}}{RESET} -> {RED}{typo_char:<{max_t}}{RESET} : {BOLD}{count:>{max_n}}{RESET}{marker}"
             )
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
-        replacements = [
-            {
+        adjacent_map = {}
+        if keyboard:
+            adjacent_map = get_adjacent_keys(include_diagonals=True)
+
+        replacements = []
+        for (correct_char, typo_char), count in sorted_replacements:
+            item = {
                 "correct": correct_char,
                 "typo": typo_char,
                 "count": count,
             }
-            for (correct_char, typo_char), count in sorted_replacements
-        ]
+            if keyboard:
+                is_adjacent = False
+                if len(correct_char) == 1 and len(typo_char) == 1:
+                    if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+                        is_adjacent = True
+                item["is_adjacent"] = is_adjacent
+            replacements.append(item)
+
         report_content = json.dumps({"replacements": replacements}, indent=2)
     elif output_format == 'csv':
         output = io.StringIO()
@@ -394,6 +481,12 @@ def main() -> None:
         help="Detect transpositions of adjacent characters (e.g., 'teh' to 'the').",
     )
     analysis_group.add_argument(
+        '-k',
+        '--keyboard',
+        action='store_true',
+        help="Identify character replacements based on physical keyboard proximity.",
+    )
+    analysis_group.add_argument(
         '-n',
         '--limit',
         type=int,
@@ -439,6 +532,7 @@ def main() -> None:
         output_format=output_format,
         limit=limit,
         quiet=args.quiet,
+        keyboard=args.keyboard,
     )
 
 

@@ -34,6 +34,7 @@ The tool automatically recognizes three input formats:
 - `-n`, `--limit`: Only show the top N results.
 - `-2`, `--allow-two-char`: Look for multi-character replacements (like `m` becoming `rn` or `ph` becoming `f`).
 - `-t`, `--transposition`: Detect when you swap two adjacent letters (like `teh` instead of `the`).
+- `-k`, `--keyboard`: Identify typos caused by hitting keys next to each other on the keyboard.
 
 ### Output Options
 - `-f`, `--format`: Choose the output format:
@@ -49,13 +50,22 @@ The tool automatically recognizes three input formats:
 When using the default **arrow** format, the report displays results in a table:
 
 ```text
+ Most Frequent Letter Replacements in Typos:
+
  CORRECT    TYPO   COUNT
-------------------------
-       o -> p    :     15
-       i -> u    :     12
+ -----------------------
+ Keyboard Adjacency: 12/15 (80.0%)
+ -----------------------
+       o -> p    :     15 [K]
+       i -> u    :     12 [K]
 ```
 
 In this table, the left side is the **expected** character and the right side is the **mistake** you made. For example, `o -> p` means you hit the `p` key when you meant to hit `o`.
+
+### Keyboard Analysis
+When you use the `--keyboard` flag, the report includes two extra pieces of information:
+- **[K] Marker:** This appears next to typos where the two keys are next to each other on a standard QWERTY keyboard.
+- **Keyboard Adjacency Summary:** A percentage showing how many of your typos were likely caused by physical slips on the keyboard.
 
 ## Pro Tips
 
@@ -79,4 +89,9 @@ python typostats.py my_data.txt --limit 5 --transposition
 **Find typos that happened at least 5 times and save the report as JSON:**
 ```bash
 python typostats.py my_data.txt --format json --min 5 --output report.json
+```
+
+**See which typos were likely caused by hitting keys next to each other:**
+```bash
+python typostats.py my_data.txt --keyboard
 ```

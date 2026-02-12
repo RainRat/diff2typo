@@ -484,7 +484,7 @@ def main() -> None:
         '-k',
         '--keyboard',
         action='store_true',
-        help="Identify character replacements based on physical keyboard proximity.",
+        help="Identify typos caused by hitting keys next to each other on the keyboard.",
     )
     analysis_group.add_argument(
         '-n',

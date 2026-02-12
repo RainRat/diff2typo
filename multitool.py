@@ -277,8 +277,7 @@ def _extract_arrow_items(input_file: str, right_side: bool = False, quiet: bool 
         if " -> " in line:
             parts = line.split(" -> ", 1)
             idx = 1 if right_side else 0
-            if len(parts) > idx:
-                yield parts[idx].strip()
+            yield parts[idx].strip()
 
 
 def _extract_table_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:

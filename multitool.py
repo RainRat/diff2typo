@@ -151,25 +151,38 @@ def _load_and_clean_file(
 def print_processing_stats(
     raw_item_count: int, filtered_items: Sequence[str], item_label: str = "item"
 ) -> None:
-    """Print summary statistics for processed text items."""
+    """Print summary statistics for processed text items with visual hierarchy."""
     item_label_plural = f"{item_label}s"
-    logging.info("Statistics:")
-    logging.info(f"  Total {item_label_plural} encountered: {raw_item_count}")
+
+    # ANSI Color Codes
+    GREEN = "\033[1;32m"
+    YELLOW = "\033[1;33m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    # Disable colors if not running in a terminal (logging usually goes to stderr)
+    if not sys.stderr.isatty():
+        GREEN = YELLOW = RESET = BOLD = ""
+
+    logging.info(f"\n{BOLD}Analysis Statistics:{RESET}")
+    logging.info(f"  {BOLD}Total {item_label_plural} encountered:{RESET}  {YELLOW}{raw_item_count}{RESET}")
     logging.info(
-        f"  Total {item_label_plural} after filtering: {len(filtered_items)}"
+        f"  {BOLD}Total {item_label_plural} after filtering:{RESET} {GREEN}{len(filtered_items)}{RESET}"
     )
+
     if filtered_items:
         unique_items = list(dict.fromkeys(filtered_items))
         shortest = min(unique_items, key=len)
         longest = max(unique_items, key=len)
         logging.info(
-            f"  Shortest {item_label}: '{shortest}' (length: {len(shortest)})"
+            f"  {BOLD}Shortest {item_label}:{RESET} '{shortest}' (length: {len(shortest)})"
         )
         logging.info(
-            f"  Longest {item_label}: '{longest}' (length: {len(longest)})"
+            f"  {BOLD}Longest {item_label}:{RESET}  '{longest}' (length: {len(longest)})"
         )
     else:
-        logging.info(f"  No {item_label_plural} passed the filtering criteria.")
+        logging.info(f"  {YELLOW}No {item_label_plural} passed the filtering criteria.{RESET}")
+    logging.info("")
 
 
 @contextlib.contextmanager
@@ -1305,7 +1318,7 @@ MODE_DETAILS = {
         "summary": "Merges multiple files into one clean list.",
         "description": "Combines several files into one list. It removes duplicates and sorts the results alphabetically.",
         "example": "python multitool.py combine typos1.txt typos2.txt --output all_typos.txt",
-        "flags": "[-P]",
+        "flags": "",
     },
     "backtick": {
         "summary": "Extracts text found inside backticks.",
@@ -1441,6 +1454,15 @@ def print_mode_summary() -> None:
     print("\n" + get_mode_summary_text())
 
 
+class MinimalFormatter(logging.Formatter):
+    """A logging formatter that removes prefixes for INFO level messages."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        if record.levelno == logging.INFO:
+            return record.getMessage()
+        return f"{record.levelname}: {record.getMessage()}"
+
+
 class ModeHelpAction(argparse.Action):
     """Custom argparse action that prints detailed help for one or all modes."""
 
@@ -1464,12 +1486,13 @@ class ModeHelpAction(argparse.Action):
             # ANSI Color Codes
             BLUE = "\033[1;34m"
             GREEN = "\033[1;32m"
+            YELLOW = "\033[1;33m"
             RESET = "\033[0m"
             BOLD = "\033[1m"
 
             # Disable colors if not running in a terminal
             if not sys.stdout.isatty():
-                BLUE = GREEN = RESET = BOLD = ""
+                BLUE = GREEN = YELLOW = RESET = BOLD = ""
 
             block = [
                 f"{BOLD}Mode:{RESET} {GREEN}{values}{RESET}",
@@ -1477,6 +1500,8 @@ class ModeHelpAction(argparse.Action):
             ]
             if details.get("description"):
                 block.append(f"  {BOLD}Description:{RESET} {details['description']}")
+            if details.get("flags"):
+                block.append(f"  {BOLD}Primary Flags:{RESET} {YELLOW}{details['flags']}{RESET}")
             if details.get("example"):
                 block.append(f"  {BOLD}Example:{RESET} {BLUE}{details['example']}{RESET}")
 
@@ -1617,7 +1642,7 @@ def _build_parser() -> argparse.ArgumentParser:
         description=MODE_DETAILS['combine']['description'],
         epilog=f"Example:\n  {MODE_DETAILS['combine']['example']}",
     )
-    _add_common_mode_arguments(combine_parser)
+    _add_common_mode_arguments(combine_parser, include_process_output=False)
 
     line_parser = subparsers.add_parser(
         'line',
@@ -1818,7 +1843,10 @@ def main() -> None:
     args = parser.parse_args(argv)
 
     log_level = logging.WARNING if args.quiet else logging.INFO
-    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
+    # Use a custom handler and formatter to keep output clean
+    handler = logging.StreamHandler()
+    handler.setFormatter(MinimalFormatter())
+    logging.basicConfig(level=log_level, handlers=[handler])
 
     if args.min_length < 1:
         logging.error("[Error] --min-length must be a positive integer.")
@@ -1848,7 +1876,7 @@ def main() -> None:
     logging.info(f"Minimum String Length: {args.min_length}")
     logging.info(f"Maximum String Length: {args.max_length}")
 
-    if args.mode != 'count':
+    if args.mode not in ('count', 'combine'):
         logging.info(
             f"Process Output: {'Enabled' if args.process_output else 'Disabled'}"
         )

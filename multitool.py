@@ -405,6 +405,39 @@ def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
         yield line.rstrip('\n')
 
 
+def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
+    """Yield text from Markdown list items, optionally splitting by ':' or '->'."""
+    lines = _read_file_lines_robust(input_file)
+    # Match bullet points: - , * , + at the start of line (optional whitespace)
+    # We require a space after the marker to distinguish from other symbols (like horizontal rules '---')
+    pattern = re.compile(r'^\s*[-*+]\s+(.*)$')
+
+    for line in tqdm(lines, desc=f'Processing {input_file} (markdown)', unit=' lines', disable=quiet):
+        match = pattern.match(line)
+        if match:
+            content = match.group(1).strip()
+            if not content:
+                continue
+
+            # Check for common separators if we want to support --right
+            # This allows extracting from pairs like "- typo: correction"
+            separator = None
+            if " -> " in content:
+                separator = " -> "
+            elif ": " in content:
+                separator = ": "
+
+            if separator:
+                parts = content.split(separator, 1)
+                idx = 1 if right_side else 0
+                if len(parts) > idx:
+                    yield parts[idx].strip()
+                else:
+                    yield content
+            else:
+                yield content
+
+
 def _extract_regex_items(input_file: str, pattern: str, quiet: bool = False) -> Iterable[str]:
     """Yield text matching the compiled regex pattern from the file."""
     try:
@@ -475,6 +508,34 @@ def table_mode(
         process_output,
         'Table',
         'Table fields extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
+
+
+def markdown_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    right_side: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """Wrapper for processing items from Markdown bulleted lists."""
+    extractor = lambda f, quiet=False: _extract_markdown_items(f, right_side=right_side, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Markdown',
+        'Markdown list items extracted successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1319,6 +1380,12 @@ MODE_DETAILS = {
         "example": "python multitool.py csv typos.csv -o corrections.txt",
         "flags": "[--first-column]",
     },
+    "markdown": {
+        "summary": "Extracts items from Markdown bulleted lists.",
+        "description": "Finds text in lines starting with -, *, or +. It can also split items by ':' or '->' to extract one side of a pair (use --right for the second part).",
+        "example": "python multitool.py markdown notes.md --output items.txt",
+        "flags": "[--right]",
+    },
     "json": {
         "summary": "Extracts values from a JSON file using a key.",
         "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). It automatically handles lists of objects.",
@@ -1391,7 +1458,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "table", "backtick", "csv", "json", "yaml", "line", "regex"],
+        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip"],
         "Analysis": ["count", "check"],
     }
@@ -1577,6 +1644,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help='The delimiter character for CSV files (default: ,).',
     )
     _add_common_mode_arguments(csv_parser)
+
+    markdown_parser = subparsers.add_parser(
+        'markdown',
+        help=MODE_DETAILS['markdown']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['markdown']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['markdown']['example']}",
+    )
+    markdown_options = markdown_parser.add_argument_group("Markdown Options")
+    markdown_options.add_argument(
+        '--right',
+        action='store_true',
+        help="Extract the right side of a pair (split by ':' or '->') instead of the left side.",
+    )
+    _add_common_mode_arguments(markdown_parser)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -1857,6 +1939,7 @@ def main() -> None:
     operation = getattr(args, 'operation', None)
     first_column = getattr(args, 'first_column', False)
     delimiter = getattr(args, 'delimiter', ',')
+    right_side = getattr(args, 'right', False)
     sample_count = getattr(args, 'sample_count', None)
     sample_percent = getattr(args, 'sample_percent', None)
     output_format = getattr(args, 'output_format', 'line')
@@ -1868,6 +1951,8 @@ def main() -> None:
     if args.mode == 'csv':
         logging.info(f"First Column Only: {'Yes' if first_column else 'No'}")
         logging.info(f"Delimiter: '{delimiter}'")
+    if args.mode == 'markdown':
+        logging.info(f"Right Side Only: {'Yes' if right_side else 'No'}")
     if args.mode == 'json':
         logging.info(f"JSON Key Path: '{getattr(args, 'key', '')}'")
     if args.mode == 'yaml':
@@ -1896,9 +1981,6 @@ def main() -> None:
         'clean_items': clean_items,
     }
 
-    # Check for arrow-specific args
-    right_side = getattr(args, 'right', False)
-
     handler_map = {
         'arrow': (
             arrow_mode,
@@ -1926,6 +2008,14 @@ def main() -> None:
                 **common_kwargs,
                 'first_column': first_column,
                 'delimiter': delimiter,
+                'output_format': output_format,
+            },
+        ),
+        'markdown': (
+            markdown_mode,
+            {
+                **common_kwargs,
+                'right_side': right_side,
                 'output_format': output_format,
             },
         ),

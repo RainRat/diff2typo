@@ -135,7 +135,7 @@ def is_one_letter_replacement(
             # the suffix correction[i+1:] must match typo[i+2:].
             if typo[:i] == correction[:i] and typo[i+2:] == correction[i+1:]:
                 replacements.add((correction[i], typo[i:i+2]))
-        return sorted(list(replacements))
+        return sorted(replacements)
 
     # Two-to-one replacement scenario (e.g. 'ph' -> 'f')
     if allow_two_char and len(typo) == len(correction) - 1:
@@ -146,7 +146,7 @@ def is_one_letter_replacement(
             # the suffix correction[i+2:] must match typo[i+1:].
             if correction[:i] == typo[:i] and correction[i+2:] == typo[i+1:]:
                 replacements.add((correction[i:i+2], typo[i]))
-        return sorted(list(replacements))
+        return sorted(replacements)
 
     return []
 

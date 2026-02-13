@@ -21,6 +21,28 @@ except ImportError:  # pragma: no cover - optional dependency
     chardet = None
     _CHARDET_AVAILABLE = False
 
+
+# ANSI Color Codes
+GREEN = "\033[1;32m"
+RED = "\033[1;31m"
+YELLOW = "\033[1;33m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+
+class MinimalFormatter(logging.Formatter):
+    """A logging formatter that removes prefixes for INFO level messages."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._info_formatter = logging.Formatter('%(message)s')
+
+    def format(self, record: logging.LogRecord) -> str:
+        if record.levelno == logging.INFO:
+            return self._info_formatter.format(record)
+        return super().format(record)
+
+
 def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:
     """
     Check if 'typo' is formed by swapping two adjacent characters in 'correction'.
@@ -236,6 +258,8 @@ def generate_report(
     # Filter
     filtered = {k: v for k, v in replacement_counts.items() if v >= min_occurrences}
 
+    total_typos = sum(replacement_counts.values())
+
     # Sort
     if sort_by == 'typo':
         # k is (correct_char, typo_char), sort by typo_char then correct_char
@@ -250,15 +274,18 @@ def generate_report(
     if limit:
         sorted_replacements = sorted_replacements[:limit]
 
-    # ANSI Color Codes
-    GREEN = "\033[1;32m"
-    RED = "\033[1;31m"
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
+    # Color support detection
+    # stdout colors (used for the report data)
+    use_color_stdout = not output_file and sys.stdout.isatty()
+    c_out_green = GREEN if use_color_stdout else ""
+    c_out_red = RED if use_color_stdout else ""
+    c_out_bold = BOLD if use_color_stdout else ""
+    c_out_reset = RESET if use_color_stdout else ""
 
-    # Disable colors if not running in a terminal or if writing to a file
-    if output_file or not sys.stdout.isatty():
-        GREEN = RED = RESET = BOLD = ""
+    # stderr colors (used for human-readable headers)
+    use_color_stderr = not quiet and sys.stderr.isatty()
+    c_err_bold = BOLD if use_color_stderr else ""
+    c_err_reset = RESET if use_color_stderr else ""
 
     if output_format == 'arrow':
         # arrow
@@ -280,6 +307,10 @@ def generate_report(
                 percent = (adjacent_count / total_single_char) * 100
                 keyboard_summary = f"Keyboard Adjacency: {adjacent_count}/{total_single_char} ({percent:.1f}%)"
 
+        analysis_summary = f"Total replacements analyzed: {total_typos}"
+        if min_occurrences > 1:
+            analysis_summary += f" (Min occurrences: {min_occurrences})"
+
         # Calculate padding for alignment (default to header labels' lengths)
         max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
         max_c = max(max_c, 7)  # 'CORRECT' is 7
@@ -295,28 +326,36 @@ def generate_report(
         if not output_file:
             # Move the human-readable header to stderr to keep stdout clean for piping
             if not quiet:
-                sys.stderr.write(f"\n {title}\n\n")
-                sys.stderr.write(f" {header_row}\n")
-                sys.stderr.write(f" {divider}\n")
+                sys.stderr.write(f"\n {c_err_bold}{title}{c_err_reset}\n\n")
+                sys.stderr.write(f" {analysis_summary}\n")
                 if keyboard_summary:
                     sys.stderr.write(f" {keyboard_summary}\n")
-                    sys.stderr.write(f" {divider}\n")
+                sys.stderr.write(f"\n {header_row}\n")
+                sys.stderr.write(f" {divider}\n")
                 sys.stderr.flush()
             report_lines = []
         else:
-            report_lines = [title, "", header_row, divider]
+            report_lines = [title, "", analysis_summary]
             if keyboard_summary:
                 report_lines.append(keyboard_summary)
-                report_lines.append(divider)
+            report_lines.extend(["", header_row, divider])
+
+        if not sorted_replacements:
+            no_results = " No replacements found matching the criteria."
+            if not output_file:
+                if not quiet:
+                    sys.stderr.write(f"{no_results}\n\n")
+            else:
+                report_lines.append(no_results)
 
         for (correct_char, typo_char), count in sorted_replacements:
             marker = ""
             if keyboard and len(correct_char) == 1 and len(typo_char) == 1:
                 if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                    marker = f" {BOLD}[K]{RESET}"
+                    marker = f" {c_out_bold}[K]{c_out_reset}"
 
             report_lines.append(
-                f" {GREEN}{correct_char:>{max_c}}{RESET} -> {RED}{typo_char:<{max_t}}{RESET} : {BOLD}{count:>{max_n}}{RESET}{marker}"
+                f" {c_out_green}{correct_char:>{max_c}}{c_out_reset} -> {c_out_red}{typo_char:<{max_t}}{c_out_reset} : {c_out_bold}{count:>{max_n}}{c_out_reset}{marker}"
             )
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
@@ -495,7 +534,10 @@ def main() -> None:
     args = parser.parse_args()
 
     log_level = logging.WARNING if args.quiet else logging.INFO
-    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
+    # Use a custom handler and formatter to keep output clean
+    handler = logging.StreamHandler()
+    handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
+    logging.basicConfig(level=log_level, handlers=[handler])
 
     input_files = args.input_files
     output_file = args.output

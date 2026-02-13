@@ -36,6 +36,10 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column.
   - **Example:** `python multitool.py csv data.csv`
 
+- **`markdown`**
+  - **What it does:** Extracts items from Markdown bulleted lists (lines starting with `-`, `*`, or `+`). It can also split items by `:` or `->` to extract one side of a pair (use the `--right` flag for the second part).
+  - **Example:** `python multitool.py markdown notes.md --right`
+
 - **`json`**
   - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). It automatically handles lists.
   - **Example:** `python multitool.py json report.json --key replacements.typo`

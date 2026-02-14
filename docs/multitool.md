@@ -37,7 +37,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py csv data.csv`
 
 - **`markdown`**
-  - **What it does:** Extracts items from Markdown bulleted lists (lines starting with `-`, `*`, or `+`). It can also split items by `:` or `->` to extract one side of a pair (use the `--right` flag for the second part).
+  - **What it does:** Extracts items from Markdown bulleted lists (lines starting with `- `, `* `, or `+ `). It can also split items by `:` or `->` to extract one side of a pair (use the `--right` flag for the second part).
   - **Example:** `python multitool.py markdown notes.md --right`
 
 - **`json`**
@@ -62,6 +62,7 @@ These modes help you transform or combine your data.
 
 - **`combine`**
   - **What it does:** Merges multiple files (or standard input) into one list, removes duplicates, and sorts the result alphabetically.
+  - **Note:** This mode has built-in sorting and deduplication; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py combine file1.txt file2.txt`
 
 - **`filterfragments`**
@@ -84,7 +85,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation difference`
 
 - **`zip`**
-  - **What it does:** Combines two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**.
+  - **What it does:** Combines two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**. If the files have a different number of lines, the output will stop at the end of the shortest file.
   - **Supported Formats:** `line`, `json`, `csv`, `markdown`, `arrow`, and `table`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
@@ -97,8 +98,10 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py check mappings.csv`
 
 - **`count`**
-  - **What it does:** Counts how many times each word appears in a file and sorts them by frequency.
-  - **Example:** `python multitool.py count all_typos.txt`
+  - **What it does:** Counts how many times each word appears in a file and sorts them by frequency (most frequent first).
+  - **Options:** Use `--min-count` and `--max-count` to filter results by their frequency.
+  - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.
+  - **Example:** `python multitool.py count all_typos.txt --min-count 5`
 
 ## Common Options
 
@@ -110,5 +113,5 @@ These options work with most modes:
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
-- `--raw`: Keep punctuation and capitalization. By default, most tools convert everything to lowercase and remove non-letter characters. Use this flag if you need to preserve the exact appearance of the input text.
+- `--raw`: Keep punctuation and capitalization. By default, most tools convert everything to lowercase and remove all characters except for lowercase **a through z**. Use this flag if you need to preserve numbers, punctuation, or capitalization.
 - `--quiet`: Hide progress bars and log messages.

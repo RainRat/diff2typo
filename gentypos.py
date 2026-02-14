@@ -186,8 +186,23 @@ def load_custom_substitutions(
     """
     if not custom_subs:
         return {}
-    # Ensure all keys and values are lowercase
-    substitutions = {k.lower(): set(vv.lower() for vv in v) for k, v in custom_subs.items()}
+
+    substitutions = {}
+    for k, v in custom_subs.items():
+        if v is None:
+            continue
+
+        # Ensure v is iterable
+        if isinstance(v, (str, bytes)):
+            v = [v]
+
+        try:
+            # Ensure all keys and values are strings and lowercase
+            substitutions[str(k).lower()] = set(str(vv).lower() for vv in v if vv is not None)
+        except TypeError:
+            # If v is not iterable, skip it or handle as single item
+            substitutions[str(k).lower()] = {str(v).lower()}
+
     return substitutions
 
 
@@ -550,10 +565,13 @@ def _setup_generation_tools(
         file_subs = _load_substitutions_file(settings.substitutions_file)
         for k, v in file_subs.items():
             if k in custom_subs_raw:
-                if isinstance(custom_subs_raw[k], list):
-                    custom_subs_raw[k].extend(v)
+                existing = custom_subs_raw[k]
+                if existing is None:
+                    custom_subs_raw[k] = v
+                elif isinstance(existing, list):
+                    existing.extend(v)
                 else:
-                    custom_subs_raw[k] = [custom_subs_raw[k]] + v
+                    custom_subs_raw[k] = [existing] + v
             else:
                 custom_subs_raw[k] = v
 

@@ -70,3 +70,16 @@ def test_load_lines_from_file_none_if_missing(caplog):
         result = typostats.load_lines_from_file("definitely_not_a_file_12345.txt")
     assert result is None
     assert "File not found" in caplog.text
+
+def test_is_one_letter_replacement_two_to_one():
+    """Cover lines 164-171 in typostats.py: two-to-one replacements."""
+    assert typostats.is_one_letter_replacement('f', 'ph', allow_two_char=True) == [('ph', 'f')]
+    assert typostats.is_one_letter_replacement('af', 'aph', allow_two_char=True) == [('ph', 'f')]
+    assert typostats.is_one_letter_replacement('fa', 'pha', allow_two_char=True) == [('ph', 'f')]
+
+    assert typostats.is_one_letter_replacement('ac', 'abc', allow_two_char=True) == [
+        ('ab', 'a'),
+        ('bc', 'c'),
+    ]
+
+    assert typostats.is_one_letter_replacement('f', 'ph', allow_two_char=False) == []

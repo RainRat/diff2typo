@@ -1200,7 +1200,8 @@ def _add_common_mode_arguments(
         help="Where to save the results. Use '-' for the screen (default: screen).",
     )
     io_group.add_argument(
-        '-f', '--output-format',
+        '-f', '--format', '--output-format',
+        dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table'],
         default='line',
         help="Choose the format for the output (default: line).",
@@ -1419,7 +1420,7 @@ MODE_DETAILS = {
     "count": {
         "summary": "Counts how many times each word appears.",
         "description": "Counts word frequency and sorts the list from most frequent to least frequent.",
-        "example": "python multitool.py count typos.log --min-count 5 --output-format json --output counts.json",
+        "example": "python multitool.py count typos.log --min-count 5 --format json --output counts.json",
         "flags": "[--min-count N]",
     },
     "filterfragments": {
@@ -1461,7 +1462,7 @@ MODE_DETAILS = {
     "zip": {
         "summary": "Pairs lines from two files together.",
         "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists.",
-        "example": "python multitool.py zip typos.txt --file2 corrections.txt --output-format table --output typos.toml",
+        "example": "python multitool.py zip typos.txt --file2 corrections.txt --format table --output typos.toml",
         "flags": "[--file2 FILE]",
     },
 }
@@ -1602,7 +1603,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '--quiet',
+        '-q', '--quiet',
         action='store_true',
         help='Suppress progress bars and informational log output.',
     )

@@ -86,7 +86,7 @@ These modes help you transform or combine your data.
 - **`zip`**
   - **What it does:** Combines two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**.
   - **Supported Formats:** `line`, `json`, `csv`, `markdown`, `arrow`, and `table`.
-  - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
+  - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --format arrow`
 
 ### 3. Analysis Modes
 
@@ -105,10 +105,10 @@ These modes help you analyze your data.
 These options work with most modes:
 
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input (stdin)** if omitted.
-- `--output`: The file to write results to. Defaults to printing to the screen.
-- `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, `markdown`, `arrow`, and `table`.
+- `-o, --output`: The file to write results to. Defaults to printing to the screen.
+- `-f, --format`: The format of the output (alias: `--output-format`). Options include `line` (default), `json`, `csv`, `markdown`, `arrow`, and `table`.
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
 - `--raw`: Keep punctuation and capitalization. By default, most tools convert everything to lowercase and remove non-letter characters. Use this flag if you need to preserve the exact appearance of the input text.
-- `--quiet`: Hide progress bars and log messages.
+- `-q, --quiet`: Hide progress bars and log messages.

@@ -234,6 +234,120 @@ def write_output(
                 outfile.write(item + '\n')
 
 
+def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[Tuple[str, str]]:
+    """Yield (left, right) pairs from input files, supporting multiple formats."""
+    for input_file in input_files:
+        ext = input_file.lower()
+        if ext.endswith('.json'):
+            content = "".join(_read_file_lines_robust(input_file))
+            if content.strip():
+                try:
+                    data = json.loads(content)
+                    if isinstance(data, dict):
+                        if 'replacements' in data and isinstance(data['replacements'], list):
+                            for item in data['replacements']:
+                                if 'typo' in item and 'correct' in item:
+                                    yield str(item['typo']), str(item['correct'])
+                        else:
+                            for k, v in data.items():
+                                yield str(k), str(v)
+                    elif isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict) and 'typo' in item and 'correct' in item:
+                                yield str(item['typo']), str(item['correct'])
+                except Exception as e:
+                    logging.error(f"Failed to parse JSON in '{input_file}': {e}")
+            continue
+
+        if ext.endswith('.yaml') or ext.endswith('.yml'):
+            try:
+                import yaml
+                content = "".join(_read_file_lines_robust(input_file))
+                for doc in yaml.safe_load_all(content):
+                    if isinstance(doc, dict):
+                        for k, v in doc.items():
+                            yield str(k), str(v)
+                    elif isinstance(doc, list):
+                        for item in doc:
+                            if isinstance(item, dict):
+                                if 'typo' in item and 'correct' in item:
+                                    yield str(item['typo']), str(item['correct'])
+                                else:
+                                    for k, v in item.items():
+                                        yield str(k), str(v)
+            except ImportError:
+                logging.error("PyYAML not installed.")
+            except Exception as e:
+                logging.error(f"Failed to parse YAML in '{input_file}': {e}")
+            continue
+
+        # Text formats
+        lines = _read_file_lines_robust(input_file)
+        for line in tqdm(lines, desc=f'Processing {input_file}', unit=' lines', disable=quiet):
+            content = line.strip()
+            if not content or content.startswith('#'):
+                continue
+
+            if " -> " in content:
+                parts = content.split(" -> ", 1)
+                yield parts[0].strip(), parts[1].strip()
+            elif ' = "' in content:
+                parts = content.split(' = "', 1)
+                yield parts[0].strip(), parts[1].rsplit('"', 1)[0]
+            elif ": " in content:
+                clean_content = re.sub(r'^\s*[-*+]\s+', '', content)
+                parts = clean_content.split(": ", 1)
+                yield parts[0].strip(), parts[1].strip()
+            else:
+                try:
+                    reader = csv.reader([content])
+                    row = next(reader)
+                    if len(row) >= 2:
+                        yield row[0].strip(), row[1].strip()
+                except (csv.Error, StopIteration):
+                    continue
+
+
+def _write_paired_output(
+    pairs: Iterable[Tuple[str, str]],
+    output_file: str,
+    output_format: str,
+    mode_label: str,
+    quiet: bool = False,
+) -> None:
+    """Writes a collection of paired strings to the output file in the specified format."""
+    pairs_list = list(pairs)
+
+    # Determine newline behavior for CSV
+    newline = '' if output_format == 'csv' else None
+
+    with smart_open_output(output_file, newline=newline) as out_file:
+        if output_format == 'json':
+            json_data = {left: right for left, right in pairs_list}
+            json.dump(json_data, out_file, indent=2)
+            out_file.write('\n')
+        elif output_format == 'yaml':
+            for left, right in pairs_list:
+                out_file.write(f"{left}: {right}\n")
+        elif output_format == 'csv':
+            writer = csv.writer(out_file)
+            for left, right in pairs_list:
+                writer.writerow([left, right])
+        elif output_format == 'table':
+            for left, right in pairs_list:
+                out_file.write(f'{left} = "{right}"\n')
+        elif output_format == 'markdown':
+            for left, right in pairs_list:
+                out_file.write(f"- {left}: {right}\n")
+        else:  # 'arrow' or 'line' or fallback
+            for left, right in pairs_list:
+                out_file.write(f"{left} -> {right}\n")
+
+    logging.info(
+        f"[{mode_label} Mode] Processed {len(pairs_list)} pairs. Output written to '{output_file}' in {output_format} format."
+    )
+
+
 def _process_items(
     extractor_func: Callable[[str, bool], Iterable[str]],
     input_files: Sequence[str],
@@ -884,33 +998,56 @@ def zip_mode(
         # Deduplicate while preserving order if not sorting? No, sorted(set()) sorts.
         filtered_pairs = sorted(set(filtered_pairs))
 
-    # Determine newline behavior for CSV
-    newline = '' if output_format == 'csv' else None
+    _write_paired_output(
+        filtered_pairs,
+        output_file,
+        output_format,
+        "Zip",
+        quiet
+    )
 
-    with smart_open_output(output_file, newline=newline) as out_file:
-        if output_format == 'json':
-            json_data = {left: right for left, right in filtered_pairs}
-            json.dump(json_data, out_file, indent=2)
-            out_file.write('\n')
-        elif output_format == 'yaml':
-            for left, right in filtered_pairs:
-                out_file.write(f"{left}: {right}\n")
-        elif output_format == 'csv':
-            writer = csv.writer(out_file)
-            for left, right in filtered_pairs:
-                writer.writerow([left, right])
-        elif output_format == 'table':
-            for left, right in filtered_pairs:
-                out_file.write(f'{left} = "{right}"\n')
-        elif output_format == 'markdown':
-            for left, right in filtered_pairs:
-                out_file.write(f"- {left}: {right}\n")
-        else:  # 'arrow' or 'line' or fallback
-            for left, right in filtered_pairs:
-                out_file.write(f"{left} -> {right}\n")
 
-    logging.info(
-        f"[Zip Mode] Combined {len(filtered_pairs)} pairs. Output written to '{output_file}' in {output_format} format."
+def swap_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """Reverses the order of pairs in the input file(s)."""
+
+    raw_pairs = _extract_pairs(input_files, quiet=quiet)
+
+    filtered_pairs = []
+    for left, right in raw_pairs:
+        # Swap
+        new_left, new_right = right, left
+
+        # Clean if requested
+        if clean_items:
+            new_left = filter_to_letters(new_left)
+            new_right = filter_to_letters(new_right)
+
+        # Skip if both are empty after cleaning
+        if not new_left and not new_right:
+            continue
+
+        # Apply length filtering
+        if min_length <= len(new_left) <= max_length and min_length <= len(new_right) <= max_length:
+            filtered_pairs.append((new_left, new_right))
+
+    if process_output:
+        filtered_pairs = sorted(set(filtered_pairs))
+
+    _write_paired_output(
+        filtered_pairs,
+        output_file,
+        output_format,
+        "Swap",
+        quiet
     )
 
 
@@ -1464,6 +1601,12 @@ MODE_DETAILS = {
         "example": "python multitool.py zip typos.txt --file2 corrections.txt --output-format table --output typos.toml",
         "flags": "[--file2 FILE]",
     },
+    "swap": {
+        "summary": "Reverses the order of elements in paired data.",
+        "description": "Flips the left and right elements of pairs (e.g., 'typo -> correction' becomes 'correction -> typo'). Supports Arrow, Table, CSV, and Markdown formats.",
+        "example": "python multitool.py swap typos.csv --output-format arrow --output flipped.txt",
+        "flags": "",
+    },
 }
 
 
@@ -1471,7 +1614,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
-        "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip"],
+        "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip", "swap"],
         "Analysis": ["count", "check"],
     }
 
@@ -1879,6 +2022,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(zip_parser)
 
+    swap_parser = subparsers.add_parser(
+        'swap',
+        help=MODE_DETAILS['swap']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['swap']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['swap']['example']}",
+    )
+    _add_common_mode_arguments(swap_parser)
+
     return parser
 
 
@@ -2139,6 +2291,13 @@ def main() -> None:
             {
                 **common_kwargs,
                 'file2': file2,
+                'output_format': output_format,
+            }
+        ),
+        'swap': (
+            swap_mode,
+            {
+                **common_kwargs,
                 'output_format': output_format,
             }
         ),

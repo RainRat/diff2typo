@@ -561,7 +561,7 @@ def _setup_generation_tools(
     custom_subs_raw = copy.deepcopy(settings.custom_substitutions_config)
 
     # Merge substitutions from file if provided
-    if hasattr(settings, 'substitutions_file') and settings.substitutions_file:
+    if settings.substitutions_file:
         file_subs = _load_substitutions_file(settings.substitutions_file)
         for k, v in file_subs.items():
             if k in custom_subs_raw:

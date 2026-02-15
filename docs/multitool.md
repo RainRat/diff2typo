@@ -88,6 +88,11 @@ These modes help you transform or combine your data.
   - **Supported Formats:** `line`, `json`, `csv`, `markdown`, `arrow`, and `table`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
+- **`swap`**
+  - **What it does:** Reverses the order of elements in paired data (e.g., `typo -> correction` becomes `correction -> typo`).
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
+  - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
+
 ### 3. Analysis Modes
 
 These modes help you analyze your data.

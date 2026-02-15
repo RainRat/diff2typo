@@ -1333,14 +1333,21 @@ def _add_common_mode_arguments(
     io_group.add_argument(
         '-o', '--output',
         type=str,
-        default='-',
+        default=argparse.SUPPRESS,
         help="Where to save the results. Use '-' for the screen (default: screen).",
     )
     io_group.add_argument(
-        '-f', '--output-format',
+        '-f', '--output-format', '--format',
+        dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table'],
-        default='line',
+        default=argparse.SUPPRESS,
         help="Choose the format for the output (default: line).",
+    )
+    io_group.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        default=argparse.SUPPRESS,
+        help='Suppress progress bars and informational log output.',
     )
 
     # Processing Configuration Group
@@ -1745,9 +1752,24 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '--quiet',
+        '-q', '--quiet',
         action='store_true',
         help='Suppress progress bars and informational log output.',
+    )
+
+    parser.add_argument(
+        '-o', '--output',
+        type=str,
+        default='-',
+        help="Where to save the results. Use '-' for the screen (default: screen).",
+    )
+
+    parser.add_argument(
+        '-f', '--output-format', '--format',
+        dest='output_format',
+        choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table'],
+        default='line',
+        help="Choose the format for the output (default: line).",
     )
 
     subparsers = parser.add_subparsers(dest='mode', required=True, metavar='mode')

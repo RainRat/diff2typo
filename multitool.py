@@ -164,21 +164,24 @@ def print_processing_stats(
     if not sys.stderr.isatty():
         GREEN = YELLOW = RESET = BOLD = ""
 
-    logging.info(f"\n{BOLD}Analysis Statistics:{RESET}")
-    logging.info(f"  {BOLD}Total {item_label_plural} encountered:{RESET}  {YELLOW}{raw_item_count}{RESET}")
-    logging.info(
-        f"  {BOLD}Total {item_label_plural} after filtering:{RESET} {GREEN}{len(filtered_items)}{RESET}"
-    )
+    logging.info(f"\n{BOLD}ANALYSIS STATISTICS{RESET}")
+    logging.info(f"{BOLD}───────────────────────────────────────────────────────{RESET}")
+    logging.info(f"  {BOLD}{'Total ' + item_label_plural + ' encountered:':<35}{RESET} {YELLOW}{raw_item_count}{RESET}")
+    logging.info(f"  {BOLD}{'Total ' + item_label_plural + ' after filtering:':<35}{RESET} {GREEN}{len(filtered_items)}{RESET}")
+
+    if raw_item_count > 0:
+        retention = (len(filtered_items) / raw_item_count) * 100
+        logging.info(f"  {BOLD}{'Retention rate:':<35}{RESET} {GREEN}{retention:.1f}%{RESET}")
 
     if filtered_items:
         unique_items = list(dict.fromkeys(filtered_items))
         shortest = min(unique_items, key=len)
         longest = max(unique_items, key=len)
         logging.info(
-            f"  {BOLD}Shortest {item_label}:{RESET} '{shortest}' (length: {len(shortest)})"
+            f"  {BOLD}{'Shortest ' + item_label + ':':<35}{RESET} '{shortest}' (length: {len(shortest)})"
         )
         logging.info(
-            f"  {BOLD}Longest {item_label}:{RESET}  '{longest}' (length: {len(longest)})"
+            f"  {BOLD}{'Longest ' + item_label + ':':<35}{RESET} '{longest}' (length: {len(longest)})"
         )
     else:
         logging.info(f"  {YELLOW}No {item_label_plural} passed the filtering criteria.{RESET}")
@@ -1705,16 +1708,22 @@ def get_mode_summary_text() -> str:
     lines.append(f"    {'-' * total_header_width}")
 
     for category, modes in categories.items():
-        lines.append(f"  {BLUE}{category}:{RESET}")
+        lines.append(f"\n  {BLUE}{category.upper()}{RESET}")
+        lines.append(f"  {BLUE}{'─' * 55}{RESET}")
         for mode in modes:
             if mode in MODE_DETAILS:
                 details = MODE_DETAILS[mode]
                 summary = details['summary']
                 flags = details.get('flags', '')
                 lines.append(f"    {GREEN}{mode:<{width}}{RESET} {summary:<55} {YELLOW}{flags}{RESET}")
-        lines.append("")
 
-    lines.append(f"Run '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
+    lines.append(f"\n  {BLUE}GLOBAL OPTIONS{RESET}")
+    lines.append(f"  {BLUE}{'─' * 55}{RESET}")
+    lines.append(f"    {YELLOW}{'-o, --output':<{width}}{RESET} Path to output file. Use '-' for screen.")
+    lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, csv, markdown, arrow, table.")
+    lines.append(f"    {YELLOW}{'-q, --quiet':<{width}}{RESET} Suppress progress bars and analysis statistics.")
+
+    lines.append(f"\nRun '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
     return "\n".join(lines)
 
 
@@ -1763,16 +1772,29 @@ class ModeHelpAction(argparse.Action):
             if not sys.stdout.isatty():
                 BLUE = GREEN = YELLOW = RESET = BOLD = ""
 
+            divider = f"{BLUE}{'─' * 80}{RESET}"
             block = [
-                f"{BOLD}Mode:{RESET} {GREEN}{values}{RESET}",
-                f"  {BOLD}Summary:{RESET} {details['summary']}",
+                divider,
+                f"{BOLD}MODE:{RESET} {GREEN}{values.upper()}{RESET}",
+                divider,
+                f"{BOLD}SUMMARY:{RESET}     {details['summary']}",
             ]
+
             if details.get("description"):
-                block.append(f"  {BOLD}Description:{RESET} {details['description']}")
+                # Simple indentation for description
+                desc = details['description']
+                block.append(f"{BOLD}DESCRIPTION:{RESET} {desc}")
+
+            block.append(f"\n{BOLD}USAGE:{RESET}       python multitool.py {values} [FILES...] [FLAGS]")
+
             if details.get("flags"):
-                block.append(f"  {BOLD}Primary Flags:{RESET} {YELLOW}{details['flags']}{RESET}")
+                block.append(f"{BOLD}FLAGS:{RESET}       {YELLOW}{details['flags']}{RESET}")
+
             if details.get("example"):
-                block.append(f"  {BOLD}Example:{RESET} {BLUE}{details['example']}{RESET}")
+                block.append(f"\n{BOLD}EXAMPLE:{RESET}")
+                block.append(f"  {BLUE}{details['example']}{RESET}")
+
+            block.append(divider)
 
             parser.exit(message="\n" + "\n".join(block) + "\n\n")
 

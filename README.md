@@ -8,9 +8,13 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 - **Clean your data:** Powerful text processing tools to filter, merge, and organize typo lists.
 - **Find patterns:** See which keys you hit by mistake most often.
 
-## 📦 Installation
+## 📋 Prerequisites
 
-**Requirement:** Python 3.10 or newer.
+- **Python 3.10 or newer:** The suite uses modern Python features.
+- **Git:** Required to use `diff2typo.py` with your repository history.
+- **(Optional) The `typos` tool:** We recommend installing the [typos](https://github.com/crate-ci/typos) command-line utility. `diff2typo.py` uses it to automatically filter out typos that are already known, keeping your lists clean.
+
+## 📦 Installation
 
 1. **Download the code:**
    ```bash
@@ -18,13 +22,13 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
    cd diff2typo
    ```
 
-2. **Install the basics:**
+2. **Install the dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **(Optional) Better file support:**
-   Install `chardet` to help the tools automatically handle files that use different text encodings (like UTF-8, Latin-1, etc.).
+   Install `chardet` to help the tools automatically handle files with different text encodings (like UTF-8 or Latin-1).
    ```bash
    pip install chardet
    ```
@@ -41,22 +45,25 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 
 ## 🚀 Quick Start
 
-Follow these steps to find typos you've fixed recently and see your common mistakes.
+Follow these steps to find typos you have fixed recently and identify your common mistakes.
 
-**1. Get your recent changes:**
-Create a file containing your last few changes.
+### 1. Prepare a Dictionary
+The tools work best when they know which words are "valid." Create a file named `words.csv` and add words you use often (like project-specific terms) one per line. If you skip this, the tools will still work but may report more false positives.
+
+### 2. Get Your Recent Changes
+Create a file containing your last few Git commits.
 ```bash
 git diff HEAD~5 HEAD > changes.diff
 ```
 
-**2. Extract the typos:**
-Run `diff2typo` on your changes to see what you fixed.
+### 3. Extract the Typos
+Run `diff2typo.py` on your changes. It will find words you corrected and save them to a file.
 ```bash
 python diff2typo.py changes.diff --output my_typos.txt --mode typos --format csv
 ```
 
-**3. See the patterns:**
-Use `typostats` to find your most frequent mistakes.
+### 4. Analyze the Patterns
+Use `typostats.py` to see which keys you hit by mistake most often.
 ```bash
 python typostats.py my_typos.txt --sort count
 ```

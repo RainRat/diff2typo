@@ -1,6 +1,6 @@
 import argparse
 import csv
-from collections import Counter
+from collections import Counter, defaultdict
 import random
 import contextlib
 import sys
@@ -859,6 +859,53 @@ def check_mode(
     )
 
 
+def conflict_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """
+    Identifies typos that are associated with more than one unique correction.
+    """
+    raw_pairs = _extract_pairs(input_files, quiet=quiet)
+    typo_to_corrections = defaultdict(set)
+
+    for left, right in raw_pairs:
+        # Apply cleaning if requested
+        if clean_items:
+            left = filter_to_letters(left)
+            right = filter_to_letters(right)
+
+        # Only consider pairs where both sides are non-empty after cleaning
+        if left and right:
+            typo_to_corrections[left].add(right)
+
+    conflicts = []
+    for typo, corrections in typo_to_corrections.items():
+        if len(corrections) > 1:
+            # Re-apply length filtering to the typo itself
+            if min_length <= len(typo) <= max_length:
+                conflicts.append((typo, ", ".join(sorted(corrections))))
+
+    if process_output:
+        conflicts.sort()
+
+    _write_paired_output(
+        conflicts,
+        output_file,
+        output_format,
+        "Conflict",
+        quiet
+    )
+
+    logging.info(f"[Conflict Mode] Found {len(conflicts)} typos with conflicting corrections. Output written to '{output_file}'.")
+
+
 def csv_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -1607,6 +1654,12 @@ MODE_DETAILS = {
         "example": "python multitool.py swap typos.csv --output-format arrow --output flipped.txt",
         "flags": "",
     },
+    "conflict": {
+        "summary": "Finds typos that have multiple different corrections.",
+        "description": "Identifies typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.",
+        "example": "python multitool.py conflict typos.csv --output-format arrow --output conflicts.txt",
+        "flags": "",
+    },
 }
 
 
@@ -1615,7 +1668,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip", "swap"],
-        "Analysis": ["count", "check"],
+        "Analysis": ["count", "check", "conflict"],
     }
 
     # ANSI Color Codes
@@ -1922,6 +1975,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"Example:\n  {MODE_DETAILS['check']['example']}",
     )
     _add_common_mode_arguments(check_parser)
+
+    conflict_parser = subparsers.add_parser(
+        'conflict',
+        help=MODE_DETAILS['conflict']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['conflict']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['conflict']['example']}",
+    )
+    _add_common_mode_arguments(conflict_parser)
 
     set_parser = subparsers.add_parser(
         'set_operation',
@@ -2300,6 +2362,10 @@ def main() -> None:
                 **common_kwargs,
                 'output_format': output_format,
             }
+        ),
+        'conflict': (
+            conflict_mode,
+            {**common_kwargs, 'output_format': output_format},
         ),
     }
 

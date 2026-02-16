@@ -102,6 +102,10 @@ These modes help you analyze your data.
   - **What it does:** Finds words that appear as both a typo *and* a correction. This is useful for spotting errors in your typo database (loops).
   - **Example:** `python multitool.py check mappings.csv`
 
+- **`conflict`**
+  - **What it does:** Identifies typos that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.
+  - **Example:** `python multitool.py conflict mappings.csv`
+
 - **`count`**
   - **What it does:** Counts how many times each word appears in a file and sorts them by frequency (most frequent first).
   - **Options:** Use `--min-count` and `--max-count` to filter results by their frequency.

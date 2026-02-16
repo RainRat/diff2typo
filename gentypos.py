@@ -1,3 +1,24 @@
+'''
+gentypos.py
+
+Purpose:
+    Generate common typing errors (typos) for a list of words. This tool helps you
+    predict mistakes people might make when typing specific words, which is
+    useful for building robust spell-checkers.
+
+Features:
+    - Generates typos based on common typing patterns (skipping letters, swapping neighbors, etc.).
+    - Uses keyboard adjacency to predict likely finger-slips on a QWERTY layout.
+    - Supports custom substitution rules for specific character patterns (e.g., 'ph' -> 'f').
+    - Filters out generated typos that are actually valid words in a dictionary.
+    - Can process words directly from the command line or from a large text file.
+    - Integrates with results from 'typostats.py' to use your own personal typo history.
+
+Usage:
+    python gentypos.py hello world
+    python gentypos.py --config gentypos.yaml
+'''
+
 import sys
 import argparse
 import yaml
@@ -558,11 +579,12 @@ def _setup_generation_tools(
     logging.info("Loading custom substitutions...")
 
     # Start with substitutions from config
-    custom_subs_raw = copy.deepcopy(settings.custom_substitutions_config)
+    custom_subs_raw = copy.deepcopy(getattr(settings, 'custom_substitutions_config', {}))
 
     # Merge substitutions from file if provided
-    if settings.substitutions_file:
-        file_subs = _load_substitutions_file(settings.substitutions_file)
+    substitutions_file = getattr(settings, 'substitutions_file', None)
+    if substitutions_file:
+        file_subs = _load_substitutions_file(substitutions_file)
         for k, v in file_subs.items():
             if k in custom_subs_raw:
                 existing = custom_subs_raw[k]
@@ -575,7 +597,8 @@ def _setup_generation_tools(
             else:
                 custom_subs_raw[k] = v
 
-    if not settings.enable_custom_substitutions:
+    enable_custom_substitutions = getattr(settings, 'enable_custom_substitutions', True)
+    if not enable_custom_substitutions:
         logging.info("Custom substitutions disabled.")
         custom_subs = {}
     else:
@@ -591,9 +614,10 @@ def _setup_generation_tools(
         else:
             logging.info("No custom substitutions loaded.")
 
-    if settings.enable_adjacent_substitutions:
+    enable_adjacent_substitutions = getattr(settings, 'enable_adjacent_substitutions', True)
+    if enable_adjacent_substitutions:
         logging.info("Generating adjacent keys mapping...")
-        adjacent_keys = get_adjacent_keys(settings.include_diagonals)
+        adjacent_keys = get_adjacent_keys(getattr(settings, 'include_diagonals', True))
         total_adjacent_mappings = len(adjacent_keys)
 
         adjacent_substitutions = set()
@@ -699,14 +723,42 @@ def main() -> None:
     """
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description="Synthetic Typo Generator: Generate synthetic typos for a list of words based on YAML configuration."
+        description="Generate common typing errors (typos) for a list of words."
     )
-    parser.add_argument(
+
+    # Input/Output Options
+    io_group = parser.add_argument_group("Input/Output Options")
+    io_group.add_argument(
+        'words',
+        nargs='*',
+        help="One or more words to generate typos for. This overrides the 'input_file' setting in your config.",
+    )
+    io_group.add_argument(
         '-c', '--config',
         type=str,
         default="gentypos.yaml",
-        help="Path to the YAML configuration file (default: gentypos.yaml)"
+        help="Path to the YAML configuration file (default: gentypos.yaml)."
     )
+    io_group.add_argument(
+        '--output',
+        type=str,
+        help="Where to save the results. Use '-' for the screen (default: screen).",
+    )
+
+    # Generation Options Group
+    gen_group = parser.add_argument_group("Generation Options")
+    gen_group.add_argument(
+        '--no-filter',
+        action='store_true',
+        help="Do not check typos against the dictionary. Useful for quick tests or if you do not have a dictionary file.",
+    )
+    gen_group.add_argument(
+        '-s', '--substitutions',
+        type=str,
+        help="Path to a file with custom typo patterns (JSON, CSV, or YAML). Compatible with 'typostats.py' output.",
+    )
+
+    # General Options
     parser.add_argument(
         '-v', '--verbose',
         action='store_true',
@@ -718,29 +770,9 @@ def main() -> None:
         help="Suppress progress bars and reduce log verbosity.",
     )
     parser.add_argument(
-        'words',
-        nargs='*',
-        help="List of words to process directly (overrides input_file).",
-    )
-    parser.add_argument(
         '--word',
         nargs='+',
-        help="List of words to process directly (overrides input_file). [Legacy flag, prefer positional args]",
-    )
-    parser.add_argument(
-        '--output',
-        type=str,
-        help="Output file path (overrides config). Default to stdout (-) in CLI mode.",
-    )
-    parser.add_argument(
-        '--no-filter',
-        action='store_true',
-        help="Skip dictionary filtering (useful for quick checks).",
-    )
-    parser.add_argument(
-        '-s', '--substitutions',
-        type=str,
-        help="Path to a file containing custom substitutions (JSON, CSV, or YAML). Compatible with typostats.py output.",
+        help=argparse.SUPPRESS, # Legacy flag
     )
 
     args = parser.parse_args()

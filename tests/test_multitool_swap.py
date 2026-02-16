@@ -1,67 +1,220 @@
-import subprocess
 import pytest
-import os
 import json
+from pathlib import Path
+from unittest.mock import patch
+import sys
+import io
 
-def run_multitool(args, input_text=None):
-    process = subprocess.Popen(
-        ['python', 'multitool.py'] + args,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    stdout, stderr = process.communicate(input=input_text)
-    return stdout, stderr, process.returncode
+# Add repository root to path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+import multitool
 
-def test_swap_arrow():
-    input_text = "teh -> the\ntaht -> that\n"
-    stdout, stderr, code = run_multitool(['swap', '-f', 'arrow'], input_text=input_text)
-    assert code == 0
-    assert "the -> teh" in stdout
-    assert "that -> taht" in stdout
+@pytest.fixture(autouse=True)
+def disable_tqdm(monkeypatch):
+    """Replace tqdm with identity to avoid progress output during tests."""
+    monkeypatch.setattr(multitool, "tqdm", lambda iterable, *_, **__: iterable)
 
-def test_swap_csv():
-    input_text = "teh,the\ntaht,that\n"
-    stdout, stderr, code = run_multitool(['swap', '-f', 'csv'], input_text=input_text)
-    assert code == 0
-    assert "the,teh" in stdout
-    assert "that,taht" in stdout
+def test_swap_arrow(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("teh -> the\ntaht -> that\n")
+    output_file = tmp_path / "output.txt"
 
-def test_swap_table():
-    input_text = 'teh = "the"\ntaht = "that"\n'
-    stdout, stderr, code = run_multitool(['swap', '-f', 'table'], input_text=input_text)
-    assert code == 0
-    assert 'the = "teh"' in stdout
-    assert 'that = "taht"' in stdout
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
 
-def test_swap_raw():
-    # Test that --raw preserves casing/punctuation
-    input_text = "TeH -> The!\n"
-    stdout, stderr, code = run_multitool(['swap', '--raw', '-f', 'arrow'], input_text=input_text)
-    assert code == 0
-    assert "The! -> TeH" in stdout
+    content = output_file.read_text()
+    assert "the -> teh" in content
+    assert "that -> taht" in content
 
-def test_swap_clean():
-    # Test that default behavior cleans
-    input_text = "TeH -> The!\n"
-    stdout, stderr, code = run_multitool(['swap', '-f', 'arrow'], input_text=input_text)
-    assert code == 0
-    assert "the -> teh" in stdout
+def test_swap_csv(tmp_path):
+    input_file = tmp_path / "input.csv"
+    input_file.write_text("teh,the\ntaht,that\n")
+    output_file = tmp_path / "output.csv"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='csv')
+
+    content = output_file.read_text().splitlines()
+    assert "the,teh" in content
+    assert "that,taht" in content
+
+def test_swap_table(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text('teh = "the"\ntaht = "that"\n')
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='table')
+
+    content = output_file.read_text()
+    assert 'the = "teh"' in content
+    assert 'that = "taht"' in content
+
+def test_swap_raw(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("TeH -> The!\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow', clean_items=False)
+
+    content = output_file.read_text()
+    assert "The! -> TeH" in content
+
+def test_swap_clean(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("TeH -> The!\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow', clean_items=True)
+
+    content = output_file.read_text()
+    assert "the -> teh" in content
 
 def test_swap_json_input(tmp_path):
     d = {"teh": "the", "taht": "that"}
-    f = tmp_path / "test.json"
-    f.write_text(json.dumps(d))
+    input_file = tmp_path / "test.json"
+    input_file.write_text(json.dumps(d))
+    output_file = tmp_path / "output.txt"
 
-    stdout, stderr, code = run_multitool(['swap', str(f), '-f', 'arrow'])
-    assert code == 0
-    assert "the -> teh" in stdout
-    assert "that -> taht" in stdout
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "the -> teh" in content
+    assert "that -> taht" in content
 
-def test_swap_filtering():
-    # Test min-length filtering
-    input_text = "a -> apple\n"
-    stdout, stderr, code = run_multitool(['swap', '--min-length', '3'], input_text=input_text)
-    assert code == 0
-    assert "apple -> a" not in stdout # 'a' is too short
+def test_swap_filtering(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("a -> apple\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 3, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "apple -> a" not in content # 'a' is too short
+
+def test_swap_json_replacements_list(tmp_path):
+    d = {"replacements": [{"typo": "teh", "correct": "the"}, {"typo": "adn", "correct": "and"}]}
+    input_file = tmp_path / "test.json"
+    input_file.write_text(json.dumps(d))
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "the -> teh" in content
+    assert "and -> adn" in content
+
+def test_swap_json_list_of_dicts(tmp_path):
+    d = [{"typo": "teh", "correct": "the"}, {"typo": "adn", "correct": "and"}]
+    input_file = tmp_path / "test.json"
+    input_file.write_text(json.dumps(d))
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "the -> teh" in content
+    assert "and -> adn" in content
+
+def test_swap_yaml_dict(tmp_path):
+    pytest.importorskip("yaml")
+    import yaml
+    d = {"teh": "the", "adn": "and"}
+    input_file = tmp_path / "test.yaml"
+    input_file.write_text(yaml.dump(d))
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "the -> teh" in content
+    assert "and -> adn" in content
+
+def test_swap_yaml_list_of_dicts(tmp_path):
+    pytest.importorskip("yaml")
+    import yaml
+    d = [{"teh": "the"}, {"adn": "and"}]
+    input_file = tmp_path / "test.yaml"
+    input_file.write_text(yaml.dump(d))
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "the -> teh" in content
+    assert "and -> adn" in content
+
+def test_swap_yaml_list_of_dicts_explicit(tmp_path):
+    pytest.importorskip("yaml")
+    import yaml
+    d = [{"typo": "teh", "correct": "the"}]
+    input_file = tmp_path / "test.yaml"
+    input_file.write_text(yaml.dump(d))
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "the -> teh" in content
+
+def test_swap_markdown_style(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("- teh: the\n* adn: and\n+ taht: that\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "the -> teh" in content
+    assert "and -> adn" in content
+    assert "that -> taht" in content
+
+def test_swap_csv_fallback(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("teh,the,extra\nadn,and\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text()
+    assert "the -> teh" in content
+    assert "and -> adn" in content
+
+def test_swap_empty_lines_comments(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("\n# comment\n  \nteh -> the\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    content = output_file.read_text().strip()
+    assert content == "the -> teh"
+
+def test_swap_json_invalid(tmp_path, caplog):
+    input_file = tmp_path / "test.json"
+    input_file.write_text("{invalid")
+    output_file = tmp_path / "output.txt"
+
+    with caplog.at_level("ERROR"):
+        multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    assert "Failed to parse JSON" in caplog.text
+
+def test_swap_yaml_invalid(tmp_path, caplog):
+    pytest.importorskip("yaml")
+    input_file = tmp_path / "test.yaml"
+    input_file.write_text(":")
+    output_file = tmp_path / "output.txt"
+
+    with caplog.at_level("ERROR"):
+        multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    assert "Failed to parse YAML" in caplog.text
+
+def test_swap_yaml_missing_dependency(tmp_path, caplog, monkeypatch):
+    monkeypatch.setitem(sys.modules, 'yaml', None)
+    input_file = tmp_path / "test.yaml"
+    input_file.write_text("a: b")
+    output_file = tmp_path / "output.txt"
+
+    with caplog.at_level("ERROR"):
+        multitool.swap_mode([str(input_file)], str(output_file), 1, 100, False, output_format='arrow')
+    assert "PyYAML not installed" in caplog.text
+
+def test_swap_cli_integration(tmp_path, monkeypatch, capsys):
+    """Verify CLI entry point and stdin handling for swap mode."""
+    input_text = "teh -> the\n"
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(input_text))
+
+    # Run with '-' (stdin) and arrow output format
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', '--quiet', 'swap', '-', '-f', 'arrow'])
+
+    multitool.main()
+
+    captured = capsys.readouterr()
+    assert "the -> teh" in captured.out

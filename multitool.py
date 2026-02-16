@@ -229,6 +229,13 @@ def write_output(
         elif output_format == 'markdown':
             for item in items_list:
                 outfile.write(f"- {item}\n")
+        elif output_format == 'yaml':
+            try:
+                import yaml
+                yaml.dump(items_list, outfile, default_flow_style=False)
+            except ImportError:
+                for item in items_list:
+                    outfile.write(f"- {item}\n")
         else:  # 'line' or fallback
             for item in items_list:
                 outfile.write(item + '\n')
@@ -327,8 +334,17 @@ def _write_paired_output(
             json.dump(json_data, out_file, indent=2)
             out_file.write('\n')
         elif output_format == 'yaml':
-            for left, right in pairs_list:
-                out_file.write(f"{left}: {right}\n")
+            try:
+                import yaml
+                # Using a dictionary preserves pairs but deduplicates keys.
+                # Since pairs_list is already deduplicated if process_output is True,
+                # this is generally safe.
+                yaml_data = dict(pairs_list)
+                yaml.dump(yaml_data, out_file, default_flow_style=False, sort_keys=False)
+            except ImportError:
+                # Fallback to simple format if PyYAML not available
+                for left, right in pairs_list:
+                    out_file.write(f"{left}: {right}\n")
         elif output_format == 'csv':
             writer = csv.writer(out_file)
             for left, right in pairs_list:
@@ -1054,6 +1070,47 @@ def zip_mode(
     )
 
 
+def pairs_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """Processes paired data from input file(s)."""
+
+    raw_pairs = _extract_pairs(input_files, quiet=quiet)
+
+    filtered_pairs = []
+    for left, right in raw_pairs:
+        # Clean if requested
+        if clean_items:
+            left = filter_to_letters(left)
+            right = filter_to_letters(right)
+
+        # Skip if both are empty after cleaning
+        if not left and not right:
+            continue
+
+        # Apply length filtering to both sides to ensure valid data pairs
+        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+            filtered_pairs.append((left, right))
+
+    if process_output:
+        filtered_pairs = sorted(set(filtered_pairs))
+
+    _write_paired_output(
+        filtered_pairs,
+        output_file,
+        output_format,
+        "Pairs",
+        quiet
+    )
+
+
 def swap_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -1386,7 +1443,7 @@ def _add_common_mode_arguments(
     io_group.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table'],
+        choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table', 'yaml'],
         default=argparse.SUPPRESS,
         help="Choose the format for the output (default: line).",
     )
@@ -1661,6 +1718,12 @@ MODE_DETAILS = {
         "example": "python multitool.py swap typos.csv --output-format arrow --output flipped.txt",
         "flags": "",
     },
+    "pairs": {
+        "summary": "Processes and converts paired data.",
+        "description": "Reads pairs (like 'typo -> correction') from any supported format and writes them to the specified output format. Useful for cleaning, filtering, and format conversion.",
+        "example": "python multitool.py pairs typos.json --output-format csv --output typos.csv",
+        "flags": "",
+    },
     "conflict": {
         "summary": "Finds typos that have multiple different corrections.",
         "description": "Identifies typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.",
@@ -1674,7 +1737,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
-        "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip", "swap"],
+        "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
         "Analysis": ["count", "check", "conflict"],
     }
 
@@ -1820,7 +1883,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table'],
+        choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table', 'yaml'],
         default='line',
         help="Choose the format for the output (default: line).",
     )
@@ -2115,6 +2178,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(swap_parser)
 
+    pairs_parser = subparsers.add_parser(
+        'pairs',
+        help=MODE_DETAILS['pairs']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['pairs']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['pairs']['example']}",
+    )
+    _add_common_mode_arguments(pairs_parser)
+
     return parser
 
 
@@ -2380,6 +2452,13 @@ def main() -> None:
         ),
         'swap': (
             swap_mode,
+            {
+                **common_kwargs,
+                'output_format': output_format,
+            },
+        ),
+        'pairs': (
+            pairs_mode,
             {
                 **common_kwargs,
                 'output_format': output_format,

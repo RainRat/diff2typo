@@ -86,13 +86,18 @@ These modes help you transform or combine your data.
 
 - **`zip`**
   - **What it does:** Combines two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**. If the files have a different number of lines, the output will stop at the end of the shortest file.
-  - **Supported Formats:** `line`, `json`, `csv`, `markdown`, `arrow`, and `table`.
+  - **Supported Formats:** `line`, `json`, `csv`, `markdown`, `arrow`, `table`, and `yaml`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
 - **`swap`**
   - **What it does:** Reverses the order of elements in paired data (e.g., `typo -> correction` becomes `correction -> typo`).
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
+
+- **`pairs`**
+  - **What it does:** Processes paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (e.g., from JSON to CSV) while applying cleaning and length filters.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
+  - **Example:** `python multitool.py pairs typos.json --output-format csv`
 
 ### 3. Analysis Modes
 

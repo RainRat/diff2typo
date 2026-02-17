@@ -558,10 +558,10 @@ def _setup_generation_tools(
     logging.info("Loading custom substitutions...")
 
     # Start with substitutions from config
-    custom_subs_raw = copy.deepcopy(settings.custom_substitutions_config)
+    custom_subs_raw = copy.deepcopy(getattr(settings, 'custom_substitutions_config', {}))
 
     # Merge substitutions from file if provided
-    if settings.substitutions_file:
+    if getattr(settings, 'substitutions_file', None):
         file_subs = _load_substitutions_file(settings.substitutions_file)
         for k, v in file_subs.items():
             if k in custom_subs_raw:
@@ -575,7 +575,7 @@ def _setup_generation_tools(
             else:
                 custom_subs_raw[k] = v
 
-    if not settings.enable_custom_substitutions:
+    if not getattr(settings, 'enable_custom_substitutions', True):
         logging.info("Custom substitutions disabled.")
         custom_subs = {}
     else:
@@ -591,9 +591,9 @@ def _setup_generation_tools(
         else:
             logging.info("No custom substitutions loaded.")
 
-    if settings.enable_adjacent_substitutions:
+    if getattr(settings, 'enable_adjacent_substitutions', True):
         logging.info("Generating adjacent keys mapping...")
-        adjacent_keys = get_adjacent_keys(settings.include_diagonals)
+        adjacent_keys = get_adjacent_keys(getattr(settings, 'include_diagonals', True))
         total_adjacent_mappings = len(adjacent_keys)
 
         adjacent_substitutions = set()

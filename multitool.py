@@ -1674,8 +1674,8 @@ MODE_DETAILS = {
     "filterfragments": {
         "summary": "Removes words if they are found inside words in another file.",
         "description": "Removes words from your list if they appear anywhere (even as a fragment) inside words in a second file.",
-        "example": "python multitool.py filterfragments generated.txt --file2 dictionary.txt --output unique.txt",
-        "flags": "[--file2 FILE]",
+        "example": "python multitool.py filterfragments list.txt reference.txt --output unique.txt",
+        "flags": "[FILE2]",
     },
     "check": {
         "summary": "Finds words that are both typos and corrections.",
@@ -1686,8 +1686,8 @@ MODE_DETAILS = {
     "set_operation": {
         "summary": "Compares two files using set logic.",
         "description": "Compares two files to find shared lines (intersection), all lines (union), or lines unique to the first file (difference).",
-        "example": "python multitool.py set_operation fileA.txt --file2 fileB.txt --operation intersection --output shared.txt",
-        "flags": "[--file2 FILE --operation OP]",
+        "example": "python multitool.py set_operation fileA.txt fileB.txt --operation intersection --output shared.txt",
+        "flags": "[FILE2] --operation OP",
     },
     "sample": {
         "summary": "Picks a random set of lines from a file.",
@@ -1704,14 +1704,14 @@ MODE_DETAILS = {
     "map": {
         "summary": "Replaces items using a mapping file.",
         "description": "Replaces items in your list with new values from a mapping file. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
-        "example": "python multitool.py map input.txt -m corrections.csv -o fixed.txt",
-        "flags": "[-m MAP]",
+        "example": "python multitool.py map input.txt mapping.csv -o fixed.txt",
+        "flags": "[MAPPING]",
     },
     "zip": {
         "summary": "Pairs lines from two files together.",
         "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists.",
-        "example": "python multitool.py zip typos.txt --file2 corrections.txt --output-format table --output typos.toml",
-        "flags": "[--file2 FILE]",
+        "example": "python multitool.py zip typos.txt corrections.txt --output-format table --output typos.toml",
+        "flags": "[FILE2]",
     },
     "swap": {
         "summary": "Reverses the order of elements in paired data.",
@@ -2067,7 +2067,7 @@ def _build_parser() -> argparse.ArgumentParser:
     filter_options.add_argument(
         '--file2',
         type=str,
-        required=True,
+        required=False,
         help='Path to the second file used for comparison.',
     )
     _add_common_mode_arguments(filter_parser)
@@ -2101,7 +2101,7 @@ def _build_parser() -> argparse.ArgumentParser:
     set_options.add_argument(
         '--file2',
         type=str,
-        required=True,
+        required=False,
         help='Path to the second input file for set comparisons.',
     )
     set_options.add_argument(
@@ -2163,7 +2163,7 @@ def _build_parser() -> argparse.ArgumentParser:
     map_options.add_argument(
         '-m', '--mapping',
         type=str,
-        required=True,
+        required=False,
         help='Path to the mapping file (CSV or Arrow format).',
     )
     map_options.add_argument(
@@ -2184,7 +2184,7 @@ def _build_parser() -> argparse.ArgumentParser:
     zip_options.add_argument(
         '--file2',
         type=str,
-        required=True,
+        required=False,
         help='Path to the second file to zip with the first.',
     )
     _add_common_mode_arguments(zip_parser)
@@ -2278,6 +2278,17 @@ def main() -> None:
     # Store for logging and handler
     args.input = input_paths
 
+    # Fallback logic for modes that require a secondary file (e.g., zip, map)
+    # If the flag is missing but we have at least 2 positional arguments, use the last one as the secondary file.
+    if args.mode in {'zip', 'filterfragments', 'set_operation'}:
+        if getattr(args, 'file2', None) is None and len(input_paths) >= 2:
+            args.file2 = input_paths.pop()
+            args.input = input_paths
+    elif args.mode == 'map':
+        if getattr(args, 'mapping', None) is None and len(input_paths) >= 2:
+            args.mapping = input_paths.pop()
+            args.input = input_paths
+
     input_label = "Input Files" if len(input_paths) > 1 else "Input File"
     logging.info(f"{input_label}: {', '.join(input_paths)}")
     logging.info(f"Output File: {args.output}")
@@ -2291,6 +2302,14 @@ def main() -> None:
         )
 
     file2 = getattr(args, 'file2', None)
+    # Check for missing secondary files after fallback attempt
+    if args.mode in {'zip', 'filterfragments', 'set_operation'} and file2 is None:
+        logging.error(f"[Error] {args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
+        sys.exit(1)
+    if args.mode == 'map' and getattr(args, 'mapping', None) is None:
+        logging.error("[Error] Map mode requires a mapping file (provide MAPPING positionally or use --mapping).")
+        sys.exit(1)
+
     operation = getattr(args, 'operation', None)
     first_column = getattr(args, 'first_column', False)
     delimiter = getattr(args, 'delimiter', ',')

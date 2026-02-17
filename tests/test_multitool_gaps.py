@@ -196,3 +196,59 @@ def test_extract_regex_items_with_multiple_groups(tmp_path):
     multitool.regex_mode([str(f)], str(out), 1, 100, False, pattern=r"(\w+):(\w+)")
     results = out.read_text().splitlines()
     assert results == ["apple", "orange", "banana", "grape"]
+
+def test_minimal_formatter_non_info():
+    formatter = multitool.MinimalFormatter()
+    # INFO level should be clean
+    record_info = logging.LogRecord("name", logging.INFO, "path", 10, "info message", None, None)
+    assert formatter.format(record_info) == "info message"
+    # WARNING level should have prefix
+    record_warn = logging.LogRecord("name", logging.WARNING, "path", 10, "warn message", None, None)
+    assert formatter.format(record_warn) == "WARNING: warn message"
+
+def test_write_output_yaml_fallback(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "yaml", None)
+    output_yaml = tmp_path / "output.yaml"
+    items = ["apple", "banana"]
+    multitool.write_output(items, str(output_yaml), output_format='yaml')
+    content = output_yaml.read_text()
+    assert "- apple\n- banana\n" == content
+
+def test_write_paired_output_yaml_fallback(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "yaml", None)
+    output_yaml = tmp_path / "output.yaml"
+    pairs = [("teh", "the")]
+    multitool._write_paired_output(pairs, str(output_yaml), output_format='yaml', mode_label="Test")
+    content = output_yaml.read_text()
+    assert "teh: the\n" == content
+
+def test_extract_markdown_items_empty(tmp_path):
+    f = tmp_path / "empty_items.md"
+    f.write_text("- \n-    \n- item")
+    out = tmp_path / "out.txt"
+    multitool.markdown_mode([str(f)], str(out), 1, 100, False)
+    assert out.read_text().strip() == "item"
+
+def test_main_logging_json_yaml(tmp_path, monkeypatch, caplog):
+    input_file = tmp_path / "input.json"
+    input_file.write_text(json.dumps([{"key": "val"}]))
+    output_file = tmp_path / "output.txt"
+
+    # Test JSON logging
+    monkeypatch.setattr(sys, 'argv', [
+        'multitool.py', 'json', str(input_file), '--output', str(output_file), '--key', 'key'
+    ])
+    with caplog.at_level(logging.INFO):
+        multitool.main()
+    assert "JSON Key Path: 'key'" in caplog.text
+    caplog.clear()
+
+    # Test YAML logging
+    input_yaml = tmp_path / "input.yaml"
+    input_yaml.write_text("key: val")
+    monkeypatch.setattr(sys, 'argv', [
+        'multitool.py', 'yaml', str(input_yaml), '--output', str(output_file), '--key', 'key'
+    ])
+    with caplog.at_level(logging.INFO):
+        multitool.main()
+    assert "YAML Key Path: 'key'" in caplog.text

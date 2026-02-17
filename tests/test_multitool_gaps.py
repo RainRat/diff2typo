@@ -113,8 +113,8 @@ def test_mode_help_action_valid_mode_with_tty(capsys):
             action(parser, argparse.Namespace(), valid_mode)
     captured = capsys.readouterr()
     output = captured.out + captured.err
-    assert f"Mode:" in output
-    assert valid_mode in output
+    assert f"MODE:" in output
+    assert valid_mode.upper() in output
 
 def test_mode_help_action_valid_mode_no_tty(capsys):
     parser = argparse.ArgumentParser()
@@ -125,8 +125,8 @@ def test_mode_help_action_valid_mode_no_tty(capsys):
             action(parser, argparse.Namespace(), valid_mode)
     captured = capsys.readouterr()
     output = captured.out + captured.err
-    assert f"Mode:" in output
-    assert valid_mode in output
+    assert f"MODE:" in output
+    assert valid_mode.upper() in output
 
 def test_main_exit_on_file_not_found(monkeypatch, caplog):
     monkeypatch.setattr(sys, 'argv', ['multitool.py', 'line', '--input', 'nonexistent.txt', '--output', 'out.txt'])

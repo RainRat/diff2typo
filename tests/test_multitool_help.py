@@ -18,9 +18,9 @@ def test_mode_help_all_implicit(monkeypatch, capsys):
 
     # Check for presence of summary table header and content
     assert "Available Modes:" in output
-    assert "Extraction:" in output
-    assert "Manipulation:" in output
-    assert "Analysis:" in output
+    assert "EXTRACTION" in output
+    assert "MANIPULATION" in output
+    assert "ANALYSIS" in output
     assert "arrow" in output
     assert "csv" in output
     # In table view, we print "Summary: ..." as just the text column
@@ -51,11 +51,11 @@ def test_mode_help_specific(monkeypatch, capsys):
     captured = capsys.readouterr()
     output = captured.err + captured.out
 
-    assert "Mode: arrow" in output
-    assert "Summary: Extracts text from lines with arrows (->)." in output
+    assert "MODE: ARROW" in output
+    assert "SUMMARY:     Extracts text from lines with arrows (->)." in output
 
     # Should not contain other modes
-    assert "Mode: csv" not in output
+    assert "MODE: CSV" not in output
 
 def test_mode_help_invalid(monkeypatch, capsys):
     """Test 'multitool.py --mode-help invalid' raises error."""

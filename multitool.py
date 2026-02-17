@@ -900,16 +900,14 @@ def conflict_mode(
             left = filter_to_letters(left)
             right = filter_to_letters(right)
 
-        # Only consider pairs where both sides are non-empty after cleaning
-        if left and right:
+        # Apply length filtering to both sides to ensure valid data pairs
+        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
             typo_to_corrections[left].add(right)
 
     conflicts = []
     for typo, corrections in typo_to_corrections.items():
         if len(corrections) > 1:
-            # Re-apply length filtering to the typo itself
-            if min_length <= len(typo) <= max_length:
-                conflicts.append((typo, ", ".join(sorted(corrections))))
+            conflicts.append((typo, ", ".join(sorted(corrections))))
 
     if process_output:
         conflicts.sort()

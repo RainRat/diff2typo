@@ -26,6 +26,24 @@ def filter_to_letters(text: str) -> str:
     return re.sub("[^a-z]", "", text.lower())
 
 
+def levenshtein_distance(s1: str, s2: str) -> int:
+    """Calculate the Levenshtein distance between two strings."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+    if not s2:
+        return len(s1)
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
+
+
 def clean_and_filter(items: Iterable[str], min_length: int, max_length: int, clean: bool = True) -> List[str]:
     """Clean items to letters only (if clean=True) and apply length filtering."""
     if clean:
@@ -925,6 +943,62 @@ def conflict_mode(
     logging.info(f"[Conflict Mode] Found {len(conflicts)} typos with conflicting corrections. Output written to '{output_file}'.")
 
 
+def similarity_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    min_dist: int = 0,
+    max_dist: int | None = None,
+    show_dist: bool = False,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """
+    Filters paired data based on edit distance (Levenshtein distance).
+    """
+    raw_pairs = _extract_pairs(input_files, quiet=quiet)
+
+    filtered_results = []
+    for left, right in raw_pairs:
+        # Clean if requested for distance calculation
+        c_left = filter_to_letters(left) if clean_items else left
+        c_right = filter_to_letters(right) if clean_items else right
+
+        if not c_left or not c_right:
+            continue
+
+        # Apply length filtering
+        if not (min_length <= len(c_left) <= max_length and min_length <= len(c_right) <= max_length):
+            continue
+
+        dist = levenshtein_distance(c_left, c_right)
+
+        if dist < min_dist:
+            continue
+        if max_dist is not None and dist > max_dist:
+            continue
+
+        if show_dist:
+            # Append distance to the right side for display
+            filtered_results.append((left, f"{right} (dist: {dist})"))
+        else:
+            filtered_results.append((left, right))
+
+    if process_output:
+        filtered_results = sorted(set(filtered_results))
+
+    _write_paired_output(
+        filtered_results,
+        output_file,
+        output_format,
+        "Similarity",
+        quiet
+    )
+
+
 def csv_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -1731,6 +1805,12 @@ MODE_DETAILS = {
         "example": "python multitool.py conflict typos.csv --output-format arrow --output conflicts.txt",
         "flags": "",
     },
+    "similarity": {
+        "summary": "Filters paired data by edit distance.",
+        "description": "Filters pairs (typo -> correction) based on their Levenshtein distance. Use this to remove noise or find specific types of typos.",
+        "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
+        "flags": "[--max-dist N --show-dist]",
+    },
 }
 
 
@@ -1739,7 +1819,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
-        "Analysis": ["count", "check", "conflict"],
+        "Analysis": ["count", "check", "conflict", "similarity"],
     }
 
     # ANSI Color Codes
@@ -2090,6 +2170,32 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(conflict_parser)
 
+    similarity_parser = subparsers.add_parser(
+        'similarity',
+        help=MODE_DETAILS['similarity']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['similarity']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['similarity']['example']}",
+    )
+    similarity_options = similarity_parser.add_argument_group("Similarity Options")
+    similarity_options.add_argument(
+        '--min-dist',
+        type=int,
+        default=0,
+        help="Minimum edit distance to include (default: 0).",
+    )
+    similarity_options.add_argument(
+        '--max-dist',
+        type=int,
+        help="Maximum edit distance to include.",
+    )
+    similarity_options.add_argument(
+        '--show-dist',
+        action='store_true',
+        help="Include the calculated distance in the output.",
+    )
+    _add_common_mode_arguments(similarity_parser)
+
     set_parser = subparsers.add_parser(
         'set_operation',
         help=MODE_DETAILS['set_operation']['summary'],
@@ -2321,6 +2427,10 @@ def main() -> None:
         logging.info(f"Min Count Filter: {getattr(args, 'min_count', 1)}")
         if getattr(args, 'max_count', None):
             logging.info(f"Max Count Filter: {args.max_count}")
+    if args.mode == 'similarity':
+        logging.info(f"Min Distance: {getattr(args, 'min_dist', 0)}")
+        if getattr(args, 'max_dist', None) is not None:
+            logging.info(f"Max Distance: {args.max_dist}")
 
     logging.info(f"Output Format: {output_format}")
 
@@ -2487,6 +2597,16 @@ def main() -> None:
         'conflict': (
             conflict_mode,
             {**common_kwargs, 'output_format': output_format},
+        ),
+        'similarity': (
+            similarity_mode,
+            {
+                **common_kwargs,
+                'min_dist': getattr(args, 'min_dist', 0),
+                'max_dist': getattr(args, 'max_dist', None),
+                'show_dist': getattr(args, 'show_dist', False),
+                'output_format': output_format,
+            },
         ),
     }
 

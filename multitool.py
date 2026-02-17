@@ -1303,18 +1303,16 @@ def _load_mapping_file(path: str, quiet: bool = False) -> dict[str, str]:
         for line in lines:
             if " -> " in line and not line.strip().startswith('#'):
                 parts = line.split(" -> ", 1)
-                if len(parts) == 2:
-                    key, value = parts[0].strip(), parts[1].strip()
-                    mapping[key] = value
+                key, value = parts[0].strip(), parts[1].strip()
+                mapping[key] = value
     elif ' = "' in sample_line:
         # Table format: typo = "correction"
         for line in lines:
             if ' = "' in line and not line.strip().startswith('#'):
                 parts = line.split(' = "', 1)
-                if len(parts) == 2:
-                    key = parts[0].strip()
-                    value = parts[1].rsplit('"', 1)[0]
-                    mapping[key] = value
+                key = parts[0].strip()
+                value = parts[1].rsplit('"', 1)[0]
+                mapping[key] = value
     else:
         # Fallback to CSV
         reader = csv.reader(lines)

@@ -591,12 +591,10 @@ def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bo
                 separator = ": "
 
             if separator:
+                # split(separator, 1) always returns a list of length 2 if separator is found
                 parts = content.split(separator, 1)
                 idx = 1 if right_side else 0
-                if len(parts) > idx:
-                    yield parts[idx].strip()
-                else:
-                    yield content
+                yield parts[idx].strip()
             else:
                 yield content
 

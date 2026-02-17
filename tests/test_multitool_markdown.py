@@ -66,3 +66,12 @@ def test_markdown_mode_cli(monkeypatch, tmp_path):
 
     multitool.main()
     assert output_file.read_text().strip() == "item"
+
+def test_markdown_mode_right_side_no_separator(tmp_path):
+    """Verify that 'right_side=True' does not crash on lines without separators."""
+    input_file = tmp_path / "input.md"
+    input_file.write_text("- lone_word\n")
+    output_file = tmp_path / "output.txt"
+    # Should yield 'lone_word' as it falls back to the original content when no separator is found
+    multitool.markdown_mode([str(input_file)], str(output_file), 1, 20, True, right_side=True, clean_items=False)
+    assert output_file.read_text().strip() == "lone_word"

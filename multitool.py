@@ -995,6 +995,77 @@ def similarity_mode(
     )
 
 
+def near_duplicates_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    min_dist: int = 1,
+    max_dist: int = 1,
+    show_dist: bool = False,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """
+    Finds pairs of words in a single list that are similar to each other.
+    """
+    raw_item_count = 0
+    all_unique_items = []
+
+    for file_path in input_files:
+        raw, _, unique = _load_and_clean_file(
+            file_path,
+            min_length,
+            max_length,
+            clean_items=clean_items,
+        )
+        raw_item_count += len(raw)
+        all_unique_items.extend(unique)
+
+    # Re-deduplicate across all input files
+    unique_items = sorted(set(all_unique_items))
+    # Sort by length for optimized comparison
+    unique_items.sort(key=len)
+
+    results = []
+    num_items = len(unique_items)
+
+    for i in range(num_items):
+        word_i = unique_items[i]
+        len_i = len(word_i)
+
+        for j in range(i + 1, num_items):
+            word_j = unique_items[j]
+            len_j = len(word_j)
+
+            # Optimization: words are sorted by length, so we can stop if length difference is too large
+            if len_j - len_i > max_dist:
+                break
+
+            dist = levenshtein_distance(word_i, word_j)
+
+            if min_dist <= dist <= max_dist:
+                if show_dist:
+                    results.append((word_i, f"{word_j} (dist: {dist})"))
+                else:
+                    results.append((word_i, word_j))
+
+    if process_output:
+        results.sort()
+
+    _write_paired_output(
+        results,
+        output_file,
+        output_format,
+        "NearDuplicates",
+        quiet
+    )
+
+    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].split(' (dist:')[0] for pair in results], item_label="near-duplicate")
+
+
 def csv_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -1807,6 +1878,12 @@ MODE_DETAILS = {
         "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
+    "near_duplicates": {
+        "summary": "Finds similar words in a single list.",
+        "description": "Identifies pairs of words in your list that are very similar (within a small edit distance). Use this to find potential typos or unintended duplicates in a project.",
+        "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
+        "flags": "[--max-dist N --show-dist]",
+    },
 }
 
 
@@ -1815,7 +1892,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
-        "Analysis": ["count", "check", "conflict", "similarity"],
+        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates"],
     }
 
     # ANSI Color Codes
@@ -2191,6 +2268,33 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Include the calculated distance in the output.",
     )
     _add_common_mode_arguments(similarity_parser)
+
+    near_duplicates_parser = subparsers.add_parser(
+        'near_duplicates',
+        help=MODE_DETAILS['near_duplicates']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['near_duplicates']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['near_duplicates']['example']}",
+    )
+    nd_options = near_duplicates_parser.add_argument_group("Near Duplicate Options")
+    nd_options.add_argument(
+        '--min-dist',
+        type=int,
+        default=1,
+        help="Minimum edit distance to include (default: 1).",
+    )
+    nd_options.add_argument(
+        '--max-dist',
+        type=int,
+        default=1,
+        help="Maximum edit distance to include (default: 1).",
+    )
+    nd_options.add_argument(
+        '--show-dist',
+        action='store_true',
+        help="Include the calculated distance in the output.",
+    )
+    _add_common_mode_arguments(near_duplicates_parser)
 
     set_parser = subparsers.add_parser(
         'set_operation',
@@ -2619,6 +2723,16 @@ def main() -> None:
                 **common_kwargs,
                 'min_dist': getattr(args, 'min_dist', 0),
                 'max_dist': getattr(args, 'max_dist', None),
+                'show_dist': getattr(args, 'show_dist', False),
+                'output_format': output_format,
+            },
+        ),
+        'near_duplicates': (
+            near_duplicates_mode,
+            {
+                **common_kwargs,
+                'min_dist': getattr(args, 'min_dist', 1),
+                'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
             },

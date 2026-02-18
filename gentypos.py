@@ -701,46 +701,68 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Synthetic Typo Generator: Generate synthetic typos for a list of words based on YAML configuration."
     )
-    parser.add_argument(
+
+    # Input/Output Options
+    io_group = parser.add_argument_group("Input/Output Options")
+    io_group.add_argument(
+        'words',
+        nargs='*',
+        help="List of words to process directly (overrides input_file).",
+    )
+    io_group.add_argument(
         '-c', '--config',
         type=str,
         default="gentypos.yaml",
         help="Path to the YAML configuration file (default: gentypos.yaml)"
     )
-    parser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        help="Enable verbose output.",
+    io_group.add_argument(
+        '-o', '--output',
+        type=str,
+        help="Output file path (overrides config). Use '-' for stdout.",
     )
-    parser.add_argument(
-        '-q', '--quiet',
-        action='store_true',
-        help="Suppress progress bars and reduce log verbosity.",
+    io_group.add_argument(
+        '-f', '--format',
+        choices=['arrow', 'csv', 'table', 'list'],
+        help="Output format (overrides config). Choices: arrow, csv, table, list.",
     )
-    parser.add_argument(
-        'words',
-        nargs='*',
-        help="List of words to process directly (overrides input_file).",
+    io_group.add_argument(
+        '-s', '--substitutions',
+        type=str,
+        help="Path to a file containing custom substitutions (JSON, CSV, or YAML).",
     )
+    # Legacy flag, suppressed from help
     parser.add_argument(
         '--word',
         nargs='+',
-        help="List of words to process directly (overrides input_file). [Legacy flag, prefer positional args]",
+        help=argparse.SUPPRESS,
     )
-    parser.add_argument(
-        '--output',
-        type=str,
-        help="Output file path (overrides config). Default to stdout (-) in CLI mode.",
+
+    # Generation Options
+    gen_group = parser.add_argument_group("Generation Options")
+    gen_group.add_argument(
+        '-m', '--min-length',
+        type=int,
+        help="Minimum length of words to process (overrides config).",
     )
-    parser.add_argument(
+    gen_group.add_argument(
+        '--max-length',
+        type=int,
+        help="Maximum length of words to process (overrides config).",
+    )
+    gen_group.add_argument(
         '--no-filter',
         action='store_true',
         help="Skip dictionary filtering (useful for quick checks).",
     )
-    parser.add_argument(
-        '-s', '--substitutions',
-        type=str,
-        help="Path to a file containing custom substitutions (JSON, CSV, or YAML). Compatible with typostats.py output.",
+    gen_group.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help="Enable verbose output.",
+    )
+    gen_group.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        help="Suppress progress bars and reduce log verbosity.",
     )
 
     args = parser.parse_args()
@@ -791,23 +813,27 @@ def main() -> None:
     # Apply CLI overrides
     if is_cli_mode:
         config['input_file'] = None # Will use CLI words
-        if args.output:
-            config['output_file'] = args.output
-        elif 'output_file' not in config:
+        if not args.output and 'output_file' not in config:
             config['output_file'] = '-' # Default to stdout
             config['output_format'] = 'arrow' # Safer default for stdout
 
-        if args.no_filter:
-            config['dictionary_file'] = None
+    # Universal CLI overrides
+    if args.output:
+        config['output_file'] = args.output
+    if args.format:
+        config['output_format'] = args.format
+    if args.substitutions:
+        config['substitutions_file'] = args.substitutions
+    if args.no_filter:
+        config['dictionary_file'] = None
 
-        if args.substitutions:
-            config['substitutions_file'] = args.substitutions
-    else:
-        # Standard mode overrides
-        if args.output:
-            config['output_file'] = args.output
-        if args.substitutions:
-            config['substitutions_file'] = args.substitutions
+    if args.min_length is not None or args.max_length is not None:
+        if 'word_length' not in config:
+            config['word_length'] = {}
+        if args.min_length is not None:
+            config['word_length']['min_length'] = args.min_length
+        if args.max_length is not None:
+            config['word_length']['max_length'] = args.max_length
 
     settings = _extract_config_settings(config, quiet=args.quiet)
 

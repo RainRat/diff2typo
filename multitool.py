@@ -959,18 +959,18 @@ def similarity_mode(
 
     filtered_results = []
     for left, right in raw_pairs:
-        # Clean if requested for distance calculation
-        c_left = filter_to_letters(left) if clean_items else left
-        c_right = filter_to_letters(right) if clean_items else right
+        if clean_items:
+            left = filter_to_letters(left)
+            right = filter_to_letters(right)
 
-        if not c_left or not c_right:
+        if not left or not right:
             continue
 
         # Apply length filtering
-        if not (min_length <= len(c_left) <= max_length and min_length <= len(c_right) <= max_length):
+        if not (min_length <= len(left) <= max_length and min_length <= len(right) <= max_length):
             continue
 
-        dist = levenshtein_distance(c_left, c_right)
+        dist = levenshtein_distance(left, right)
 
         if dist < min_dist:
             continue

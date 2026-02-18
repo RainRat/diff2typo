@@ -316,6 +316,9 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
             if not content or content.startswith('#'):
                 continue
 
+            # Strip Markdown bullet points if present to handle list items consistently
+            content = re.sub(r'^\s*[-*+]\s+', '', content)
+
             if " -> " in content:
                 parts = content.split(" -> ", 1)
                 yield parts[0].strip(), parts[1].strip()
@@ -323,8 +326,7 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                 parts = content.split(' = "', 1)
                 yield parts[0].strip(), parts[1].rsplit('"', 1)[0]
             elif ": " in content:
-                clean_content = re.sub(r'^\s*[-*+]\s+', '', content)
-                parts = clean_content.split(": ", 1)
+                parts = content.split(": ", 1)
                 yield parts[0].strip(), parts[1].strip()
             else:
                 try:
@@ -1384,87 +1386,8 @@ def regex_mode(
 
 def _load_mapping_file(path: str, quiet: bool = False) -> dict[str, str]:
     """Load a mapping file into a dictionary, supporting Arrow, CSV, Table, JSON, and YAML."""
-    mapping = {}
-
-    # Handle structured formats by extension
-    ext = path.lower()
-    if ext.endswith('.json'):
-        try:
-            content = "".join(_read_file_lines_robust(path))
-            if content.strip():
-                data = json.loads(content)
-                if isinstance(data, dict):
-                    if 'replacements' in data and isinstance(data['replacements'], list):
-                        for item in data['replacements']:
-                            if 'typo' in item and 'correct' in item:
-                                mapping[str(item['typo'])] = str(item['correct'])
-                    else:
-                        mapping = {str(k): str(v) for k, v in data.items()}
-                elif isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict) and 'typo' in item and 'correct' in item:
-                            mapping[str(item['typo'])] = str(item['correct'])
-                return mapping
-        except Exception as e:
-            logging.error(f"Failed to parse JSON mapping in '{path}': {e}")
-            return {}
-
-    if ext.endswith('.yaml') or ext.endswith('.yml'):
-        try:
-            import yaml
-            content = "".join(_read_file_lines_robust(path))
-            data = yaml.safe_load(content)
-            if isinstance(data, dict):
-                mapping = {str(k): str(v) for k, v in data.items()}
-            return mapping
-        except ImportError:
-            logging.error("PyYAML not installed. Cannot parse YAML mapping.")
-        except Exception as e:
-            logging.error(f"Failed to parse YAML mapping in '{path}': {e}")
-            return {}
-
-    # Heuristic for text formats (Arrow, Table, CSV)
-    lines = _read_file_lines_robust(path)
-    if not lines:
-        return mapping
-
-    # Skip empty lines and comments to find a representative line for format detection
-    sample_line = ""
-    for line in lines:
-        clean_line = line.strip()
-        if clean_line and not clean_line.startswith('#'):
-            sample_line = clean_line
-            break
-
-    if not sample_line:
-        return mapping
-
-    if " -> " in sample_line:
-        # Arrow format: typo -> correction
-        for line in lines:
-            if " -> " in line and not line.strip().startswith('#'):
-                parts = line.split(" -> ", 1)
-                key, value = parts[0].strip(), parts[1].strip()
-                mapping[key] = value
-    elif ' = "' in sample_line:
-        # Table format: typo = "correction"
-        for line in lines:
-            if ' = "' in line and not line.strip().startswith('#'):
-                parts = line.split(' = "', 1)
-                key = parts[0].strip()
-                value = parts[1].rsplit('"', 1)[0]
-                mapping[key] = value
-    else:
-        # Fallback to CSV
-        reader = csv.reader(lines)
-        for row in reader:
-            if row and not row[0].startswith('#'):
-                if len(row) >= 2:
-                    key = row[0].strip()
-                    value = row[1].strip()
-                    mapping[key] = value
-
-    return mapping
+    # Use the shared _extract_pairs helper to handle all supported formats consistently
+    return dict(_extract_pairs([path], quiet=quiet))
 
 
 def map_mode(

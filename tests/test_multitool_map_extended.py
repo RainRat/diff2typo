@@ -69,7 +69,8 @@ def test_load_mapping_file_json_error(tmp_path, caplog):
     mapping_file.write_text("{invalid json")
     with caplog.at_level(logging.ERROR):
         mapping = multitool._load_mapping_file(str(mapping_file))
-    assert "Failed to parse JSON mapping" in caplog.text
+    # Note: Refactored _load_mapping_file uses _extract_pairs which logs "Failed to parse JSON"
+    assert "Failed to parse JSON" in caplog.text
     assert mapping == {}
 
 def test_map_mode_output_length_filter_bug(tmp_path):

@@ -117,6 +117,11 @@ These modes help you analyze your data.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5`
 
+- **`near_duplicates`**
+  - **What it does:** Identifies pairs of words in your list that are very similar (within a small edit distance). This is useful for finding potential typos or unintended duplicates in a project.
+  - **Options:** Use `--min-dist` and `--max-dist` to control the edit distance threshold, and `--show-dist` to see the distance in the output.
+  - **Example:** `python multitool.py near_duplicates words.txt --max-dist 1 --show-dist`
+
 ## Common Options
 
 These options work with most modes:

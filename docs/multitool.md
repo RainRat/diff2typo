@@ -86,7 +86,7 @@ These modes help you transform or combine your data.
 
 - **`zip`**
   - **What it does:** Combines two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**. If the files have a different number of lines, the output will stop at the end of the shortest file.
-  - **Supported Formats:** `line`, `json`, `csv`, `markdown`, `arrow`, `table`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
 - **`swap`**
@@ -117,13 +117,18 @@ These modes help you analyze your data.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5`
 
+- **`similarity`**
+  - **What it does:** Filters paired data (typo -> correction) based on how similar the words are. It calculates the number of changes needed to turn one word into another (also known as "edit distance").
+  - **Options:** Use `--min-dist` and `--max-dist` to set the range of allowed changes. Add `--show-dist` to include the calculated distance in your output.
+  - **Example:** `python multitool.py similarity typos.txt --max-dist 2 --show-dist`
+
 ## Common Options
 
 These options work with most modes:
 
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input (stdin)** if omitted.
 - `--output`: The file to write results to. Defaults to printing to the screen.
-- `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, `markdown`, `arrow`, and `table`.
+- `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, `markdown`, `arrow`, `table`, and `yaml`.
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.

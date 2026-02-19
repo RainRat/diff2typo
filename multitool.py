@@ -854,6 +854,147 @@ def count_mode(
         f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
     )
 
+
+def stats_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    include_pairs: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """
+    Calculates and displays statistics for items or paired data.
+    """
+    # 1. Collect Items
+    raw_item_count = 0
+    all_items = []
+    for input_file in input_files:
+        lines = _read_file_lines_robust(input_file)
+        for line in lines:
+            line_content = line.strip()
+            if not line_content:
+                continue
+            parts = line_content.split()
+            raw_item_count += len(parts)
+            all_items.extend(parts)
+
+    filtered_items = clean_and_filter(all_items, min_length, max_length, clean=clean_items)
+    unique_items = sorted(set(filtered_items))
+
+    stats = {
+        "items": {
+            "total_encountered": raw_item_count,
+            "total_filtered": len(filtered_items),
+            "unique_count": len(unique_items),
+        }
+    }
+
+    if filtered_items:
+        lengths = [len(i) for i in filtered_items]
+        stats["items"]["min_length"] = min(lengths)
+        stats["items"]["max_length"] = max(lengths)
+        stats["items"]["avg_length"] = sum(lengths) / len(lengths)
+
+    # 2. Collect Pairs if requested
+    if include_pairs:
+        raw_pairs = list(_extract_pairs(input_files, quiet=quiet))
+        filtered_pairs = []
+        for left, right in raw_pairs:
+            if clean_items:
+                left = filter_to_letters(left)
+                right = filter_to_letters(right)
+            if not left and not right:
+                continue
+            if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+                filtered_pairs.append((left, right))
+
+        unique_pairs = set(filtered_pairs)
+        typos = [p[0] for p in filtered_pairs]
+        corrections = [p[1] for p in filtered_pairs]
+        unique_typos = set(typos)
+        unique_corrections = set(corrections)
+
+        # Conflicts: 1 typo -> multiple unique corrections
+        typo_to_corr = defaultdict(set)
+        for t, c in filtered_pairs:
+            typo_to_corr[t].add(c)
+        conflicts = [t for t, cs in typo_to_corr.items() if len(cs) > 1]
+
+        # Overlaps: word is both a typo and a correction
+        overlaps = unique_typos & unique_corrections
+
+        # Edit distances
+        distances = [levenshtein_distance(p[0], p[1]) for p in filtered_pairs]
+
+        stats["pairs"] = {
+            "total_extracted": len(raw_pairs),
+            "total_filtered": len(filtered_pairs),
+            "unique_pairs": len(unique_pairs),
+            "unique_typos": len(unique_typos),
+            "unique_corrections": len(unique_corrections),
+            "conflicts": len(conflicts),
+            "overlaps": len(overlaps),
+        }
+
+        if distances:
+            stats["pairs"]["min_dist"] = min(distances)
+            stats["pairs"]["max_dist"] = max(distances)
+            stats["pairs"]["avg_dist"] = sum(distances) / len(distances)
+
+    # 3. Output
+    if output_format == 'json':
+        with smart_open_output(output_file) as f:
+            json.dump(stats, f, indent=2)
+            f.write('\n')
+    elif output_format == 'yaml':
+        with smart_open_output(output_file) as f:
+            try:
+                import yaml
+                yaml.dump(stats, f, default_flow_style=False)
+            except ImportError:
+                # Basic fallback
+                f.write("items:\n")
+                for k, v in stats["items"].items():
+                    f.write(f"  {k}: {v}\n")
+                if "pairs" in stats:
+                    f.write("pairs:\n")
+                    for k, v in stats["pairs"].items():
+                        f.write(f"  {k}: {v}\n")
+    else:
+        # Human readable text
+        report = []
+        report.append("\nANALYSIS STATISTICS")
+        report.append("───────────────────────────────────────────────────────")
+        report.append(f"  Total items encountered:          {stats['items']['total_encountered']}")
+        report.append(f"  Total items after filtering:      {stats['items']['total_filtered']}")
+        report.append(f"  Unique items:                     {stats['items']['unique_count']}")
+        if "min_length" in stats["items"]:
+            report.append(f"  Min/Max/Avg length:               {stats['items']['min_length']} / {stats['items']['max_length']} / {stats['items']['avg_length']:.1f}")
+
+        if "pairs" in stats:
+            report.append("\nPAIRED DATA STATISTICS")
+            report.append("───────────────────────────────────────────────────────")
+            report.append(f"  Total pairs extracted:            {stats['pairs']['total_extracted']}")
+            report.append(f"  Total pairs after filtering:      {stats['pairs']['total_filtered']}")
+            report.append(f"  Unique pairs:                     {stats['pairs']['unique_pairs']}")
+            report.append(f"  Unique typos / corrections:       {stats['pairs']['unique_typos']} / {stats['pairs']['unique_corrections']}")
+            report.append(f"  Conflicts (1 typo -> N corr):     {stats['pairs']['conflicts']}")
+            report.append(f"  Overlaps (typo == correction):    {stats['pairs']['overlaps']}")
+            if "min_dist" in stats["pairs"]:
+                report.append(f"  Min/Max/Avg edit distance:        {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
+
+        report.append("")
+        content = "\n".join(report)
+        with smart_open_output(output_file) as f:
+            f.write(content)
+
+    logging.info(f"[Stats Mode] Analysis complete. Summary written to '{output_file}'.")
+
+
 def check_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -1807,6 +1948,12 @@ MODE_DETAILS = {
         "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
+    "stats": {
+        "summary": "Calculates detailed statistics for a typo list.",
+        "description": "Provides a comprehensive summary of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and edit distances.",
+        "example": "python multitool.py stats typos.csv --pairs --output-format json",
+        "flags": "[--pairs]",
+    },
 }
 
 
@@ -1815,7 +1962,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
-        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates"],
+        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "stats"],
     }
 
     # ANSI Color Codes
@@ -2218,6 +2365,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Include the calculated distance in the output.",
     )
     _add_common_mode_arguments(near_duplicates_parser)
+
+    stats_parser = subparsers.add_parser(
+        'stats',
+        help=MODE_DETAILS['stats']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['stats']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['stats']['example']}",
+    )
+    stats_options = stats_parser.add_argument_group("Stats Options")
+    stats_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Perform pair-level analysis (typos vs corrections) in addition to item-level stats.",
+    )
+    _add_common_mode_arguments(stats_parser, include_process_output=False)
 
     set_parser = subparsers.add_parser(
         'set_operation',
@@ -2657,6 +2819,14 @@ def main() -> None:
                 'min_dist': getattr(args, 'min_dist', 1),
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
+                'output_format': output_format,
+            },
+        ),
+        'stats': (
+            stats_mode,
+            {
+                **common_kwargs,
+                'include_pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             },
         ),

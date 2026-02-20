@@ -109,6 +109,7 @@ These modes help you analyze your data.
 
 - **`conflict`**
   - **What it does:** Identifies typos that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
   - **Example:** `python multitool.py conflict mappings.csv`
 
 - **`count`**
@@ -120,7 +121,14 @@ These modes help you analyze your data.
 - **`near_duplicates`**
   - **What it does:** Identifies pairs of words in your list that are very similar (within a small edit distance). This is useful for finding potential typos or unintended duplicates in a project.
   - **Options:** Use `--min-dist` and `--max-dist` to control the edit distance threshold, and `--show-dist` to see the distance in the output.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
   - **Example:** `python multitool.py near_duplicates words.txt --max-dist 1 --show-dist`
+
+- **`similarity`**
+  - **What it does:** Filters paired data (like `typo -> correction`) based on the number of changes (edit distance) needed to turn one word into another. Use this to remove noise or find specific types of typos.
+  - **Options:** Use `--min-dist` and `--max-dist` to set the distance range, and `--show-dist` to include the distance in the output.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
+  - **Example:** `python multitool.py similarity typos.txt --max-dist 2 --show-dist`
 
 - **`stats`**
   - **What it does:** Provides a high-level summary of your dataset. It reports counts, unique items, and length distributions. If the `--pairs` flag is used, it additionally analyzes the file as paired data (typos/corrections) and reports conflicts (one typo to multiple corrections), overlaps (words that are both typos and corrections), and edit distance statistics.

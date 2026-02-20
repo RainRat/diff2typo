@@ -65,6 +65,10 @@ These modes help you transform or combine your data.
   - **Note:** This mode has built-in sorting and deduplication; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py combine file1.txt file2.txt`
 
+- **`unique`**
+  - **What it does:** Removes duplicate items from your list while **preserving the original order**. This is useful when the sequence of items is important.
+  - **Example:** `python multitool.py unique raw_typos.txt`
+
 - **`filterfragments`**
   - **What it does:** Removes words from your input file if they appear anywhere inside a second file (`--file2`).
   - **Example:** `python multitool.py filterfragments candidates.txt --file2 dictionary.txt`

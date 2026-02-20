@@ -441,13 +441,6 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
         logging.info("Dictionary mapping is empty; skipping new corrections search.")
         return new_corrections
 
-    sample_key = next(iter(words_mapping))
-    if not words_mapping[sample_key]:
-        logging.info(
-            "Dictionary contains only standalone words; cannot compute new corrections."
-        )
-        return new_corrections
-
     progress = None
     iterator = candidates
     if not quiet:
@@ -457,8 +450,8 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
     for candidate in iterator:
         if '->' in candidate:
             before, after = [s.strip().lower() for s in candidate.split('->')]
-            # Only consider cases where the "before" word is already known in the mapping.
-            if before in words_mapping:
+            # Only consider cases where the "before" word is already known in the mapping as a typo.
+            if words_mapping.get(before):
                 if after not in words_mapping[before]:
                     new_corrections.append(f"{before} -> {after}")
     if progress:

@@ -122,6 +122,10 @@ These modes help you analyze your data.
   - **Options:** Use `--min-dist` and `--max-dist` to control the edit distance threshold, and `--show-dist` to see the distance in the output.
   - **Example:** `python multitool.py near_duplicates words.txt --max-dist 1 --show-dist`
 
+- **`stats`**
+  - **What it does:** Provides a high-level summary of your dataset. It reports counts, unique items, and length distributions. If the `--pairs` flag is used, it additionally analyzes the file as paired data (typos/corrections) and reports conflicts (one typo to multiple corrections), overlaps (words that are both typos and corrections), and edit distance statistics.
+  - **Example:** `python multitool.py stats typos.csv --pairs`
+
 ## Common Options
 
 These options work with most modes:

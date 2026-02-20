@@ -466,6 +466,7 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
 
         line_items_with_markers = []
         all_line_items = []
+        marker_seen = False
 
         for index in range(1, len(parts), 2):
             item = parts[index].strip()
@@ -475,6 +476,9 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
             all_line_items.append(item)
             preceding = parts[index - 1].lower()
             if any(marker in preceding for marker in context_markers):
+                marker_seen = True
+
+            if marker_seen:
                 line_items_with_markers.append(item)
 
         if line_items_with_markers:

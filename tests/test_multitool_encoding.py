@@ -263,4 +263,5 @@ def test_backtick_mode_latin1(tmp_path):
     multitool.backtick_mode(
         [str(input_file)], str(output_file), 1, 100, False, clean_items=False
     )
-    assert output_file.read_text(encoding="utf-8").strip() == "café"
+    # Both 'café' and 'coffee' should be extracted as they follow the 'error:' marker
+    assert output_file.read_text(encoding="utf-8").strip() == "café\ncoffee"

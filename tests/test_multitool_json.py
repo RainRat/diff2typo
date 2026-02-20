@@ -218,3 +218,22 @@ def test_json_mode_numeric_values(tmp_path):
         key="val",
     )
     assert output_file.read_text().strip() == "abc"
+
+def test_json_mode_root_list(tmp_path):
+    # Test extraction from a root list when no key is provided
+    input_file = tmp_path / "input.json"
+    data = ["apple", "banana", "cherry"]
+    input_file.write_text(json.dumps(data))
+    output_file = tmp_path / "output.txt"
+
+    multitool.json_mode(
+        [str(input_file)],
+        str(output_file),
+        min_length=1,
+        max_length=100,
+        process_output=True,
+        key="", # Empty key should extract from root
+    )
+
+    result = output_file.read_text().splitlines()
+    assert sorted(result) == ["apple", "banana", "cherry"]

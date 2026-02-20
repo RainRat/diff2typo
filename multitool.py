@@ -1853,15 +1853,15 @@ MODE_DETAILS = {
         "flags": "[--right]",
     },
     "json": {
-        "summary": "Extracts values from a JSON file using a key.",
-        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). It automatically handles lists of objects.",
-        "example": "python multitool.py json report.json -k replacements.typo -o typos.txt",
+        "summary": "Extracts values from a JSON file using an optional key.",
+        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it extracts items from the root. It automatically handles lists of objects.",
+        "example": "python multitool.py json list.json -o items.txt",
         "flags": "[-k KEY]",
     },
     "yaml": {
-        "summary": "Extracts values from a YAML file using a key.",
-        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). It automatically handles lists.",
-        "example": "python multitool.py yaml config.yaml -k config.items -o items.txt",
+        "summary": "Extracts values from a YAML file using an optional key.",
+        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it extracts items from the root. It automatically handles lists.",
+        "example": "python multitool.py yaml list.yaml -o items.txt",
         "flags": "[-k KEY]",
     },
     "line": {
@@ -2219,8 +2219,8 @@ def _build_parser() -> argparse.ArgumentParser:
     json_options.add_argument(
         '-k', '--key',
         type=str,
-        required=True,
-        help="The key path to extract (e.g. 'items.name').",
+        default='',
+        help="The key path to extract (e.g. 'items.name'). If omitted, extracts from the root.",
     )
     _add_common_mode_arguments(json_parser)
 
@@ -2235,8 +2235,8 @@ def _build_parser() -> argparse.ArgumentParser:
     yaml_options.add_argument(
         '-k', '--key',
         type=str,
-        required=True,
-        help="The key path to extract (e.g. 'config.items').",
+        default='',
+        help="The key path to extract (e.g. 'config.items'). If omitted, extracts from the root.",
     )
     _add_common_mode_arguments(yaml_parser)
 

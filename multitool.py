@@ -1,5 +1,6 @@
 import argparse
 import csv
+import glob
 from collections import Counter, defaultdict
 import random
 import contextlib
@@ -1301,6 +1302,48 @@ def combine_mode(
     )
 
 
+def unique_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """Deduplicate items while preserving their first appearance in the input files."""
+    raw_item_count = 0
+    combined_unique: list[str] = []
+
+    for file_path in input_files:
+        raw_items, cleaned_items, unique_items = _load_and_clean_file(
+            file_path,
+            min_length,
+            max_length,
+            clean_items=clean_items,
+        )
+        raw_item_count += len(raw_items)
+        combined_unique.extend(unique_items)
+
+    # Use dict.fromkeys() to deduplicate while preserving order of first occurrence
+    final_items = list(dict.fromkeys(combined_unique))
+
+    if process_output:
+        # If the user explicitly requested -P, we still sort alphabetically.
+        # But by default unique mode is order-preserving.
+        final_items.sort()
+
+    write_output(final_items, output_file, output_format, quiet)
+
+    print_processing_stats(raw_item_count, final_items)
+    logging.info(
+        "[Unique Mode] Deduplicated %d file(s). Output written to '%s'.",
+        len(input_files),
+        output_file,
+    )
+
+
 def zip_mode(
     input_files: Sequence[str],
     file2: str,
@@ -1834,6 +1877,12 @@ MODE_DETAILS = {
         "example": "python multitool.py combine typos1.txt typos2.txt --output all_typos.txt",
         "flags": "",
     },
+    "unique": {
+        "summary": "Removes duplicates while keeping the original order.",
+        "description": "Removes duplicate items from your list. Unlike 'combine', it preserves the order in which items first appeared in your files.",
+        "example": "python multitool.py unique raw_typos.txt --output clean_typos.txt",
+        "flags": "",
+    },
     "backtick": {
         "summary": "Extracts text found inside backticks.",
         "description": "Finds text inside backticks (like `code`). It prioritizes items near words like 'error' or 'warning' to find the most relevant data.",
@@ -1961,7 +2010,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
-        "Manipulation": ["combine", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
+        "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
         "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "stats"],
     }
 
@@ -2248,6 +2297,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"Example:\n  {MODE_DETAILS['combine']['example']}",
     )
     _add_common_mode_arguments(combine_parser, include_process_output=False)
+
+    unique_parser = subparsers.add_parser(
+        'unique',
+        help=MODE_DETAILS['unique']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['unique']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['unique']['example']}",
+    )
+    _add_common_mode_arguments(unique_parser)
 
     line_parser = subparsers.add_parser(
         'line',
@@ -2562,6 +2620,19 @@ def main() -> None:
     flag_inputs = getattr(args, 'input_files_flag', []) or []
     input_paths = pos_inputs + flag_inputs
 
+    # Expand glob patterns for input paths
+    expanded_paths = []
+    for path in input_paths:
+        if path == '-':
+            expanded_paths.append(path)
+        else:
+            matches = glob.glob(path)
+            if matches:
+                expanded_paths.extend(sorted(matches))
+            else:
+                expanded_paths.append(path)
+    input_paths = expanded_paths
+
     # Default to stdin ('-') if neither is provided
     if not input_paths:
         input_paths = ['-']
@@ -2733,6 +2804,19 @@ def main() -> None:
         ),
         'combine': (
             combine_mode,
+            {
+                'input_files': input_paths,
+                'output_file': args.output,
+                'min_length': args.min_length,
+                'max_length': args.max_length,
+                'process_output': getattr(args, 'process_output', False),
+                'quiet': args.quiet,
+                'output_format': output_format,
+                'clean_items': clean_items,
+            },
+        ),
+        'unique': (
+            unique_mode,
             {
                 'input_files': input_paths,
                 'output_file': args.output,

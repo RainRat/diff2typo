@@ -76,7 +76,7 @@ def test_backtick_mode(tmp_path):
     )
     output_file = tmp_path / "output.txt"
     multitool.backtick_mode([str(input_file)], str(output_file), 1, 20, False)
-    assert output_file.read_text().splitlines() == ["data", "wordshere", "mdtest"]
+    assert output_file.read_text().splitlines() == ["data", "wordshere", "mdtest", "mstest"]
 
 
 def test_csv_mode(tmp_path):
@@ -413,6 +413,6 @@ def test_backtick_mode_multiple_items(tmp_path):
 
     results = output_file.read_text().splitlines()
     # Line 1: apple, banana, cherry
-    # Line 2: easy, echo
-    # Line 3: work, next
-    assert results == ["apple", "banana", "cherry", "easy", "echo", "work", "next"]
+    # Line 2: easy, noise, echo
+    # Line 3: work, next, nomarker
+    assert results == ["apple", "banana", "cherry", "easy", "noise", "echo", "work", "next", "nomarker"]

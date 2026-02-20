@@ -883,13 +883,13 @@ def stats_mode(
             all_items.extend(parts)
 
     filtered_items = clean_and_filter(all_items, min_length, max_length, clean=clean_items)
-    unique_items = sorted(set(filtered_items))
+    unique_count = len(set(filtered_items))
 
     stats = {
         "items": {
             "total_encountered": raw_item_count,
             "total_filtered": len(filtered_items),
-            "unique_count": len(unique_items),
+            "unique_count": unique_count,
         }
     }
 

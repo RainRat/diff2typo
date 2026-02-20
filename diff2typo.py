@@ -46,6 +46,32 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, TextIO
 from tqdm import tqdm
 
 
+# ANSI Color Codes
+BLUE = "\033[1;34m"
+GREEN = "\033[1;32m"
+RED = "\033[1;31m"
+YELLOW = "\033[1;33m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+# Disable colors if not running in a terminal
+if not sys.stdout.isatty():
+    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+
+
+class MinimalFormatter(logging.Formatter):
+    """A logging formatter that removes prefixes for INFO level messages."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._info_formatter = logging.Formatter('%(message)s')
+
+    def format(self, record: logging.LogRecord) -> str:
+        if record.levelno == logging.INFO:
+            return self._info_formatter.format(record)
+        return super().format(record)
+
+
 def filter_to_letters(text: str) -> str:
     """Return text containing only lowercase a-z characters."""
     return re.sub("[^a-z]", "", text.lower())
@@ -463,12 +489,16 @@ def main():
 
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(
-        description="Process a git diff to identify typos for the `typos` utility.",
+        description=f"{BOLD}Process a git diff to identify typos for the `typos` utility.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
+        epilog=f"""{BLUE}Examples:{RESET}
+  {GREEN}python diff2typo.py diff.txt --output typos.txt --mode typos{RESET}
+  {GREEN}git diff | python diff2typo.py -o found.txt -f csv{RESET}
+""",
     )
 
     # Input/Output Options
-    io_group = parser.add_argument_group("Input/Output Options")
+    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         'input_files',
         nargs='*',
@@ -511,17 +541,17 @@ def main():
     parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     # Analysis Options
-    analysis_group = parser.add_argument_group("Analysis Options")
+    analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
     analysis_group.add_argument(
         '--mode',
         type=str,
         choices=['typos', 'corrections', 'both'],
         default='typos',
         help=(
-            "Analysis mode:\n"
-            "  typos:       Find new typo corrections not in dictionary (default).\n"
-            "  corrections: Find new corrections for existing typos in dictionary.\n"
-            "  both:        Run both analyses and label output groups."
+            f"{YELLOW}Analysis mode:{RESET}\n"
+            f"  {GREEN}typos{RESET}:       Find new typo corrections not in dictionary (default).\n"
+            f"  {GREEN}corrections{RESET}: Find new corrections for existing typos in dictionary.\n"
+            f"  {GREEN}both{RESET}:        Run both analyses and label output groups."
         ),
     )
     analysis_group.add_argument(
@@ -566,12 +596,19 @@ def main():
     # Hidden alias for backward compatibility
     parser.add_argument('--typos_tool_path', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
-    analysis_group.add_argument('--quiet', action='store_true', help='Suppress progress bars and other non-essential output.')
+    analysis_group.add_argument(
+        '--quiet', '-q',
+        action='store_true',
+        help='Suppress progress bars and other non-essential output.'
+    )
 
     args = parser.parse_args()
 
     log_level = logging.WARNING if args.quiet else logging.INFO
-    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
+    # Use a custom handler and formatter to keep output clean
+    handler = logging.StreamHandler()
+    handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
+    logging.basicConfig(level=log_level, handlers=[handler])
 
     logging.info("Starting typo extraction process...")
 

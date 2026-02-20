@@ -180,3 +180,21 @@ def test_yaml_mode_missing_pyyaml(tmp_path, monkeypatch):
                 str(output_file),
                 1, 100, False, "key"
             )
+
+def test_yaml_mode_root_list(tmp_path):
+    # Test extraction from a root list when no key is provided
+    input_file = tmp_path / "input.yaml"
+    input_file.write_text("- apple\n- banana\n- cherry\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.yaml_mode(
+        [str(input_file)],
+        str(output_file),
+        min_length=1,
+        max_length=100,
+        process_output=True,
+        key="", # Empty key should extract from root
+    )
+
+    result = output_file.read_text().splitlines()
+    assert sorted(result) == ["apple", "banana", "cherry"]

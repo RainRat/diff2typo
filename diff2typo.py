@@ -505,7 +505,7 @@ def main():
     )
 
     # Input/Output Options
-    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}\n{BLUE}{'─' * 55}{RESET}")
+    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         'input_files',
         nargs='*',
@@ -548,7 +548,7 @@ def main():
     parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     # Analysis Options
-    analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}\n{BLUE}{'─' * 55}{RESET}")
+    analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
     analysis_group.add_argument(
         '--mode',
         type=str,

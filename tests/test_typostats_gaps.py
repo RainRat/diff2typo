@@ -18,7 +18,7 @@ def test_process_typos_empty_line():
     """Cover line 160 in typostats.py: skip empty lines."""
     # Use words with only one character difference so they are detected
     lines = ["apple -> ample", "", "banana -> banaxa"]
-    counts = typostats.process_typos(lines, allow_two_char=False)
+    counts, _, _ = typostats.process_typos(lines, allow_two_char=False)
 
     # apple -> ample: typo=apple, correction=ample => ('m', 'p')
     assert counts[('m', 'p')] == 1
@@ -77,7 +77,11 @@ def test_is_one_letter_replacement_two_to_one():
     assert typostats.is_one_letter_replacement('af', 'aph', allow_two_char=True) == [('ph', 'f')]
     assert typostats.is_one_letter_replacement('fa', 'pha', allow_two_char=True) == [('ph', 'f')]
 
-    assert typostats.is_one_letter_replacement('ac', 'abc', allow_two_char=True) == [
+    # By default, deletions are filtered out in 2 -> 1
+    assert typostats.is_one_letter_replacement('ac', 'abc', allow_two_char=True) == []
+
+    # But can be included with the flag
+    assert typostats.is_one_letter_replacement('ac', 'abc', allow_two_char=True, include_deletions=True) == [
         ('ab', 'a'),
         ('bc', 'c'),
     ]

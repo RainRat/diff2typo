@@ -4,7 +4,7 @@ import sys
 import logging
 import csv
 import io
-from typing import Iterable
+from typing import Iterable, Sequence
 
 try:
     from tqdm import tqdm
@@ -117,14 +117,20 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
 
 
 def is_one_letter_replacement(
-    typo: str, correction: str, allow_two_char: bool = False
+    typo: str,
+    correction: str,
+    allow_1to2: bool = False,
+    allow_2to1: bool = False,
+    include_deletions: bool = False,
+    **kwargs,
 ) -> list[tuple[str, str]]:
     """
     Check if 'typo' differs from 'correction' by one or more "letter replacements".
 
-    If allow_two_char is True, also check if 'typo' can be formed by replacing a single
-    character in 'correction' with two characters in 'typo', or two characters in
-    'correction' with a single character in 'typo'.
+    If allow_1to2 is True, check if 'typo' can be formed by replacing a single
+    character in 'correction' with two characters in 'typo'.
+    If allow_2to1 is True, check if 'typo' can be formed by replacing two characters
+    in 'correction' with a single character in 'typo'.
 
     Returns:
       A list of (correction_char, typo_char_or_chars) tuples for each found replacement.
@@ -132,6 +138,11 @@ def is_one_letter_replacement(
       value comes from the observed typo. Returns an empty list if no replacements are
       found.
     """
+
+    allow_two_char = kwargs.get('allow_two_char', False)
+    if allow_two_char:
+        allow_1to2 = True
+        allow_2to1 = True
 
     # Same length scenario: one-to-one replacement
     if len(typo) == len(correction):
@@ -147,7 +158,7 @@ def is_one_letter_replacement(
         return []
 
     # One-to-two replacement scenario allowed only if difference in length is 1
-    if allow_two_char and len(typo) == len(correction) + 1:
+    if allow_1to2 and len(typo) == len(correction) + 1:
         # Find all positions i where correction[i] is replaced by typo[i:i+2].
         # We use a set to avoid counting identical interpretations (e.g. for doubled letters) multiple times.
         replacements = set()
@@ -160,24 +171,83 @@ def is_one_letter_replacement(
         return sorted(replacements)
 
     # Two-to-one replacement scenario (e.g. 'ph' -> 'f')
-    if allow_two_char and len(typo) == len(correction) - 1:
+    if allow_2to1 and len(typo) == len(correction) - 1:
         replacements = set()
         for i in range(len(typo)):
             # To be a replacement of correction[i:i+2] with typo[i],
             # the prefix correction[:i] must match typo[:i], and
             # the suffix correction[i+2:] must match typo[i+1:].
             if correction[:i] == typo[:i] and correction[i+2:] == typo[i+1:]:
-                replacements.add((correction[i:i+2], typo[i]))
+                repl_correction = correction[i:i+2]
+                repl_typo = typo[i]
+
+                # Filter out deletions unless requested
+                if not include_deletions:
+                    # It's a deletion if the typo character is one of the two correction characters
+                    if repl_typo in repl_correction:
+                        continue
+
+                replacements.add((repl_correction, repl_typo))
         return sorted(replacements)
 
     return []
 
+
+def print_processing_stats(
+    raw_item_count: int,
+    filtered_items: Sequence[tuple[str, str]],
+    item_label: str = "item",
+) -> None:
+    """Print summary statistics for processed text items with visual hierarchy."""
+    item_label_plural = f"{item_label}s"
+
+    # ANSI Color Codes
+    GREEN = "\033[1;32m"
+    YELLOW = "\033[1;33m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    # Disable colors if not running in a terminal
+    if not sys.stderr.isatty():
+        GREEN = YELLOW = RESET = BOLD = ""
+
+    logging.info(f"\n{BOLD}ANALYSIS STATISTICS{RESET}")
+    logging.info(f"{BOLD}───────────────────────────────────────────────────────{RESET}")
+    logging.info(
+        f"  {BOLD}{'Total ' + item_label_plural + ' encountered:':<35}{RESET} {YELLOW}{raw_item_count}{RESET}"
+    )
+    logging.info(
+        f"  {BOLD}{'Total ' + item_label_plural + ' after filtering:':<35}{RESET} {GREEN}{len(filtered_items)}{RESET}"
+    )
+
+    if raw_item_count > 0:
+        retention = (len(filtered_items) / raw_item_count) * 100
+        logging.info(f"  {BOLD}{'Retention rate:':<35}{RESET} {GREEN}{retention:.1f}%{RESET}")
+
+    if not filtered_items:
+        logging.info(f"  {YELLOW}No {item_label_plural} passed the filtering criteria.{RESET}")
+    logging.info("")
+
+
 def process_typos(
-    lines: Iterable[str], allow_two_char: bool, allow_transposition: bool = False
-) -> dict[tuple[str, str], int]:
+    lines: Iterable[str],
+    allow_1to2: bool = False,
+    allow_2to1: bool = False,
+    include_deletions: bool = False,
+    allow_transposition: bool = False,
+    **kwargs,
+) -> tuple[dict[tuple[str, str], int], int, int]:
+    allow_two_char = kwargs.get('allow_two_char', False)
+    if allow_two_char:
+        allow_1to2 = True
+        allow_2to1 = True
+
     replacement_counts = defaultdict(int)
+    total_lines = 0
+    total_pairs = 0
     for line in lines:
         line = line.strip()
+        total_lines += 1
         if not line:
             continue
 
@@ -203,6 +273,7 @@ def process_typos(
         for correction in corrections:
             if not all(ord(c) < 128 for c in correction):
                 continue
+            total_pairs += 1
             # Now we have: `typo` (incorrect word), `correction` (correct word)
             # Check for transpositions first if enabled, as they are a specific pattern
             replacements = []
@@ -212,13 +283,17 @@ def process_typos(
             # If no transposition found, check for one-letter replacements
             if not replacements:
                 replacements = is_one_letter_replacement(
-                    typo, correction, allow_two_char=allow_two_char
+                    typo,
+                    correction,
+                    allow_1to2=allow_1to2,
+                    allow_2to1=allow_2to1,
+                    include_deletions=include_deletions,
                 )
 
             for replacement in replacements:
                 # replacement is (correct_char, typo_char)
                 replacement_counts[replacement] += 1
-    return replacement_counts
+    return replacement_counts, total_lines, total_pairs
 
 
 def generate_report(
@@ -508,10 +583,28 @@ def main() -> None:
         '--allow-two-char',
         dest='allow_two_char',
         action='store_true',
-        help="Allow multi-character letter replacements (e.g., 'm' to 'rn' or 'ph' to 'f').",
+        help="Shortcut for --1to2 and --2to1. Allow multi-character letter replacements.",
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--allow_two_char', action='store_true', help=argparse.SUPPRESS)
+
+    analysis_group.add_argument(
+        '--1to2',
+        dest='allow_1to2',
+        action='store_true',
+        help="Allow single-to-double character replacements (e.g., 'm' to 'rn').",
+    )
+    analysis_group.add_argument(
+        '--2to1',
+        dest='allow_2to1',
+        action='store_true',
+        help="Allow double-to-single character replacements (e.g., 'ph' to 'f').",
+    )
+    analysis_group.add_argument(
+        '--include-deletions',
+        action='store_true',
+        help="Include 2-to-1 replacements that are actually deletions (e.g., 'or' to 'o').",
+    )
 
     analysis_group.add_argument(
         '-t',
@@ -544,7 +637,12 @@ def main() -> None:
     min_occurrences = args.min
     sort_by = args.sort
     output_format = args.format
-    allow_two_char = args.allow_two_char
+    allow_1to2 = args.allow_1to2
+    allow_2to1 = args.allow_2to1
+    if args.allow_two_char:
+        allow_1to2 = True
+        allow_2to1 = True
+    include_deletions = args.include_deletions
     allow_transposition = args.transposition
     limit = args.limit
 
@@ -552,6 +650,8 @@ def main() -> None:
         input_files = ['-']
 
     all_counts = defaultdict(int)
+    total_lines_all = 0
+    total_pairs_all = 0
 
     for file_path in input_files:
         lines = load_lines_from_file(file_path)
@@ -560,11 +660,29 @@ def main() -> None:
             if not args.quiet and _TQDM_AVAILABLE:
                 lines = tqdm(lines, desc=f"Processing {file_path}", unit="lines", leave=False)
 
-            file_counts = process_typos(
-                lines, allow_two_char=allow_two_char, allow_transposition=allow_transposition
+            file_counts, lines_count, pairs_count = process_typos(
+                lines,
+                allow_1to2=allow_1to2,
+                allow_2to1=allow_2to1,
+                include_deletions=include_deletions,
+                allow_transposition=allow_transposition,
             )
             for k, v in file_counts.items():
                 all_counts[k] += v
+            total_lines_all += lines_count
+            total_pairs_all += pairs_count
+
+    if not args.quiet:
+        # Convert all_counts keys (which are tuples) to a flat list for print_processing_stats
+        # But wait, print_processing_stats expects filtered_items.
+        # Here all_counts is a dictionary of (correct, typo) -> count.
+        # We should probably pass the pairs that actually appeared.
+        pairs_found = []
+        for pair, count in all_counts.items():
+            for _ in range(count):
+                pairs_found.append(pair)
+
+        print_processing_stats(total_pairs_all, pairs_found, item_label="replacement")
 
     generate_report(
         all_counts,

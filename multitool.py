@@ -2058,6 +2058,7 @@ def get_mode_summary_text() -> str:
     lines.append(f"  {BLUE}{'─' * 55}{RESET}")
     lines.append(f"    {YELLOW}{'-o, --output':<{width}}{RESET} Path to output file. Use '-' for screen.")
     lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, csv, markdown, arrow, table.")
+    lines.append(f"    {YELLOW}{'-P, --process-output':<{width}}{RESET} Sort the output and remove duplicates.")
     lines.append(f"    {YELLOW}{'-q, --quiet':<{width}}{RESET} Suppress progress bars and analysis statistics.")
 
     lines.append(f"\nRun '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
@@ -2184,7 +2185,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Choose the format for the output (default: line).",
     )
 
-    subparsers = parser.add_subparsers(dest='mode', required=True, metavar='mode')
+    subparsers = parser.add_subparsers(dest='mode', required=True, metavar='mode', help=argparse.SUPPRESS)
 
     arrow_parser = subparsers.add_parser(
         'arrow',

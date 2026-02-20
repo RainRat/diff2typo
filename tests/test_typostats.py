@@ -63,7 +63,7 @@ def test_process_typos_counts_and_filtering():
         'aa, a',
         'fóo, foo',  # non-ASCII; should be skipped
     ]
-    counts = typostats.process_typos(lines, allow_two_char=True)
+    counts, _, _ = typostats.process_typos(lines, allow_two_char=True)
     assert counts == {('s', 'z'): 1, ('e', 'a'): 1, ('a', 'aa'): 1}
 
 
@@ -72,7 +72,7 @@ def test_process_typos_table_format():
         'tezt = "test"',
         'lavel = "level"',
     ]
-    counts = typostats.process_typos(lines, allow_two_char=False)
+    counts, _, _ = typostats.process_typos(lines, allow_two_char=False)
     assert counts == {('s', 'z'): 1, ('e', 'a'): 1}
 
 
@@ -82,11 +82,11 @@ def test_process_typos_with_transposition():
         'tset -> test',
     ]
     # Without allow_transposition, these should return nothing (multi-letter diff)
-    counts = typostats.process_typos(lines, allow_two_char=False, allow_transposition=False)
+    counts, _, _ = typostats.process_typos(lines, allow_two_char=False, allow_transposition=False)
     assert counts == {}
 
     # With allow_transposition, they should be detected
-    counts = typostats.process_typos(lines, allow_two_char=False, allow_transposition=True)
+    counts, _, _ = typostats.process_typos(lines, allow_two_char=False, allow_transposition=True)
     assert counts == {('he', 'eh'): 1, ('es', 'se'): 1}
 
 
@@ -233,5 +233,5 @@ def test_process_typos_skips_non_ascii_corrections():
     lines = [
         'tezt, tézt, test',
     ]
-    counts = typostats.process_typos(lines, allow_two_char=False)
+    counts, _, _ = typostats.process_typos(lines, allow_two_char=False)
     assert counts == {('s', 'z'): 1}

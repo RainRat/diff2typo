@@ -808,8 +808,6 @@ def main() -> None:
         # Default to a smaller min_length for adhoc queries if user didn't provide a config
         run_defaults['word_length']['min_length'] = 0
 
-    validate_config(config, cli_mode=is_cli_mode, config_defaults=run_defaults)
-
     # Apply CLI overrides
     if is_cli_mode:
         config['input_file'] = None # Will use CLI words
@@ -834,6 +832,8 @@ def main() -> None:
             config['word_length']['min_length'] = args.min_length
         if args.max_length is not None:
             config['word_length']['max_length'] = args.max_length
+
+    validate_config(config, cli_mode=is_cli_mode, config_defaults=run_defaults)
 
     settings = _extract_config_settings(config, quiet=args.quiet)
 

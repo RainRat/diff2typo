@@ -55,4 +55,6 @@ def test_stats_human_readable(tmp_path, capsys):
     captured = capsys.readouterr()
     assert "ANALYSIS STATISTICS" in captured.out
     assert "PAIRED DATA STATISTICS" in captured.out
-    assert "Total items encountered:          1" in captured.out
+    # The new formatting uses wider labels and aligned values
+    assert "Total items encountered:" in captured.out
+    assert "1" in captured.out

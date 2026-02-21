@@ -990,7 +990,7 @@ def stats_mode(
             report.append(f"  Conflicts (1 typo -> N corr):     {stats['pairs']['conflicts']}")
             report.append(f"  Overlaps (typo == correction):    {stats['pairs']['overlaps']}")
             if "min_dist" in stats["pairs"]:
-                report.append(f"  Min/Max/Avg edit distance:        {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
+                report.append(f"  Min/Max/Avg character changes:    {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
 
         report.append("")
         content = "\n".join(report)
@@ -1101,7 +1101,7 @@ def similarity_mode(
     clean_items: bool = True,
 ) -> None:
     """
-    Filters paired data based on edit distance (Levenshtein distance).
+    Filters paired data based on the number of character changes.
     """
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
 
@@ -1990,20 +1990,20 @@ MODE_DETAILS = {
         "flags": "",
     },
     "similarity": {
-        "summary": "Filters paired data by edit distance.",
-        "description": "Filters pairs (typo -> correction) based on their Levenshtein distance. Use this to remove noise or find specific types of typos.",
+        "summary": "Filters paired data by the number of changes.",
+        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove noise or find specific types of typos.",
         "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
     "near_duplicates": {
         "summary": "Finds similar words in a single list.",
-        "description": "Identifies pairs of words in your list that are very similar (within a small edit distance). Use this to find potential typos or unintended duplicates in a project.",
+        "description": "Identifies pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
         "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
     "stats": {
         "summary": "Calculates detailed statistics for a typo list.",
-        "description": "Provides a comprehensive summary of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and edit distances.",
+        "description": "Provides a comprehensive summary of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
@@ -2057,7 +2057,7 @@ def get_mode_summary_text() -> str:
     lines.append(f"\n  {BLUE}GLOBAL OPTIONS{RESET}")
     lines.append(f"  {BLUE}{'─' * 55}{RESET}")
     lines.append(f"    {YELLOW}{'-o, --output':<{width}}{RESET} Path to output file. Use '-' for screen.")
-    lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, csv, markdown, arrow, table.")
+    lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, csv, markdown, arrow, table, yaml.")
     lines.append(f"    {YELLOW}{'-P, --process-output':<{width}}{RESET} Sort the output and remove duplicates.")
     lines.append(f"    {YELLOW}{'-q, --quiet':<{width}}{RESET} Suppress progress bars and analysis statistics.")
 
@@ -2142,7 +2142,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
-        description="Multipurpose File Processing Tool",
+        description="A versatile tool for cleaning, extracting, and analyzing text files.",
         epilog=dedent(
             """
             Examples:
@@ -2388,12 +2388,12 @@ def _build_parser() -> argparse.ArgumentParser:
         '--min-dist',
         type=int,
         default=0,
-        help="Minimum edit distance to include (default: 0).",
+        help="Minimum number of changes to include (default: 0).",
     )
     similarity_options.add_argument(
         '--max-dist',
         type=int,
-        help="Maximum edit distance to include.",
+        help="Maximum number of changes to include.",
     )
     similarity_options.add_argument(
         '--show-dist',
@@ -2414,13 +2414,13 @@ def _build_parser() -> argparse.ArgumentParser:
         '--min-dist',
         type=int,
         default=1,
-        help="Minimum edit distance to include (default: 1).",
+        help="Minimum number of changes to include (default: 1).",
     )
     nd_options.add_argument(
         '--max-dist',
         type=int,
         default=1,
-        help="Maximum edit distance to include (default: 1).",
+        help="Maximum number of changes to include (default: 1).",
     )
     nd_options.add_argument(
         '--show-dist',

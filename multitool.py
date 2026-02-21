@@ -193,9 +193,8 @@ def print_processing_stats(
         logging.info(f"  {BOLD}{'Retention rate:':<35}{RESET} {GREEN}{retention:.1f}%{RESET}")
 
     if filtered_items:
-        unique_items = list(dict.fromkeys(filtered_items))
-        shortest = min(unique_items, key=len)
-        longest = max(unique_items, key=len)
+        shortest = min(filtered_items, key=len)
+        longest = max(filtered_items, key=len)
         logging.info(
             f"  {BOLD}{'Shortest ' + item_label + ':':<35}{RESET} '{shortest}' (length: {len(shortest)})"
         )

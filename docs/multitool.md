@@ -90,17 +90,17 @@ These modes help you transform or combine your data.
 
 - **`zip`**
   - **What it does:** Combines two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**. If the files have a different number of lines, the output will stop at the end of the shortest file.
-  - **Supported Formats:** `line`, `json`, `csv`, `markdown`, `arrow`, `table`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
 - **`swap`**
   - **What it does:** Reverses the order of elements in paired data (e.g., `typo -> correction` becomes `correction -> typo`).
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
 
 - **`pairs`**
   - **What it does:** Processes paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (e.g., from JSON to CSV) while applying cleaning and length filters.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py pairs typos.json --output-format csv`
 
 ### 3. Analysis Modes
@@ -113,7 +113,7 @@ These modes help you analyze your data.
 
 - **`conflict`**
   - **What it does:** Identifies typos that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py conflict mappings.csv`
 
 - **`count`**
@@ -125,13 +125,13 @@ These modes help you analyze your data.
 - **`near_duplicates`**
   - **What it does:** Identifies pairs of words in your list that are very similar (within a small edit distance). This is useful for finding potential typos or unintended duplicates in a project.
   - **Options:** Use `--min-dist` and `--max-dist` to control the edit distance threshold, and `--show-dist` to see the distance in the output.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py near_duplicates words.txt --max-dist 1 --show-dist`
 
 - **`similarity`**
   - **What it does:** Filters paired data (like `typo -> correction`) based on the number of changes (edit distance) needed to turn one word into another. Use this to remove noise or find specific types of typos.
   - **Options:** Use `--min-dist` and `--max-dist` to set the distance range, and `--show-dist` to include the distance in the output.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py similarity typos.txt --max-dist 2 --show-dist`
 
 - **`stats`**
@@ -144,7 +144,7 @@ These options work with most modes:
 
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input (stdin)** if omitted.
 - `--output`: The file to write results to. Defaults to printing to the screen.
-- `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, `markdown`, `arrow`, and `table`.
+- `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, `markdown`, `md-table`, `arrow`, and `table`.
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.

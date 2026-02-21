@@ -234,6 +234,7 @@ def write_output(
       - json: JSON array of strings
       - csv: One item per row (vertical)
       - markdown: Markdown bullet list
+      - md-table: Markdown table
     """
     items_list = list(items)  # Consume generator to know length/content
 
@@ -251,6 +252,11 @@ def write_output(
         elif output_format == 'markdown':
             for item in items_list:
                 outfile.write(f"- {item}\n")
+        elif output_format == 'md-table':
+            outfile.write("| Item |\n")
+            outfile.write("| :--- |\n")
+            for item in items_list:
+                outfile.write(f"| {item} |\n")
         elif output_format == 'yaml':
             try:
                 import yaml
@@ -379,6 +385,23 @@ def _write_paired_output(
         elif output_format == 'markdown':
             for left, right in pairs_list:
                 out_file.write(f"- {left}: {right}\n")
+        elif output_format == 'md-table':
+            left_header = "Left"
+            right_header = "Right"
+            if mode_label == "Conflict":
+                left_header = "Typo"
+                right_header = "Corrections"
+            elif mode_label in ("Similarity", "Pairs", "Swap", "Zip"):
+                left_header = "Typo"
+                right_header = "Correction"
+            elif mode_label == "NearDuplicates":
+                left_header = "Word 1"
+                right_header = "Word 2"
+
+            out_file.write(f"| {left_header} | {right_header} |\n")
+            out_file.write("| :--- | :--- |\n")
+            for left, right in pairs_list:
+                out_file.write(f"| {left} | {right} |\n")
         else:  # 'arrow' or 'line' or fallback
             for left, right in pairs_list:
                 out_file.write(f"{left} -> {right}\n")
@@ -850,6 +873,11 @@ def count_mode(
         elif output_format == 'markdown':
             for word, count in final_results:
                 out_file.write(f"- {word}: {count}\n")
+        elif output_format == 'md-table':
+            out_file.write("| Item | Count |\n")
+            out_file.write("| :--- | :--- |\n")
+            for word, count in final_results:
+                out_file.write(f"| {word} | {count} |\n")
         else:  # 'line' or fallback
             for word, count in final_results:
                 out_file.write(f"{word}: {count}\n")
@@ -969,6 +997,33 @@ def stats_mode(
                     f.write("pairs:\n")
                     for k, v in stats["pairs"].items():
                         f.write(f"  {k}: {v}\n")
+    elif output_format in ('markdown', 'md-table'):
+        with smart_open_output(output_file) as f:
+            f.write("### ANALYSIS STATISTICS\n\n")
+            f.write("| Metric | Value |\n")
+            f.write("| :--- | :--- |\n")
+            f.write(f"| Total items encountered | {stats['items']['total_encountered']} |\n")
+            f.write(f"| Total items after filtering | {stats['items']['total_filtered']} |\n")
+            f.write(f"| Unique items | {stats['items']['unique_count']} |\n")
+            if "min_length" in stats["items"]:
+                f.write(f"| Min length | {stats['items']['min_length']} |\n")
+                f.write(f"| Max length | {stats['items']['max_length']} |\n")
+                f.write(f"| Avg length | {stats['items']['avg_length']:.1f} |\n")
+
+            if "pairs" in stats:
+                f.write("\n### PAIRED DATA STATISTICS\n\n")
+                f.write("| Metric | Value |\n")
+                f.write("| :--- | :--- |\n")
+                f.write(f"| Total pairs extracted | {stats['pairs']['total_extracted']} |\n")
+                f.write(f"| Total pairs after filtering | {stats['pairs']['total_filtered']} |\n")
+                f.write(f"| Unique pairs | {stats['pairs']['unique_pairs']} |\n")
+                f.write(f"| Unique typos / corrections | {stats['pairs']['unique_typos']} / {stats['pairs']['unique_corrections']} |\n")
+                f.write(f"| Conflicts (1 typo -> N corr) | {stats['pairs']['conflicts']} |\n")
+                f.write(f"| Overlaps (typo == correction) | {stats['pairs']['overlaps']} |\n")
+                if "min_dist" in stats["pairs"]:
+                    f.write(f"| Min edit distance | {stats['pairs']['min_dist']} |\n")
+                    f.write(f"| Max edit distance | {stats['pairs']['max_dist']} |\n")
+                    f.write(f"| Avg edit distance | {stats['pairs']['avg_dist']:.1f} |\n")
     else:
         # Human readable text
         report = []
@@ -1696,7 +1751,7 @@ def _add_common_mode_arguments(
     io_group.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table', 'yaml'],
+        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
         default=argparse.SUPPRESS,
         help="Choose the format for the output (default: line).",
     )
@@ -2057,7 +2112,7 @@ def get_mode_summary_text() -> str:
     lines.append(f"\n  {BLUE}GLOBAL OPTIONS{RESET}")
     lines.append(f"  {BLUE}{'─' * 55}{RESET}")
     lines.append(f"    {YELLOW}{'-o, --output':<{width}}{RESET} Path to output file. Use '-' for screen.")
-    lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, csv, markdown, arrow, table.")
+    lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, csv, markdown, md-table, arrow, table.")
     lines.append(f"    {YELLOW}{'-P, --process-output':<{width}}{RESET} Sort the output and remove duplicates.")
     lines.append(f"    {YELLOW}{'-q, --quiet':<{width}}{RESET} Suppress progress bars and analysis statistics.")
 
@@ -2180,7 +2235,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'arrow', 'table', 'yaml'],
+        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
         default='line',
         help="Choose the format for the output (default: line).",
     )

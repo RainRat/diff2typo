@@ -2140,7 +2140,7 @@ def get_mode_summary_text() -> str:
     lines.append(f"\n  {BLUE}GLOBAL OPTIONS{RESET}")
     lines.append(f"  {BLUE}{'─' * 55}{RESET}")
     lines.append(f"    {YELLOW}{'-o, --output':<{width}}{RESET} Path to output file. Use '-' for screen.")
-    lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, csv, markdown, md-table, arrow, table.")
+    lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, yaml, csv, markdown, md-table, arrow, table.")
     lines.append(f"    {YELLOW}{'-P, --process-output':<{width}}{RESET} Sort the output and remove duplicates.")
     lines.append(f"    {YELLOW}{'-q, --quiet':<{width}}{RESET} Suppress progress bars and analysis statistics.")
 

@@ -33,19 +33,19 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py backtick build.log`
 
 - **`csv`**
-  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column.
-  - **Example:** `python multitool.py csv data.csv`
+  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column. Use `--delimiter` (or `-d`) to specify a different column separator (e.g., `;`).
+  - **Example:** `python multitool.py csv data.csv --delimiter ";"`
 
 - **`markdown`**
   - **What it does:** Extracts items from Markdown bulleted lists (lines starting with `- `, `* `, or `+ `). It can also split items by `:` or `->` to extract one side of a pair (use the `--right` flag for the second part).
   - **Example:** `python multitool.py markdown notes.md --right`
 
 - **`json`**
-  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). It automatically handles lists.
+  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). If you do not provide a key, it extracts all items from the root of the file. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`
 
 - **`yaml`**
-  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (e.g., `config.items`) and handles lists.
+  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (e.g., `config.items`). If you do not provide a key, it extracts items directly from the root.
   - **Example:** `python multitool.py yaml config.yaml --key config.items`
 
 - **`line`**
@@ -119,6 +119,7 @@ These modes help you analyze your data.
 - **`count`**
   - **What it does:** Counts how many times each word appears in a file and sorts them by frequency (most frequent first).
   - **Options:** Use `--min-count` and `--max-count` to filter results by their frequency.
+  - **Supported Formats:** `json`, `csv`, `markdown`, `md-table`, and `line`.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5`
 
@@ -136,6 +137,7 @@ These modes help you analyze your data.
 
 - **`stats`**
   - **What it does:** Provides a high-level summary of your dataset. It reports counts, unique items, and length distributions. If the `--pairs` flag is used, it additionally analyzes the file as paired data (typos/corrections) and reports conflicts (one typo to multiple corrections), overlaps (words that are both typos and corrections), and edit distance statistics.
+  - **Supported Formats:** `json`, `yaml`, `markdown`, `md-table`, and `line` (human-readable).
   - **Example:** `python multitool.py stats typos.csv --pairs`
 
 ## Common Options
@@ -144,7 +146,7 @@ These options work with most modes:
 
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input (stdin)** if omitted.
 - `--output`: The file to write results to. Defaults to printing to the screen.
-- `--output-format`: The format of the output. Options include `line` (default), `json`, `csv`, `markdown`, `md-table`, `arrow`, and `table`.
+- `--output-format`: The format of the output. Options include `line` (default), `json`, `yaml`, `csv`, `markdown`, `md-table`, `arrow`, and `table`.
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.

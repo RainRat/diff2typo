@@ -916,7 +916,8 @@ def stats_mode(
             all_items.extend(parts)
 
     filtered_items = clean_and_filter(all_items, min_length, max_length, clean=clean_items)
-    unique_count = len(set(filtered_items))
+    unique_items = list(dict.fromkeys(filtered_items))
+    unique_count = len(unique_items)
 
     stats = {
         "items": {
@@ -931,6 +932,8 @@ def stats_mode(
         stats["items"]["min_length"] = min(lengths)
         stats["items"]["max_length"] = max(lengths)
         stats["items"]["avg_length"] = sum(lengths) / len(lengths)
+        stats["items"]["shortest"] = min(unique_items, key=len)
+        stats["items"]["longest"] = max(unique_items, key=len)
 
     # 2. Collect Pairs if requested
     if include_pairs:
@@ -1026,31 +1029,57 @@ def stats_mode(
                     f.write(f"| Avg edit distance | {stats['pairs']['avg_dist']:.1f} |\n")
     else:
         # Human readable text
-        report = []
-        report.append("\nANALYSIS STATISTICS")
-        report.append("───────────────────────────────────────────────────────")
-        report.append(f"  Total items encountered:          {stats['items']['total_encountered']}")
-        report.append(f"  Total items after filtering:      {stats['items']['total_filtered']}")
-        report.append(f"  Unique items:                     {stats['items']['unique_count']}")
-        if "min_length" in stats["items"]:
-            report.append(f"  Min/Max/Avg length:               {stats['items']['min_length']} / {stats['items']['max_length']} / {stats['items']['avg_length']:.1f}")
-
-        if "pairs" in stats:
-            report.append("\nPAIRED DATA STATISTICS")
-            report.append("───────────────────────────────────────────────────────")
-            report.append(f"  Total pairs extracted:            {stats['pairs']['total_extracted']}")
-            report.append(f"  Total pairs after filtering:      {stats['pairs']['total_filtered']}")
-            report.append(f"  Unique pairs:                     {stats['pairs']['unique_pairs']}")
-            report.append(f"  Unique typos / corrections:       {stats['pairs']['unique_typos']} / {stats['pairs']['unique_corrections']}")
-            report.append(f"  Conflicts (1 typo -> N corr):     {stats['pairs']['conflicts']}")
-            report.append(f"  Overlaps (typo == correction):    {stats['pairs']['overlaps']}")
-            if "min_dist" in stats["pairs"]:
-                report.append(f"  Min/Max/Avg edit distance:        {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
-
-        report.append("")
-        content = "\n".join(report)
         with smart_open_output(output_file) as f:
-            f.write(content)
+            # ANSI Color Codes
+            GREEN = "\033[1;32m"
+            YELLOW = "\033[1;33m"
+            RESET = "\033[0m"
+            BOLD = "\033[1m"
+
+            # Disable colors if not running in a terminal
+            if not f.isatty():
+                GREEN = YELLOW = RESET = BOLD = ""
+
+            report = []
+            report.append(f"\n{BOLD}ANALYSIS STATISTICS{RESET}")
+            report.append(f"{BOLD}───────────────────────────────────────────────────────{RESET}")
+
+            label_width = 35
+            report.append(f"  {BOLD}{'Total items encountered:':<{label_width}}{RESET} {YELLOW}{stats['items']['total_encountered']}{RESET}")
+            report.append(f"  {BOLD}{'Total items after filtering:':<{label_width}}{RESET} {GREEN}{stats['items']['total_filtered']}{RESET}")
+
+            if stats['items']['total_encountered'] > 0:
+                retention = (stats['items']['total_filtered'] / stats['items']['total_encountered']) * 100
+                report.append(f"  {BOLD}{'Retention rate:':<{label_width}}{RESET} {GREEN}{retention:.1f}%{RESET}")
+
+            report.append(f"  {BOLD}{'Unique items:':<{label_width}}{RESET} {stats['items']['unique_count']}")
+
+            if "min_length" in stats["items"]:
+                report.append(f"  {BOLD}{'Min/Max/Avg length:':<{label_width}}{RESET} {stats['items']['min_length']} / {stats['items']['max_length']} / {stats['items']['avg_length']:.1f}")
+                shortest = stats["items"]["shortest"]
+                longest = stats["items"]["longest"]
+                report.append(f"  {BOLD}{'Shortest item:':<{label_width}}{RESET} '{shortest}' (length: {len(shortest)})")
+                report.append(f"  {BOLD}{'Longest item:':<{label_width}}{RESET} '{longest}' (length: {len(longest)})")
+
+            if "pairs" in stats:
+                report.append(f"\n{BOLD}PAIRED DATA STATISTICS{RESET}")
+                report.append(f"{BOLD}───────────────────────────────────────────────────────{RESET}")
+                report.append(f"  {BOLD}{'Total pairs extracted:':<{label_width}}{RESET} {YELLOW}{stats['pairs']['total_extracted']}{RESET}")
+                report.append(f"  {BOLD}{'Total pairs after filtering:':<{label_width}}{RESET} {GREEN}{stats['pairs']['total_filtered']}{RESET}")
+
+                if stats['pairs']['total_extracted'] > 0:
+                    retention = (stats['pairs']['total_filtered'] / stats['pairs']['total_extracted']) * 100
+                    report.append(f"  {BOLD}{'Retention rate:':<{label_width}}{RESET} {GREEN}{retention:.1f}%{RESET}")
+
+                report.append(f"  {BOLD}{'Unique pairs:':<{label_width}}{RESET} {stats['pairs']['unique_pairs']}")
+                report.append(f"  {BOLD}{'Unique typos / corrections:':<{label_width}}{RESET} {stats['pairs']['unique_typos']} / {stats['pairs']['unique_corrections']}")
+                report.append(f"  {BOLD}{'Conflicts (1 typo -> N corr):':<{label_width}}{RESET} {stats['pairs']['conflicts']}")
+                report.append(f"  {BOLD}{'Overlaps (typo == correction):':<{label_width}}{RESET} {stats['pairs']['overlaps']}")
+                if "min_dist" in stats["pairs"]:
+                    report.append(f"  {BOLD}{'Min/Max/Avg edit distance:':<{label_width}}{RESET} {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
+
+            report.append("")
+            f.write("\n".join(report))
 
     logging.info(f"[Stats Mode] Analysis complete. Summary written to '{output_file}'.")
 
@@ -2718,7 +2747,7 @@ def main() -> None:
     logging.info(f"Minimum String Length: {args.min_length}")
     logging.info(f"Maximum String Length: {args.max_length}")
 
-    if args.mode not in ('count', 'combine'):
+    if args.mode not in ('count', 'combine', 'stats'):
         logging.info(
             f"Process Output: {'Enabled' if args.process_output else 'Disabled'}"
         )

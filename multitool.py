@@ -158,9 +158,8 @@ def _load_and_clean_file(
                 cleaned_items.append(part)
 
     if apply_length_filter:
-        upper_bound = max_length
         cleaned_items = [
-            item for item in cleaned_items if min_length <= len(item) <= upper_bound
+            item for item in cleaned_items if min_length <= len(item) <= max_length
         ]
 
     unique_items = list(dict.fromkeys(cleaned_items))

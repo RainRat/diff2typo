@@ -13,6 +13,27 @@ from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Option
 from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 
 
+# ANSI Color Codes
+BLUE = "\033[1;34m"
+GREEN = "\033[1;32m"
+YELLOW = "\033[1;33m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+# Disable colors if not running in a terminal
+if not sys.stdout.isatty():
+    BLUE = GREEN = YELLOW = RESET = BOLD = ""
+
+
+class MinimalFormatter(logging.Formatter):
+    """A logging formatter that removes prefixes for INFO level messages."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        if record.levelno == logging.INFO:
+            return record.getMessage()
+        return f"{record.levelname}: {record.getMessage()}"
+
+
 DEFAULT_CONFIG: dict[str, Any] = {
     'typo_types': {
         'deletion': True,
@@ -699,36 +720,42 @@ def main() -> None:
     """
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description="Synthetic Typo Generator: Generate synthetic typos for a list of words based on YAML configuration."
+        description=f"{BOLD}Synthetic Typo Generator: Create lists of common typing mistakes.{RESET}",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=f"""{BLUE}Examples:{RESET}
+  {GREEN}python gentypos.py "hello" "world"{RESET}
+  {GREEN}python gentypos.py --config my_config.yaml --output typos.txt{RESET}
+  {GREEN}python gentypos.py word1 word2 --format csv --no-filter{RESET}
+""",
     )
 
     # Input/Output Options
-    io_group = parser.add_argument_group("Input/Output Options")
+    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         'words',
         nargs='*',
-        help="List of words to process directly (overrides input_file).",
+        help="Individual words to process. This ignores any input file in your config.",
     )
     io_group.add_argument(
         '-c', '--config',
         type=str,
         default="gentypos.yaml",
-        help="Path to the YAML configuration file (default: gentypos.yaml)"
+        help="Path to a YAML configuration file (default: gentypos.yaml).",
     )
     io_group.add_argument(
         '-o', '--output',
         type=str,
-        help="Output file path (overrides config). Use '-' for stdout.",
+        help="Where to save the results. Use '-' for the screen.",
     )
     io_group.add_argument(
         '-f', '--format',
         choices=['arrow', 'csv', 'table', 'list'],
-        help="Output format (overrides config). Choices: arrow, csv, table, list.",
+        help="The format of the output. Options: arrow, csv, table, or list.",
     )
     io_group.add_argument(
         '-s', '--substitutions',
         type=str,
-        help="Path to a file containing custom substitutions (JSON, CSV, or YAML).",
+        help="Path to a file with your own typo patterns (JSON, CSV, or YAML).",
     )
     # Legacy flag, suppressed from help
     parser.add_argument(
@@ -738,31 +765,31 @@ def main() -> None:
     )
 
     # Generation Options
-    gen_group = parser.add_argument_group("Generation Options")
+    gen_group = parser.add_argument_group(f"{BLUE}GENERATION OPTIONS{RESET}")
     gen_group.add_argument(
         '-m', '--min-length',
         type=int,
-        help="Minimum length of words to process (overrides config).",
+        help="Skip words shorter than this length.",
     )
     gen_group.add_argument(
         '--max-length',
         type=int,
-        help="Maximum length of words to process (overrides config).",
+        help="Skip words longer than this length.",
     )
     gen_group.add_argument(
         '--no-filter',
         action='store_true',
-        help="Skip dictionary filtering (useful for quick checks).",
+        help="Do not check typos against the dictionary (this is faster).",
     )
     gen_group.add_argument(
         '-v', '--verbose',
         action='store_true',
-        help="Enable verbose output.",
+        help="Show more detailed log messages.",
     )
     gen_group.add_argument(
         '-q', '--quiet',
         action='store_true',
-        help="Suppress progress bars and reduce log verbosity.",
+        help="Hide progress bars and show fewer log messages.",
     )
 
     args = parser.parse_args()
@@ -776,7 +803,10 @@ def main() -> None:
     is_cli_mode = bool(cli_words)
 
     log_level = logging.DEBUG if args.verbose else logging.WARNING if args.quiet else logging.INFO
-    logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
+    # Use a custom handler and formatter to keep output clean
+    handler = logging.StreamHandler()
+    handler.setFormatter(MinimalFormatter())
+    logging.basicConfig(level=log_level, handlers=[handler])
     if args.verbose:
         logging.debug("Verbose mode enabled.")
     elif args.quiet:

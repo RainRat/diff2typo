@@ -23,11 +23,16 @@ except ImportError:  # pragma: no cover - optional dependency
 
 
 # ANSI Color Codes
+BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
 RED = "\033[1;31m"
 YELLOW = "\033[1;33m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
+
+# Disable colors if not running in a terminal
+if not sys.stdout.isatty():
+    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
 
 
 class MinimalFormatter(logging.Formatter):
@@ -201,31 +206,27 @@ def print_processing_stats(
     """Print summary statistics for processed text items with visual hierarchy."""
     item_label_plural = f"{item_label}s"
 
-    # ANSI Color Codes
-    GREEN = "\033[1;32m"
-    YELLOW = "\033[1;33m"
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
+    # Use stderr-specific color check for logging output
+    c_bold = BOLD if sys.stderr.isatty() else ""
+    c_reset = RESET if sys.stderr.isatty() else ""
+    c_yellow = YELLOW if sys.stderr.isatty() else ""
+    c_green = GREEN if sys.stderr.isatty() else ""
 
-    # Disable colors if not running in a terminal
-    if not sys.stderr.isatty():
-        GREEN = YELLOW = RESET = BOLD = ""
-
-    logging.info(f"\n{BOLD}ANALYSIS STATISTICS{RESET}")
-    logging.info(f"{BOLD}───────────────────────────────────────────────────────{RESET}")
+    logging.info(f"\n{c_bold}ANALYSIS STATISTICS{c_reset}")
+    logging.info(f"{c_bold}───────────────────────────────────────────────────────{c_reset}")
     logging.info(
-        f"  {BOLD}{'Total ' + item_label_plural + ' encountered:':<35}{RESET} {YELLOW}{raw_item_count}{RESET}"
+        f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}"
     )
     logging.info(
-        f"  {BOLD}{'Total ' + item_label_plural + ' after filtering:':<35}{RESET} {GREEN}{len(filtered_items)}{RESET}"
+        f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<35}{c_reset} {c_green}{len(filtered_items)}{c_reset}"
     )
 
     if raw_item_count > 0:
         retention = (len(filtered_items) / raw_item_count) * 100
-        logging.info(f"  {BOLD}{'Retention rate:':<35}{RESET} {GREEN}{retention:.1f}%{RESET}")
+        logging.info(f"  {c_bold}{'Retention rate:':<35}{c_reset} {c_green}{retention:.1f}%{c_reset}")
 
     if not filtered_items:
-        logging.info(f"  {YELLOW}No {item_label_plural} passed the filtering criteria.{RESET}")
+        logging.info(f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}")
     logging.info("")
 
 
@@ -394,9 +395,10 @@ def generate_report(
         max_n = max((len(str(count)) for (c, t), count in sorted_replacements), default=5)
         max_n = max(max_n, 5)  # 'COUNT' is 5
 
-        # Header row
-        header_row = f"{'CORRECT':>{max_c}}    {'TYPO':<{max_t}}   {'COUNT':>{max_n}}"
-        divider = "-" * len(header_row)
+        # Header row and divider with consistent padding
+        padding = "  "
+        header_row = f"{padding}{'CORRECT':>{max_c}}    {'TYPO':<{max_t}}   {'COUNT':>{max_n}}"
+        divider = f"{padding}{'-' * (len(header_row) - len(padding))}"
 
         if not output_file:
             # Move the human-readable header to stderr to keep stdout clean for piping
@@ -405,8 +407,8 @@ def generate_report(
                 sys.stderr.write(f" {analysis_summary}\n")
                 if keyboard_summary:
                     sys.stderr.write(f" {keyboard_summary}\n")
-                sys.stderr.write(f"\n {header_row}\n")
-                sys.stderr.write(f" {divider}\n")
+                sys.stderr.write(f"\n{header_row}\n")
+                sys.stderr.write(f"{divider}\n")
                 sys.stderr.flush()
             report_lines = []
         else:
@@ -416,7 +418,7 @@ def generate_report(
             report_lines.extend(["", header_row, divider])
 
         if not sorted_replacements:
-            no_results = " No replacements found matching the criteria."
+            no_results = f"{padding}No replacements found matching the criteria."
             if not output_file:
                 if not quiet:
                     sys.stderr.write(f"{no_results}\n\n")
@@ -430,7 +432,7 @@ def generate_report(
                     marker = f" {c_out_bold}[K]{c_out_reset}"
 
             report_lines.append(
-                f" {c_out_green}{correct_char:>{max_c}}{c_out_reset} -> {c_out_red}{typo_char:<{max_t}}{c_out_reset} : {c_out_bold}{count:>{max_n}}{c_out_reset}{marker}"
+                f"{padding}{c_out_green}{correct_char:>{max_c}}{c_out_reset} -> {c_out_red}{typo_char:<{max_t}}{c_out_reset} : {c_out_bold}{count:>{max_n}}{c_out_reset}{marker}"
             )
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
@@ -553,10 +555,18 @@ def load_lines_from_file(file_path: str) -> list[str] | None:
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Analyze typo corrections and report frequent replacements.")
+    parser = argparse.ArgumentParser(
+        description=f"{BOLD}Analyze typo corrections and report frequent replacements.{RESET}",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=f"""{BLUE}Examples:{RESET}
+  {GREEN}python typostats.py typos.txt -t{RESET}
+  {GREEN}python typostats.py typos.txt --1to2 --2to1{RESET}
+  {GREEN}python typostats.py typos.txt -k -n 20{RESET}
+""",
+    )
 
     # Input/Output Group
-    io_group = parser.add_argument_group("Input/Output")
+    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         'input_files',
         nargs='*',
@@ -575,7 +585,7 @@ def main() -> None:
     io_group.add_argument('-q', '--quiet', action='store_true', help="Suppress informational log output.")
 
     # Analysis Options Group
-    analysis_group = parser.add_argument_group("Analysis Options")
+    analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
     analysis_group.add_argument('-m', '--min', type=int, default=1, help="Minimum occurrences (default: 1).")
     analysis_group.add_argument('-s', '--sort', choices=['count', 'typo', 'correct'], default='count', help="Sorting criterion (default: count).")
     analysis_group.add_argument(

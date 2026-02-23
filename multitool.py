@@ -90,7 +90,6 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
             logging.warning("Reading from stdin failed with encoding errors.")
             # Fallback logic for stdin is complex without buffering.
             # We assume valid text stream or return empty.
-            lines = []
     else:
         try:
             with open(path, 'r', encoding='utf-8', newline=newline) as handle:
@@ -123,7 +122,7 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
                 used_encoding = 'latin-1'
 
     logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
-    return lines or []
+    return lines
 
 
 def _load_and_clean_file(

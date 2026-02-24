@@ -156,7 +156,7 @@ def test_generate_report_sort_by_typo(capsys):
     assert '       a -> x    :     3' in lines[0]
     assert '       a -> y    :     2' in lines[1]
     assert '       b -> z    :     1' in lines[2]
-    assert "Most Frequent Letter Replacements" in captured.err
+    assert "LETTER REPLACEMENTS" in captured.err
 
 
 def test_generate_report_sort_by_correct(capsys):
@@ -168,7 +168,7 @@ def test_generate_report_sort_by_correct(capsys):
     assert '       a -> y    :     2' in lines[0]
     assert '       b -> z    :     1' in lines[1]
     assert '       c -> x    :     3' in lines[2]
-    assert "Most Frequent Letter Replacements" in captured.err
+    assert "LETTER REPLACEMENTS" in captured.err
 
 
 def test_main_file_not_found(monkeypatch, tmp_path):

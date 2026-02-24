@@ -352,6 +352,7 @@ def generate_report(
 
     # Color support detection
     # stdout colors (used for the report data)
+    # These are suppressed if writing to a file or if stdout is not a TTY (piping)
     use_color_stdout = not output_file and sys.stdout.isatty()
     c_out_green = GREEN if use_color_stdout else ""
     c_out_red = RED if use_color_stdout else ""
@@ -365,7 +366,7 @@ def generate_report(
 
     if output_format == 'arrow':
         # arrow
-        title = "Most Frequent Letter Replacements in Typos:"
+        title = "LETTER REPLACEMENTS"
 
         keyboard_summary = ""
         adjacent_map = {}
@@ -397,31 +398,33 @@ def generate_report(
 
         # Header row and divider with consistent padding
         padding = "  "
-        header_row = f"{padding}{'CORRECT':>{max_c}}    {'TYPO':<{max_t}}   {'COUNT':>{max_n}}"
-        divider = f"{padding}{'-' * (len(header_row) - len(padding))}"
+        header_row = f"{padding}{c_out_bold}{'CORRECT':>{max_c}}{c_out_reset}    {c_out_bold}{'TYPO':<{max_t}}{c_out_reset}   {c_out_bold}{'COUNT':>{max_n}}{c_out_reset}"
+        visible_header_len = max_c + 4 + max_t + 3 + max_n
+        divider = f"{padding}{'─' * visible_header_len}"
 
         if not output_file:
             # Move the human-readable header to stderr to keep stdout clean for piping
             if not quiet:
-                sys.stderr.write(f"\n {c_err_bold}{title}{c_err_reset}\n\n")
-                sys.stderr.write(f" {analysis_summary}\n")
+                sys.stderr.write(f"\n{c_err_bold}{title}{c_err_reset}\n")
+                sys.stderr.write(f"{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")
+                sys.stderr.write(f"  {analysis_summary}\n")
                 if keyboard_summary:
-                    sys.stderr.write(f" {keyboard_summary}\n")
+                    sys.stderr.write(f"  {keyboard_summary}\n")
                 sys.stderr.write(f"\n{header_row}\n")
                 sys.stderr.write(f"{divider}\n")
                 sys.stderr.flush()
             report_lines = []
         else:
-            report_lines = [title, "", analysis_summary]
+            report_lines = [title, "───────────────────────────────────────────────────────", f"  {analysis_summary}"]
             if keyboard_summary:
-                report_lines.append(keyboard_summary)
+                report_lines.append(f"  {keyboard_summary}")
             report_lines.extend(["", header_row, divider])
 
         if not sorted_replacements:
             no_results = f"{padding}No replacements found matching the criteria."
             if not output_file:
                 if not quiet:
-                    sys.stderr.write(f"{no_results}\n\n")
+                    sys.stderr.write(f"{no_results}\n")
             else:
                 report_lines.append(no_results)
 

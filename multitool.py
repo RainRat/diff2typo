@@ -324,6 +324,24 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
             # Strip Markdown bullet points if present to handle list items consistently
             content = re.sub(r'^\s*[-*+]\s+', '', content)
 
+            if content.startswith('|') and content.count('|') >= 2:
+                # Potential Markdown table row
+                parts = [p.strip() for p in content.split('|')]
+                # Filter out empty parts from edges if they exist
+                if parts and not parts[0]: parts = parts[1:]
+                if parts and not parts[-1]: parts = parts[:-1]
+
+                if len(parts) >= 2:
+                    # Skip divider lines like | --- | --- |
+                    if all(re.match(r'^:?-+:?$', p) for p in parts):
+                        continue
+                    # Skip header line if it contains generic labels
+                    if parts[0].lower() in ('typo', 'left', 'word 1', 'item') and \
+                       parts[1].lower() in ('correction', 'right', 'word 2', 'count', 'corrections'):
+                        continue
+                    yield parts[0], parts[1]
+                    continue
+
             if " -> " in content:
                 parts = content.split(" -> ", 1)
                 yield parts[0].strip(), parts[1].strip()
@@ -627,6 +645,29 @@ def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bo
                 yield content
 
 
+def _extract_md_table_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
+    """Yield text from a specific column in Markdown tables."""
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (md-table)', unit=' lines', disable=quiet):
+        content = line.strip()
+        if content.startswith('|') and content.count('|') >= 2:
+            parts = [p.strip() for p in content.split('|')]
+            if parts and not parts[0]: parts = parts[1:]
+            if parts and not parts[-1]: parts = parts[:-1]
+
+            if len(parts) >= 2:
+                # Skip divider lines
+                if all(re.match(r'^:?-+:?$', p) for p in parts):
+                    continue
+                # Skip headers
+                if parts[0].lower() in ('typo', 'left', 'word 1', 'item') and \
+                   parts[1].lower() in ('correction', 'right', 'word 2', 'count', 'corrections'):
+                    continue
+
+                idx = 1 if right_side else 0
+                yield parts[idx]
+
+
 def _extract_regex_items(input_file: str, pattern: str, quiet: bool = False) -> Iterable[str]:
     """Yield text matching the compiled regex pattern from the file."""
     try:
@@ -725,6 +766,34 @@ def markdown_mode(
         process_output,
         'Markdown',
         'Markdown list items extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+    )
+
+
+def md_table_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    right_side: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+) -> None:
+    """Wrapper for processing items from Markdown tables."""
+    extractor = lambda f, quiet=False: _extract_md_table_items(f, right_side=right_side, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'MDTable',
+        'Markdown table items extracted successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1987,6 +2056,12 @@ MODE_DETAILS = {
         "example": "python multitool.py markdown notes.md --output items.txt",
         "flags": "[--right]",
     },
+    "md-table": {
+        "summary": "Extracts text from Markdown tables.",
+        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead. It automatically skips header and divider rows.",
+        "example": "python multitool.py md-table readme.md --right --output corrections.txt",
+        "flags": "[--right]",
+    },
     "json": {
         "summary": "Extracts values from a JSON file using an optional key.",
         "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it extracts items from the root. It automatically handles lists of objects.",
@@ -2095,7 +2170,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "json", "yaml", "line", "regex"],
+        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
         "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "stats"],
     }
@@ -2343,6 +2418,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Extract the right side of a pair (split by ':' or '->') instead of the left side.",
     )
     _add_common_mode_arguments(markdown_parser)
+
+    md_table_parser = subparsers.add_parser(
+        'md-table',
+        help=MODE_DETAILS['md-table']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['md-table']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['md-table']['example']}",
+    )
+    md_table_options = md_table_parser.add_argument_group("Markdown Table Options")
+    md_table_options.add_argument(
+        '--right',
+        action='store_true',
+        help="Extract the second column instead of the first.",
+    )
+    _add_common_mode_arguments(md_table_parser)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -2811,6 +2901,14 @@ def main() -> None:
     handler_map = {
         'arrow': (
             arrow_mode,
+            {
+                **common_kwargs,
+                'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'md-table': (
+            md_table_mode,
             {
                 **common_kwargs,
                 'right_side': right_side,

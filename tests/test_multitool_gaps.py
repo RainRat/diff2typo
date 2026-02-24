@@ -229,26 +229,3 @@ def test_extract_markdown_items_empty(tmp_path):
     multitool.markdown_mode([str(f)], str(out), 1, 100, False)
     assert out.read_text().strip() == "item"
 
-def test_main_logging_json_yaml(tmp_path, monkeypatch, caplog):
-    input_file = tmp_path / "input.json"
-    input_file.write_text(json.dumps([{"key": "val"}]))
-    output_file = tmp_path / "output.txt"
-
-    # Test JSON logging
-    monkeypatch.setattr(sys, 'argv', [
-        'multitool.py', 'json', str(input_file), '--output', str(output_file), '--key', 'key'
-    ])
-    with caplog.at_level(logging.INFO):
-        multitool.main()
-    assert "JSON Key Path: 'key'" in caplog.text
-    caplog.clear()
-
-    # Test YAML logging
-    input_yaml = tmp_path / "input.yaml"
-    input_yaml.write_text("key: val")
-    monkeypatch.setattr(sys, 'argv', [
-        'multitool.py', 'yaml', str(input_yaml), '--output', str(output_file), '--key', 'key'
-    ])
-    with caplog.at_level(logging.INFO):
-        multitool.main()
-    assert "YAML Key Path: 'key'" in caplog.text

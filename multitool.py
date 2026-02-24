@@ -221,19 +221,22 @@ def write_output(
     items: Iterable[str],
     output_file: str,
     output_format: str = 'line',
-    quiet: bool = False
+    quiet: bool = False,
+    limit: int | None = None
 ) -> None:
     """
     Writes a collection of strings to the output file in the specified format.
 
-    Supported formats:
-      - line: One item per line (default)
-      - json: JSON array of strings
-      - csv: One item per row (vertical)
-      - markdown: Markdown bullet list
-      - md-table: Markdown table
+    Args:
+        items: Collection of strings to write.
+        output_file: Path to the output file or '-' for stdout.
+        output_format: Format (line, json, csv, markdown, md-table, yaml).
+        quiet: If True, suppress informational output.
+        limit: If provided, limit the output to the first N items.
     """
     items_list = list(items)  # Consume generator to know length/content
+    if limit is not None:
+        items_list = items_list[:limit]
 
     # Use newline='' for CSV format to ensure correct line endings across platforms
     newline = '' if output_format == 'csv' else None
@@ -366,9 +369,22 @@ def _write_paired_output(
     output_format: str,
     mode_label: str,
     quiet: bool = False,
+    limit: int | None = None,
 ) -> None:
-    """Writes a collection of paired strings to the output file in the specified format."""
+    """
+    Writes a collection of paired strings to the output file in the specified format.
+
+    Args:
+        pairs: Collection of (left, right) tuples.
+        output_file: Path to the output file or '-' for stdout.
+        output_format: Format (arrow, table, csv, markdown, md-table, json, yaml).
+        mode_label: Label for the current mode (used for headers).
+        quiet: If True, suppress informational output.
+        limit: If provided, limit the output to the first N pairs.
+    """
     pairs_list = list(pairs)
+    if limit is not None:
+        pairs_list = pairs_list[:limit]
 
     # Determine newline behavior for CSV
     newline = '' if output_format == 'csv' else None
@@ -438,6 +454,7 @@ def _process_items(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Generic processing for modes that extract raw string items from one or more files."""
 
@@ -454,7 +471,7 @@ def _process_items(
         # If clean_items is False, we just sort and dedup raw strings.
         filtered_items = sorted(set(filtered_items))
 
-    write_output(filtered_items, output_file, output_format, quiet)
+    write_output(filtered_items, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(len(raw_items), filtered_items)
     logging.info(
@@ -697,6 +714,7 @@ def arrow_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for processing items separated by ' -> '."""
     extractor = lambda f, quiet=False: _extract_arrow_items(f, right_side=right_side, quiet=quiet)
@@ -712,6 +730,7 @@ def arrow_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -725,6 +744,7 @@ def table_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for processing items in 'key = \"value\"' format."""
     extractor = lambda f, quiet=False: _extract_table_items(f, right_side=right_side, quiet=quiet)
@@ -740,6 +760,7 @@ def table_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -753,6 +774,7 @@ def markdown_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for processing items from Markdown bulleted lists."""
     extractor = lambda f, quiet=False: _extract_markdown_items(f, right_side=right_side, quiet=quiet)
@@ -768,6 +790,7 @@ def markdown_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -781,6 +804,7 @@ def md_table_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for processing items from Markdown tables."""
     extractor = lambda f, quiet=False: _extract_md_table_items(f, right_side=right_side, quiet=quiet)
@@ -796,6 +820,7 @@ def md_table_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -808,6 +833,7 @@ def backtick_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for extracting text between backticks."""
     _process_items(
@@ -822,6 +848,7 @@ def backtick_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -835,6 +862,7 @@ def json_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for extracting fields from JSON files."""
     extractor = lambda f, quiet=False: _extract_json_items(f, key, quiet=quiet)
@@ -850,6 +878,7 @@ def json_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -863,6 +892,7 @@ def yaml_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for extracting fields from YAML files."""
     extractor = lambda f, quiet=False: _extract_yaml_items(f, key, quiet=quiet)
@@ -878,6 +908,7 @@ def yaml_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -892,6 +923,7 @@ def count_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """
     Counts the frequency of each word in the input file(s) and writes the
@@ -923,6 +955,9 @@ def count_mode(
         if max_count is not None and count > max_count:
             continue
         final_results.append((word, count))
+
+    if limit is not None:
+        final_results = final_results[:limit]
 
     # Determine newline behavior for CSV
     newline = '' if output_format == 'csv' else None
@@ -964,6 +999,7 @@ def stats_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """
     Calculates and displays statistics for items or paired data.
@@ -1159,6 +1195,7 @@ def check_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """
     Checks CSV file(s) of typos and corrections for any words that appear
@@ -1184,7 +1221,7 @@ def check_mode(
         filtered_items = list(set(filtered_items))
     filtered_items.sort()
 
-    write_output(filtered_items, output_file, output_format, quiet)
+    write_output(filtered_items, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(len(duplicates), filtered_items)
     logging.info(
@@ -1201,6 +1238,7 @@ def conflict_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """
     Identifies typos that are associated with more than one unique correction.
@@ -1231,7 +1269,8 @@ def conflict_mode(
         output_file,
         output_format,
         "Conflict",
-        quiet
+        quiet,
+        limit=limit
     )
 
     logging.info(f"[Conflict Mode] Found {len(conflicts)} typos with conflicting corrections. Output written to '{output_file}'.")
@@ -1249,6 +1288,7 @@ def similarity_mode(
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """
     Filters paired data based on edit distance (Levenshtein distance).
@@ -1289,7 +1329,8 @@ def similarity_mode(
         output_file,
         output_format,
         "Similarity",
-        quiet
+        quiet,
+        limit=limit
     )
 
 
@@ -1305,6 +1346,7 @@ def near_duplicates_mode(
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """
     Finds pairs of words in a single list that are similar to each other.
@@ -1358,7 +1400,8 @@ def near_duplicates_mode(
         output_file,
         output_format,
         "NearDuplicates",
-        quiet
+        quiet,
+        limit=limit
     )
 
     print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].split(' (dist:')[0] for pair in results], item_label="near-duplicate")
@@ -1375,6 +1418,7 @@ def csv_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for extracting fields from CSV files."""
     extractor = lambda f, quiet=False: _extract_csv_items(f, first_column, delimiter, quiet=quiet)
@@ -1390,6 +1434,7 @@ def csv_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -1402,6 +1447,7 @@ def line_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for processing raw lines from file(s)."""
     _process_items(
@@ -1416,6 +1462,7 @@ def line_mode(
         output_format,
         quiet,
         clean_items=clean_items,
+        limit=limit,
     )
 
 
@@ -1428,6 +1475,7 @@ def combine_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Merge cleaned contents from multiple files into one deduplicated list."""
 
@@ -1446,7 +1494,7 @@ def combine_mode(
 
     combined_unique = sorted(dict.fromkeys(combined_unique))
 
-    write_output(combined_unique, output_file, output_format, quiet)
+    write_output(combined_unique, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(raw_item_count, combined_unique)
     logging.info(
@@ -1465,6 +1513,7 @@ def unique_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Deduplicate items while preserving their first appearance in the input files."""
     raw_item_count = 0
@@ -1488,7 +1537,7 @@ def unique_mode(
         # But by default unique mode is order-preserving.
         final_items.sort()
 
-    write_output(final_items, output_file, output_format, quiet)
+    write_output(final_items, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(raw_item_count, final_items)
     logging.info(
@@ -1508,6 +1557,7 @@ def zip_mode(
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Combines items from input_files and file2 line-by-line into a paired format."""
 
@@ -1550,7 +1600,8 @@ def zip_mode(
         output_file,
         output_format,
         "Zip",
-        quiet
+        quiet,
+        limit=limit
     )
 
 
@@ -1563,6 +1614,7 @@ def pairs_mode(
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Processes paired data from input file(s)."""
 
@@ -1591,7 +1643,8 @@ def pairs_mode(
         output_file,
         output_format,
         "Pairs",
-        quiet
+        quiet,
+        limit=limit
     )
 
 
@@ -1604,6 +1657,7 @@ def swap_mode(
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Reverses the order of pairs in the input file(s)."""
 
@@ -1635,7 +1689,8 @@ def swap_mode(
         output_file,
         output_format,
         "Swap",
-        quiet
+        quiet,
+        limit=limit
     )
 
 
@@ -1650,6 +1705,7 @@ def sample_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Randomly sample lines from the input file(s)."""
 
@@ -1684,7 +1740,7 @@ def sample_mode(
     if process_output:
         sampled_items = sorted(set(sampled_items))
 
-    write_output(sampled_items, output_file, output_format, quiet)
+    write_output(sampled_items, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(len(raw_items), sampled_items)
     logging.info(
@@ -1701,6 +1757,7 @@ def regex_mode(
     pattern: str,
     output_format: str = 'line',
     quiet: bool = False,
+    limit: int | None = None,
 ) -> None:
     """Wrapper for extracting text matching a regex pattern."""
     # Regex mode skips the default 'clean_and_filter' (to lower, letters only)
@@ -1718,7 +1775,8 @@ def regex_mode(
         'Regex matches extracted successfully.',
         output_format,
         quiet,
-        clean_items=False
+        clean_items=False,
+        limit=limit,
     )
 
 
@@ -1739,6 +1797,7 @@ def map_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """
     Transforms items based on a mapping file.
@@ -1806,7 +1865,7 @@ def map_mode(
         # Here we trust the map result.
         transformed_items = sorted(set(transformed_items))
 
-    write_output(transformed_items, output_file, output_format, quiet)
+    write_output(transformed_items, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(raw_item_count, transformed_items, item_label="item")
     logging.info(
@@ -1876,6 +1935,11 @@ def _add_common_mode_arguments(
         action='store_true',
         help="Keep the original text. Do not change it to lowercase or remove punctuation.",
     )
+    proc_group.add_argument(
+        '-L', '--limit',
+        type=int,
+        help="Limit the number of items in the output.",
+    )
     if include_process_output:
         proc_group.add_argument(
             '-P', '--process-output',
@@ -1896,6 +1960,7 @@ def filter_fragments_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """
     Filters words from input_files (list1) that do not appear as substrings of any
@@ -1948,7 +2013,7 @@ def filter_fragments_mode(
         filtered_items = list(set(filtered_items))
         filtered_items.sort()
 
-    write_output(filtered_items, output_file, output_format, quiet)
+    write_output(filtered_items, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(len(all_raw_list1), filtered_items)
     logging.info(
@@ -1967,6 +2032,7 @@ def set_operation_mode(
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
+    limit: int | None = None,
 ) -> None:
     """Perform set operations (intersection, union, difference) between input files (merged) and a second file."""
     allowed_operations = {'intersection', 'union', 'difference'}
@@ -2004,7 +2070,7 @@ def set_operation_mode(
     if process_output:
         result_items = sorted(set(result_items))
 
-    write_output(result_items, output_file, output_format, quiet)
+    write_output(result_items, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(raw_item_count_a + len(raw_items_b), result_items)
     logging.info(
@@ -2854,6 +2920,7 @@ def main() -> None:
     right_side = getattr(args, 'right', False)
     sample_count = getattr(args, 'sample_count', None)
     sample_percent = getattr(args, 'sample_percent', None)
+    limit = getattr(args, 'limit', None)
     output_format = getattr(args, 'output_format', 'line')
 
     if args.mode in {'filterfragments', 'set_operation'} and file2:
@@ -2895,6 +2962,7 @@ def main() -> None:
         'process_output': getattr(args, 'process_output', False),
         'quiet': args.quiet,
         'clean_items': clean_items,
+        'limit': limit,
     }
 
     handler_map = {
@@ -2997,6 +3065,7 @@ def main() -> None:
                 'quiet': args.quiet,
                 'output_format': output_format,
                 'clean_items': clean_items,
+                'limit': limit,
             },
         ),
         'unique': (
@@ -3010,6 +3079,7 @@ def main() -> None:
                 'quiet': args.quiet,
                 'output_format': output_format,
                 'clean_items': clean_items,
+                'limit': limit,
             },
         ),
         'sample': (
@@ -3033,6 +3103,7 @@ def main() -> None:
                 'quiet': args.quiet,
                 'pattern': getattr(args, 'pattern', ''),
                 'output_format': output_format,
+                'limit': limit,
             },
         ),
         'map': (

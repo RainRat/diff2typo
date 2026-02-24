@@ -78,7 +78,7 @@ def test_similarity_mode_show_dist(tmp_path):
 
     multitool.similarity_mode([str(input_file)], str(output_file), 1, 100, False, show_dist=True)
     content = output_file.read_text().strip()
-    assert "apple -> apples (dist: 1)" == content
+    assert "apple -> apples (changes: 1)" == content
 
 def test_similarity_mode_raw(tmp_path):
     """Verify clean_items=False (raw) disables character cleaning."""
@@ -124,7 +124,7 @@ def test_similarity_cli(tmp_path, monkeypatch, capsys):
     multitool.main()
 
     content = output_file.read_text()
-    assert "teh -> the (dist: 2)" in content
+    assert "teh -> the (changes: 2)" in content
     assert "apple -> banana" not in content
 
 def test_similarity_mode_empty_input(tmp_path):

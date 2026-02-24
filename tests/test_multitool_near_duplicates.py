@@ -54,7 +54,7 @@ def test_near_duplicates_logic(tmp_path):
         show_dist=True
     )
     content = output_file.read_text()
-    assert "aple -> apple (dist: 1)" in content
+    assert "aple -> apple (changes: 1)" in content
 
     # Test output format JSON
     multitool.near_duplicates_mode(

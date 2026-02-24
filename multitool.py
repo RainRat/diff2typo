@@ -28,7 +28,7 @@ def filter_to_letters(text: str) -> str:
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
-    """Calculate the Levenshtein distance between two strings."""
+    """Calculate the number of character changes needed to turn one string into another."""
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)
     if not s2:
@@ -1029,7 +1029,7 @@ def stats_mode(
         # Overlaps: word is both a typo and a correction
         overlaps = unique_typos & unique_corrections
 
-        # Edit distances
+        # Character changes
         distances = [levenshtein_distance(p[0], p[1]) for p in filtered_pairs]
 
         stats["pairs"] = {
@@ -1090,9 +1090,9 @@ def stats_mode(
                 f.write(f"| Conflicts (1 typo -> N corr) | {stats['pairs']['conflicts']} |\n")
                 f.write(f"| Overlaps (typo == correction) | {stats['pairs']['overlaps']} |\n")
                 if "min_dist" in stats["pairs"]:
-                    f.write(f"| Min edit distance | {stats['pairs']['min_dist']} |\n")
-                    f.write(f"| Max edit distance | {stats['pairs']['max_dist']} |\n")
-                    f.write(f"| Avg edit distance | {stats['pairs']['avg_dist']:.1f} |\n")
+                    f.write(f"| Min character changes | {stats['pairs']['min_dist']} |\n")
+                    f.write(f"| Max character changes | {stats['pairs']['max_dist']} |\n")
+                    f.write(f"| Avg character changes | {stats['pairs']['avg_dist']:.1f} |\n")
     else:
         # Human readable text
         with smart_open_output(output_file) as f:
@@ -1142,7 +1142,7 @@ def stats_mode(
                 report.append(f"  {BOLD}{'Conflicts (1 typo -> N corr):':<{label_width}}{RESET} {stats['pairs']['conflicts']}")
                 report.append(f"  {BOLD}{'Overlaps (typo == correction):':<{label_width}}{RESET} {stats['pairs']['overlaps']}")
                 if "min_dist" in stats["pairs"]:
-                    report.append(f"  {BOLD}{'Min/Max/Avg edit distance:':<{label_width}}{RESET} {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
+                    report.append(f"  {BOLD}{'Min/Max/Avg changes:':<{label_width}}{RESET} {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
 
             report.append("")
             f.write("\n".join(report))
@@ -1251,7 +1251,7 @@ def similarity_mode(
     clean_items: bool = True,
 ) -> None:
     """
-    Filters paired data based on edit distance (Levenshtein distance).
+    Filters paired data based on the number of character changes between words.
     """
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
 
@@ -1276,8 +1276,8 @@ def similarity_mode(
             continue
 
         if show_dist:
-            # Append distance to the right side for display
-            filtered_results.append((left, f"{right} (dist: {dist})"))
+            # Append number of changes to the right side for display
+            filtered_results.append((left, f"{right} (changes: {dist})"))
         else:
             filtered_results.append((left, right))
 
@@ -1346,7 +1346,7 @@ def near_duplicates_mode(
 
             if min_dist <= dist <= max_dist:
                 if show_dist:
-                    results.append((word_i, f"{word_j} (dist: {dist})"))
+                    results.append((word_i, f"{word_j} (changes: {dist})"))
                 else:
                     results.append((word_i, word_j))
 
@@ -2146,20 +2146,20 @@ MODE_DETAILS = {
         "flags": "",
     },
     "similarity": {
-        "summary": "Filters paired data by edit distance.",
-        "description": "Filters pairs (typo -> correction) based on their Levenshtein distance. Use this to remove noise or find specific types of typos.",
+        "summary": "Filters paired data by number of changes.",
+        "description": "Filters pairs (typo -> correction) based on how many character changes they have. Use this to remove noise or find specific types of typos.",
         "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
     "near_duplicates": {
         "summary": "Finds similar words in a single list.",
-        "description": "Identifies pairs of words in your list that are very similar (within a small edit distance). Use this to find potential typos or unintended duplicates in a project.",
+        "description": "Identifies words in your list that are very similar (only a few characters are different). Use this to find potential typos or unintended duplicates.",
         "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
     "stats": {
         "summary": "Calculates detailed statistics for a typo list.",
-        "description": "Provides a comprehensive summary of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and edit distances.",
+        "description": "Provides a summary of your dataset. It reports counts, unique items, length ranges, and (optionally) pair stats like conflicts, overlaps, and character changes.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
@@ -2559,17 +2559,17 @@ def _build_parser() -> argparse.ArgumentParser:
         '--min-dist',
         type=int,
         default=0,
-        help="Minimum edit distance to include (default: 0).",
+        help="Minimum number of changes to include (default: 0).",
     )
     similarity_options.add_argument(
         '--max-dist',
         type=int,
-        help="Maximum edit distance to include.",
+        help="Maximum number of changes to include.",
     )
     similarity_options.add_argument(
         '--show-dist',
         action='store_true',
-        help="Include the calculated distance in the output.",
+        help="Include the number of character changes in the output.",
     )
     _add_common_mode_arguments(similarity_parser)
 
@@ -2585,18 +2585,18 @@ def _build_parser() -> argparse.ArgumentParser:
         '--min-dist',
         type=int,
         default=1,
-        help="Minimum edit distance to include (default: 1).",
+        help="Minimum number of changes to include (default: 1).",
     )
     nd_options.add_argument(
         '--max-dist',
         type=int,
         default=1,
-        help="Maximum edit distance to include (default: 1).",
+        help="Maximum number of changes to include (default: 1).",
     )
     nd_options.add_argument(
         '--show-dist',
         action='store_true',
-        help="Include the calculated distance in the output.",
+        help="Include the number of character changes in the output.",
     )
     _add_common_mode_arguments(near_duplicates_parser)
 

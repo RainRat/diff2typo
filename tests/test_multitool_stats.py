@@ -3,6 +3,7 @@ import pytest
 from multitool import main
 import sys
 from io import StringIO
+from unittest.mock import patch
 
 def test_stats_items(tmp_path):
     input_file = tmp_path / "items.txt"
@@ -10,9 +11,9 @@ def test_stats_items(tmp_path):
 
     output_file = tmp_path / "stats.json"
 
-    # Mock sys.argv
-    sys.argv = ["multitool.py", "stats", str(input_file), "-o", str(output_file), "-f", "json"]
-    main()
+    # Mock sys.argv using patch to avoid global state mutation
+    with patch("sys.argv", ["multitool.py", "stats", str(input_file), "-o", str(output_file), "-f", "json"]):
+        main()
 
     with open(output_file, "r") as f:
         stats = json.load(f)
@@ -31,8 +32,8 @@ def test_stats_pairs(tmp_path):
 
     output_file = tmp_path / "stats.json"
 
-    sys.argv = ["multitool.py", "stats", str(input_file), "-o", str(output_file), "-f", "json", "--pairs"]
-    main()
+    with patch("sys.argv", ["multitool.py", "stats", str(input_file), "-o", str(output_file), "-f", "json", "--pairs"]):
+        main()
 
     with open(output_file, "r") as f:
         stats = json.load(f)
@@ -49,8 +50,8 @@ def test_stats_human_readable(tmp_path, capsys):
     input_file.write_text("apple\n")
 
     # Output to stdout
-    sys.argv = ["multitool.py", "stats", str(input_file), "--pairs"]
-    main()
+    with patch("sys.argv", ["multitool.py", "stats", str(input_file), "--pairs"]):
+        main()
 
     captured = capsys.readouterr()
     assert "ANALYSIS STATISTICS" in captured.out
@@ -58,3 +59,25 @@ def test_stats_human_readable(tmp_path, capsys):
     # The new formatting uses wider labels and aligned values
     assert "Total items encountered:" in captured.out
     assert "1" in captured.out
+
+
+def test_stats_pairs_human_readable(tmp_path, capsys):
+    """Verify that human-readable stats report for pairs is generated correctly."""
+    input_file = tmp_path / "pairs.txt"
+    # Create a simple pair
+    input_file.write_text("teh -> the\n")
+
+    # Run stats mode with pairs enabled, using default human-readable output
+    with patch("sys.argv", ["multitool.py", "stats", str(input_file), "--pairs"]):
+        main()
+
+    captured = capsys.readouterr()
+    output = captured.out
+
+    assert "PAIRED DATA STATISTICS" in output
+    assert "Total pairs extracted:" in output
+    assert "Retention rate:" in output
+    assert "Min/Max/Avg edit distance:" in output
+    # Verify values are present (1 pair, dist 2)
+    assert "1" in output
+    assert "2 / 2 / 2.0" in output

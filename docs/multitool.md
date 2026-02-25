@@ -123,6 +123,12 @@ These modes help you analyze your data.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5`
 
+- **`fuzzymatch`**
+  - **What it does:** Identifies words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos.
+  - **Options:** Use `--min-dist` and `--max-dist` to control the number of changes allowed, and `--show-dist` to see the number of changes in the output.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Example:** `python multitool.py fuzzymatch typos.txt dictionary.txt --max-dist 1 --show-dist`
+
 - **`near_duplicates`**
   - **What it does:** Identifies pairs of words in your list that are very similar (only a few characters are different). This is useful for finding potential typos or unintended duplicates.
   - **Options:** Use `--min-dist` and `--max-dist` to control the number of changes allowed, and `--show-dist` to see the number of changes in the output.

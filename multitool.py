@@ -1404,7 +1404,88 @@ def near_duplicates_mode(
         limit=limit
     )
 
-    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].split(' (dist:')[0] for pair in results], item_label="near-duplicate")
+    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].split(' (changes:')[0] for pair in results], item_label="near-duplicate")
+
+
+def fuzzymatch_mode(
+    input_files: Sequence[str],
+    file2: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    min_dist: int = 1,
+    max_dist: int = 1,
+    show_dist: bool = False,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Finds pairs of words between two lists that are similar to each other.
+    """
+    raw_item_count = 0
+    list1_unique = []
+
+    for file_path in input_files:
+        raw, _, unique = _load_and_clean_file(
+            file_path,
+            min_length,
+            max_length,
+            clean_items=clean_items,
+        )
+        raw_item_count += len(raw)
+        list1_unique.extend(unique)
+
+    list1_unique = sorted(set(list1_unique))
+
+    raw_items_b, _, list2_unique = _load_and_clean_file(
+        file2,
+        min_length,
+        max_length,
+        clean_items=clean_items,
+    )
+    raw_item_count += len(raw_items_b)
+
+    # Sort list2 by length for optimized comparison
+    list2_unique = sorted(set(list2_unique), key=len)
+
+    results = []
+
+    for word_i in tqdm(list1_unique, desc="Fuzzy matching", disable=quiet):
+        len_i = len(word_i)
+
+        for word_j in list2_unique:
+            len_j = len(word_j)
+
+            # Optimization: stop if length difference is too large
+            if len_j < len_i - max_dist:
+                continue
+            if len_j > len_i + max_dist:
+                break
+
+            dist = levenshtein_distance(word_i, word_j)
+
+            if min_dist <= dist <= max_dist:
+                if show_dist:
+                    results.append((word_i, f"{word_j} (changes: {dist})"))
+                else:
+                    results.append((word_i, word_j))
+
+    if process_output:
+        results.sort()
+
+    _write_paired_output(
+        results,
+        output_file,
+        output_format,
+        "FuzzyMatch",
+        quiet,
+        limit=limit
+    )
+
+    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].split(' (changes:')[0] for pair in results], item_label="fuzzy-match")
 
 
 def csv_mode(
@@ -2225,6 +2306,12 @@ MODE_DETAILS = {
         "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
+    "fuzzymatch": {
+        "summary": "Finds similar words between two lists.",
+        "description": "Identifies words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
+        "example": "python multitool.py fuzzymatch typos.txt dictionary.txt --max-dist 1 --show-dist",
+        "flags": "[FILE2] [--max-dist N --show-dist]",
+    },
     "stats": {
         "summary": "Calculates detailed statistics for a typo list.",
         "description": "Provides a summary of your dataset. It reports counts, unique items, length ranges, and (optionally) pair stats like conflicts, overlaps, and character changes.",
@@ -2239,7 +2326,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "regex"],
         "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
-        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "stats"],
+        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats"],
     }
 
     # ANSI Color Codes
@@ -2697,6 +2784,39 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(near_duplicates_parser)
 
+    fuzzymatch_parser = subparsers.add_parser(
+        'fuzzymatch',
+        help=MODE_DETAILS['fuzzymatch']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['fuzzymatch']['description'],
+        epilog=f"Example:\n  {MODE_DETAILS['fuzzymatch']['example']}",
+    )
+    fm_options = fuzzymatch_parser.add_argument_group("Fuzzy Match Options")
+    fm_options.add_argument(
+        '--file2',
+        type=str,
+        required=False,
+        help='Path to the second file (dictionary) to match against.',
+    )
+    fm_options.add_argument(
+        '--min-dist',
+        type=int,
+        default=1,
+        help="Minimum number of changes to include (default: 1).",
+    )
+    fm_options.add_argument(
+        '--max-dist',
+        type=int,
+        default=1,
+        help="Maximum number of changes to include (default: 1).",
+    )
+    fm_options.add_argument(
+        '--show-dist',
+        action='store_true',
+        help="Include the number of character changes in the output.",
+    )
+    _add_common_mode_arguments(fuzzymatch_parser)
+
     stats_parser = subparsers.add_parser(
         'stats',
         help=MODE_DETAILS['stats']['summary'],
@@ -2913,7 +3033,7 @@ def main() -> None:
 
     # Fallback logic for modes that require a secondary file (e.g., zip, map)
     # If the flag is missing but we have at least 2 positional arguments, use the last one as the secondary file.
-    if args.mode in {'zip', 'filterfragments', 'set_operation'}:
+    if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch'}:
         if getattr(args, 'file2', None) is None and len(input_paths) >= 2:
             args.file2 = input_paths.pop()
             args.input = input_paths
@@ -3144,6 +3264,17 @@ def main() -> None:
             near_duplicates_mode,
             {
                 **common_kwargs,
+                'min_dist': getattr(args, 'min_dist', 1),
+                'max_dist': getattr(args, 'max_dist', 1),
+                'show_dist': getattr(args, 'show_dist', False),
+                'output_format': output_format,
+            },
+        ),
+        'fuzzymatch': (
+            fuzzymatch_mode,
+            {
+                **common_kwargs,
+                'file2': file2,
                 'min_dist': getattr(args, 'min_dist', 1),
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),

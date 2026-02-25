@@ -22,6 +22,18 @@ except ImportError:  # pragma: no cover - optional dependency
     _CHARDET_AVAILABLE = False
 
 
+# ANSI Color Codes
+BLUE = "\033[1;34m"
+GREEN = "\033[1;32m"
+YELLOW = "\033[1;33m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+# Disable colors if not running in a terminal
+if not sys.stdout.isatty():
+    BLUE = GREEN = YELLOW = RESET = BOLD = ""
+
+
 def filter_to_letters(text: str) -> str:
     """Return text containing only lowercase a-z characters."""
     return re.sub("[^a-z]", "", text.lower())
@@ -171,36 +183,32 @@ def print_processing_stats(
     """Print summary statistics for processed text items with visual hierarchy."""
     item_label_plural = f"{item_label}s"
 
-    # ANSI Color Codes
-    GREEN = "\033[1;32m"
-    YELLOW = "\033[1;33m"
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
+    # Local overrides to respect stderr TTY status
+    c_green = GREEN if sys.stderr.isatty() else ""
+    c_yellow = YELLOW if sys.stderr.isatty() else ""
+    c_reset = RESET if sys.stderr.isatty() else ""
+    c_bold = BOLD if sys.stderr.isatty() else ""
 
-    # Disable colors if not running in a terminal (logging usually goes to stderr)
-    if not sys.stderr.isatty():
-        GREEN = YELLOW = RESET = BOLD = ""
-
-    logging.info(f"\n{BOLD}ANALYSIS STATISTICS{RESET}")
-    logging.info(f"{BOLD}───────────────────────────────────────────────────────{RESET}")
-    logging.info(f"  {BOLD}{'Total ' + item_label_plural + ' encountered:':<35}{RESET} {YELLOW}{raw_item_count}{RESET}")
-    logging.info(f"  {BOLD}{'Total ' + item_label_plural + ' after filtering:':<35}{RESET} {GREEN}{len(filtered_items)}{RESET}")
+    logging.info(f"\n{c_bold}ANALYSIS STATISTICS{c_reset}")
+    logging.info(f"{c_bold}───────────────────────────────────────────────────────{c_reset}")
+    logging.info(f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}")
+    logging.info(f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<35}{c_reset} {c_green}{len(filtered_items)}{c_reset}")
 
     if raw_item_count > 0:
         retention = (len(filtered_items) / raw_item_count) * 100
-        logging.info(f"  {BOLD}{'Retention rate:':<35}{RESET} {GREEN}{retention:.1f}%{RESET}")
+        logging.info(f"  {c_bold}{'Retention rate:':<35}{c_reset} {c_green}{retention:.1f}%{c_reset}")
 
     if filtered_items:
         shortest = min(filtered_items, key=len)
         longest = max(filtered_items, key=len)
         logging.info(
-            f"  {BOLD}{'Shortest ' + item_label + ':':<35}{RESET} '{shortest}' (length: {len(shortest)})"
+            f"  {c_bold}{'Shortest ' + item_label + ':':<35}{c_reset} '{shortest}' (length: {len(shortest)})"
         )
         logging.info(
-            f"  {BOLD}{'Longest ' + item_label + ':':<35}{RESET} '{longest}' (length: {len(longest)})"
+            f"  {c_bold}{'Longest ' + item_label + ':':<35}{c_reset} '{longest}' (length: {len(longest)})"
         )
     else:
-        logging.info(f"  {YELLOW}No {item_label_plural} passed the filtering criteria.{RESET}")
+        logging.info(f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}")
     logging.info("")
 
 
@@ -1132,53 +1140,49 @@ def stats_mode(
     else:
         # Human readable text
         with smart_open_output(output_file) as f:
-            # ANSI Color Codes
-            GREEN = "\033[1;32m"
-            YELLOW = "\033[1;33m"
-            RESET = "\033[0m"
-            BOLD = "\033[1m"
-
-            # Disable colors if not running in a terminal
-            if not f.isatty():
-                GREEN = YELLOW = RESET = BOLD = ""
+            # Local overrides to respect output stream TTY status
+            c_green = GREEN if f.isatty() else ""
+            c_yellow = YELLOW if f.isatty() else ""
+            c_reset = RESET if f.isatty() else ""
+            c_bold = BOLD if f.isatty() else ""
 
             report = []
-            report.append(f"\n{BOLD}ANALYSIS STATISTICS{RESET}")
-            report.append(f"{BOLD}───────────────────────────────────────────────────────{RESET}")
+            report.append(f"\n{c_bold}ANALYSIS STATISTICS{c_reset}")
+            report.append(f"{c_bold}───────────────────────────────────────────────────────{c_reset}")
 
             label_width = 35
-            report.append(f"  {BOLD}{'Total items encountered:':<{label_width}}{RESET} {YELLOW}{stats['items']['total_encountered']}{RESET}")
-            report.append(f"  {BOLD}{'Total items after filtering:':<{label_width}}{RESET} {GREEN}{stats['items']['total_filtered']}{RESET}")
+            report.append(f"  {c_bold}{'Total items encountered:':<{label_width}}{c_reset} {c_yellow}{stats['items']['total_encountered']}{c_reset}")
+            report.append(f"  {c_bold}{'Total items after filtering:':<{label_width}}{c_reset} {c_green}{stats['items']['total_filtered']}{c_reset}")
 
             if stats['items']['total_encountered'] > 0:
                 retention = (stats['items']['total_filtered'] / stats['items']['total_encountered']) * 100
-                report.append(f"  {BOLD}{'Retention rate:':<{label_width}}{RESET} {GREEN}{retention:.1f}%{RESET}")
+                report.append(f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:.1f}%{c_reset}")
 
-            report.append(f"  {BOLD}{'Unique items:':<{label_width}}{RESET} {stats['items']['unique_count']}")
+            report.append(f"  {c_bold}{'Unique items:':<{label_width}}{c_reset} {stats['items']['unique_count']}")
 
             if "min_length" in stats["items"]:
-                report.append(f"  {BOLD}{'Min/Max/Avg length:':<{label_width}}{RESET} {stats['items']['min_length']} / {stats['items']['max_length']} / {stats['items']['avg_length']:.1f}")
+                report.append(f"  {c_bold}{'Min/Max/Avg length:':<{label_width}}{c_reset} {stats['items']['min_length']} / {stats['items']['max_length']} / {stats['items']['avg_length']:.1f}")
                 shortest = stats["items"]["shortest"]
                 longest = stats["items"]["longest"]
-                report.append(f"  {BOLD}{'Shortest item:':<{label_width}}{RESET} '{shortest}' (length: {len(shortest)})")
-                report.append(f"  {BOLD}{'Longest item:':<{label_width}}{RESET} '{longest}' (length: {len(longest)})")
+                report.append(f"  {c_bold}{'Shortest item:':<{label_width}}{c_reset} '{shortest}' (length: {len(shortest)})")
+                report.append(f"  {c_bold}{'Longest item:':<{label_width}}{c_reset} '{longest}' (length: {len(longest)})")
 
             if "pairs" in stats:
-                report.append(f"\n{BOLD}PAIRED DATA STATISTICS{RESET}")
-                report.append(f"{BOLD}───────────────────────────────────────────────────────{RESET}")
-                report.append(f"  {BOLD}{'Total pairs extracted:':<{label_width}}{RESET} {YELLOW}{stats['pairs']['total_extracted']}{RESET}")
-                report.append(f"  {BOLD}{'Total pairs after filtering:':<{label_width}}{RESET} {GREEN}{stats['pairs']['total_filtered']}{RESET}")
+                report.append(f"\n{c_bold}PAIRED DATA STATISTICS{c_reset}")
+                report.append(f"{c_bold}───────────────────────────────────────────────────────{c_reset}")
+                report.append(f"  {c_bold}{'Total pairs extracted:':<{label_width}}{c_reset} {c_yellow}{stats['pairs']['total_extracted']}{c_reset}")
+                report.append(f"  {c_bold}{'Total pairs after filtering:':<{label_width}}{c_reset} {c_green}{stats['pairs']['total_filtered']}{c_reset}")
 
                 if stats['pairs']['total_extracted'] > 0:
                     retention = (stats['pairs']['total_filtered'] / stats['pairs']['total_extracted']) * 100
-                    report.append(f"  {BOLD}{'Retention rate:':<{label_width}}{RESET} {GREEN}{retention:.1f}%{RESET}")
+                    report.append(f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:.1f}%{c_reset}")
 
-                report.append(f"  {BOLD}{'Unique pairs:':<{label_width}}{RESET} {stats['pairs']['unique_pairs']}")
-                report.append(f"  {BOLD}{'Unique typos / corrections:':<{label_width}}{RESET} {stats['pairs']['unique_typos']} / {stats['pairs']['unique_corrections']}")
-                report.append(f"  {BOLD}{'Conflicts (1 typo -> N corr):':<{label_width}}{RESET} {stats['pairs']['conflicts']}")
-                report.append(f"  {BOLD}{'Overlaps (typo == correction):':<{label_width}}{RESET} {stats['pairs']['overlaps']}")
+                report.append(f"  {c_bold}{'Unique pairs:':<{label_width}}{c_reset} {stats['pairs']['unique_pairs']}")
+                report.append(f"  {c_bold}{'Unique typos / corrections:':<{label_width}}{c_reset} {stats['pairs']['unique_typos']} / {stats['pairs']['unique_corrections']}")
+                report.append(f"  {c_bold}{'Conflicts (1 typo -> N corr):':<{label_width}}{c_reset} {stats['pairs']['conflicts']}")
+                report.append(f"  {c_bold}{'Overlaps (typo == correction):':<{label_width}}{c_reset} {stats['pairs']['overlaps']}")
                 if "min_dist" in stats["pairs"]:
-                    report.append(f"  {BOLD}{'Min/Max/Avg changes:':<{label_width}}{RESET} {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
+                    report.append(f"  {c_bold}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
 
             report.append("")
             f.write("\n".join(report))
@@ -1887,7 +1891,7 @@ def _add_common_mode_arguments(
     )
 
     # Input/Output Group
-    io_group = subparser.add_argument_group("Input/Output")
+    io_group = subparser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         '-i', '--input',
         dest='input_files_flag',
@@ -1917,7 +1921,7 @@ def _add_common_mode_arguments(
     )
 
     # Processing Configuration Group
-    proc_group = subparser.add_argument_group("Processing Configuration")
+    proc_group = subparser.add_argument_group(f"{BLUE}PROCESSING OPTIONS{RESET}")
     proc_group.add_argument(
         '-m', '--min-length',
         type=int,
@@ -2242,17 +2246,6 @@ def get_mode_summary_text() -> str:
         "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "stats"],
     }
 
-    # ANSI Color Codes
-    BLUE = "\033[1;34m"
-    GREEN = "\033[1;32m"
-    YELLOW = "\033[1;33m"
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
-
-    # Disable colors if not running in a terminal
-    if not sys.stdout.isatty():
-        BLUE = GREEN = YELLOW = RESET = BOLD = ""
-
     lines = []
     lines.append(f"{BOLD}Available Modes:{RESET}")
 
@@ -2277,16 +2270,6 @@ def get_mode_summary_text() -> str:
                 summary = details['summary']
                 flags = details.get('flags', '')
                 lines.append(f"    {GREEN}{mode:<{width}}{RESET} {summary:<55} {YELLOW}{flags}{RESET}")
-
-    lines.append(f"\n  {BLUE}GLOBAL OPTIONS{RESET}")
-    lines.append(f"  {BLUE}{'─' * 55}{RESET}")
-    lines.append(f"    {YELLOW}{'-o, --output':<{width}}{RESET} Path to output file. Use '-' for screen.")
-    lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, yaml, csv, markdown, md-table, arrow, table.")
-    lines.append(f"    {YELLOW}{'-m, --min-length':<{width}}{RESET} Skip items shorter than this (default: 3).")
-    lines.append(f"    {YELLOW}{'-M, --max-length':<{width}}{RESET} Skip items longer than this (default: 1000).")
-    lines.append(f"    {YELLOW}{'-P, --process-output':<{width}}{RESET} Sort the output and remove duplicates.")
-    lines.append(f"    {YELLOW}{'-R, --raw':<{width}}{RESET} Keep original text (skip lowercase/punctuation cleaning).")
-    lines.append(f"    {YELLOW}{'-q, --quiet':<{width}}{RESET} Suppress progress bars and analysis statistics.")
 
     lines.append(f"\nRun '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
     return "\n".join(lines)
@@ -2325,17 +2308,6 @@ class ModeHelpAction(argparse.Action):
             details = MODE_DETAILS.get(values)
             if not details:
                 parser.error(f"Unknown mode: {values}")
-
-            # ANSI Color Codes
-            BLUE = "\033[1;34m"
-            GREEN = "\033[1;32m"
-            YELLOW = "\033[1;33m"
-            RESET = "\033[0m"
-            BOLD = "\033[1m"
-
-            # Disable colors if not running in a terminal
-            if not sys.stdout.isatty():
-                BLUE = GREEN = YELLOW = RESET = BOLD = ""
 
             divider = f"{BLUE}{'─' * 80}{RESET}"
             block = [
@@ -2391,20 +2363,20 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Display extended documentation for a specific mode or all modes.",
     )
 
-    parser.add_argument(
+    # Input/Output Options
+    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
+    io_group.add_argument(
         '-q', '--quiet',
         action='store_true',
         help='Suppress progress bars and informational log output.',
     )
-
-    parser.add_argument(
+    io_group.add_argument(
         '-o', '--output',
         type=str,
         default='-',
         help="Where to save the results. Use '-' for the screen (default: screen).",
     )
-
-    parser.add_argument(
+    io_group.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
@@ -2412,27 +2384,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Choose the format for the output (default: line).",
     )
 
-    parser.add_argument(
+    # Processing Options
+    proc_group = parser.add_argument_group(f"{BLUE}PROCESSING OPTIONS{RESET}")
+    proc_group.add_argument(
         '-m', '--min-length',
         type=int,
         default=3,
         help="Skip items shorter than this (default: 3).",
     )
-
-    parser.add_argument(
+    proc_group.add_argument(
         '-M', '--max-length',
         type=int,
         default=1000,
         help="Skip items longer than this (default: 1000).",
     )
-
-    parser.add_argument(
+    proc_group.add_argument(
         '-P', '--process-output',
         action='store_true',
         help="Sort the output and remove duplicates.",
     )
-
-    parser.add_argument(
+    proc_group.add_argument(
         '-R', '--raw',
         action='store_true',
         help="Keep the original text. Do not change it to lowercase or remove punctuation.",

@@ -1919,20 +1919,21 @@ def _add_common_mode_arguments(
     # Processing Configuration Group
     proc_group = subparser.add_argument_group("Processing Configuration")
     proc_group.add_argument(
-        '--min-length',
+        '-m', '--min-length',
         type=int,
-        default=3,
+        default=argparse.SUPPRESS,
         help="Skip items shorter than this (default: 3).",
     )
     proc_group.add_argument(
-        '--max-length',
+        '-M', '--max-length',
         type=int,
-        default=1000,
+        default=argparse.SUPPRESS,
         help="Skip items longer than this (default: 1000).",
     )
     proc_group.add_argument(
-        '--raw',
+        '-R', '--raw',
         action='store_true',
+        default=argparse.SUPPRESS,
         help="Keep the original text. Do not change it to lowercase or remove punctuation.",
     )
     proc_group.add_argument(
@@ -1944,6 +1945,7 @@ def _add_common_mode_arguments(
         proc_group.add_argument(
             '-P', '--process-output',
             action='store_true',
+            default=argparse.SUPPRESS,
             help="Sort the list and remove duplicates.",
         )
     else:
@@ -2280,7 +2282,10 @@ def get_mode_summary_text() -> str:
     lines.append(f"  {BLUE}{'─' * 55}{RESET}")
     lines.append(f"    {YELLOW}{'-o, --output':<{width}}{RESET} Path to output file. Use '-' for screen.")
     lines.append(f"    {YELLOW}{'-f, --format':<{width}}{RESET} Output format: line, json, yaml, csv, markdown, md-table, arrow, table.")
+    lines.append(f"    {YELLOW}{'-m, --min-length':<{width}}{RESET} Skip items shorter than this (default: 3).")
+    lines.append(f"    {YELLOW}{'-M, --max-length':<{width}}{RESET} Skip items longer than this (default: 1000).")
     lines.append(f"    {YELLOW}{'-P, --process-output':<{width}}{RESET} Sort the output and remove duplicates.")
+    lines.append(f"    {YELLOW}{'-R, --raw':<{width}}{RESET} Keep original text (skip lowercase/punctuation cleaning).")
     lines.append(f"    {YELLOW}{'-q, --quiet':<{width}}{RESET} Suppress progress bars and analysis statistics.")
 
     lines.append(f"\nRun '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
@@ -2405,6 +2410,32 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
         default='line',
         help="Choose the format for the output (default: line).",
+    )
+
+    parser.add_argument(
+        '-m', '--min-length',
+        type=int,
+        default=3,
+        help="Skip items shorter than this (default: 3).",
+    )
+
+    parser.add_argument(
+        '-M', '--max-length',
+        type=int,
+        default=1000,
+        help="Skip items longer than this (default: 1000).",
+    )
+
+    parser.add_argument(
+        '-P', '--process-output',
+        action='store_true',
+        help="Sort the output and remove duplicates.",
+    )
+
+    parser.add_argument(
+        '-R', '--raw',
+        action='store_true',
+        help="Keep the original text. Do not change it to lowercase or remove punctuation.",
     )
 
     subparsers = parser.add_subparsers(dest='mode', required=True, metavar='mode', help=argparse.SUPPRESS)
@@ -2752,7 +2783,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     map_options = map_parser.add_argument_group("Map Options")
     map_options.add_argument(
-        '-m', '--mapping',
+        '-s', '--mapping',
         type=str,
         required=False,
         help='Path to the mapping file (CSV or Arrow format).',
@@ -2855,8 +2886,6 @@ def main() -> None:
         logging.error("[Error] --max-length must be greater than or equal to --min-length.")
         sys.exit(1)
 
-    logging.info(f"Selected Mode: {args.mode}")
-
     # Resolve input arguments (positional vs flag)
     pos_inputs = getattr(args, 'input_files_pos', []) or []
     flag_inputs = getattr(args, 'input_files_flag', []) or []
@@ -2879,7 +2908,7 @@ def main() -> None:
     if not input_paths:
         input_paths = ['-']
 
-    # Store for logging and handler
+    # Store for handler
     args.input = input_paths
 
     # Fallback logic for modes that require a secondary file (e.g., zip, map)
@@ -2892,18 +2921,6 @@ def main() -> None:
         if getattr(args, 'mapping', None) is None and len(input_paths) >= 2:
             args.mapping = input_paths.pop()
             args.input = input_paths
-
-    input_label = "Input Files" if len(input_paths) > 1 else "Input File"
-    logging.info(f"{input_label}: {', '.join(input_paths)}")
-    logging.info(f"Output File: {args.output}")
-
-    logging.info(f"Minimum String Length: {args.min_length}")
-    logging.info(f"Maximum String Length: {args.max_length}")
-
-    if args.mode not in ('count', 'combine', 'stats'):
-        logging.info(
-            f"Process Output: {'Enabled' if args.process_output else 'Disabled'}"
-        )
 
     file2 = getattr(args, 'file2', None)
     # Check for missing secondary files after fallback attempt
@@ -2923,34 +2940,6 @@ def main() -> None:
     limit = getattr(args, 'limit', None)
     output_format = getattr(args, 'output_format', 'line')
 
-    if args.mode in {'filterfragments', 'set_operation'} and file2:
-        logging.info(f"File2: {file2}")
-    if args.mode == 'set_operation' and operation:
-        logging.info(f"Set Operation: {operation}")
-    if args.mode == 'csv':
-        logging.info(f"First Column Only: {'Yes' if first_column else 'No'}")
-        logging.info(f"Delimiter: '{delimiter}'")
-    if args.mode == 'markdown':
-        logging.info(f"Right Side Only: {'Yes' if right_side else 'No'}")
-    if args.mode == 'json':
-        logging.info(f"JSON Key Path: '{getattr(args, 'key', '')}'")
-    if args.mode == 'yaml':
-        logging.info(f"YAML Key Path: '{getattr(args, 'key', '')}'")
-    if args.mode == 'sample':
-        if sample_count is not None:
-            logging.info(f"Sampling Count: {sample_count}")
-        if sample_percent is not None:
-            logging.info(f"Sampling Percentage: {sample_percent}%")
-    if args.mode == 'count':
-        logging.info(f"Min Count Filter: {getattr(args, 'min_count', 1)}")
-        if getattr(args, 'max_count', None):
-            logging.info(f"Max Count Filter: {args.max_count}")
-    if args.mode == 'similarity':
-        logging.info(f"Min Distance: {getattr(args, 'min_dist', 0)}")
-        if getattr(args, 'max_dist', None) is not None:
-            logging.info(f"Max Distance: {args.max_dist}")
-
-    logging.info(f"Output Format: {output_format}")
 
     clean_items = not getattr(args, 'raw', False)
 

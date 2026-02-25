@@ -77,7 +77,7 @@ def test_stats_pairs_human_readable(tmp_path, capsys):
     assert "PAIRED DATA STATISTICS" in output
     assert "Total pairs extracted:" in output
     assert "Retention rate:" in output
-    assert "Min/Max/Avg edit distance:" in output
+    assert "Min/Max/Avg changes:" in output
     # Verify values are present (1 pair, dist 2)
     assert "1" in output
     assert "2 / 2 / 2.0" in output

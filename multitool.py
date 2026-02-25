@@ -657,7 +657,7 @@ def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bo
                 parts = content.split(separator, 1)
                 idx = 1 if right_side else 0
                 yield parts[idx].strip()
-            else:
+            elif not right_side:
                 yield content
 
 

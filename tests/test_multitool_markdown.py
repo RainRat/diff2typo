@@ -52,7 +52,7 @@ def test_markdown_mode_separators(tmp_path):
 
     # Right side
     multitool.markdown_mode([str(input_file)], str(output_file), 1, 20, True, right_side=True)
-    assert sorted(output_file.read_text().splitlines()) == ["correction", "loneword"]
+    assert sorted(output_file.read_text().splitlines()) == ["correction"]
 
 def test_markdown_mode_cli(monkeypatch, tmp_path):
     # Regression test for NameError in main()
@@ -68,10 +68,10 @@ def test_markdown_mode_cli(monkeypatch, tmp_path):
     assert output_file.read_text().strip() == "item"
 
 def test_markdown_mode_right_side_no_separator(tmp_path):
-    """Verify that 'right_side=True' does not crash on lines without separators."""
+    """Verify that 'right_side=True' does not yield items without separators."""
     input_file = tmp_path / "input.md"
     input_file.write_text("- lone_word\n")
     output_file = tmp_path / "output.txt"
-    # Should yield 'lone_word' as it falls back to the original content when no separator is found
+    # Should yield nothing as no separator is found
     multitool.markdown_mode([str(input_file)], str(output_file), 1, 20, True, right_side=True, clean_items=False)
-    assert output_file.read_text().strip() == "lone_word"
+    assert output_file.read_text().strip() == ""

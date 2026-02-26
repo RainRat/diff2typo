@@ -1404,7 +1404,7 @@ def near_duplicates_mode(
         limit=limit
     )
 
-    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].split(' (dist:')[0] for pair in results], item_label="near-duplicate")
+    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].rsplit(' (changes: ', 1)[0] for pair in results], item_label="near-duplicate")
 
 
 def csv_mode(

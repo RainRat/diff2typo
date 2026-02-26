@@ -523,35 +523,26 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
 
     lines = _read_file_lines_robust(input_file)
     for line in tqdm(lines, desc=f'Processing {input_file} (backtick)', unit=' lines', disable=quiet):
-        # Split the line on backticks to inspect the surrounding context of
-        # each candidate substring. This helps avoid extracting identifiers
-        # from file paths when a later pair of backticks contains the actual
-        # typo from messages such as "error: `foo` should be `bar`".
         parts = line.split('`')
         if len(parts) < 3:
             continue
 
-        line_items_with_markers = []
-        all_line_items = []
-        marker_seen = False
-
+        candidates = []
+        prioritized = []
         for index in range(1, len(parts), 2):
             item = parts[index].strip()
             if not item:
                 continue
 
-            all_line_items.append(item)
+            candidates.append(item)
             preceding = parts[index - 1].lower()
             if any(marker in preceding for marker in context_markers):
-                marker_seen = True
+                prioritized.append(item)
 
-            if marker_seen:
-                line_items_with_markers.append(item)
-
-        if line_items_with_markers:
-            yield from line_items_with_markers
+        if prioritized:
+            yield from prioritized
         else:
-            yield from all_line_items
+            yield from candidates
 
 
 def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:

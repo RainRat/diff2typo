@@ -582,8 +582,9 @@ def _setup_generation_tools(
     custom_subs_raw = copy.deepcopy(getattr(settings, 'custom_substitutions_config', {}))
 
     # Merge substitutions from file if provided
-    if getattr(settings, 'substitutions_file', None):
-        file_subs = _load_substitutions_file(settings.substitutions_file)
+    substitutions_file = getattr(settings, 'substitutions_file', None)
+    if substitutions_file:
+        file_subs = _load_substitutions_file(substitutions_file)
         for k, v in file_subs.items():
             if k in custom_subs_raw:
                 existing = custom_subs_raw[k]

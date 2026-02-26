@@ -4,7 +4,10 @@ import sys
 import logging
 import csv
 import io
-from typing import Iterable, Sequence
+import os
+import copy
+from typing import Iterable, Sequence, Mapping, Set, List, Any
+from types import SimpleNamespace
 
 try:
     from tqdm import tqdm
@@ -522,7 +525,7 @@ def load_lines_from_file(file_path: str) -> list[str] | None:
     Falls back to Latin-1 if detection fails or is unavailable.
     """
     if file_path == '-':
-        logging.info("Reading from stdin...")
+        logging.info("Reading from standard input...")
         return sys.stdin.readlines()
 
     lines = None
@@ -559,7 +562,7 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Analyze typo corrections and report frequent replacements.{RESET}",
+        description=f"{BOLD}Find common patterns in your typos. This tool analyzes your list of corrections and tells you which keys you hit by mistake most often.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python typostats.py typos.txt -t{RESET}
@@ -573,24 +576,27 @@ def main() -> None:
     io_group.add_argument(
         'input_files',
         nargs='*',
-        help="Path to the input file(s). Reads from stdin if empty or '-'.",
+        help="One or more files containing typo corrections. If empty, it reads from standard input.",
     )
-    io_group.add_argument('-o', '--output', help="Path to the output file (optional).")
+    io_group.add_argument('-o', '--output', help="Save the report to this file instead of printing it.")
     io_group.add_argument(
         '-f',
         '--format',
         choices=['arrow', 'yaml', 'json', 'csv'],
         default='arrow',
-        help=(
-            "Output format (default: arrow). 'json' emits {\"replacements\": [{\"correct\", \"typo\", \"count\"}, ...]}"
-        ),
+        help="The format of the report (default: arrow).",
     )
     io_group.add_argument('-q', '--quiet', action='store_true', help="Suppress informational log output.")
 
     # Analysis Options Group
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
-    analysis_group.add_argument('-m', '--min', type=int, default=1, help="Minimum occurrences (default: 1).")
-    analysis_group.add_argument('-s', '--sort', choices=['count', 'typo', 'correct'], default='count', help="Sorting criterion (default: count).")
+    analysis_group.add_argument('-m', '--min', type=int, default=1, help="Only show patterns that appear at least this many times.")
+    analysis_group.add_argument(
+        '-s', '--sort',
+        choices=['count', 'typo', 'correct'],
+        default='count',
+        help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by typo), or 'correct' (alphabetical by fix)."
+    )
     analysis_group.add_argument(
         '-2',
         '--allow-two-char',
@@ -687,15 +693,9 @@ def main() -> None:
 
     if not args.quiet:
         # Convert all_counts keys (which are tuples) to a flat list for print_processing_stats
-        # But wait, print_processing_stats expects filtered_items.
-        # Here all_counts is a dictionary of (correct, typo) -> count.
-        # We should probably pass the pairs that actually appeared.
-        pairs_found = []
-        for pair, count in all_counts.items():
-            for _ in range(count):
-                pairs_found.append(pair)
-
-        print_processing_stats(total_pairs_all, pairs_found, item_label="replacement")
+        # print_processing_stats expects Sequence[tuple[str, str]]
+        # We'll pass the keys of all_counts
+        print_processing_stats(total_pairs_all, list(all_counts.keys()), item_label="replacement")
 
     generate_report(
         all_counts,

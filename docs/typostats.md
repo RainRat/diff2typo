@@ -1,6 +1,6 @@
 # typostats.py
 
-**Purpose:** Finds patterns in your typing mistakes. It looks at your typo corrections to see which keys you hit by accident most often (like hitting `p` instead of `o`).
+**Purpose:** Find common patterns in your typos. This tool analyzes your list of corrections and tells you which keys you hit by mistake most often (like hitting `p` instead of `o`).
 
 ## Usage
 
@@ -29,10 +29,10 @@ The tool automatically recognizes three common ways of listing typos:
 ## Options
 
 ### Analysis Options
-- `-m`, `--min`: Only show mistakes that happen at least this many times (Default: 1).
-- `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo`, or `correct`.
+- `-m`, `--min`: Only show patterns that appear at least this many times (Default: 1).
+- `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by fix).
 - `-n`, `--limit`: Only show the top N results.
-- `-2`, `--allow-two-char`: Look for multi-character mistakes (like `m` becoming `rn` or `ph` becoming `f`).
+- `-2`, `--allow-two-char`: Look for cases where one letter is replaced by two (like `m` becoming `rn`) or two by one (like `ph` becoming `f`).
 - `-t`, `--transposition`: Find swapped letters (like `teh` instead of `the`).
 - `-k`, `--keyboard`: Identify typos caused by hitting keys next to each other on the keyboard.
 

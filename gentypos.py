@@ -758,28 +758,29 @@ def main() -> None:
     io_group.add_argument(
         'words',
         nargs='*',
-        help="Individual words to process. This ignores any input file in your config.",
+        help="One or more words to process. If you provide words here, the tool ignores the input file in your config.",
     )
     io_group.add_argument(
         '-c', '--config',
         type=str,
         default="gentypos.yaml",
-        help="Path to a YAML configuration file (default: gentypos.yaml).",
+        help="The path to your YAML configuration file.",
     )
     io_group.add_argument(
         '-o', '--output',
         type=str,
-        help="Where to save the results. Use '-' for the screen.",
+        help="Save results to this file. Use '-' to print to the screen.",
     )
     io_group.add_argument(
         '-f', '--format',
         choices=['arrow', 'csv', 'table', 'list'],
-        help="The format of the output. Options: arrow, csv, table, or list.",
+        metavar='FMT',
+        help="Choose an output format (default: arrow).",
     )
     io_group.add_argument(
         '-s', '--substitutions',
         type=str,
-        help="Path to a file with your own typo patterns (JSON, CSV, or YAML).",
+        help="The path to a file with your own typo patterns (JSON, CSV, or YAML).",
     )
     # Legacy flag, suppressed from help
     parser.add_argument(
@@ -793,12 +794,12 @@ def main() -> None:
     gen_group.add_argument(
         '-m', '--min-length',
         type=int,
-        help="Skip words shorter than this length.",
+        help="Ignore words shorter than this length.",
     )
     gen_group.add_argument(
         '--max-length',
         type=int,
-        help="Skip words longer than this length.",
+        help="Ignore words longer than this length.",
     )
     gen_group.add_argument(
         '--no-filter',
@@ -814,7 +815,6 @@ def main() -> None:
         '-q', '--quiet',
         action='store_true',
         help="Hide progress bars and show fewer log messages.",
-    )
     )
 
     args = parser.parse_args()

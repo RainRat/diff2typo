@@ -815,7 +815,6 @@ def main() -> None:
         action='store_true',
         help="Hide progress bars and show fewer log messages.",
     )
-    )
 
     args = parser.parse_args()
 

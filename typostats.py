@@ -525,7 +525,7 @@ def load_lines_from_file(file_path: str) -> list[str] | None:
     Falls back to Latin-1 if detection fails or is unavailable.
     """
     if file_path == '-':
-        logging.info("Reading from standard input...")
+        logging.info("Reading from stdin...")
         return sys.stdin.readlines()
 
     lines = None

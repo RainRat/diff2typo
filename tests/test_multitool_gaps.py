@@ -229,3 +229,27 @@ def test_extract_markdown_items_empty(tmp_path):
     multitool.markdown_mode([str(f)], str(out), 1, 100, False)
     assert out.read_text().strip() == "item"
 
+def test_write_output_with_limit(tmp_path):
+    output_line = tmp_path / "output.txt"
+    items = ["apple", "banana", "cherry"]
+    multitool.write_output(items, str(output_line), output_format='line', limit=2)
+    content = output_line.read_text().splitlines()
+    assert content == ["apple", "banana"]
+
+def test_write_paired_output_with_limit(tmp_path):
+    output_arrow = tmp_path / "output.txt"
+    pairs = [("a", "1"), ("b", "2"), ("c", "3")]
+    multitool._write_paired_output(pairs, str(output_arrow), output_format='arrow', mode_label="Test", limit=2)
+    content = output_arrow.read_text().splitlines()
+    assert content == ["a -> 1", "b -> 2"]
+
+def test_count_mode_with_limit(tmp_path):
+    f = tmp_path / "input.txt"
+    f.write_text("apple apple banana cherry")
+    out = tmp_path / "out.txt"
+    multitool.count_mode([str(f)], str(out), 1, 100, False, limit=2)
+    # count_mode sorts by count descending. apple: 2, banana: 1, cherry: 1.
+    # limit=2 should give apple and banana (or cherry).
+    results = out.read_text().splitlines()
+    assert len(results) == 2
+    assert "apple" in results[0]

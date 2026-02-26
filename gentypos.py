@@ -1,3 +1,24 @@
+'''
+gentypos.py
+
+Purpose:
+    Generate common typing errors (typos) for a list of words. This tool helps you
+    predict mistakes people might make when typing specific words, which is
+    useful for building robust spell-checkers.
+
+Features:
+    - Generates typos based on common typing patterns (skipping letters, swapping neighbors, etc.).
+    - Uses keyboard adjacency to predict likely finger-slips on a QWERTY layout.
+    - Supports custom substitution rules for specific character patterns (e.g., 'ph' -> 'f').
+    - Filters out generated typos that are actually valid words in a dictionary.
+    - Can process words directly from the command line or from a large text file.
+    - Integrates with results from 'typostats.py' to use your own personal typo history.
+
+Usage:
+    python gentypos.py hello world
+    python gentypos.py --config gentypos.yaml
+'''
+
 import sys
 import argparse
 import yaml
@@ -597,7 +618,8 @@ def _setup_generation_tools(
             else:
                 custom_subs_raw[k] = v
 
-    if not getattr(settings, 'enable_custom_substitutions', True):
+    enable_custom_substitutions = getattr(settings, 'enable_custom_substitutions', True)
+    if not enable_custom_substitutions:
         logging.info("Custom substitutions disabled.")
         custom_subs = {}
     else:
@@ -613,7 +635,8 @@ def _setup_generation_tools(
         else:
             logging.info("No custom substitutions loaded.")
 
-    if getattr(settings, 'enable_adjacent_substitutions', True):
+    enable_adjacent_substitutions = getattr(settings, 'enable_adjacent_substitutions', True)
+    if enable_adjacent_substitutions:
         logging.info("Generating adjacent keys mapping...")
         adjacent_keys = get_adjacent_keys(getattr(settings, 'include_diagonals', True))
         total_adjacent_mappings = len(adjacent_keys)
@@ -791,6 +814,7 @@ def main() -> None:
         '-q', '--quiet',
         action='store_true',
         help="Hide progress bars and show fewer log messages.",
+    )
     )
 
     args = parser.parse_args()

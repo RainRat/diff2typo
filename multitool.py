@@ -2293,14 +2293,14 @@ MODE_DETAILS = {
         "flags": "",
     },
     "similarity": {
-        "summary": "Filters paired data by number of changes.",
-        "description": "Filters pairs (typo -> correction) based on how many character changes they have. Use this to remove noise or find specific types of typos.",
+        "summary": "Filters paired data by the number of changes.",
+        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove noise or find specific types of typos.",
         "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
     "near_duplicates": {
         "summary": "Finds similar words in a single list.",
-        "description": "Identifies words in your list that are very similar (only a few characters are different). Use this to find potential typos or unintended duplicates.",
+        "description": "Identifies pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
         "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
@@ -2312,7 +2312,7 @@ MODE_DETAILS = {
     },
     "stats": {
         "summary": "Calculates detailed statistics for a typo list.",
-        "description": "Provides a summary of your dataset. It reports counts, unique items, length ranges, and (optionally) pair stats like conflicts, overlaps, and character changes.",
+        "description": "Provides a comprehensive summary of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
@@ -2422,7 +2422,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
-        description="Multipurpose File Processing Tool",
+        description="A versatile tool for cleaning, extracting, and analyzing text files.",
         epilog=dedent(
             """
             Examples:

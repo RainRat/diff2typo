@@ -1667,8 +1667,8 @@ def zip_mode(
     # Filter pairs
     filtered_pairs = []
     for left, right in raw_pairs:
-        # Skip if both are empty after cleaning (if cleaning enabled)
-        if not left and not right:
+        # Skip if either side is empty after cleaning
+        if not left or not right:
             continue
         # Apply length filtering to BOTH sides to ensure they meet criteria
         if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
@@ -1710,8 +1710,8 @@ def pairs_mode(
             left = filter_to_letters(left)
             right = filter_to_letters(right)
 
-        # Skip if both are empty after cleaning
-        if not left and not right:
+        # Skip if either side is empty after cleaning
+        if not left or not right:
             continue
 
         # Apply length filtering to both sides to ensure valid data pairs
@@ -1756,8 +1756,8 @@ def swap_mode(
             new_left = filter_to_letters(new_left)
             new_right = filter_to_letters(new_right)
 
-        # Skip if both are empty after cleaning
-        if not new_left and not new_right:
+        # Skip if either side is empty after cleaning
+        if not new_left or not new_right:
             continue
 
         # Apply length filtering

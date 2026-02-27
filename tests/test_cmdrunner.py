@@ -91,7 +91,7 @@ def test_run_command_in_folders_creates_files(tmp_path):
     for name in included + [excluded]:
         (base_dir / name).mkdir()
 
-    command = "python -c \"open('test_file.txt','w').write('test')\""
+    command = "python3 -c \"open('test_file.txt','w').write('test')\""
 
     cmdrunner.run_command_in_folders(str(base_dir), command, excluded_folders=[excluded])
 
@@ -109,7 +109,7 @@ def test_run_command_in_folders_subprocess_failure(tmp_path, caplog):
     failing = base_dir / 'failing'
     failing.mkdir()
 
-    command = "python -c \"import sys; sys.exit(1)\""
+    command = "python3 -c \"import sys; sys.exit(1)\""
 
     with caplog.at_level(logging.ERROR):
         cmdrunner.run_command_in_folders(str(base_dir), command)
@@ -131,7 +131,7 @@ def test_run_command_in_folders_dry_run(tmp_path, caplog):
     for name in ['proj1', 'proj2']:
         (base_dir / name).mkdir()
 
-    command = "python -c \"open('dry_run.txt','w').write('dry')\""
+    command = "python3 -c \"open('dry_run.txt','w').write('dry')\""
 
     with caplog.at_level('INFO'):
         cmdrunner.run_command_in_folders(str(base_dir), command, dry_run=True)
@@ -153,7 +153,7 @@ def test_main_integration(tmp_path, monkeypatch):
     for name in ['proj1', 'proj2']:
         (base_dir / name).mkdir()
 
-    command = "python -c \"open('integration.txt','w').write('run')\""
+    command = "python3 -c \"open('integration.txt','w').write('run')\""
     config = {
         'base_directory': str(base_dir),
         'command_to_run': command,
@@ -182,7 +182,7 @@ def test_excluded_folders_integration(tmp_path, monkeypatch):
     excluded.mkdir()
 
     command = (
-        "python -c \"from pathlib import Path; Path('integration_excluded.txt').write_text('ok')\""
+        "python3 -c \"from pathlib import Path; Path('integration_excluded.txt').write_text('ok')\""
     )
     config = {
         'base_directory': str(base_dir),
@@ -212,7 +212,7 @@ def test_main_integration_dry_run(tmp_path, monkeypatch, caplog):
     for name in ['proj1', 'proj2']:
         (base_dir / name).mkdir()
 
-    command = "python -c \"open('integration_dry_run.txt','w').write('run')\""
+    command = "python3 -c \"open('integration_dry_run.txt','w').write('run')\""
     config = {
         'base_directory': str(base_dir),
         'command_to_run': command,
@@ -243,7 +243,7 @@ def test_main_quiet_mode_suppresses_output(tmp_path, monkeypatch, capsys):
     for name in ['proj1', 'proj2']:
         (base_dir / name).mkdir()
 
-    command = "python -c \"open('integration_quiet.txt','w').write('silent')\""
+    command = "python3 -c \"open('integration_quiet.txt','w').write('silent')\""
     config = {
         'base_directory': str(base_dir),
         'command_to_run': command,

@@ -3015,7 +3015,7 @@ def main() -> None:
 
     file2 = getattr(args, 'file2', None)
     # Check for missing secondary files after fallback attempt
-    if args.mode in {'zip', 'filterfragments', 'set_operation'} and file2 is None:
+    if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch'} and file2 is None:
         logging.error(f"[Error] {args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
     if args.mode == 'map' and getattr(args, 'mapping', None) is None:

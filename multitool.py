@@ -529,6 +529,7 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
 
         candidates = []
         prioritized = []
+        has_marker = False
         for index in range(1, len(parts), 2):
             item = parts[index].strip()
             if not item:
@@ -537,6 +538,9 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
             candidates.append(item)
             preceding = parts[index - 1].lower()
             if any(marker in preceding for marker in context_markers):
+                has_marker = True
+
+            if has_marker:
                 prioritized.append(item)
 
         if prioritized:

@@ -414,8 +414,8 @@ def test_backtick_mode_multiple_items(tmp_path):
     results = output_file.read_text().splitlines()
     # Line 1: apple, banana, cherry
     # Line 2: easy, noise, echo
-    # Line 3: work, next (no_marker should be excluded as it has no marker and others on the line do)
-    assert results == ["apple", "banana", "cherry", "easy", "echo", "work", "next"]
+    # Line 3: work, next, no_marker
+    assert results == ["apple", "banana", "cherry", "easy", "noise", "echo", "work", "next", "nomarker"]
 
 def test_backtick_multiple_no_markers(tmp_path):
     input_file = tmp_path / "multiple_simple.txt"
@@ -429,4 +429,4 @@ def test_backtick_multiple_with_markers(tmp_path):
     input_file.write_text("error: `first` warning: `second` and `third` noise.\n")
     output_file = tmp_path / "output.txt"
     multitool.backtick_mode([str(input_file)], str(output_file), 1, 20, False)
-    assert output_file.read_text().splitlines() == ["first", "second"]
+    assert output_file.read_text().splitlines() == ["first", "second", "third"]

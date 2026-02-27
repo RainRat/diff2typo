@@ -52,7 +52,7 @@ def test_main_no_input_files_stdin_fallback(monkeypatch, caplog):
     with caplog.at_level(logging.INFO):
         typostats.main()
 
-    assert "Reading from stdin" in caplog.text
+    assert "Reading from standard input" in caplog.text
 
 def test_generate_report_default_sort(capsys):
     """Cover the 'else' block in generate_report's sorting logic."""

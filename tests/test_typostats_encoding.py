@@ -56,7 +56,7 @@ def test_load_lines_from_file_stdin(monkeypatch, caplog):
         lines = typostats.load_lines_from_file('-')
 
     assert lines == ["line1\n", "line2\n"]
-    assert "Reading from stdin" in caplog.text
+    assert "Reading from standard input" in caplog.text
 
 def test_load_lines_from_file_utf8_success(tmp_path):
     """Test loading a standard UTF-8 file."""

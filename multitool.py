@@ -97,6 +97,7 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     used_encoding = 'utf-8'
 
     if path == '-':
+        logging.info("Reading from stdin...")
         # For stdin, we rely on sys.stdin which is already open.
         try:
             lines = sys.stdin.readlines()

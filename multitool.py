@@ -1989,8 +1989,9 @@ def _add_common_mode_arguments(
         '-f', '--output-format', '--format',
         dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
+        metavar='FMT',
         default=argparse.SUPPRESS,
-        help="Choose the format for the output (default: line).",
+        help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -2460,8 +2461,9 @@ def _build_parser() -> argparse.ArgumentParser:
         '-f', '--output-format', '--format',
         dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
+        metavar='FMT',
         default='line',
-        help="Choose the format for the output (default: line).",
+        help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -2494,7 +2496,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Keep the original text. Do not change it to lowercase or remove punctuation.",
     )
 
-    subparsers = parser.add_subparsers(dest='mode', required=True, metavar='mode', help=argparse.SUPPRESS)
+    subparsers = parser.add_subparsers(dest='mode', required=True, help=argparse.SUPPRESS)
 
     arrow_parser = subparsers.add_parser(
         'arrow',

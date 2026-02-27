@@ -38,12 +38,30 @@ def test_generate_typos_by_duplication():
     typos = gentypos.generate_typos_by_duplication('cat')
     assert typos == {'ccat', 'caat', 'catt'}
 
+def test_generate_typos_by_insertion():
+    adjacent = {'a': {'s'}}
+    custom = {'t': {'+'}}
+    typos = gentypos.generate_typos_by_insertion('cat', adjacent, custom)
+    # a -> s: csat, cast (before/after a)
+    # t -> +: ca+t, cat+ (before/after t)
+    assert typos == {'csat', 'cast', 'ca+t', 'cat+'}
+
 def test_generate_all_typos():
     adjacent = {'c': {'v'}, 'a': {'s'}, 't': {'y'}}
     custom = {'a': {'@'}}
-    typo_types = {'deletion': True, 'transposition': True, 'replacement': True, 'duplication': True}
+    typo_types = {'deletion': True, 'transposition': True, 'replacement': True, 'duplication': True, 'insertion': True}
     result = gentypos.generate_all_typos('cat', adjacent, custom, typo_types, transposition_distance=1, use_adjacent=True, use_custom=True)
-    assert result == {'at', 'ct', 'ca', 'act', 'cta', 'vat', 'cst', 'c@t', 'cay', 'ccat', 'caat', 'catt'}
+    # Previous expected: {'at', 'ct', 'ca', 'act', 'cta', 'vat', 'cst', 'c@t', 'cay', 'ccat', 'caat', 'catt'}
+    # New insertions:
+    # c -> v: vcat, cvat
+    # a -> s: csat, cast
+    # a -> @: c@at, ca@t
+    # t -> y: cayt, caty
+    expected = {
+        'at', 'ct', 'ca', 'act', 'cta', 'vat', 'cst', 'c@t', 'cay', 'ccat', 'caat', 'catt',
+        'vcat', 'cvat', 'csat', 'cast', 'c@at', 'ca@t', 'cayt', 'caty'
+    }
+    assert result == expected
 
 def test_format_typos():
     mapping = {'teh': 'the'}

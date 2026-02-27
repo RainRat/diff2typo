@@ -48,6 +48,7 @@ typo_types:
   transposition: true  # Swapping neighbors: "word" becomes "wrod"
   replacement: true    # Hitting a nearby key: "word" becomes "wprd"
   duplication: true    # Double typing: "word" becomes "woord"
+  insertion: false     # Hitting two keys: "word" becomes "wpord" (disabled by default)
 
 # Advanced Replacement Options
 replacement_options:

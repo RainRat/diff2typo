@@ -18,6 +18,7 @@ typo_types:
   transposition: true                   # Enable transposition typos
   replacement: true                     # Enable replacement typos
   duplication: true                     # Enable duplication typos
+  insertion: false                      # Enable insertion typos (hitting two keys)
 
 # Replacement Options
 replacement_options:

@@ -13,8 +13,8 @@ Pass words as arguments to see what typos are generated. By default, results are
 # Generate typos for a single word
 python gentypos.py hello --no-filter
 
-# Generate typos for multiple words
-python gentypos.py apple banana orange --no-filter
+# Generate typos for multiple words in JSON format
+python gentypos.py apple banana orange --no-filter --format json
 ```
 
 ### 2. Process words from a file
@@ -36,7 +36,7 @@ input_file: "words.txt"           # Source words to process
 dictionary_file: "dictionary.txt"  # Valid words (to filter out real words)
 output_file: "typos.txt"          # Where to save the results
 
-# Output Format: arrow (a -> b), csv (a,b), table (a = "b"), or list (a)
+# Output Format: arrow (a -> b), csv (a,b), table (a = "b"), list (a), json, or yaml
 output_format: "arrow"
 
 # How many times to repeat the process (makes more complex typos)
@@ -48,7 +48,6 @@ typo_types:
   transposition: true  # Swapping neighbors: "word" becomes "wrod"
   replacement: true    # Hitting a nearby key: "word" becomes "wprd"
   duplication: true    # Double typing: "word" becomes "woord"
-  insertion: false     # Inserting a nearby key: "word" becomes "woprd"
 
 # Advanced Replacement Options
 replacement_options:

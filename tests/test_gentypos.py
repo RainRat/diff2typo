@@ -7,9 +7,15 @@ import pytest
 
 # Provide a minimal stub for the yaml module used by gentypos
 # We include dump for compatibility with other tests in the suite
+def _mock_yaml_dump(data, stream=None, **kwargs):
+    result = json.dumps(data)
+    if stream:
+        stream.write(result)
+    return result
+
 sys.modules.setdefault('yaml', types.SimpleNamespace(
     safe_load=lambda stream: json.load(stream) if hasattr(stream, "read") else json.loads(stream),
-    dump=lambda data, **kwargs: json.dumps(data),
+    dump=_mock_yaml_dump,
     YAMLError=Exception
 ))
 

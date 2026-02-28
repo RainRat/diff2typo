@@ -10,8 +10,13 @@ from textwrap import dedent
 from typing import Any, Callable, Iterable, List, Sequence, Tuple, TextIO, Union
 from tqdm import tqdm
 import logging
-import ahocorasick
 import json
+
+try:
+    import ahocorasick
+    _AHOCORASICK_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    _AHOCORASICK_AVAILABLE = False
 
 try:
     import chardet  # type: ignore
@@ -1923,6 +1928,7 @@ def map_mode(
             input_file,
             min_length,
             max_length,
+            apply_length_filter=False,
             clean_items=clean_items,
         )
 
@@ -1935,9 +1941,10 @@ def map_mode(
                 # Re-apply length filtering to the result of the mapping
                 if min_length <= len(transformed) <= max_length:
                     transformed_items.append(transformed)
-            elif not drop_missing:
-                # item already passed length filter in _load_and_clean_file
-                transformed_items.append(item)
+            else:
+                # item did NOT pass length filter yet, so check it now if not dropping missing
+                if not drop_missing and min_length <= len(item) <= max_length:
+                    transformed_items.append(item)
 
     if process_output:
         # If processing output, we sort and dedup.
@@ -2079,6 +2086,10 @@ def filter_fragments_mode(
     )
 
     # Aho-Corasick automaton for efficient substring matching
+    if not _AHOCORASICK_AVAILABLE:
+        logging.error("The 'ahocorasick' package is not installed. Install via 'pip install pyahocorasick' to use this mode.")
+        sys.exit(1)
+
     auto = ahocorasick.Automaton()
     for keyword in all_cleaned_list1:
         auto.add_word(keyword, keyword)

@@ -1,6 +1,10 @@
 import os
 import subprocess
-import yaml
+try:
+    import yaml
+    _YAML_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    _YAML_AVAILABLE = False
 import sys
 import argparse
 import logging
@@ -42,6 +46,10 @@ def load_config(config_path: str) -> Dict[str, Any]:
     """
     Load the YAML configuration file.
     """
+    if not _YAML_AVAILABLE:
+        logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use cmdrunner.")
+        sys.exit(1)
+
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
 

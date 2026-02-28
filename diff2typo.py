@@ -136,7 +136,7 @@ def split_into_subwords(word: str) -> List[str]:
             subwords.append(part)
     return subwords
 
-def read_words_mapping(file_path: str) -> Dict[str, Set[str]]:
+def read_words_mapping(file_path: str, required: bool = True) -> Dict[str, Set[str]]:
     """
     Reads a CSV file of typo fixes and returns a mapping:
          incorrect_word (lowercase) -> set(corrections)
@@ -148,13 +148,14 @@ def read_words_mapping(file_path: str) -> Dict[str, Set[str]]:
         just map to nothing.
     """
     mapping: Dict[str, Set[str]] = {}
-    rows = _read_csv_rows(file_path, "Dictionary file", required=True)
+    rows = _read_csv_rows(file_path, "Dictionary file", required=required)
     for row in rows:
         if row:
             incorrect = row[0].strip().lower()
             corrections = {col.strip().lower() for col in row[1:] if col.strip()}
             mapping[incorrect] = corrections
-    logging.info(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
+    if rows:
+        logging.info(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
     return mapping
 
 def _compare_word_lists(before_words: Sequence[str], after_words: Sequence[str], min_length: int) -> List[str]:
@@ -620,13 +621,13 @@ def main():
     diff_text = _read_diff_sources(input_files)
 
     # Load the dictionary (words mapping) once.
-    # If the user is using the default 'words.csv' but it doesn't exist, we don't exit.
-    # Instead we just warn and proceed without filtering against it.
+    # If the file is missing, we don't exit. Instead we just warn and proceed without filtering against it.
     if args.dictionary_file == 'words.csv' and not os.path.exists(args.dictionary_file):
         logging.warning("Default dictionary file 'words.csv' not found. Skipping valid word filtering.")
         dictionary_mapping = {}
     else:
-        dictionary_mapping = read_words_mapping(args.dictionary_file)
+        # If it's NOT the default words.csv, it will also warn and continue if missing.
+        dictionary_mapping = read_words_mapping(args.dictionary_file, required=False)
 
     try:
         allowed_words = read_allowed_words(args.allowed_file)

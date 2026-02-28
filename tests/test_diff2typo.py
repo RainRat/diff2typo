@@ -150,9 +150,11 @@ def test_process_new_corrections_dedup_and_sort():
     assert result == ['teh -> thea', 'teh -> thee']
 
 
-def test_read_words_mapping_file_not_found(tmp_path):
-    with pytest.raises(SystemExit):
-        diff2typo.read_words_mapping(str(tmp_path / 'missing.csv'))
+def test_read_words_mapping_file_not_found(tmp_path, caplog):
+    with caplog.at_level(logging.WARNING):
+        result = diff2typo.read_words_mapping(str(tmp_path / 'missing.csv'), required=False)
+    assert result == {}
+    assert any("Dictionary file" in message and "not found" in message for message in caplog.messages)
 
 
 def test_read_allowed_words_logs_warning(tmp_path, caplog):
@@ -270,11 +272,10 @@ def test_main_dictionary_file_missing_message(monkeypatch, tmp_path, caplog):
         ],
     )
 
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(SystemExit):
-            diff2typo.main()
+    with caplog.at_level(logging.WARNING):
+        diff2typo.main()
 
-    assert any('Dictionary file' in message for message in caplog.messages)
+    assert any('Dictionary file' in message and 'not found' in message for message in caplog.messages)
 
 
 def test_main_reads_stdin(monkeypatch, tmp_path):

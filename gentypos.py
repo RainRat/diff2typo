@@ -21,7 +21,11 @@ Usage:
 
 import sys
 import argparse
-import yaml
+try:
+    import yaml
+    _YAML_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    _YAML_AVAILABLE = False
 import logging
 import time
 import os
@@ -184,10 +188,17 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                     reader = csv.reader(f)
                     first_row = next(reader, None)
                     if first_row:
-                        # Check if first row looks like a header
-                        header_keywords = {'typo', 'correction', 'before', 'after', 'correct', 'word'}
-                        if any(k in first_row[0].lower() or (len(first_row) > 1 and k in first_row[1].lower()) for k in header_keywords):
-                            # Skip header, process remaining
+                        # Robust header detection: skip only if the first row looks like a clear header
+                        # (e.g., both of the first two columns are known header keywords).
+                        header_keywords = {'typo', 'correction', 'before', 'after', 'correct', 'word', 'correct_char', 'typo_char'}
+                        is_header = False
+                        if len(first_row) >= 2:
+                            val1, val2 = first_row[0].lower(), first_row[1].lower()
+                            if val1 in header_keywords and val2 in header_keywords:
+                                is_header = True
+                        
+                        if is_header:
+                            # Skip header
                             pass
                         else:
                             # Process first row as data
@@ -199,6 +210,9 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                             subs[str(row[0])].append(str(row[1]))
         else:
             # Assume YAML
+            if not _YAML_AVAILABLE:
+                logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML files.")
+                sys.exit(1)
             with open(path, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 if isinstance(data, dict):
@@ -469,6 +483,10 @@ def parse_yaml_config(config_path: str) -> dict[str, Any]:
     Returns:
         dict: Parsed configuration.
     """
+    if not _YAML_AVAILABLE:
+        logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML configuration files.")
+        sys.exit(1)
+
     try:
         with open(config_path, 'r', encoding='utf-8') as file:
             config = yaml.safe_load(file)

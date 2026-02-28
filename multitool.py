@@ -1,3 +1,4 @@
+import os
 import argparse
 import csv
 import glob
@@ -34,9 +35,9 @@ YELLOW = "\033[1;33m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
-# Disable colors if not running in a terminal
+# Disable colors if not running in a terminal or if NO_COLOR is set
 # We check both stdout and stderr as help goes to stdout and logging/stats to stderr
-if not sys.stdout.isatty():
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
     BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
 # Note: we use stdout's status for the global constants, but individual
 # functions might still check stderr if they specifically log to it.
@@ -2031,6 +2032,7 @@ def _add_common_mode_arguments(
     proc_group.add_argument(
         '-L', '--limit',
         type=int,
+        default=argparse.SUPPRESS,
         help="Limit the number of items in the output.",
     )
     if include_process_output:
@@ -2441,12 +2443,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="A versatile tool for cleaning, extracting, and analyzing text files.",
         epilog=dedent(
-            """
-            Examples:
-              python multitool.py --mode-help             # Show a summary of every mode
-              python multitool.py --mode-help csv         # Describe the CSV extraction mode
-              python multitool.py arrow file.txt          # Run a specific mode
-              python multitool.py --mode csv --input file.txt  # Old way to run the tool
+            f"""
+            {BLUE}Examples:{RESET}
+              {GREEN}python multitool.py --mode-help{RESET}             # Show a summary of every mode
+              {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV extraction mode
+              {GREEN}python multitool.py arrow file.txt{RESET}          # Run a specific mode
+              {GREEN}python multitool.py --mode csv --input file.txt{RESET}  # Old way to run the tool
             """
         ).strip() + "\n\n" + mode_summary,
         formatter_class=argparse.RawTextHelpFormatter,
@@ -2507,6 +2509,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help="Keep the original text. Do not change it to lowercase or remove punctuation.",
     )
+    proc_group.add_argument(
+        '-L', '--limit',
+        type=int,
+        help="Limit the number of items in the output.",
+    )
 
     subparsers = parser.add_subparsers(dest='mode', required=True, help=argparse.SUPPRESS)
 
@@ -2515,9 +2522,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['arrow']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['arrow']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['arrow']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['arrow']['example']}{RESET}",
     )
-    arrow_options = arrow_parser.add_argument_group("Arrow Options")
+    arrow_options = arrow_parser.add_argument_group(f"{BLUE}ARROW OPTIONS{RESET}")
     arrow_options.add_argument(
         '--right',
         action='store_true',
@@ -2530,9 +2537,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['table']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['table']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['table']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['table']['example']}{RESET}",
     )
-    table_options = table_parser.add_argument_group("Table Options")
+    table_options = table_parser.add_argument_group(f"{BLUE}TABLE OPTIONS{RESET}")
     table_options.add_argument(
         '--right',
         action='store_true',
@@ -2545,7 +2552,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['backtick']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['backtick']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['backtick']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['backtick']['example']}{RESET}",
     )
     _add_common_mode_arguments(backtick_parser)
 
@@ -2554,9 +2561,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['csv']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['csv']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['csv']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['csv']['example']}{RESET}",
     )
-    csv_options = csv_parser.add_argument_group("CSV Options")
+    csv_options = csv_parser.add_argument_group(f"{BLUE}CSV OPTIONS{RESET}")
     csv_options.add_argument(
         '--first-column',
         action='store_true',
@@ -2575,9 +2582,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['markdown']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['markdown']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['markdown']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['markdown']['example']}{RESET}",
     )
-    markdown_options = markdown_parser.add_argument_group("Markdown Options")
+    markdown_options = markdown_parser.add_argument_group(f"{BLUE}MARKDOWN OPTIONS{RESET}")
     markdown_options.add_argument(
         '--right',
         action='store_true',
@@ -2590,9 +2597,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['md-table']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['md-table']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['md-table']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['md-table']['example']}{RESET}",
     )
-    md_table_options = md_table_parser.add_argument_group("Markdown Table Options")
+    md_table_options = md_table_parser.add_argument_group(f"{BLUE}MD TABLE OPTIONS{RESET}")
     md_table_options.add_argument(
         '--right',
         action='store_true',
@@ -2605,9 +2612,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['json']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['json']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['json']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['json']['example']}{RESET}",
     )
-    json_options = json_parser.add_argument_group("JSON Options")
+    json_options = json_parser.add_argument_group(f"{BLUE}JSON OPTIONS{RESET}")
     json_options.add_argument(
         '-k', '--key',
         type=str,
@@ -2621,9 +2628,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['yaml']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['yaml']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['yaml']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['yaml']['example']}{RESET}",
     )
-    yaml_options = yaml_parser.add_argument_group("YAML Options")
+    yaml_options = yaml_parser.add_argument_group(f"{BLUE}YAML OPTIONS{RESET}")
     yaml_options.add_argument(
         '-k', '--key',
         type=str,
@@ -2637,7 +2644,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['combine']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['combine']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['combine']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['combine']['example']}{RESET}",
     )
     _add_common_mode_arguments(combine_parser, include_process_output=False)
 
@@ -2646,7 +2653,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['unique']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['unique']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['unique']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['unique']['example']}{RESET}",
     )
     _add_common_mode_arguments(unique_parser)
 
@@ -2655,7 +2662,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['line']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['line']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['line']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['line']['example']}{RESET}",
     )
     _add_common_mode_arguments(line_parser)
 
@@ -2664,9 +2671,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['count']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['count']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['count']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['count']['example']}{RESET}",
     )
-    count_options = count_parser.add_argument_group("Count Options")
+    count_options = count_parser.add_argument_group(f"{BLUE}COUNT OPTIONS{RESET}")
     count_options.add_argument(
         '--min-count',
         type=int,
@@ -2685,9 +2692,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['filterfragments']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['filterfragments']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['filterfragments']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['filterfragments']['example']}{RESET}",
     )
-    filter_options = filter_parser.add_argument_group("Filter Options")
+    filter_options = filter_parser.add_argument_group(f"{BLUE}FILTER FRAGMENTS OPTIONS{RESET}")
     filter_options.add_argument(
         '--file2',
         type=str,
@@ -2701,7 +2708,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['check']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['check']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['check']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['check']['example']}{RESET}",
     )
     _add_common_mode_arguments(check_parser)
 
@@ -2710,7 +2717,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['conflict']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['conflict']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['conflict']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['conflict']['example']}{RESET}",
     )
     _add_common_mode_arguments(conflict_parser)
 
@@ -2719,9 +2726,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['similarity']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['similarity']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['similarity']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['similarity']['example']}{RESET}",
     )
-    similarity_options = similarity_parser.add_argument_group("Similarity Options")
+    similarity_options = similarity_parser.add_argument_group(f"{BLUE}SIMILARITY OPTIONS{RESET}")
     similarity_options.add_argument(
         '--min-dist',
         type=int,
@@ -2745,9 +2752,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['near_duplicates']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['near_duplicates']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['near_duplicates']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['near_duplicates']['example']}{RESET}",
     )
-    nd_options = near_duplicates_parser.add_argument_group("Near Duplicate Options")
+    nd_options = near_duplicates_parser.add_argument_group(f"{BLUE}NEAR DUPLICATES OPTIONS{RESET}")
     nd_options.add_argument(
         '--min-dist',
         type=int,
@@ -2772,9 +2779,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['fuzzymatch']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['fuzzymatch']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['fuzzymatch']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['fuzzymatch']['example']}{RESET}",
     )
-    fm_options = fuzzymatch_parser.add_argument_group("Fuzzy Match Options")
+    fm_options = fuzzymatch_parser.add_argument_group(f"{BLUE}FUZZY MATCH OPTIONS{RESET}")
     fm_options.add_argument(
         '--file2',
         type=str,
@@ -2805,9 +2812,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['stats']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['stats']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['stats']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['stats']['example']}{RESET}",
     )
-    stats_options = stats_parser.add_argument_group("Stats Options")
+    stats_options = stats_parser.add_argument_group(f"{BLUE}STATS OPTIONS{RESET}")
     stats_options.add_argument(
         '-p', '--pairs',
         action='store_true',
@@ -2820,9 +2827,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['set_operation']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['set_operation']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['set_operation']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['set_operation']['example']}{RESET}",
     )
-    set_options = set_parser.add_argument_group("Set Operation Options")
+    set_options = set_parser.add_argument_group(f"{BLUE}SET OPERATION OPTIONS{RESET}")
     set_options.add_argument(
         '--file2',
         type=str,
@@ -2843,9 +2850,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['sample']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['sample']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['sample']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['sample']['example']}{RESET}",
     )
-    sample_options = sample_parser.add_argument_group("Sample Options")
+    sample_options = sample_parser.add_argument_group(f"{BLUE}SAMPLE OPTIONS{RESET}")
     group = sample_options.add_mutually_exclusive_group(required=True)
     group.add_argument(
         '-n', '--n',
@@ -2866,9 +2873,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['regex']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['regex']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['regex']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['regex']['example']}{RESET}",
     )
-    regex_options = regex_parser.add_argument_group("Regex Options")
+    regex_options = regex_parser.add_argument_group(f"{BLUE}REGEX OPTIONS{RESET}")
     regex_options.add_argument(
         '-r', '--pattern',
         type=str,
@@ -2882,9 +2889,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['map']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['map']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['map']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['map']['example']}{RESET}",
     )
-    map_options = map_parser.add_argument_group("Map Options")
+    map_options = map_parser.add_argument_group(f"{BLUE}MAP OPTIONS{RESET}")
     map_options.add_argument(
         '-s', '--mapping',
         type=str,
@@ -2903,9 +2910,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['zip']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['zip']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['zip']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['zip']['example']}{RESET}",
     )
-    zip_options = zip_parser.add_argument_group("Zip Options")
+    zip_options = zip_parser.add_argument_group(f"{BLUE}ZIP OPTIONS{RESET}")
     zip_options.add_argument(
         '--file2',
         type=str,
@@ -2919,7 +2926,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['swap']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['swap']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['swap']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['swap']['example']}{RESET}",
     )
     _add_common_mode_arguments(swap_parser)
 
@@ -2928,7 +2935,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=MODE_DETAILS['pairs']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['pairs']['description'],
-        epilog=f"Example:\n  {MODE_DETAILS['pairs']['example']}",
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['pairs']['example']}{RESET}",
     )
     _add_common_mode_arguments(pairs_parser)
 

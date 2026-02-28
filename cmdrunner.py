@@ -9,6 +9,32 @@ from typing import List, Dict, Any, Optional
 from tqdm import tqdm
 
 
+# ANSI Color Codes
+BLUE = "\033[1;34m"
+GREEN = "\033[1;32m"
+RED = "\033[1;31m"
+YELLOW = "\033[1;33m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+# Disable colors if not running in a terminal
+if not sys.stdout.isatty():
+    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+
+
+class MinimalFormatter(logging.Formatter):
+    """A logging formatter that removes prefixes for INFO level messages."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._info_formatter = logging.Formatter('%(message)s')
+
+    def format(self, record: logging.LogRecord) -> str:
+        if record.levelno == logging.INFO:
+            return self._info_formatter.format(record)
+        return super().format(record)
+
+
 class ConfigError(Exception):
     """Raised when a configuration file is invalid."""
 
@@ -95,24 +121,36 @@ def parse_arguments() -> argparse.Namespace:
     Parse command-line arguments to get the path to the YAML configuration file.
     """
     parser = argparse.ArgumentParser(
-        description="Run a specified command in each subdirectory of a base directory, excluding certain folders."
+        description=f"{BOLD}Run a specified command in each subdirectory of a base directory, excluding certain folders.{RESET}",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=f"""{BLUE}Examples:{RESET}
+  {GREEN}python cmdrunner.py config.yaml{RESET}
+  {GREEN}python cmdrunner.py my_setup.yaml --dry-run{RESET}
+""",
     )
-    parser.add_argument(
+
+    # Configuration Group
+    config_group = parser.add_argument_group(f"{BLUE}CONFIGURATION{RESET}")
+    config_group.add_argument(
         'config',
         metavar='CONFIG_PATH',
         type=str,
-        help='Path to the YAML configuration file.'
+        help='The path to your YAML configuration file.'
     )
-    parser.add_argument(
+
+    # Execution Options Group
+    options_group = parser.add_argument_group(f"{BLUE}EXECUTION OPTIONS{RESET}")
+    options_group.add_argument(
         '--dry-run',
         action='store_true',
         help='Show which directories would be processed without executing the command.'
     )
-    parser.add_argument(
+    options_group.add_argument(
         '--quiet',
         action='store_true',
-        help='Suppress informational output.'
+        help='Hide progress bars and show fewer log messages.'
     )
+
     return parser.parse_args()
 
 def main() -> None:
@@ -120,12 +158,11 @@ def main() -> None:
     args = parse_arguments()
     config_file = args.config
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-    )
-    if args.quiet:
-        logging.getLogger().setLevel(logging.WARNING)
+    log_level = logging.WARNING if args.quiet else logging.INFO
+    # Use a custom handler and formatter to keep output clean
+    handler = logging.StreamHandler()
+    handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
+    logging.basicConfig(level=log_level, handlers=[handler])
 
     # Load configuration
     try:

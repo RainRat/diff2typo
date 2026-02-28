@@ -104,14 +104,19 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
 
     if path == '-':
         logging.info("Reading from stdin...")
-        # For stdin, we rely on sys.stdin which is already open.
-        try:
-            lines = sys.stdin.readlines()
+        stream = getattr(sys.stdin, "buffer", sys.stdin)
+        data = stream.read()
+        if isinstance(data, str):
+            lines = data.splitlines(keepends=True)
             used_encoding = sys.stdin.encoding or 'utf-8'
-        except UnicodeDecodeError:
-            logging.warning("Reading from stdin failed with encoding errors.")
-            # Fallback logic for stdin is complex without buffering.
-            # We assume valid text stream or return empty.
+        else:
+            try:
+                text = data.decode("utf-8")
+                used_encoding = 'utf-8'
+            except UnicodeDecodeError:
+                text = data.decode("latin-1")
+                used_encoding = 'latin-1'
+            lines = text.splitlines(keepends=True)
     else:
         try:
             with open(path, 'r', encoding='utf-8', newline=newline) as handle:
@@ -176,7 +181,8 @@ def _load_and_clean_file(
                 if cleaned:
                     cleaned_items.append(cleaned)
             else:
-                cleaned_items.append(part)
+                if part:
+                    cleaned_items.append(part)
 
     if apply_length_filter:
         cleaned_items = [
@@ -1940,11 +1946,11 @@ def map_mode(
             if item in mapping:
                 transformed = mapping[item]
                 # Re-apply length filtering to the result of the mapping
-                if min_length <= len(transformed) <= max_length:
+                if transformed and min_length <= len(transformed) <= max_length:
                     transformed_items.append(transformed)
             else:
                 # item did NOT pass length filter yet, so check it now if not dropping missing
-                if not drop_missing and min_length <= len(item) <= max_length:
+                if not drop_missing and item and min_length <= len(item) <= max_length:
                     transformed_items.append(item)
 
     if process_output:

@@ -104,7 +104,7 @@ def run_command_in_folders(
         item_path = os.path.join(base_dir, item)
 
         if dry_run:
-            logging.info(f"Dry run: would run command '{command}' in '{item_path}'")
+            logging.warning(f"Dry run: would run command '{command}' in '{item_path}'")
             continue
 
         logging.info(f"Running command in: {item_path}")

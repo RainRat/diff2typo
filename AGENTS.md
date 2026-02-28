@@ -22,3 +22,6 @@ This file applies to the entire repository.
 
 ## Testing
 - **Unit Tests:** Always run `pytest` from the repository root before submitting changes. Try to fix any test failures, even if you do not think you caused them.
+
+## Typo Generation Guidelines
+- **Insertion Typos:** Do not implement "insertion" synthetic typo generation. Prefer 1-to-2 character replacement strategies as they are more focused than inserting arbitrary characters.

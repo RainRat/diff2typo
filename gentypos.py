@@ -435,11 +435,20 @@ def load_file(file_path: Optional[str]) -> set[str]:
 
     try:
         words = set()
-        with open(file_path, 'r', encoding='utf-8') as file:
-            for line in file:
+        if file_path == '-':
+            logging.info("Reading from stdin...")
+            source = sys.stdin
+        else:
+            source = open(file_path, 'r', encoding='utf-8')
+
+        try:
+            for line in source:
                 line = line.strip()
                 if line and all(ord(c) < 128 for c in line):
                     words.add(line.lower())
+        finally:
+            if file_path != '-':
+                source.close()
         logging.debug(f"Loaded {len(words)} unique words from '{file_path}'.")
         return words
     except FileNotFoundError:

@@ -8,6 +8,7 @@ This file applies to the entire repository.
 - **Backwards Compatibility:** Do not write in user-facing docs that a feature is "new". References to "new features" become obsolete quickly.
 - **Dependencies:** Minimize external dependencies. Prefer standard library (`argparse`, `logging`, `csv`, `json`) where possible.
 - Update or add unit tests alongside code changes when behaviour changes.
+- **Typo Generation Strategy:** Reject any proposal for "insertion" synthetic typo generation. The 1 to 2 character replacement is more focused than inserting arbitrary characters.
 
 ## Documentation Standards
 - **Modular Docs:** When adding a new tool, create a corresponding `docs/<tool_name>.md` file.

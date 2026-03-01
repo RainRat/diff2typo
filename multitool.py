@@ -212,19 +212,19 @@ def print_processing_stats(
 
     if raw_item_count > 0:
         retention = (len(filtered_items) / raw_item_count) * 100
-        logging.info(f"  {BOLD}{'Retention rate:':<35}{RESET} {GREEN}{retention:.1f}%{RESET}")
+        logging.info(f"  {c_bold}{'Retention rate:':<35}{c_reset} {c_green}{retention:.1f}%{c_reset}")
 
     if filtered_items:
         shortest = min(filtered_items, key=len)
         longest = max(filtered_items, key=len)
         logging.info(
-            f"  {BOLD}{'Shortest ' + item_label + ':':<35}{RESET} '{shortest}' (length: {len(shortest)})"
+            f"  {c_bold}{'Shortest ' + item_label + ':':<35}{c_reset} '{shortest}' (length: {len(shortest)})"
         )
         logging.info(
-            f"  {BOLD}{'Longest ' + item_label + ':':<35}{RESET} '{longest}' (length: {len(longest)})"
+            f"  {c_bold}{'Longest ' + item_label + ':':<35}{c_reset} '{longest}' (length: {len(longest)})"
         )
     else:
-        logging.info(f"  {YELLOW}No {item_label_plural} passed the filtering criteria.{RESET}")
+        logging.info(f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}")
     logging.info("")
 
 

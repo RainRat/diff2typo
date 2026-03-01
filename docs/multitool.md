@@ -52,6 +52,10 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Reads a file line by line. Use this to simply clean or filter a text file without special extraction logic.
   - **Example:** `python multitool.py line raw_words.txt`
 
+- **`words`**
+  - **What it does:** Extracts individual words from a file. It splits lines by whitespace by default, but you can specify a custom character using `--delimiter` (or `-d`).
+  - **Example:** `python multitool.py words report.txt`
+
 - **`regex`**
   - **What it does:** Extracts text matching a Python regular expression pattern. Unlike other modes, it **preserves exact text** (it does not convert to lowercase or remove punctuation) by default.
   - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`

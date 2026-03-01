@@ -1387,7 +1387,7 @@ def near_duplicates_mode(
     results = []
     num_items = len(unique_items)
 
-    for i in range(num_items):
+    for i in tqdm(range(num_items), desc="Finding near-duplicates", unit="word", disable=quiet):
         word_i = unique_items[i]
         len_i = len(word_i)
 

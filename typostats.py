@@ -398,11 +398,12 @@ def generate_report(
         max_t = max(max_t, 4)  # 'TYPO' is 4
         max_n = max((len(str(count)) for (c, t), count in sorted_replacements), default=5)
         max_n = max(max_n, 5)  # 'COUNT' is 5
+        max_p = 6  # Width for percentage (e.g., "100.0%")
 
         # Header row and divider with consistent padding
         padding = "  "
-        header_row = f"{padding}{c_out_bold}{'CORRECT':>{max_c}}{c_out_reset}    {c_out_bold}{'TYPO':<{max_t}}{c_out_reset}   {c_out_bold}{'COUNT':>{max_n}}{c_out_reset}"
-        visible_header_len = max_c + 4 + max_t + 3 + max_n
+        header_row = f"{padding}{c_out_bold}{'CORRECT':>{max_c}}{c_out_reset}    {c_out_bold}{'TYPO':<{max_t}}{c_out_reset}   {c_out_bold}{'COUNT':>{max_n}}{c_out_reset}    {c_out_bold}{'%':>{max_p}}{c_out_reset}"
+        visible_header_len = max_c + 4 + max_t + 3 + max_n + 4 + max_p
         divider = f"{padding}{'─' * visible_header_len}"
 
         if not output_file:
@@ -437,8 +438,9 @@ def generate_report(
                 if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
                     marker = f" {c_out_bold}[K]{c_out_reset}"
 
+            percent = (count / total_typos * 100) if total_typos > 0 else 0
             report_lines.append(
-                f"{padding}{c_out_green}{correct_char:>{max_c}}{c_out_reset} -> {c_out_red}{typo_char:<{max_t}}{c_out_reset} : {c_out_bold}{count:>{max_n}}{c_out_reset}{marker}"
+                f"{padding}{c_out_green}{correct_char:>{max_c}}{c_out_reset} -> {c_out_red}{typo_char:<{max_t}}{c_out_reset} : {c_out_bold}{count:>{max_n}}{c_out_reset}    {percent:>5.1f}%{marker}"
             )
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
@@ -583,6 +585,7 @@ def main() -> None:
         '-f',
         '--format',
         choices=['arrow', 'yaml', 'json', 'csv'],
+        metavar='FMT',
         default='arrow',
         help="The format of the report (default: arrow).",
     )

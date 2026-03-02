@@ -40,6 +40,10 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Extracts items from Markdown bulleted lists (lines starting with `- `, `* `, or `+ `). It can also split items by `:` or `->` to extract one side of a pair (use the `--right` flag for the second part).
   - **Example:** `python multitool.py markdown notes.md --right`
 
+- **`md-table`**
+  - **What it does:** Extracts text from Markdown tables. It saves the first column by default. Use the `--right` flag to save the second column instead. It automatically skips header and divider rows.
+  - **Example:** `python multitool.py md-table readme.md --right`
+
 - **`json`**
   - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). If you do not provide a key, it extracts all items from the root of the file. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`
@@ -156,5 +160,6 @@ These options work with most modes:
 - `--min-length`: Skip words shorter than this length (default: 3).
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
+- `--limit`, `-L`: Limit the number of items in the output.
 - `--raw`: Keep punctuation and capitalization. By default, most tools convert everything to lowercase and remove all characters except for lowercase **a through z**. Use this flag if you need to preserve numbers, punctuation, or capitalization.
 - `--quiet`: Hide progress bars and log messages.

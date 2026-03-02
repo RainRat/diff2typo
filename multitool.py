@@ -649,6 +649,17 @@ def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
         yield line.rstrip('\n')
 
 
+def _extract_words_items(input_file: str, delimiter: str | None = None, quiet: bool = False) -> Iterable[str]:
+    """Yield individual words from each line, split by delimiter (default whitespace)."""
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (words)', unit=' lines', disable=quiet):
+        parts = line.split(delimiter)
+        for part in parts:
+            word = part.strip()
+            if word:
+                yield word
+
+
 def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
     """Yield text from Markdown list items, optionally splitting by ':' or '->'."""
     lines = _read_file_lines_robust(input_file)
@@ -1562,6 +1573,36 @@ def line_mode(
     )
 
 
+def words_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    delimiter: str | None = None,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Wrapper for extracting individual words from file(s)."""
+    extractor = lambda f, quiet=False: _extract_words_items(f, delimiter=delimiter, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Words',
+        'Words extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+    )
+
+
 def combine_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -2251,6 +2292,12 @@ MODE_DETAILS = {
         "example": "python multitool.py line raw_words.txt --output filtered.txt",
         "flags": "",
     },
+    "words": {
+        "summary": "Extracts individual words from a file.",
+        "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document.",
+        "example": "python multitool.py words report.txt --output wordlist.txt",
+        "flags": "[-d DELIMITER]",
+    },
     "count": {
         "summary": "Counts how many times each word appears.",
         "description": "Counts word frequency and sorts the list from most frequent to least frequent.",
@@ -2347,7 +2394,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "regex"],
+        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
         "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
         "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats"],
     }
@@ -2874,6 +2921,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(sample_parser)
 
+    words_parser = subparsers.add_parser(
+        'words',
+        help=MODE_DETAILS['words']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['words']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['words']['example']}{RESET}",
+    )
+    words_options = words_parser.add_argument_group(f"{BLUE}WORDS OPTIONS{RESET}")
+    words_options.add_argument(
+        '-d', '--delimiter',
+        type=str,
+        help='The delimiter character to split words by (default: whitespace).',
+    )
+    _add_common_mode_arguments(words_parser)
+
     regex_parser = subparsers.add_parser(
         'regex',
         help=MODE_DETAILS['regex']['summary'],
@@ -3133,6 +3195,14 @@ def main() -> None:
             },
         ),
         'line': (line_mode, {**common_kwargs, 'output_format': output_format}),
+        'words': (
+            words_mode,
+            {
+                **common_kwargs,
+                'delimiter': getattr(args, 'delimiter', None),
+                'output_format': output_format,
+            },
+        ),
         'count': (
             count_mode,
             {

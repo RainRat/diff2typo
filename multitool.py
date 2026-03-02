@@ -27,6 +27,10 @@ except ImportError:  # pragma: no cover - optional dependency
     chardet = None
     _CHARDET_AVAILABLE = False
 
+# Cache for standard input to allow multiple passes
+_STDIN_CACHE: List[str] | None = None
+_STDIN_ENCODING: str | None = None
+
 # ANSI Color Codes
 BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
@@ -99,10 +103,15 @@ def detect_encoding(file_path: str) -> str | None:
 
 def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     """Read lines from a file with robust encoding fallback (UTF-8 -> Detect -> Latin-1)."""
+    global _STDIN_CACHE, _STDIN_ENCODING
     lines = []
     used_encoding = 'utf-8'
 
     if path == '-':
+        if _STDIN_CACHE is not None:
+            logging.info("Using cached stdin...")
+            return list(_STDIN_CACHE)
+
         logging.info("Reading from stdin...")
         stream = getattr(sys.stdin, "buffer", sys.stdin)
         data = stream.read()
@@ -117,6 +126,9 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
                 text = data.decode("latin-1")
                 used_encoding = 'latin-1'
             lines = text.splitlines(keepends=True)
+
+        _STDIN_CACHE = lines
+        _STDIN_ENCODING = used_encoding
     else:
         try:
             with open(path, 'r', encoding='utf-8', newline=newline) as handle:

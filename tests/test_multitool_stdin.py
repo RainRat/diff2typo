@@ -49,3 +49,37 @@ def test_explicit_stdin_flag(monkeypatch, capsys):
     output = captured.out
 
     assert "correction" in output
+
+def test_stdin_multi_pass(monkeypatch, capsys):
+    """Test that stdin can be read multiple times (e.g. for stats --pairs)."""
+
+    input_data = "apple -> fruit\n"
+
+    # We need to mock sys.stdin.buffer if it exists, or just sys.stdin
+    # Some environments (like pytest) might have a custom stdin object.
+
+    class MockStdin:
+        def __init__(self, data):
+            self.buffer = io.BytesIO(data.encode('utf-8'))
+            self.encoding = 'utf-8'
+        def read(self):
+            return self.buffer.read().decode(self.encoding)
+
+    mock_stdin = MockStdin(input_data)
+    monkeypatch.setattr(sys, 'stdin', mock_stdin)
+
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'stats', '-', '--pairs', '--min-length', '1'])
+
+    # Reset cache to ensure fresh start for test
+    multitool._STDIN_CACHE = None
+    multitool._STDIN_ENCODING = None
+
+    multitool.main()
+
+    captured = capsys.readouterr()
+    # stats mode logs to stderr by default when writing to stdout
+    # but item count and pairs count should be in the report.
+    # Actually multitool.stats_mode writes the report to output_file, which defaults to '-' (stdout)
+
+    assert "Total items encountered:            3" in captured.out
+    assert "Total pairs extracted:              1" in captured.out

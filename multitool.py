@@ -66,6 +66,30 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
+def _smart_split(text: str) -> List[str]:
+    """
+    Splits text into subwords based on non-alphanumeric characters
+    and casing boundaries (CamelCase).
+    """
+    # Split by non-alphanumeric characters
+    parts = re.split(r'[^a-zA-Z0-9]+', text)
+    subwords = []
+    for part in parts:
+        if not part:
+            continue
+        # Split based on casing (camelCase, PascalCase) and numbers.
+        # re.findall with this pattern matches:
+        # 1. An optional uppercase letter followed by one or more lowercase letters.
+        # 2. One or more uppercase letters (not followed by a lowercase letter).
+        # 3. One or more digits.
+        split_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', part)
+        if split_parts:
+            subwords.extend(split_parts)
+        else:
+            subwords.append(part)
+    return subwords
+
+
 def clean_and_filter(items: Iterable[str], min_length: int, max_length: int, clean: bool = True) -> List[str]:
     """Clean items to letters only (if clean=True) and apply length filtering."""
     if clean:
@@ -649,15 +673,23 @@ def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
         yield line.rstrip('\n')
 
 
-def _extract_words_items(input_file: str, delimiter: str | None = None, quiet: bool = False) -> Iterable[str]:
+def _extract_words_items(
+    input_file: str,
+    delimiter: str | None = None,
+    quiet: bool = False,
+    smart: bool = False,
+) -> Iterable[str]:
     """Yield individual words from each line, split by delimiter (default whitespace)."""
     lines = _read_file_lines_robust(input_file)
     for line in tqdm(lines, desc=f'Processing {input_file} (words)', unit=' lines', disable=quiet):
         parts = line.split(delimiter)
         for part in parts:
-            word = part.strip()
-            if word:
-                yield word
+            if smart:
+                yield from _smart_split(part)
+            else:
+                word = part.strip()
+                if word:
+                    yield word
 
 
 def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
@@ -1580,13 +1612,14 @@ def words_mode(
     max_length: int,
     process_output: bool,
     delimiter: str | None = None,
+    smart: bool = False,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
     """Wrapper for extracting individual words from file(s)."""
-    extractor = lambda f, quiet=False: _extract_words_items(f, delimiter=delimiter, quiet=quiet)
+    extractor = lambda f, quiet=False: _extract_words_items(f, delimiter=delimiter, quiet=quiet, smart=smart)
     _process_items(
         extractor,
         input_files,
@@ -2294,9 +2327,9 @@ MODE_DETAILS = {
     },
     "words": {
         "summary": "Extracts individual words from a file.",
-        "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document.",
-        "example": "python multitool.py words report.txt --output wordlist.txt",
-        "flags": "[-d DELIMITER]",
+        "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use --smart to split by CamelCase and non-alphanumeric characters.",
+        "example": "python multitool.py words report.txt --smart --output wordlist.txt",
+        "flags": "[-d DELIMITER] [--smart]",
     },
     "count": {
         "summary": "Counts how many times each word appears.",
@@ -2934,6 +2967,11 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         help='The delimiter character to split words by (default: whitespace).',
     )
+    words_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Split by non-alphanumeric characters and casing boundaries (CamelCase).',
+    )
     _add_common_mode_arguments(words_parser)
 
     regex_parser = subparsers.add_parser(
@@ -3200,6 +3238,7 @@ def main() -> None:
             {
                 **common_kwargs,
                 'delimiter': getattr(args, 'delimiter', None),
+                'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
         ),

@@ -203,7 +203,7 @@ def is_one_letter_replacement(
 
 def print_processing_stats(
     raw_item_count: int,
-    filtered_items: Sequence[tuple[str, str]],
+    filtered_item_count: int,
     item_label: str = "item",
 ) -> None:
     """Print summary statistics for processed text items with visual hierarchy."""
@@ -221,14 +221,14 @@ def print_processing_stats(
         f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}"
     )
     logging.info(
-        f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<35}{c_reset} {c_green}{len(filtered_items)}{c_reset}"
+        f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<35}{c_reset} {c_green}{filtered_item_count}{c_reset}"
     )
 
     if raw_item_count > 0:
-        retention = (len(filtered_items) / raw_item_count) * 100
+        retention = (filtered_item_count / raw_item_count) * 100
         logging.info(f"  {c_bold}{'Retention rate:':<35}{c_reset} {c_green}{retention:.1f}%{c_reset}")
 
-    if not filtered_items:
+    if filtered_item_count == 0:
         logging.info(f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}")
     logging.info("")
 
@@ -695,10 +695,7 @@ def main() -> None:
             total_pairs_all += pairs_count
 
     if not args.quiet:
-        # Convert all_counts keys (which are tuples) to a flat list for print_processing_stats
-        # print_processing_stats expects Sequence[tuple[str, str]]
-        # We'll pass the keys of all_counts
-        print_processing_stats(total_pairs_all, list(all_counts.keys()), item_label="replacement")
+        print_processing_stats(total_pairs_all, sum(all_counts.values()), item_label="replacement")
 
     generate_report(
         all_counts,

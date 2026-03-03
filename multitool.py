@@ -2481,10 +2481,24 @@ def print_mode_summary() -> None:
 class MinimalFormatter(logging.Formatter):
     """A logging formatter that removes prefixes for INFO level messages."""
 
+    LEVEL_COLORS = {
+        logging.WARNING: YELLOW,
+        logging.ERROR: RED,
+        logging.CRITICAL: RED,
+    }
+
     def format(self, record: logging.LogRecord) -> str:
         if record.levelno == logging.INFO:
             return record.getMessage()
-        return f"{record.levelname}: {record.getMessage()}"
+
+        levelname = record.levelname
+        # Colorize the level name if stderr is a terminal and color is available
+        if sys.stderr.isatty() and levelname:
+            color = self.LEVEL_COLORS.get(record.levelno)
+            if color:
+                levelname = f"{color}{levelname}{RESET}"
+
+        return f"{levelname}: {record.getMessage()}"
 
 
 class ModeHelpAction(argparse.Action):
@@ -3108,10 +3122,10 @@ def main() -> None:
     logging.basicConfig(level=log_level, handlers=[handler])
 
     if args.min_length < 1:
-        logging.error("[Error] --min-length must be a positive integer.")
+        logging.error("--min-length must be a positive integer.")
         sys.exit(1)
     if args.max_length < args.min_length:
-        logging.error("[Error] --max-length must be greater than or equal to --min-length.")
+        logging.error("--max-length must be greater than or equal to --min-length.")
         sys.exit(1)
 
     # Resolve input arguments (positional vs flag)
@@ -3153,10 +3167,10 @@ def main() -> None:
     file2 = getattr(args, 'file2', None)
     # Check for missing secondary files after fallback attempt
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch'} and file2 is None:
-        logging.error(f"[Error] {args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
+        logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
     if args.mode == 'map' and getattr(args, 'mapping', None) is None:
-        logging.error("[Error] Map mode requires a mapping file (provide MAPPING positionally or use --mapping).")
+        logging.error("Map mode requires a mapping file (provide MAPPING positionally or use --mapping).")
         sys.exit(1)
 
     operation = getattr(args, 'operation', None)
@@ -3416,12 +3430,12 @@ def main() -> None:
         # Otherwise, fall back to a generic message.
         filename = getattr(e, 'filename', None)
         if filename:
-            logging.error(f"[Error] File not found: '{filename}'")
+            logging.error(f"File not found: '{filename}'")
         else:
-            logging.error(f"[Error] File not found: {e}")
+            logging.error(f"File not found: {e}")
         sys.exit(1)
     except Exception as e:
-        logging.error(f"[Error] An unexpected error occurred: {e}")
+        logging.error(f"An unexpected error occurred: {e}")
         sys.exit(1)
 
 

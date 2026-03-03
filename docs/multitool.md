@@ -33,16 +33,16 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py backtick build.log`
 
 - **`csv`**
-  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column. Use `--delimiter` (or `-d`) to specify a different column separator (e.g., `;`).
-  - **Example:** `python multitool.py csv data.csv --delimiter ";"`
+  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column, or `--column` (or `-c`) followed by one or more indices to extract specific columns. Use `--delimiter` (or `-d`) to specify a different column separator (e.g., `;`).
+  - **Example:** `python multitool.py csv data.csv --column 2`
 
 - **`markdown`**
   - **What it does:** Extracts items from Markdown bulleted lists (lines starting with `- `, `* `, or `+ `). It can also split items by `:` or `->` to extract one side of a pair (use the `--right` flag for the second part).
   - **Example:** `python multitool.py markdown notes.md --right`
 
 - **`md-table`**
-  - **What it does:** Extracts text from Markdown tables. It saves the first column by default. Use the `--right` flag to save the second column instead. It automatically skips header and divider rows.
-  - **Example:** `python multitool.py md-table readme.md --right`
+  - **What it does:** Extracts text from Markdown tables. It saves the first column by default. Use the `--right` flag to save the second column instead, or `--column` (or `-c`) followed by one or more indices to extract specific columns. It automatically skips header and divider rows.
+  - **Example:** `python multitool.py md-table readme.md --column 2`
 
 - **`json`**
   - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). If you do not provide a key, it extracts all items from the root of the file. It automatically handles lists and objects.

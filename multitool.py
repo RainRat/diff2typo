@@ -663,13 +663,21 @@ def _extract_yaml_items(input_file: str, key_path: str, quiet: bool = False) -> 
 
 
 def _extract_csv_items(
-    input_file: str, first_column: bool, delimiter: str = ',', quiet: bool = False
+    input_file: str,
+    first_column: bool,
+    delimiter: str = ',',
+    quiet: bool = False,
+    columns: List[int] | None = None,
 ) -> Iterable[str]:
     """Yield fields from CSV rows based on column selection."""
     lines = _read_file_lines_robust(input_file)
     reader = csv.reader(lines, delimiter=delimiter)
     for row in tqdm(reader, desc=f'Processing {input_file} (CSV)', unit=' rows', disable=quiet):
-        if first_column:
+        if columns is not None:
+            for idx in columns:
+                if 0 <= idx < len(row):
+                    yield row[idx].strip()
+        elif first_column:
             if row:
                 yield row[0].strip()
         else:
@@ -735,7 +743,12 @@ def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bo
                 yield content
 
 
-def _extract_md_table_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
+def _extract_md_table_items(
+    input_file: str,
+    right_side: bool = False,
+    quiet: bool = False,
+    columns: List[int] | None = None,
+) -> Iterable[str]:
     """Yield text from a specific column in Markdown tables."""
     lines = _read_file_lines_robust(input_file)
     for line in tqdm(lines, desc=f'Processing {input_file} (md-table)', unit=' lines', disable=quiet):
@@ -754,8 +767,13 @@ def _extract_md_table_items(input_file: str, right_side: bool = False, quiet: bo
                    parts[1].lower() in ('correction', 'right', 'word 2', 'count', 'corrections'):
                     continue
 
-                idx = 1 if right_side else 0
-                yield parts[idx]
+                if columns is not None:
+                    for idx in columns:
+                        if 0 <= idx < len(parts):
+                            yield parts[idx]
+                else:
+                    idx = 1 if right_side else 0
+                    yield parts[idx]
 
 
 def _extract_regex_items(input_file: str, pattern: str, quiet: bool = False) -> Iterable[str]:
@@ -879,9 +897,12 @@ def md_table_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    columns: List[int] | None = None,
 ) -> None:
     """Wrapper for processing items from Markdown tables."""
-    extractor = lambda f, quiet=False: _extract_md_table_items(f, right_side=right_side, quiet=quiet)
+    extractor = lambda f, quiet=False: _extract_md_table_items(
+        f, right_side=right_side, quiet=quiet, columns=columns
+    )
     _process_items(
         extractor,
         input_files,
@@ -1570,9 +1591,12 @@ def csv_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    columns: List[int] | None = None,
 ) -> None:
     """Wrapper for extracting fields from CSV files."""
-    extractor = lambda f, quiet=False: _extract_csv_items(f, first_column, delimiter, quiet=quiet)
+    extractor = lambda f, quiet=False: _extract_csv_items(
+        f, first_column, delimiter, quiet=quiet, columns=columns
+    )
     _process_items(
         extractor,
         input_files,
@@ -2303,9 +2327,9 @@ MODE_DETAILS = {
     },
     "csv": {
         "summary": "Extracts specific columns from a CSV file.",
-        "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column.",
-        "example": "python multitool.py csv typos.csv -o corrections.txt",
-        "flags": "[--first-column]",
+        "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column, or --column to pick specific indices.",
+        "example": "python multitool.py csv typos.csv --column 2 -o corrections.txt",
+        "flags": "[--first-column] [--column IDX]",
     },
     "markdown": {
         "summary": "Extracts items from Markdown bulleted lists.",
@@ -2315,9 +2339,9 @@ MODE_DETAILS = {
     },
     "md-table": {
         "summary": "Extracts text from Markdown tables.",
-        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead. It automatically skips header and divider rows.",
-        "example": "python multitool.py md-table readme.md --right --output corrections.txt",
-        "flags": "[--right]",
+        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific indices. It automatically skips header and divider rows.",
+        "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
+        "flags": "[--right] [--column IDX]",
     },
     "json": {
         "summary": "Extracts values from a JSON file using an optional key.",
@@ -2673,6 +2697,14 @@ def _build_parser() -> argparse.ArgumentParser:
         default=',',
         help='The delimiter character for CSV files (default: ,).',
     )
+    csv_options.add_argument(
+        '-c', '--column',
+        dest='columns',
+        type=int,
+        nargs='+',
+        metavar='IDX',
+        help='One or more 0-based column indices to extract.',
+    )
     _add_common_mode_arguments(csv_parser)
 
     markdown_parser = subparsers.add_parser(
@@ -2702,6 +2734,14 @@ def _build_parser() -> argparse.ArgumentParser:
         '--right',
         action='store_true',
         help="Extract the second column instead of the first.",
+    )
+    md_table_options.add_argument(
+        '-c', '--column',
+        dest='columns',
+        type=int,
+        nargs='+',
+        metavar='IDX',
+        help='One or more 0-based column indices to extract.',
     )
     _add_common_mode_arguments(md_table_parser)
 
@@ -3197,6 +3237,7 @@ def main() -> None:
                 **common_kwargs,
                 'right_side': right_side,
                 'output_format': output_format,
+                'columns': getattr(args, 'columns', None),
             },
         ),
         'table': (
@@ -3218,6 +3259,7 @@ def main() -> None:
                 'first_column': first_column,
                 'delimiter': delimiter,
                 'output_format': output_format,
+                'columns': getattr(args, 'columns', None),
             },
         ),
         'markdown': (

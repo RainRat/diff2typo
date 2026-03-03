@@ -50,35 +50,35 @@ The tool automatically recognizes three common ways of listing typos:
 When using the default **arrow** format, the report displays results in a table:
 
 ```text
- Most Frequent Letter Replacements in Typos:
+ LETTER REPLACEMENTS
+ ───────────────────────────────────────────────────────
+  Total replacements analyzed: 15
+  Keyboard Adjacency: 12/15 (80.0%)
 
- Total replacements analyzed: 15
- Keyboard Adjacency: 12/15 (80.0%)
-
- CORRECT    TYPO   COUNT
- -----------------------
-       o -> p    :     15 [K]
-       i -> u    :     12 [K]
+  CORRECT    TYPO   COUNT         %
+  ─────────────────────────────────
+        o -> p    :     12     80.0% [K]
+        i -> u    :      3     20.0%
 ```
 
 In this table, the left side is the **correct** character and the right side is the **mistake** you made. For example, `o -> p` means you hit the `p` key when you meant to hit `o`.
 
 ### Keyboard Analysis
 When you use the `--keyboard` flag, the report adds two extra pieces of information:
-- **[K] Marker:** This appears next to mistakes where the two keys are next to each other on a standard QWERTY keyboard.
+- **[K] Marker:** This appears next to mistakes where the two keys are next to each other on a standard keyboard.
 - **Keyboard Adjacency Summary:** A percentage showing how many of your typos were likely caused by physical slips on the keyboard.
 
 ## Pro Tips
 
 ### Clean Output Strategy
 `typostats.py` separates its output to keep your data clean:
-- **Status Messages:** Titles, table headers, and progress bars are sent to the "error stream."
-- **Data Rows:** The actual results are sent to the "standard output stream."
+- **Status Messages:** Titles, table headers, and progress bars are sent to a separate "hidden" channel.
+- **Data Rows:** The actual results are sent to the main output channel.
 
-This design lets you pipe the report into other tools (like `grep` or `awk`) to process the data without having to remove the headers yourself.
+This design lets you send the report into other tools to process the data without having to remove the headers yourself.
 
 ### Visual Feedback
-The tool detects if you are viewing the report in a terminal. If so, it uses colors to highlight correct characters in green and mistakes in red. It automatically turns off these colors when you save the report to a file or send it to another command.
+The tool detects if you are viewing the report on your screen. If so, it uses colors to highlight correct characters in green and mistakes in red. It automatically turns off these colors when you save the report to a file or send it to another command.
 
 ## Examples
 

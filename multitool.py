@@ -133,10 +133,10 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
 
     if path == '-':
         if _STDIN_CACHE is not None:
-            logging.info("Using cached stdin...")
+            logging.info("Using cached standard input...")
             return list(_STDIN_CACHE)
 
-        logging.info("Reading from stdin...")
+        logging.info("Reading from standard input...")
         stream = getattr(sys.stdin, "buffer", sys.stdin)
         data = stream.read()
         if isinstance(data, str):
@@ -2091,7 +2091,7 @@ def _add_common_mode_arguments(
         'input_files_pos',
         nargs='*',
         metavar='FILE',
-        help="Path(s) to the input file(s). Defaults to stdin ('-') if none provided.",
+        help="Path(s) to the input file(s). Defaults to standard input ('-') if none provided.",
     )
 
     # Input/Output Group
@@ -2108,7 +2108,7 @@ def _add_common_mode_arguments(
         '-o', '--output',
         type=str,
         default=argparse.SUPPRESS,
-        help="Where to save the results. Use '-' for the screen (default: screen).",
+        help="Where to save the results. Use '-' to print to the screen (default: the screen).",
     )
     io_group.add_argument(
         '-f', '--output-format', '--format',
@@ -2363,7 +2363,7 @@ MODE_DETAILS = {
     },
     "words": {
         "summary": "Extracts individual words from a file.",
-        "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use --smart to split by CamelCase and non-alphanumeric characters.",
+        "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use --smart to split by capital letters and symbols.",
         "example": "python multitool.py words report.txt --smart --output wordlist.txt",
         "flags": "[-d DELIMITER] [--smart]",
     },
@@ -2605,7 +2605,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-o', '--output',
         type=str,
         default='-',
-        help="Where to save the results. Use '-' for the screen (default: screen).",
+        help="Where to save the results. Use '-' to print to the screen (default: the screen).",
     )
     io_group.add_argument(
         '-f', '--output-format', '--format',
@@ -3036,7 +3036,7 @@ def _build_parser() -> argparse.ArgumentParser:
     words_options.add_argument(
         '-S', '--smart',
         action='store_true',
-        help='Split by non-alphanumeric characters and casing boundaries (CamelCase).',
+        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
     )
     _add_common_mode_arguments(words_parser)
 
@@ -3162,7 +3162,7 @@ def main() -> None:
     logging.basicConfig(level=log_level, handlers=[handler])
 
     if args.min_length < 1:
-        logging.error("--min-length must be a positive integer.")
+        logging.error("--min-length must be a number of 1 or more.")
         sys.exit(1)
     if args.max_length < args.min_length:
         logging.error("--max-length must be greater than or equal to --min-length.")
@@ -3186,7 +3186,7 @@ def main() -> None:
                 expanded_paths.append(path)
     input_paths = expanded_paths
 
-    # Default to stdin ('-') if neither is provided
+    # Default to standard input ('-') if neither is provided
     if not input_paths:
         input_paths = ['-']
 

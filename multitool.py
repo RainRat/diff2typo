@@ -1579,6 +1579,73 @@ def fuzzymatch_mode(
     print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].rsplit(' (changes: ', 1)[0] for pair in results], item_label="fuzzy-match")
 
 
+def discovery_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    rare_max: int = 1,
+    freq_min: int = 5,
+    min_dist: int = 1,
+    max_dist: int = 1,
+    show_dist: bool = False,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Identifies potential typos by comparing rare words to frequent words.
+    """
+    word_counts = Counter()
+    raw_item_count = 0
+
+    for input_file in input_files:
+        lines = _read_file_lines_robust(input_file)
+        for line in tqdm(lines, desc=f'Analyzing frequencies in {input_file}', unit=' lines', disable=quiet):
+            words = line.split()
+            raw_item_count += len(words)
+            filtered = clean_and_filter(words, min_length, max_length, clean=clean_items)
+            word_counts.update(filtered)
+
+    # Identify rare and frequent words
+    rare_words = sorted([word for word, count in word_counts.items() if count <= rare_max])
+    frequent_words = sorted([word for word, count in word_counts.items() if count >= freq_min], key=len)
+
+    results = []
+    for rare in tqdm(rare_words, desc="Finding likely corrections", unit="word", disable=quiet):
+        len_rare = len(rare)
+        for freq in frequent_words:
+            len_freq = len(freq)
+            # Optimization: words are sorted by length, so we can stop if length difference is too large
+            if len_freq < len_rare - max_dist:
+                continue
+            if len_freq > len_rare + max_dist:
+                break
+
+            dist = levenshtein_distance(rare, freq)
+            if min_dist <= dist <= max_dist:
+                if show_dist:
+                    results.append((rare, f"{freq} (changes: {dist})"))
+                else:
+                    results.append((rare, freq))
+
+    if process_output:
+        results.sort()
+
+    _write_paired_output(
+        results,
+        output_file,
+        output_format,
+        "Discovery",
+        quiet,
+        limit=limit
+    )
+
+    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].rsplit(' (changes: ', 1)[0] for pair in results], item_label="discovered-typo")
+
+
 def csv_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -2457,6 +2524,12 @@ MODE_DETAILS = {
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
+    "discovery": {
+        "summary": "Discovers potential typos by comparing rare words to frequent words.",
+        "description": "Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
+        "example": "python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1",
+        "flags": "[--rare-max N] [--freq-min N] [--max-dist N]",
+    },
 }
 
 
@@ -2465,7 +2538,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
         "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
-        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats"],
+        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "discovery"],
     }
 
     lines = []
@@ -2974,6 +3047,45 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(stats_parser, include_process_output=False)
 
+    discovery_parser = subparsers.add_parser(
+        'discovery',
+        help=MODE_DETAILS['discovery']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['discovery']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['discovery']['example']}{RESET}",
+    )
+    discovery_options = discovery_parser.add_argument_group(f"{BLUE}DISCOVERY OPTIONS{RESET}")
+    discovery_options.add_argument(
+        '--rare-max',
+        type=int,
+        default=1,
+        help="Maximum frequency for a word to be considered a potential typo (default: 1).",
+    )
+    discovery_options.add_argument(
+        '--freq-min',
+        type=int,
+        default=5,
+        help="Minimum frequency for a word to be considered a potential correction (default: 5).",
+    )
+    discovery_options.add_argument(
+        '--min-dist',
+        type=int,
+        default=1,
+        help="Minimum number of changes between typo and correction (default: 1).",
+    )
+    discovery_options.add_argument(
+        '--max-dist',
+        type=int,
+        default=1,
+        help="Maximum number of changes between typo and correction (default: 1).",
+    )
+    discovery_options.add_argument(
+        '--show-dist',
+        action='store_true',
+        help="Include the number of character changes in the output.",
+    )
+    _add_common_mode_arguments(discovery_parser)
+
     set_parser = subparsers.add_parser(
         'set_operation',
         help=MODE_DETAILS['set_operation']['summary'],
@@ -3459,6 +3571,18 @@ def main() -> None:
             {
                 **common_kwargs,
                 'include_pairs': getattr(args, 'pairs', False),
+                'output_format': output_format,
+            },
+        ),
+        'discovery': (
+            discovery_mode,
+            {
+                **common_kwargs,
+                'rare_max': getattr(args, 'rare_max', 1),
+                'freq_min': getattr(args, 'freq_min', 5),
+                'min_dist': getattr(args, 'min_dist', 1),
+                'max_dist': getattr(args, 'max_dist', 1),
+                'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
             },
         ),

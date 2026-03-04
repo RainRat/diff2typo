@@ -154,6 +154,16 @@ These modes help you analyze your data.
   - **Supported Formats:** `json`, `yaml`, `markdown`, `md-table`, and `line` (human-readable).
   - **Example:** `python multitool.py stats typos.csv --pairs`
 
+- **`discovery`**
+  - **What it does:** Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors in a dataset without needing a pre-existing dictionary.
+  - **Options:**
+    - `--rare-max`: Maximum frequency for a word to be considered a potential typo (default: 1).
+    - `--freq-min`: Minimum frequency for a word to be considered a potential correction (default: 5).
+    - `--min-dist` and `--max-dist`: Control the number of allowed character changes between the typo and the correction.
+    - `--show-dist`: Include the number of character changes in the output.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Example:** `python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1`
+
 ## Common Options
 
 These options work with most modes:

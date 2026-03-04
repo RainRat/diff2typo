@@ -41,22 +41,37 @@ from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 # ANSI Color Codes
 BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
+RED = "\033[1;31m"
 YELLOW = "\033[1;33m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
-# Disable colors if not running in a terminal
-if not sys.stdout.isatty():
-    BLUE = GREEN = YELLOW = RESET = BOLD = ""
+# Disable colors if not running in a terminal or if NO_COLOR is set
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
+    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
 
 
 class MinimalFormatter(logging.Formatter):
     """A logging formatter that removes prefixes for INFO level messages."""
 
+    LEVEL_COLORS = {
+        logging.WARNING: YELLOW,
+        logging.ERROR: RED,
+        logging.CRITICAL: RED,
+    }
+
     def format(self, record: logging.LogRecord) -> str:
         if record.levelno == logging.INFO:
             return record.getMessage()
-        return f"{record.levelname}: {record.getMessage()}"
+
+        levelname = record.levelname
+        # Colorize the level name if stderr is a terminal and color is available
+        if sys.stderr.isatty() and levelname:
+            color = self.LEVEL_COLORS.get(record.levelno)
+            if color:
+                levelname = f"{color}{levelname}{RESET}"
+
+        return f"{levelname}: {record.getMessage()}"
 
 
 DEFAULT_CONFIG: dict[str, Any] = {

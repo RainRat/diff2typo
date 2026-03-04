@@ -33,22 +33,32 @@ YELLOW = "\033[1;33m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
-# Disable colors if not running in a terminal
-if not sys.stdout.isatty():
+# Disable colors if not running in a terminal or if NO_COLOR is set
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
     BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
 
 
 class MinimalFormatter(logging.Formatter):
     """A logging formatter that removes prefixes for INFO level messages."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._info_formatter = logging.Formatter('%(message)s')
+    LEVEL_COLORS = {
+        logging.WARNING: YELLOW,
+        logging.ERROR: RED,
+        logging.CRITICAL: RED,
+    }
 
     def format(self, record: logging.LogRecord) -> str:
         if record.levelno == logging.INFO:
-            return self._info_formatter.format(record)
-        return super().format(record)
+            return record.getMessage()
+
+        levelname = record.levelname
+        # Colorize the level name if stderr is a terminal and color is available
+        if sys.stderr.isatty() and levelname:
+            color = self.LEVEL_COLORS.get(record.levelno)
+            if color:
+                levelname = f"{color}{levelname}{RESET}"
+
+        return f"{levelname}: {record.getMessage()}"
 
 
 def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:

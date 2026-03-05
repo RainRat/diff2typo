@@ -500,7 +500,7 @@ def main():
 
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Process a git diff to identify typos for the `typos` utility.{RESET}",
+        description=f"{BOLD}Process a git diff to identify typos for the `typos` tool.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python diff2typo.py diff.txt --output typos.txt --mode typos{RESET}
@@ -514,7 +514,7 @@ def main():
         'input_files',
         nargs='*',
         metavar='FILE',
-        help="One or more input git diff files or glob patterns. Use '-' to read from stdin.",
+        help="One or more input git diff files or patterns. Use '-' to read from standard input.",
     )
     io_group.add_argument(
         '--input',
@@ -534,7 +534,7 @@ def main():
         dest='output_file',
         type=str,
         default='-',
-        help="Path to the output typos file. Use '-' for stdout (default: stdout).",
+        help="Path to the output file. Use '-' to print to the screen (default: the screen).",
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--output_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
@@ -571,7 +571,7 @@ def main():
         dest='min_length',
         type=int,
         default=2,
-        help='Minimum length of differing substrings to consider as typos (default: 2).',
+        help='Ignore words shorter than this (default: 2).',
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--min_length', type=int, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
@@ -582,7 +582,7 @@ def main():
         dest='dictionary_file',
         type=str,
         default='words.csv',
-        help='Path to the dictionary file for filtering valid words (default: words.csv).',
+        help='The file containing valid words (default: words.csv).',
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--dictionary_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
@@ -592,7 +592,7 @@ def main():
         dest='allowed_file',
         type=str,
         default='allowed.csv',
-        help='CSV file with allowed words to exclude from typos (default: allowed.csv).',
+        help='The file with allowed words to ignore (default: allowed.csv).',
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--allowed_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
@@ -602,7 +602,7 @@ def main():
         dest='typos_tool_path',
         type=str,
         default='typos',
-        help='Path to the typos tool executable (default: typos).',
+        help='The command or path to the typos tool (default: typos).',
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--typos_tool_path', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)

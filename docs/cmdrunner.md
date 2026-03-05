@@ -43,6 +43,19 @@ excluded_folders:
 - `--dry-run`: Shows which folders would be processed and which command would run without actually doing it. Use this to test your setup safely.
 - `--quiet`: Hides status messages and progress bars.
 
+## Dynamic Commands
+
+You can use `{}` as a placeholder in your `command_to_run`. The tool will replace this with the name of the folder currently being processed.
+
+This is useful for creating unique output files for each project:
+
+```yaml
+base_directory: "/home/user/projects"
+command_to_run: "git diff > ../{}-changes.diff"
+```
+
+In this example, if the tool processes a folder named `my-web-app`, it will run the command `git diff > ../my-web-app-changes.diff`.
+
 ## How it Works
 
 1. **Find Folders:** The tool looks inside your `base_directory` and finds every sub-folder.

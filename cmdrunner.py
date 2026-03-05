@@ -102,19 +102,20 @@ def run_command_in_folders(
         logging.error(f"The base directory '{base_dir}' does not exist or is not a directory.")
         sys.exit(1)
 
-    directories = [
+    directories = sorted([
         item for item in os.listdir(base_dir)
         if os.path.isdir(os.path.join(base_dir, item)) and item not in excluded_folders
-    ]
+    ])
 
     iterator = tqdm(directories, desc="Processing directories", unit="dir", disable=dry_run or quiet)
 
     # Iterate through each item in the base directory
     for item in iterator:
         item_path = os.path.join(base_dir, item)
+        current_command = command.replace("{}", item)
 
         if dry_run:
-            logging.warning(f"Dry run: would run command '{command}' in '{item_path}'")
+            logging.warning(f"Dry run: would run command '{current_command}' in '{item_path}'")
             continue
 
         logging.info(f"Running command in: {item_path}")
@@ -122,7 +123,7 @@ def run_command_in_folders(
         # Run the command in the directory
         try:
             result = subprocess.run(
-                command,
+                current_command,
                 cwd=item_path,
                 shell=True,
                 check=True,
@@ -141,7 +142,11 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=f"{BOLD}Run a specified command in each subdirectory of a base directory, excluding certain folders.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
-        epilog=f"""{BLUE}Examples:{RESET}
+        epilog=f"""{BLUE}Dynamic Commands:{RESET}
+  You can use {BOLD}{{}}{RESET} as a placeholder in your command. It will be replaced
+  with the name of the folder currently being processed.
+
+{BLUE}Examples:{RESET}
   {GREEN}python cmdrunner.py config.yaml{RESET}
   {GREEN}python cmdrunner.py my_setup.yaml --dry-run{RESET}
 """,

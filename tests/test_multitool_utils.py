@@ -157,12 +157,12 @@ def test_read_file_lines_robust_stdin(monkeypatch, caplog):
     with caplog.at_level(logging.INFO):
         lines = multitool._read_file_lines_robust("-")
         assert lines == ["stdin\n", "lines\n"]
-        assert "Reading from stdin..." in caplog.text
+        assert "Reading from standard input..." in caplog.text
 
         # Test cache
         lines2 = multitool._read_file_lines_robust("-")
         assert lines2 == ["stdin\n", "lines\n"]
-        assert "Using cached stdin..." in caplog.text
+        assert "Using cached standard input..." in caplog.text
 
 def test_read_file_lines_robust_stdin_latin1(monkeypatch, caplog):
     # Mock sys.stdin.buffer to return non-utf8 bytes

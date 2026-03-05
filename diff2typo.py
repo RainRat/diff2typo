@@ -315,9 +315,9 @@ def _read_stdin_text() -> str:
     stream = getattr(sys.stdin, "buffer", sys.stdin)
     data = stream.read()
     if isinstance(data, str):
-        logging.info("Successfully read input diff from stdin.")
+        logging.info("Successfully read input diff from standard input.")
         return data
-    return _decode_with_fallback(data, "input diff from stdin")
+    return _decode_with_fallback(data, "input diff from standard input")
 
 
 def _read_diff_file(file_path: str) -> str:

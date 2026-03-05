@@ -414,6 +414,11 @@ def generate_report(
         padding = "  "
         header_row = f"{padding}{c_out_bold}{'CORRECT':>{max_c}}{c_out_reset}    {c_out_bold}{'TYPO':<{max_t}}{c_out_reset}   {c_out_bold}{'COUNT':>{max_n}}{c_out_reset}    {c_out_bold}{'%':>{max_p}}{c_out_reset}"
         visible_header_len = max_c + 4 + max_t + 3 + max_n + 4 + max_p
+
+        if keyboard:
+            header_row += f"    {c_out_bold}{'ADJ':<3}{c_out_reset}"
+            visible_header_len += 7
+
         divider = f"{padding}{'─' * visible_header_len}"
 
         if not output_file:
@@ -444,14 +449,18 @@ def generate_report(
 
         for (correct_char, typo_char), count in sorted_replacements:
             marker = ""
-            if keyboard and len(correct_char) == 1 and len(typo_char) == 1:
-                if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                    marker = f" {c_out_bold}[K]{c_out_reset}"
+            if keyboard:
+                if len(correct_char) == 1 and len(typo_char) == 1 and \
+                   typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+                    marker = f"   {c_out_bold}[K]{c_out_reset}"
+                else:
+                    marker = "      "
 
             percent = (count / total_typos * 100) if total_typos > 0 else 0
-            report_lines.append(
-                f"{padding}{c_out_green}{correct_char:>{max_c}}{c_out_reset} -> {c_out_red}{typo_char:<{max_t}}{c_out_reset} : {c_out_bold}{count:>{max_n}}{c_out_reset}    {percent:>5.1f}%{marker}"
-            )
+            row = f"{padding}{c_out_green}{correct_char:>{max_c}}{c_out_reset} -> {c_out_red}{typo_char:<{max_t}}{c_out_reset}   {c_out_bold}{count:>{max_n}}{c_out_reset}    {percent:>5.1f}%"
+            if keyboard:
+                row += marker
+            report_lines.append(row)
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
         adjacent_map = {}

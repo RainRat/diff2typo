@@ -185,7 +185,16 @@ def is_one_letter_replacement(
             # the prefix correction[:i] must match typo[:i], and
             # the suffix correction[i+1:] must match typo[i+2:].
             if typo[:i] == correction[:i] and typo[i+2:] == correction[i+1:]:
-                replacements.add((correction[i], typo[i:i+2]))
+                repl_correction = correction[i]
+                repl_typo = typo[i:i+2]
+
+                # Filter out insertions unless requested
+                if not include_deletions:
+                    # It's an insertion if the correction character is one of the two typo characters
+                    if repl_correction in repl_typo:
+                        continue
+
+                replacements.add((repl_correction, repl_typo))
         return sorted(replacements)
 
     # Two-to-one replacement scenario (e.g. 'ph' -> 'f')
@@ -635,7 +644,7 @@ def main() -> None:
     analysis_group.add_argument(
         '--include-deletions',
         action='store_true',
-        help="Include 2-to-1 replacements that are actually deletions (e.g., 'or' to 'o').",
+        help="Include 2-to-1 deletions (e.g., 'or' to 'o') and 1-to-2 insertions (e.g., 'a' to 'aa').",
     )
 
     analysis_group.add_argument(

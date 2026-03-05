@@ -17,16 +17,24 @@ def test_is_one_letter_replacement_basic():
 
 
 def test_is_one_letter_replacement_one_to_two():
-    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=True) == [('a', 'aa')]
+    # By default, insertions (a -> aa) are filtered out
+    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=True) == []
+    # If include_deletions is True, they are included
+    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=True, include_deletions=True) == [('a', 'aa')]
+    # 'rn' for 'm' is a replacement, not an insertion, so it should be included by default
+    assert typostats.is_one_letter_replacement('rn', 'm', allow_two_char=True) == [('m', 'rn')]
     assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=False) == []
 
 
 def test_is_one_letter_replacement_multiple_two_char():
     # Example: cabt -> cat
     # Two possible interpretations:
-    # 1. 'a' in 'cat' is replaced by 'ab' in 'cabt'
-    # 2. 't' in 'cat' is replaced by 'bt' in 'cabt'
-    assert typostats.is_one_letter_replacement('cabt', 'cat', allow_two_char=True) == [
+    # 1. 'a' in 'cat' is replaced by 'ab' in 'cabt' (insertion, 'a' in 'ab')
+    # 2. 't' in 'cat' is replaced by 'bt' in 'cabt' (insertion, 't' in 'bt')
+    # By default, all are filtered out
+    assert typostats.is_one_letter_replacement('cabt', 'cat', allow_two_char=True) == []
+    # If include_deletions is True, both are included
+    assert typostats.is_one_letter_replacement('cabt', 'cat', allow_two_char=True, include_deletions=True) == [
         ('a', 'ab'),
         ('t', 'bt'),
     ]
@@ -35,14 +43,13 @@ def test_is_one_letter_replacement_multiple_two_char():
 def test_is_one_letter_replacement_doubled_letter():
     # For a doubled letter, we capture all valid one-to-two interpretations.
     # While 'a' -> 'aa' is the most likely, 'c' -> 'ca' and 't' -> 'at' are also technically valid.
-    assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True) == [
+    # By default, all of these are filtered out as insertions.
+    assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True) == []
+    # With include_deletions=True, they all return
+    assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True, include_deletions=True) == [
         ('a', 'aa'),
         ('c', 'ca'),
         ('t', 'at'),
-    ]
-    assert typostats.is_one_letter_replacement('catt', 'cat', allow_two_char=True) == [
-        ('a', 'at'),
-        ('t', 'tt'),
     ]
 
 
@@ -63,8 +70,9 @@ def test_process_typos_counts_and_filtering():
         'aa, a',
         'fóo, foo',  # non-ASCII; should be skipped
     ]
+    # By default, 'aa, a' (insertion) is filtered out
     counts, _, _ = typostats.process_typos(lines, allow_two_char=True)
-    assert counts == {('s', 'z'): 1, ('e', 'a'): 1, ('a', 'aa'): 1}
+    assert counts == {('s', 'z'): 1, ('e', 'a'): 1}
 
 
 def test_process_typos_table_format():

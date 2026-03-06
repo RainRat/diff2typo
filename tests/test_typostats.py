@@ -104,8 +104,8 @@ def test_generate_report_arrow(capsys):
     captured = capsys.readouterr().out
     # 's' should be padded with 6 spaces (max_c=7)
     # New format: padding(2) + 's' in 7 chars (6 spaces + s) = 8 spaces
-    # Followed by ' -> z' and spaces, then count '3' and percentage
-    assert '        s -> z          3     75.0%' in captured
+    # Followed by │ z and │ count '3' and │ percentage
+    assert '        s │ z    │     3 │  75.0% │ ███████' in captured
     assert 'e' not in captured
 
 
@@ -113,8 +113,8 @@ def test_generate_report_limit(capsys):
     counts = {('a', 'b'): 10, ('c', 'd'): 5, ('e', 'f'): 2}
     typostats.generate_report(counts, limit=2, output_format='arrow', quiet=True)
     captured = capsys.readouterr().out
-    assert '        a -> b         10     58.8%' in captured
-    assert '        c -> d          5     29.4%' in captured
+    assert '        a │ b    │    10 │  58.8% │ █████' in captured
+    assert '        c │ d    │     5 │  29.4% │ ██' in captured
     assert 'e' not in captured
 
 
@@ -125,9 +125,9 @@ def test_generate_report_limit_with_typo_sort(capsys):
     # Sorted by typo: ('b', 'x'), ('c', 'y'), ('a', 'z')
     typostats.generate_report(counts, limit=2, sort_by='typo', output_format='arrow', quiet=True)
     captured = capsys.readouterr().out
-    assert '        b -> x          5     29.4%' in captured
-    assert '        c -> y          2     11.8%' in captured
-    assert 'a -> z' not in captured
+    assert '        b │ x    │     5 │  29.4% │ ██' in captured
+    assert '        c │ y    │     2 │  11.8% │ █' in captured
+    assert 'a │ z' not in captured
 
 
 def test_generate_report_json(capsys):
@@ -163,9 +163,9 @@ def test_generate_report_sort_by_typo(capsys):
     captured = capsys.readouterr()
     lines = [line for line in captured.out.splitlines() if line]
     # Header is now on stderr, so lines contains only data
-    assert '        a -> x          3     50.0%' in lines[0]
-    assert '        a -> y          2     33.3%' in lines[1]
-    assert '        b -> z          1     16.7%' in lines[2]
+    assert '        a │ x    │     3 │  50.0% │ █████' in lines[0]
+    assert '        a │ y    │     2 │  33.3% │ ███' in lines[1]
+    assert '        b │ z    │     1 │  16.7% │ █' in lines[2]
     assert "LETTER REPLACEMENTS" in captured.err
 
 
@@ -175,9 +175,9 @@ def test_generate_report_sort_by_correct(capsys):
     captured = capsys.readouterr()
     lines = [line for line in captured.out.splitlines() if line]
     # Header is now on stderr, so lines contains only data
-    assert '        a -> y          2     33.3%' in lines[0]
-    assert '        b -> z          1     16.7%' in lines[1]
-    assert '        c -> x          3     50.0%' in lines[2]
+    assert '        a │ y    │     2 │  33.3% │ ███' in lines[0]
+    assert '        b │ z    │     1 │  16.7% │ █' in lines[1]
+    assert '        c │ x    │     3 │  50.0% │ █████' in lines[2]
     assert "LETTER REPLACEMENTS" in captured.err
 
 

@@ -619,7 +619,7 @@ def main():
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
-    logging.basicConfig(level=log_level, handlers=[handler])
+    logging.basicConfig(level=log_level, handlers=[handler], force=True)
 
     logging.info("Starting typo extraction process...")
 

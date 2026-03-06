@@ -45,11 +45,11 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py md-table readme.md --column 2`
 
 - **`json`**
-  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). If you do not provide a key, it extracts all items from the root of the file. It automatically handles lists and objects.
+  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). If you do not provide a key, it extracts keys from the root object (or all items if the root is a list). It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`
 
 - **`yaml`**
-  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (e.g., `config.items`). If you do not provide a key, it extracts items directly from the root.
+  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (e.g., `config.items`). If you do not provide a key, it extracts keys from the root object (or all items if the root is a list).
   - **Example:** `python multitool.py yaml config.yaml --key config.items`
 
 - **`line`**

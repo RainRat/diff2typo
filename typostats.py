@@ -680,7 +680,7 @@ def main() -> None:
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
-    logging.basicConfig(level=log_level, handlers=[handler])
+    logging.basicConfig(level=log_level, handlers=[handler], force=True)
 
     input_files = args.input_files
     output_file = args.output

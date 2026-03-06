@@ -60,8 +60,11 @@ def load_config(config_path: str) -> Dict[str, Any]:
         logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use cmdrunner.")
         sys.exit(1)
 
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
+    try:
+        with open(config_path, 'r', encoding='utf-8') as file:
+            config = yaml.safe_load(file)
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"Error parsing YAML file '{config_path}': {exc}")
 
     if not isinstance(config, dict):
         raise ConfigError(f"Configuration file '{config_path}' is empty or malformed.")
@@ -185,16 +188,13 @@ def main() -> None:
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
-    logging.basicConfig(level=log_level, handlers=[handler])
+    logging.basicConfig(level=log_level, handlers=[handler], force=True)
 
     # Load configuration
     try:
         config = load_config(config_file)
     except FileNotFoundError:
         logging.error(f"Configuration file '{config_file}' not found.")
-        sys.exit(1)
-    except yaml.YAMLError as exc:
-        logging.error(f"Error parsing YAML file '{config_file}': {exc}")
         sys.exit(1)
     except ConfigError as exc:
         logging.error(str(exc))

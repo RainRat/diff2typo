@@ -608,7 +608,11 @@ def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
 
     # If we are at the end of the path, yield the string representation of the data
     if not path_parts:
-        yield str(data)
+        if isinstance(data, dict):
+            # For a dictionary root, yield the keys (common for typo mappings)
+            yield from (str(k) for k in data.keys())
+        else:
+            yield str(data)
         return
 
     current_key = path_parts[0]
@@ -2225,6 +2229,12 @@ def _add_common_mode_arguments(
             default=argparse.SUPPRESS,
             help="Sort the list and remove duplicates.",
         )
+        proc_group.add_argument(
+            '--process',
+            action='store_true',
+            dest='process_output',
+            help=argparse.SUPPRESS,
+        )
     else:
         subparser.set_defaults(process_output=False)
 
@@ -2712,6 +2722,12 @@ def _build_parser() -> argparse.ArgumentParser:
         '-P', '--process-output',
         action='store_true',
         help="Sort the output and remove duplicates.",
+    )
+    proc_group.add_argument(
+        '--process',
+        action='store_true',
+        dest='process_output',
+        help=argparse.SUPPRESS,
     )
     proc_group.add_argument(
         '-R', '--raw',
@@ -3271,7 +3287,7 @@ def main() -> None:
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter())
-    logging.basicConfig(level=log_level, handlers=[handler])
+    logging.basicConfig(level=log_level, handlers=[handler], force=True)
 
     if args.min_length < 1:
         logging.error("--min-length must be a number of 1 or more.")

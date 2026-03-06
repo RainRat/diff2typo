@@ -268,7 +268,7 @@ def print_processing_stats(
 def smart_open_output(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
     """
     Context manager that yields a file object for writing.
-    If filename is '-', yields sys.stdout.
+    If filename is '-', yields the main output (stdout).
     Otherwise, opens the file for writing.
     """
     if filename == '-':
@@ -289,7 +289,7 @@ def write_output(
 
     Args:
         items: Collection of strings to write.
-        output_file: Path to the output file or '-' for stdout.
+        output_file: Path to the output file or '-' for the main output.
         output_format: Format (line, json, csv, markdown, md-table, yaml).
         quiet: If True, suppress informational output.
         limit: If provided, limit the output to the first N items.
@@ -436,7 +436,7 @@ def _write_paired_output(
 
     Args:
         pairs: Collection of (left, right) tuples.
-        output_file: Path to the output file or '-' for stdout.
+        output_file: Path to the output file or '-' for the main output.
         output_format: Format (arrow, table, csv, markdown, md-table, json, yaml).
         mode_label: Label for the current mode (used for headers).
         quiet: If True, suppress informational output.

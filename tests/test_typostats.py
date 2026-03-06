@@ -84,6 +84,15 @@ def test_process_typos_table_format():
     assert counts == {('s', 'z'): 1, ('e', 'a'): 1}
 
 
+def test_process_typos_colon_format():
+    lines = [
+        'tezt: test',
+        'lavel: level',
+    ]
+    counts, _, _ = typostats.process_typos(lines, allow_two_char=False)
+    assert counts == {('s', 'z'): 1, ('e', 'a'): 1}
+
+
 def test_process_typos_with_transposition():
     lines = [
         'teh -> the',

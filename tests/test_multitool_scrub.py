@@ -70,3 +70,20 @@ def test_scrub_raw_mode(tmp_path):
 
     # Only 'Teh' should be replaced
     assert output_file.read_text() == "the teh\n"
+
+def test_scrub_camelcase(tmp_path):
+    mapping_file = tmp_path / "mapping.csv"
+    mapping_file.write_text("teh,the\n")
+
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("MyTehVar = TehValue\n")
+
+    output_file = tmp_path / "output.txt"
+
+    subprocess.run(
+        ["python3", "multitool.py", "scrub", str(input_file), "--mapping", str(mapping_file), "--output", str(output_file)],
+        check=True
+    )
+
+    # In clean mode, Teh matches teh and is replaced by the
+    assert output_file.read_text() == "MytheVar = theValue\n"

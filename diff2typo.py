@@ -125,7 +125,7 @@ def read_allowed_words(allowed_file: str) -> Set[str]:
 
 def split_into_subwords(word: str) -> List[str]:
     """
-    Splits a word into subwords based on spaces, underscores, and casing boundaries.
+    Splits a word into subwords based on spaces, underscores, hyphens, and casing boundaries.
 
     Args:
         word (str): The word to split.
@@ -133,8 +133,8 @@ def split_into_subwords(word: str) -> List[str]:
     Returns:
         list: A list of subwords.
     """
-    # First, split by underscores and spaces
-    parts = re.split(r'[ _]+', word)
+    # First, split by underscores, spaces, and hyphens
+    parts = re.split(r'[ _-]+', word)
     subwords = []
     for part in parts:
         # Split based on casing (camelCase, PascalCase)

@@ -2208,23 +2208,16 @@ def scrub_mode(
                         new_parts.append(replacement)
                         total_replacements += 1
                     else:
-                        # Try subword replacement if the whole word didn't match
-                        # This handles cases like "my_typo_word" -> "my_fix_word"
-                        # We use a more granular split for this.
-                        sub_parts = re.split(r'([^a-zA-Z0-9]+)', part)
+                        # Try subword replacement if the whole word didn't match.
+                        # We use the same regex as _smart_split but without discarding non-words,
+                        # to preserve the original structure.
+                        # This regex finds lowercase words, uppercase words, and numbers.
+                        sub_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+|[^a-zA-Z0-9]+', part)
                         new_sub_parts = []
                         for sp in sub_parts:
-                            if not sp: continue
+                            if not sp:
+                                continue
                             if re.match(r'[a-zA-Z0-9]+', sp):
-                                # Check for CamelCase boundaries
-                                camel_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', sp)
-                                if len(camel_parts) > 1:
-                                    # Reconstruct based on boundaries
-                                    # This is complex to do perfectly with regex split/join.
-                                    # For now, let's just stick to the whole token replacement
-                                    # or simple delimiter-based replacement.
-                                    pass
-
                                 sm_key = filter_to_letters(sp) if clean_items else sp
                                 if sm_key in mapping:
                                     new_sub_parts.append(mapping[sm_key])

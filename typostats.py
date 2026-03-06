@@ -284,6 +284,10 @@ def process_typos(
             typo = parts[0].strip()
             correction = parts[1].strip().strip('"')
             corrections = [correction]
+        elif ": " in line:
+            parts = line.split(": ", 1)
+            typo = parts[0].strip()
+            corrections = [parts[1].strip()]
         else:
             parts = line.split(',')
             typo = parts[0].strip()

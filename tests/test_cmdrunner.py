@@ -33,7 +33,7 @@ def test_load_config_malformed_yaml(tmp_path):
     bad_file = tmp_path / 'bad.yaml'
     bad_file.write_text(": invalid: yaml: content")
 
-    with pytest.raises(yaml.YAMLError):
+    with pytest.raises(cmdrunner.ConfigError, match="Error parsing YAML file"):
         cmdrunner.load_config(str(bad_file))
 
 

@@ -3287,7 +3287,7 @@ def main() -> None:
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter())
-    logging.basicConfig(level=log_level, handlers=[handler], force=True)
+    logging.basicConfig(level=log_level, handlers=[handler])
 
     if args.min_length < 1:
         logging.error("--min-length must be a number of 1 or more.")

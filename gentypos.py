@@ -465,7 +465,7 @@ def load_file(file_path: Optional[str]) -> set[str]:
     try:
         words = set()
         if file_path == '-':
-            logging.info("Reading from stdin...")
+            logging.info("Reading from standard input...")
             source = sys.stdin
         else:
             source = open(file_path, 'r', encoding='utf-8')

@@ -2,7 +2,7 @@
 diff2typo.py
 
 Purpose:
-    Process a git diff to extract typo corrections and prepare a data update for the `typos` utility,
+    Process a git diff to extract typo corrections and prepare a data update for the `typos` tool,
     a spell-checking tool that uses a list of known typos. This ensures that the identified typos
     are not missed in future code changes.
 
@@ -310,7 +310,7 @@ def _decode_with_fallback(data: bytes, description: str) -> str:
 
 
 def _read_stdin_text() -> str:
-    """Return stdin contents, supporting both binary and text streams."""
+    """Return standard input contents, supporting both binary and text streams."""
 
     stream = getattr(sys.stdin, "buffer", sys.stdin)
     data = stream.read()
@@ -333,7 +333,7 @@ def _read_diff_file(file_path: str) -> str:
 
 
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
-    """Return concatenated diff text from stdin or the provided file patterns."""
+    """Return concatenated diff text from standard input or the provided file patterns."""
 
     if not input_files:
         return _read_stdin_text()

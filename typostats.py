@@ -373,15 +373,15 @@ def generate_report(
         sorted_replacements = sorted_replacements[:limit]
 
     # Color support detection
-    # stdout colors (used for the report data)
-    # These are suppressed if writing to a file or if stdout is not a TTY (piping)
+    # main output colors (used for the report data)
+    # These are suppressed if writing to a file or if the main output is not a terminal (piping)
     use_color_stdout = not output_file and sys.stdout.isatty()
     c_out_green = GREEN if use_color_stdout else ""
     c_out_red = RED if use_color_stdout else ""
     c_out_bold = BOLD if use_color_stdout else ""
     c_out_reset = RESET if use_color_stdout else ""
 
-    # stderr colors (used for human-readable headers)
+    # standard error colors (used for human-readable headers)
     use_color_stderr = not quiet and sys.stderr.isatty()
     c_err_bold = BOLD if use_color_stderr else ""
     c_err_reset = RESET if use_color_stderr else ""
@@ -431,7 +431,7 @@ def generate_report(
         divider = f"{padding}{'─' * visible_header_len}"
 
         if not output_file:
-            # Move the human-readable header to stderr to keep stdout clean for piping
+            # Move the human-readable header to standard error to keep the main output clean for piping
             if not quiet:
                 sys.stderr.write(f"\n{c_err_bold}{title}{c_err_reset}\n")
                 sys.stderr.write(f"{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")

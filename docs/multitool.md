@@ -106,6 +106,11 @@ These modes help you transform or combine your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
 
+- **`scrub`**
+  - **What it does:** Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors.
+  - **Supported Formats:** Supports CSV, Arrow, Table, JSON, and YAML mapping formats.
+  - **Example:** `python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt`
+
 - **`pairs`**
   - **What it does:** Processes paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (e.g., from JSON to CSV) while applying cleaning and length filters.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.

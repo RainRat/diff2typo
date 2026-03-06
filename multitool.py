@@ -2152,8 +2152,111 @@ def map_mode(
     )
 
 
+def scrub_mode(
+    input_files: Sequence[str],
+    mapping_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Performs in-place replacements of typos in text files based on a mapping file.
+    """
+    # Load mapping
+    raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
+
+    # Clean the mapping keys for matching if clean_items is True
+    if clean_items:
+        mapping = {filter_to_letters(k): v for k, v in raw_mapping.items() if filter_to_letters(k)}
+    else:
+        mapping = raw_mapping
+
+    all_modified_lines = []
+    total_replacements = 0
+
+    # Pattern for splitting lines into words and non-words (delimiters)
+    # This ensures we preserve whitespace and punctuation exactly.
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    for input_file in input_files:
+        lines = _read_file_lines_robust(input_file)
+        for line in tqdm(lines, desc=f"Scrubbing {input_file}", unit=" lines", disable=quiet):
+            # Split into words and non-words
+            parts = pattern.split(line)
+            new_parts = []
+            for part in parts:
+                if not part:
+                    continue
+
+                if pattern.match(part):
+                    # It's a word candidate.
+                    # We use _smart_split logic to handle CamelCase/snake_case tokens.
+                    subwords = _smart_split(part)
+                    # We need to reconstruct the original word from subwords if they were replaced.
+                    # This is tricky because _smart_split doesn't return the delimiters between subwords (like case changes).
+                    # Instead of sub-splitting, let's try matching the whole word first.
+
+                    # If the whole word matches a typo (after optional cleaning)
+                    match_key = filter_to_letters(part) if clean_items else part
+
+                    if match_key in mapping:
+                        replacement = mapping[match_key]
+                        new_parts.append(replacement)
+                        total_replacements += 1
+                    else:
+                        # Try subword replacement if the whole word didn't match
+                        # This handles cases like "my_typo_word" -> "my_fix_word"
+                        # We use a more granular split for this.
+                        sub_parts = re.split(r'([^a-zA-Z0-9]+)', part)
+                        new_sub_parts = []
+                        for sp in sub_parts:
+                            if not sp: continue
+                            if re.match(r'[a-zA-Z0-9]+', sp):
+                                # Check for CamelCase boundaries
+                                camel_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', sp)
+                                if len(camel_parts) > 1:
+                                    # Reconstruct based on boundaries
+                                    # This is complex to do perfectly with regex split/join.
+                                    # For now, let's just stick to the whole token replacement
+                                    # or simple delimiter-based replacement.
+                                    pass
+
+                                sm_key = filter_to_letters(sp) if clean_items else sp
+                                if sm_key in mapping:
+                                    new_sub_parts.append(mapping[sm_key])
+                                    total_replacements += 1
+                                else:
+                                    new_sub_parts.append(sp)
+                            else:
+                                new_sub_parts.append(sp)
+                        new_parts.append("".join(new_sub_parts))
+                else:
+                    # It's a delimiter (punctuation, whitespace)
+                    new_parts.append(part)
+
+            all_modified_lines.append("".join(new_parts))
+
+    if limit is not None:
+        all_modified_lines = all_modified_lines[:limit]
+
+    with smart_open_output(output_file) as out:
+        for line in all_modified_lines:
+            out.write(line)
+            if not line.endswith('\n'):
+                out.write('\n')
+
+    logging.info(
+        f"[Scrub Mode] Completed scrubbing {len(input_files)} file(s) using '{mapping_file}'. "
+        f"Made {total_replacements} replacements. Output written to '{output_file}'."
+    )
+
+
 def _add_common_mode_arguments(
-    subparser: argparse.ArgumentParser, include_process_output: bool = True
+    subparser: argparse.ArgumentParser, include_process_output: bool = True, include_limit: bool = True
 ) -> None:
     """Attach shared CLI arguments to a mode-specific subparser."""
 
@@ -2216,12 +2319,13 @@ def _add_common_mode_arguments(
         default=argparse.SUPPRESS,
         help="Keep the original text. Do not change it to lowercase or remove punctuation.",
     )
-    proc_group.add_argument(
-        '-L', '--limit',
-        type=int,
-        default=argparse.SUPPRESS,
-        help="Limit the number of items in the output.",
-    )
+    if include_limit:
+        proc_group.add_argument(
+            '-L', '--limit',
+            type=int,
+            default=argparse.SUPPRESS,
+            help="Limit the number of items in the output.",
+        )
     if include_process_output:
         proc_group.add_argument(
             '-P', '--process-output',
@@ -2540,6 +2644,12 @@ MODE_DETAILS = {
         "example": "python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1",
         "flags": "[--rare-max N] [--freq-min N] [--max-dist N]",
     },
+    "scrub": {
+        "summary": "Replaces typos in text files based on a mapping.",
+        "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
+        "example": "python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt",
+        "flags": "[MAPPING]",
+    },
 }
 
 
@@ -2547,7 +2657,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
-        "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs"],
+        "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
         "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "discovery"],
     }
 
@@ -3205,6 +3315,22 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(map_parser)
 
+    scrub_parser = subparsers.add_parser(
+        'scrub',
+        help=MODE_DETAILS['scrub']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['scrub']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['scrub']['example']}{RESET}",
+    )
+    scrub_options = scrub_parser.add_argument_group(f"{BLUE}SCRUB OPTIONS{RESET}")
+    scrub_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file.',
+    )
+    _add_common_mode_arguments(scrub_parser, include_process_output=False, include_limit=False)
+
     zip_parser = subparsers.add_parser(
         'zip',
         help=MODE_DETAILS['zip']['summary'],
@@ -3327,7 +3453,7 @@ def main() -> None:
         if getattr(args, 'file2', None) is None and len(input_paths) >= 2:
             args.file2 = input_paths.pop()
             args.input = input_paths
-    elif args.mode == 'map':
+    elif args.mode in {'map', 'scrub'}:
         if getattr(args, 'mapping', None) is None and len(input_paths) >= 2:
             args.mapping = input_paths.pop()
             args.input = input_paths
@@ -3337,8 +3463,8 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode == 'map' and getattr(args, 'mapping', None) is None:
-        logging.error("Map mode requires a mapping file (provide MAPPING positionally or use --mapping).")
+    if args.mode in {'map', 'scrub'} and getattr(args, 'mapping', None) is None:
+        logging.error(f"{args.mode.capitalize()} mode requires a mapping file (provide MAPPING positionally or use --mapping).")
         sys.exit(1)
 
     operation = getattr(args, 'operation', None)
@@ -3523,6 +3649,20 @@ def main() -> None:
                 'mapping_file': getattr(args, 'mapping', ''),
                 'drop_missing': getattr(args, 'drop_missing', False),
                 'output_format': output_format,
+            }
+        ),
+        'scrub': (
+            scrub_mode,
+            {
+                'input_files': args.input,
+                'mapping_file': getattr(args, 'mapping', ''),
+                'output_file': args.output,
+                'min_length': args.min_length,
+                'max_length': args.max_length,
+                'process_output': False,
+                'quiet': args.quiet,
+                'clean_items': clean_items,
+                'limit': limit,
             }
         ),
         'zip': (

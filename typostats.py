@@ -439,8 +439,9 @@ def generate_report(
             visible_header_len += 6
 
         # Add Visual column header
-        header_row += f" │ {c_out_bold}VISUAL{c_out_reset}"
-        visible_header_len += 12 # " │ " + 10-char bar placeholder roughly
+        max_bar = 15
+        header_row += f" │ {c_out_bold}{'VISUAL':<{max_bar}}{c_out_reset}"
+        visible_header_len += 3 + max_bar
 
         divider = f"{padding}{'─' * visible_header_len}"
 
@@ -473,9 +474,17 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             percent = (count / total_typos * 100) if total_typos > 0 else 0
 
-            # Create a simple visual bar (max 10 chars)
-            bar_len = int(percent / 10)
-            bar = "█" * bar_len
+            # Create a high-resolution visual bar
+            total_blocks = (percent * max_bar) / 100
+            full_blocks = int(total_blocks)
+            fraction = total_blocks - full_blocks
+            blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+            frac_idx = int(fraction * 8)
+
+            bar = "█" * full_blocks
+            if full_blocks < max_bar:
+                bar += blocks[frac_idx]
+                bar += " " * (max_bar - full_blocks - 1)
 
             row = (
                 f"{padding}{c_out_green}{correct_char:>{max_c}}{c_out_reset} │ "

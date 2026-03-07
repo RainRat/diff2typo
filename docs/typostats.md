@@ -32,7 +32,10 @@ The tool automatically recognizes three common ways of listing typos:
 - `-m`, `--min`: Only show patterns that appear at least this many times (Default: 1).
 - `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by fix).
 - `-n`, `--limit`: Only show the top N results.
-- `-2`, `--allow-two-char`: Look for cases where one letter is replaced by two (like `m` becoming `rn`) or two by one (like `ph` becoming `f`).
+- `-2`, `--allow-two-char`: Look for cases where one letter is replaced by two (like `m` -> `rn`) or two by one (like `ph` -> `f`).
+- `--1to2`: Specifically look for single-to-double letter replacements.
+- `--2to1`: Specifically look for double-to-single letter replacements.
+- `--include-deletions`: Include cases where you skipped a letter or typed an extra one.
 - `-t`, `--transposition`: Find swapped letters (like `teh` instead of `the`).
 - `-k`, `--keyboard`: Identify typos caused by hitting keys next to each other on the keyboard.
 
@@ -55,27 +58,36 @@ When using the default **arrow** format, the report displays results in a table:
   Total replacements analyzed: 15
   Keyboard Adjacency: 12/15 (80.0%)
 
-  CORRECT    TYPO   COUNT         %
-  ─────────────────────────────────
-        o -> p    :     12     80.0% [K]
-        i -> u    :      3     20.0%
+  CORRECT │ TYPO │ COUNT │      % │ ADJ │ VISUAL
+  ─────────────────────────────────────────────────
+        o │ p    │    12 │  80.0% │ [K] │ ████████
+        i │ u    │     3 │  20.0% │     │ ██
 ```
 
-In this table, the left side is the **correct** character and the right side is the **mistake** you made. For example, `o -> p` means you hit the `p` key when you meant to hit `o`.
+In this table:
+- **CORRECT:** The character you intended to type.
+- **TYPO:** The mistake you actually made.
+- **COUNT:** How many times this specific mistake happened.
+- **%:** What percentage of all analyzed typos this mistake represents.
+
+For example, a row showing `o │ p` means you typed `p` when you meant to type `o`.
 
 ### Keyboard Analysis
-When you use the `--keyboard` flag, the report adds two extra pieces of information:
-- **[K] Marker:** This appears next to mistakes where the two keys are next to each other on a standard keyboard.
-- **Keyboard Adjacency Summary:** A percentage showing how many of your typos were likely caused by physical slips on the keyboard.
+When you use the `--keyboard` flag, the report adds extra information:
+- **ADJ Column:** This shows a **[K]** marker if the two keys are next to each other on a standard keyboard.
+- **Keyboard Adjacency Summary:** A percentage at the top showing how many of your typos were likely caused by physical slips on the keyboard.
+
+### Visual Bar
+The **VISUAL** column provides a small bar chart to help you quickly see which mistakes are the most frequent.
 
 ## Pro Tips
 
 ### Clean Output Strategy
 `typostats.py` separates its output to keep your data clean:
-- **Status Messages:** Titles, table headers, and progress bars are sent to a separate "hidden" channel.
-- **Data Rows:** The actual results are sent to the main output channel.
+- **Status Messages:** Titles, table headers, and progress bars are sent to **standard error**.
+- **Data Rows:** The actual results are sent to the **main output**.
 
-This design lets you send the report into other tools to process the data without having to remove the headers yourself.
+This design lets you pipe the report into other tools to process the data without having to remove the headers yourself.
 
 ### Visual Feedback
 The tool detects if you are viewing the report on your screen. If so, it uses colors to highlight correct characters in green and mistakes in red. It automatically turns off these colors when you save the report to a file or send it to another command.

@@ -160,3 +160,11 @@ def test_minimal_formatter_warning():
     # WARNING level should have prefix
     warn_record = logging.LogRecord('name', logging.WARNING, 'pathname', 10, 'warn msg', None, None)
     assert formatter.format(warn_record) == 'WARNING: warn msg'
+
+def test_generate_report_keyboard_with_limit(capsys):
+    # Two adjacent pairs
+    counts = {('q', 'w'): 5, ('a', 's'): 10}
+    # Limit to 1, but keyboard summary should still show both (5+10 = 15)
+    typostats.generate_report(counts, keyboard=True, limit=1, output_format='arrow', quiet=False)
+    captured = capsys.readouterr()
+    assert "Keyboard Adjacency: 15/15 (100.0%)" in captured.err

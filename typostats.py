@@ -400,7 +400,7 @@ def generate_report(
             adjacent_map = get_adjacent_keys(include_diagonals=True)
             total_single_char = 0
             adjacent_count = 0
-            for (c, t), count in sorted_replacements:
+            for (c, t), count in filtered.items():
                 if len(c) == 1 and len(t) == 1:
                     total_single_char += count
                     if t.lower() in adjacent_map.get(c.lower(), set()):

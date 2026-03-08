@@ -2162,9 +2162,12 @@ def scrub_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    in_place: str | None = None,
+    dry_run: bool = False,
 ) -> None:
     """
-    Performs in-place replacements of typos in text files based on a mapping file.
+    Performs replacements of typos in text files based on a mapping file.
+    Supports in-place modification and dry-run preview.
     """
     # Load mapping
     raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
@@ -2175,16 +2178,24 @@ def scrub_mode(
     else:
         mapping = raw_mapping
 
-    all_modified_lines = []
     total_replacements = 0
-
     # Pattern for splitting lines into words and non-words (delimiters)
     # This ensures we preserve whitespace and punctuation exactly.
     pattern = re.compile(r'([a-zA-Z0-9]+)')
 
+    # If in_place, we process each file individually.
+    # Otherwise, we accumulate and write to output_file.
+    accumulated_lines = []
+
     for input_file in input_files:
-        lines = _read_file_lines_robust(input_file)
-        for line in tqdm(lines, desc=f"Scrubbing {input_file}", unit=" lines", disable=quiet):
+        if input_file == '-' and in_place is not None:
+            logging.warning("In-place modification requested for standard input; ignoring.")
+
+        file_lines = _read_file_lines_robust(input_file)
+        modified_lines = []
+        file_replacements = 0
+
+        for line in tqdm(file_lines, desc=f"Scrubbing {input_file}", unit=" lines", disable=quiet):
             # Split into words and non-words
             parts = pattern.split(line)
             new_parts = []
@@ -2194,24 +2205,15 @@ def scrub_mode(
 
                 if pattern.match(part):
                     # It's a word candidate.
-                    # We use _smart_split logic to handle CamelCase/snake_case tokens.
-                    subwords = _smart_split(part)
-                    # We need to reconstruct the original word from subwords if they were replaced.
-                    # This is tricky because _smart_split doesn't return the delimiters between subwords (like case changes).
-                    # Instead of sub-splitting, let's try matching the whole word first.
-
                     # If the whole word matches a typo (after optional cleaning)
                     match_key = filter_to_letters(part) if clean_items else part
 
                     if match_key in mapping:
                         replacement = mapping[match_key]
                         new_parts.append(replacement)
-                        total_replacements += 1
+                        file_replacements += 1
                     else:
                         # Try subword replacement if the whole word didn't match.
-                        # We use the same regex as _smart_split but without discarding non-words,
-                        # to preserve the original structure.
-                        # This regex finds lowercase words, uppercase words, and numbers.
                         sub_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+|[^a-zA-Z0-9]+', part)
                         new_sub_parts = []
                         for sp in sub_parts:
@@ -2221,7 +2223,7 @@ def scrub_mode(
                                 sm_key = filter_to_letters(sp) if clean_items else sp
                                 if sm_key in mapping:
                                     new_sub_parts.append(mapping[sm_key])
-                                    total_replacements += 1
+                                    file_replacements += 1
                                 else:
                                     new_sub_parts.append(sp)
                             else:
@@ -2231,21 +2233,61 @@ def scrub_mode(
                     # It's a delimiter (punctuation, whitespace)
                     new_parts.append(part)
 
-            all_modified_lines.append("".join(new_parts))
+            modified_lines.append("".join(new_parts))
 
-    if limit is not None:
-        all_modified_lines = all_modified_lines[:limit]
+        total_replacements += file_replacements
 
-    with smart_open_output(output_file) as out:
-        for line in all_modified_lines:
-            out.write(line)
-            if not line.endswith('\n'):
-                out.write('\n')
+        if in_place is not None and input_file != '-':
+            if file_replacements > 0:
+                if dry_run:
+                    logging.warning(f"[Dry Run] Would make {file_replacements} replacement(s) in '{input_file}'.")
+                else:
+                    # Backup if extension is provided
+                    if in_place:
+                        backup_path = input_file + in_place
+                        try:
+                            import shutil
+                            shutil.copy2(input_file, backup_path)
+                            logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
+                        except Exception as e:
+                            logging.error(f"Failed to create backup of '{input_file}': {e}")
+                            sys.exit(1)
 
-    logging.info(
-        f"[Scrub Mode] Completed scrubbing {len(input_files)} file(s) using '{mapping_file}'. "
-        f"Made {total_replacements} replacements. Output written to '{output_file}'."
-    )
+                    # Write in-place
+                    try:
+                        with open(input_file, 'w', encoding='utf-8') as f:
+                            for line in modified_lines:
+                                f.write(line)
+                                if not line.endswith('\n'):
+                                    f.write('\n')
+                        logging.info(f"Updated '{input_file}' in-place ({file_replacements} replacement(s)).")
+                    except Exception as e:
+                        logging.error(f"Failed to write to '{input_file}': {e}")
+                        sys.exit(1)
+            else:
+                logging.info(f"No changes needed for '{input_file}'.")
+        else:
+            accumulated_lines.extend(modified_lines)
+
+    if in_place is None:
+        if limit is not None:
+            accumulated_lines = accumulated_lines[:limit]
+
+        if dry_run:
+            logging.warning(f"[Dry Run] Total replacements that would be made: {total_replacements}")
+        else:
+            with smart_open_output(output_file) as out:
+                for line in accumulated_lines:
+                    out.write(line)
+                    if not line.endswith('\n'):
+                        out.write('\n')
+
+            logging.info(
+                f"[Scrub Mode] Completed scrubbing {len(input_files)} file(s) using '{mapping_file}'. "
+                f"Made {total_replacements} replacements. Output written to '{output_file}'."
+            )
+    elif dry_run:
+        logging.warning(f"[Dry Run] Total replacements that would be made across all files: {total_replacements}")
 
 
 def _add_common_mode_arguments(
@@ -3322,6 +3364,18 @@ def _build_parser() -> argparse.ArgumentParser:
         required=False,
         help='Path to the mapping file.',
     )
+    scrub_options.add_argument(
+        '--in-place',
+        nargs='?',
+        const='',
+        metavar='EXT',
+        help="Modify files in place. If an extension is provided (e.g., '.bak'), a backup is created.",
+    )
+    scrub_options.add_argument(
+        '--dry-run',
+        action='store_true',
+        help="Show what would be changed without modifying any files.",
+    )
     _add_common_mode_arguments(scrub_parser, include_process_output=False, include_limit=False)
 
     zip_parser = subparsers.add_parser(
@@ -3656,6 +3710,8 @@ def main() -> None:
                 'quiet': args.quiet,
                 'clean_items': clean_items,
                 'limit': limit,
+                'in_place': getattr(args, 'in_place', None),
+                'dry_run': getattr(args, 'dry_run', False),
             }
         ),
         'zip': (

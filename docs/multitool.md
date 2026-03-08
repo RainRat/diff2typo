@@ -57,8 +57,8 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py line raw_words.txt`
 
 - **`words`**
-  - **What it does:** Extracts individual words from a file. It splits lines by whitespace by default, but you can specify a custom character using `--delimiter` (or `-d`).
-  - **Example:** `python multitool.py words report.txt`
+  - **What it does:** Extracts individual words from a file. It splits lines by whitespace by default, but you can specify a custom character using `--delimiter` (or `-d`). Use the `--smart` (or `-S`) flag to also split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").
+  - **Example:** `python multitool.py words report.txt --smart`
 
 - **`regex`**
   - **What it does:** Extracts text matching a Python regular expression pattern. Unlike other modes, it **preserves exact text** (it does not convert to lowercase or remove punctuation) by default.

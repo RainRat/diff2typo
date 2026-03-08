@@ -168,3 +168,43 @@ def test_generate_report_keyboard_with_limit(capsys):
     typostats.generate_report(counts, keyboard=True, limit=1, output_format='arrow', quiet=False)
     captured = capsys.readouterr()
     assert "Keyboard Adjacency: 15/15 (100.0%)" in captured.err
+
+def test_is_transposition_length_mismatch():
+    # Covering line 73: length mismatch returns []
+    assert typostats.is_transposition("abc", "ab") == []
+
+def test_process_typos_empty_line():
+    lines = ["", "tezt -> test"]
+    counts, total, raw = typostats.process_typos(lines)
+    # total_lines is incremented before checking if line is empty
+    assert total == 2
+
+def test_generate_report_with_file_and_keyboard():
+    counts = {('q', 'w'): 5}
+    # Mocking open to return a StringIO
+    m = mock_open()
+    with patch("builtins.open", m):
+        typostats.generate_report(counts, output_file="test.txt", keyboard=True)
+
+    # Check if write was called with expected content
+    handle = m()
+    written_content = "".join(call.args[0] for call in handle.write.call_args_list)
+    assert "Keyboard Adjacency" in written_content
+
+def test_generate_report_no_results_stderr(capsys):
+    counts = {}
+    typostats.generate_report(counts, quiet=False)
+    captured = capsys.readouterr()
+    assert "No replacements found matching the criteria." in captured.err
+
+def test_minimal_formatter_color_with_tty():
+    # Patch the colors in the class or global scope because they might be empty strings
+    with patch("typostats.RED", "\033[31m"), patch("typostats.RESET", "\033[0m"):
+        # We also need to patch LEVEL_COLORS because it was initialized with the old values
+        new_colors = {logging.ERROR: "\033[31m"}
+        with patch.object(typostats.MinimalFormatter, 'LEVEL_COLORS', new_colors):
+            formatter = typostats.MinimalFormatter('%(levelname)s: %(message)s')
+            record = logging.LogRecord('name', logging.ERROR, 'pathname', 10, 'error msg', None, None)
+            with patch("typostats.sys.stderr.isatty", return_value=True):
+                formatted = formatter.format(record)
+                assert "\033[31m" in formatted

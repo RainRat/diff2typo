@@ -199,30 +199,20 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                             subs[str(row['correct_char'])].append(str(row['typo_char']))
                 else:
                     # Fallback: plain typo,correction CSV.
-                    # If it has a header like "typo,correction", skip it.
                     reader = csv.reader(f)
-                    first_row = next(reader, None)
-                    if first_row:
-                        # Robust header detection: skip only if the first row looks like a clear header
-                        # (e.g., both of the first two columns are known header keywords).
-                        header_keywords = {'typo', 'correction', 'before', 'after', 'correct', 'word', 'correct_char', 'typo_char'}
-                        is_header = False
-                        if len(first_row) >= 2:
-                            val1, val2 = first_row[0].lower(), first_row[1].lower()
-                            if val1 in header_keywords and val2 in header_keywords:
-                                is_header = True
-                        
-                        if is_header:
-                            # Skip header
-                            pass
-                        else:
-                            # Process first row as data
-                            if len(first_row) >= 2:
-                                subs[str(first_row[0])].append(str(first_row[1]))
+                    header_keywords = {'typo', 'correction', 'before', 'after', 'correct', 'word', 'correct_char', 'typo_char'}
 
-                    for row in reader:
-                        if len(row) >= 2:
-                            subs[str(row[0])].append(str(row[1]))
+                    for i, row in enumerate(reader):
+                        if not row or len(row) < 2:
+                            continue
+                        
+                        # Skip header if first row matches keywords
+                        if i == 0:
+                            val1, val2 = row[0].lower(), row[1].lower()
+                            if val1 in header_keywords and val2 in header_keywords:
+                                continue
+
+                        subs[row[0]].append(row[1])
         else:
             # Assume YAML
             if not _YAML_AVAILABLE:

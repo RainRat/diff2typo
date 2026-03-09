@@ -24,7 +24,7 @@ git diff | python diff2typo.py [OPTIONS]
 | Argument | Default | Description |
 | :--- | :--- | :--- |
 | `FILE` | standard input | One or more input Git diff files. Use `-` to read from standard input. |
-| `--output`, `-o` | standard output | Path to the output file. Use `-` to print to the screen. |
+| `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
 | `--mode` | `typos` | **`typos`**: Find new typos that are not in your dictionary (default).<br>**`corrections`**: Find new ways to fix typos that are already in your dictionary.<br>**`both`**: Run both checks and label the results. |
 | `--min-length`, `-m` | `2` | Ignore words shorter than this length. |

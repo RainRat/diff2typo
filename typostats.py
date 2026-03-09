@@ -332,6 +332,7 @@ def generate_report(
     limit: int | None = None,
     quiet: bool = False,
     keyboard: bool = False,
+    analysis_features: list[str] | None = None,
 ) -> None:
     """
     Generate a report.
@@ -413,6 +414,8 @@ def generate_report(
         analysis_summary = f"Total replacements analyzed: {total_typos}"
         if min_occurrences > 1:
             analysis_summary += f" (Min occurrences: {min_occurrences})"
+        if analysis_features:
+            analysis_summary += f"\n  Enabled features: {', '.join(analysis_features)}"
 
         # Calculate padding for alignment (default to header labels' lengths)
         max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
@@ -704,7 +707,14 @@ def main() -> None:
         help="Identify typos caused by hitting keys next to each other on the keyboard.",
     )
     analysis_group.add_argument(
+        '-a',
+        '--all',
+        action='store_true',
+        help="Enable all analysis features (keyboard, transposition, and multi-char replacements).",
+    )
+    analysis_group.add_argument(
         '-n',
+        '-L',
         '--limit',
         type=int,
         help="Limit the report to the top N most frequent replacements.",
@@ -724,12 +734,20 @@ def main() -> None:
     output_format = args.format
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1
-    if args.allow_two_char:
+    if args.allow_two_char or args.all:
         allow_1to2 = True
         allow_2to1 = True
     include_deletions = args.include_deletions
-    allow_transposition = args.transposition
+    allow_transposition = args.transposition or args.all
+    keyboard = args.keyboard or args.all
     limit = args.limit
+
+    analysis_features = []
+    if keyboard: analysis_features.append("keyboard")
+    if allow_transposition: analysis_features.append("transposition")
+    if allow_1to2: analysis_features.append("1to2")
+    if allow_2to1: analysis_features.append("2to1")
+    if include_deletions: analysis_features.append("deletions")
 
     if not input_files:
         input_files = ['-']
@@ -768,7 +786,8 @@ def main() -> None:
         output_format=output_format,
         limit=limit,
         quiet=args.quiet,
-        keyboard=args.keyboard,
+        keyboard=keyboard,
+        analysis_features=analysis_features,
     )
 
 

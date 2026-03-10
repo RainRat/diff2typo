@@ -28,6 +28,7 @@ git diff | python diff2typo.py [OPTIONS]
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
 | `--mode` | `typos` | **`typos`**: Find new typos that are not in your dictionary (default).<br>**`corrections`**: Find new ways to fix typos that are already in your dictionary.<br>**`both`**: Run both checks and label the results. |
 | `--min-length`, `-m` | `2` | Ignore words shorter than this length. |
+| `--max-dist` | None | Only include typos with a character change distance (Levenshtein) up to this value. Useful for filtering out intentional word changes. |
 | `--dictionary`, `-d` | `words.csv` | A file containing valid words. The tool uses this to make sure the "fix" is a real word. |
 | `--allowed` | `allowed.csv` | A list of words to explicitly ignore, even if they look like typos. |
 | `--typos-path` | `typos` | The path to the external `typos` tool executable. |

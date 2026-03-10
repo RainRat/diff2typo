@@ -87,10 +87,7 @@ def _smart_split(text: str) -> List[str]:
         # 2. One or more uppercase letters (not followed by a lowercase letter).
         # 3. One or more digits.
         split_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', part)
-        if split_parts:
-            subwords.extend(split_parts)
-        else:
-            subwords.append(part)
+        subwords.extend(split_parts)
     return subwords
 
 

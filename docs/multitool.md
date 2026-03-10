@@ -1,6 +1,6 @@
 # Multitool
 
-**Multitool** is a versatile utility for processing text files. It can extract specific data (like columns from a CSV or text inside backticks), compare files, and clean up lists.
+**Multitool** is a versatile tool for processing text files. It can extract specific data (like columns from a CSV or text inside backticks), compare files, and clean up lists.
 
 ## Quick Start
 
@@ -10,7 +10,7 @@ Run the tool with a mode and your input files:
 python multitool.py <MODE> [INPUT_FILES...] [OPTIONS]
 ```
 
-Most modes default to reading from **standard input (stdin)** if you do not specify an input file. This makes it easy to pipe data into Multitool.
+Most modes default to reading from **standard input** if you do not specify an input file. This makes it easy to pipe data into Multitool.
 
 ## Modes
 
@@ -176,7 +176,7 @@ These modes help you analyze your data.
 
 These options work with most modes:
 
-- `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input (stdin)** if omitted.
+- `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input** if omitted.
 - `--output`: The file to write results to. Defaults to printing to the screen.
 - `--output-format`: The format of the output. Options include `line` (default), `json`, `yaml`, `csv`, `markdown`, `md-table`, `arrow`, and `table`.
 - `--min-length`: Skip words shorter than this length (default: 3).

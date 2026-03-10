@@ -16,7 +16,7 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
   - `PyYAML`: Used for configuration files.
   - `pyahocorasick`: Used for fast string matching in `multitool.py`.
   - `tqdm`: Used for progress bars.
-- **(Optional) The `typos` tool:** We recommend installing the [typos](https://github.com/crate-ci/typos) command-line utility. `diff2typo.py` uses it to automatically filter out typos that are already known, keeping your lists clean.
+- **(Optional) The `typos` tool:** We recommend installing the [typos](https://github.com/crate-ci/typos) command-line tool. `diff2typo.py` uses it to automatically filter out typos that are already known, keeping your lists clean.
 
 ## 📦 Installation
 

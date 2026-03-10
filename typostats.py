@@ -332,6 +332,7 @@ def generate_report(
     limit: int | None = None,
     quiet: bool = False,
     keyboard: bool = False,
+    **kwargs,
 ) -> None:
     """
     Generate a report.
@@ -394,6 +395,17 @@ def generate_report(
         # arrow
         title = "LETTER REPLACEMENTS"
 
+        enabled_features = []
+        if keyboard: enabled_features.append("keyboard")
+        if kwargs.get('allow_transposition'): enabled_features.append("transposition")
+        if kwargs.get('allow_1to2'): enabled_features.append("1-to-2")
+        if kwargs.get('allow_2to1'): enabled_features.append("2-to-1")
+        if kwargs.get('include_deletions'): enabled_features.append("deletions/insertions")
+
+        features_str = ""
+        if enabled_features:
+            features_str = f"  Enabled features: {', '.join(enabled_features)}"
+
         keyboard_summary = ""
         adjacent_map = {}
         if keyboard:
@@ -409,6 +421,16 @@ def generate_report(
             if total_single_char > 0:
                 percent = (adjacent_count / total_single_char) * 100
                 keyboard_summary = f"Keyboard Adjacency: {adjacent_count}/{total_single_char} ({percent:.1f}%)"
+
+        transposition_summary = ""
+        if kwargs.get('allow_transposition'):
+            trans_count = 0
+            for (c, t), count in filtered.items():
+                if len(c) == 2 and len(t) == 2 and c == t[::-1]:
+                    trans_count += count
+            if trans_count > 0:
+                percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
+                transposition_summary = f"Transpositions: {trans_count}/{total_typos} ({percent:.1f}%)"
 
         analysis_summary = f"Total replacements analyzed: {total_typos}"
         if min_occurrences > 1:
@@ -451,16 +473,24 @@ def generate_report(
                 sys.stderr.write(f"\n{c_err_bold}{title}{c_err_reset}\n")
                 sys.stderr.write(f"{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")
                 sys.stderr.write(f"  {analysis_summary}\n")
+                if features_str:
+                    sys.stderr.write(f"{features_str}\n")
                 if keyboard_summary:
                     sys.stderr.write(f"  {keyboard_summary}\n")
+                if transposition_summary:
+                    sys.stderr.write(f"  {transposition_summary}\n")
                 sys.stderr.write(f"\n{header_row}\n")
                 sys.stderr.write(f"{divider}\n")
                 sys.stderr.flush()
             report_lines = []
         else:
             report_lines = [title, "───────────────────────────────────────────────────────", f"  {analysis_summary}"]
+            if features_str:
+                report_lines.append(features_str)
             if keyboard_summary:
                 report_lines.append(f"  {keyboard_summary}")
+            if transposition_summary:
+                report_lines.append(f"  {transposition_summary}")
             report_lines.extend(["", header_row, divider])
 
         if not sorted_replacements:
@@ -633,6 +663,7 @@ def main() -> None:
   {GREEN}python typostats.py typos.txt -t{RESET}
   {GREEN}python typostats.py typos.txt --1to2 --2to1{RESET}
   {GREEN}python typostats.py typos.txt -k -n 20{RESET}
+  {GREEN}python typostats.py typos.txt -a{RESET}
 """,
     )
 
@@ -662,6 +693,12 @@ def main() -> None:
         choices=['count', 'typo', 'correct'],
         default='count',
         help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by typo), or 'correct' (alphabetical by fix)."
+    )
+    analysis_group.add_argument(
+        '-a',
+        '--all',
+        action='store_true',
+        help="Enable all analysis options: transposition, keyboard, 2-to-1, 1-to-2, and deletions.",
     )
     analysis_group.add_argument(
         '-2',
@@ -705,6 +742,7 @@ def main() -> None:
     )
     analysis_group.add_argument(
         '-n',
+        '-L',
         '--limit',
         type=int,
         help="Limit the report to the top N most frequent replacements.",
@@ -724,11 +762,20 @@ def main() -> None:
     output_format = args.format
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1
+    include_deletions = args.include_deletions
+    allow_transposition = args.transposition
+    keyboard = args.keyboard
+
+    if args.all:
+        allow_1to2 = True
+        allow_2to1 = True
+        include_deletions = True
+        allow_transposition = True
+        keyboard = True
+
     if args.allow_two_char:
         allow_1to2 = True
         allow_2to1 = True
-    include_deletions = args.include_deletions
-    allow_transposition = args.transposition
     limit = args.limit
 
     if not input_files:
@@ -768,7 +815,11 @@ def main() -> None:
         output_format=output_format,
         limit=limit,
         quiet=args.quiet,
-        keyboard=args.keyboard,
+        keyboard=keyboard,
+        allow_transposition=allow_transposition,
+        allow_1to2=allow_1to2,
+        allow_2to1=allow_2to1,
+        include_deletions=include_deletions,
     )
 
 

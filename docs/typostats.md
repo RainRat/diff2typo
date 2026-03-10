@@ -31,7 +31,8 @@ The tool automatically recognizes three common ways of listing typos:
 ### Analysis Options
 - `-m`, `--min`: Only show patterns that appear at least this many times (Default: 1).
 - `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by fix).
-- `-n`, `--limit`: Only show the top N results.
+- `-a`, `--all`: Shorthand to enable all analysis features at once (transpositions, keyboard adjacency, 1-to-2/2-to-1 replacements, and deletions/insertions).
+- `-n`, `-L`, `--limit`: Only show the top N results.
 - `-2`, `--allow-two-char`: Look for cases where one letter is replaced by two (like `m` -> `rn`) or two by one (like `ph` -> `f`).
 - `--1to2`: Specifically look for single-to-double letter replacements.
 - `--2to1`: Specifically look for double-to-single letter replacements.
@@ -56,7 +57,9 @@ When using the default **arrow** format, the report displays results in a table:
  LETTER REPLACEMENTS
  ───────────────────────────────────────────────────────
   Total replacements analyzed: 15
+  Enabled features: keyboard, transposition
   Keyboard Adjacency: 12/15 (80.0%)
+  Transpositions: 1/15 (6.7%)
 
   CORRECT │ TYPO │ COUNT │      % │ ADJ │ VISUAL
   ─────────────────────────────────────────────────
@@ -97,6 +100,11 @@ The tool detects if you are viewing the report on your screen. If so, it uses co
 **Find your top 5 most common mistakes, including swapped letters:**
 ```bash
 python typostats.py my_data.txt --limit 5 --transposition
+```
+
+**Run all analysis modes at once:**
+```bash
+python typostats.py my_data.txt -a
 ```
 
 **Find typos that happened at least 5 times and save the report as JSON:**

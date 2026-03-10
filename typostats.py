@@ -360,6 +360,8 @@ def generate_report(
     """
     # Filter
     filtered = {k: v for k, v in replacement_counts.items() if v >= min_occurrences}
+    unique_total = len(replacement_counts)
+    unique_filtered = len(filtered)
 
     total_typos = sum(replacement_counts.values())
 
@@ -432,9 +434,13 @@ def generate_report(
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
                 transposition_summary = f"Transpositions: {trans_count}/{total_typos} ({percent:.1f}%)"
 
-        analysis_summary = f"Total replacements analyzed: {total_typos}"
-        if min_occurrences > 1:
-            analysis_summary += f" (Min occurrences: {min_occurrences})"
+        analysis_summary = f"Total replacements analyzed: {total_typos} ({unique_total} unique patterns)"
+        if min_occurrences > 1 or limit:
+            analysis_summary += f" (Patterns matching criteria: {unique_filtered})"
+
+        display_summary = ""
+        if unique_filtered > len(sorted_replacements):
+            display_summary = f"  Showing top {len(sorted_replacements)} of {unique_filtered} patterns matching criteria"
 
         # Calculate padding for alignment (default to header labels' lengths)
         max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
@@ -479,8 +485,11 @@ def generate_report(
                     sys.stderr.write(f"  {keyboard_summary}\n")
                 if transposition_summary:
                     sys.stderr.write(f"  {transposition_summary}\n")
-                sys.stderr.write(f"\n{header_row}\n")
-                sys.stderr.write(f"{divider}\n")
+                if sorted_replacements:
+                    if display_summary:
+                        sys.stderr.write(f"{display_summary}\n")
+                    sys.stderr.write(f"\n{header_row}\n")
+                    sys.stderr.write(f"{divider}\n")
                 sys.stderr.flush()
             report_lines = []
         else:
@@ -491,7 +500,10 @@ def generate_report(
                 report_lines.append(f"  {keyboard_summary}")
             if transposition_summary:
                 report_lines.append(f"  {transposition_summary}")
-            report_lines.extend(["", header_row, divider])
+            if sorted_replacements:
+                if display_summary:
+                    report_lines.append(display_summary)
+                report_lines.extend(["", header_row, divider])
 
         if not sorted_replacements:
             no_results = f"{padding}No replacements found matching the criteria."

@@ -86,6 +86,25 @@ def filter_to_letters(text: str) -> str:
     """Return text containing only lowercase a-z characters."""
     return re.sub("[^a-z]", "", text.lower())
 
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    """Calculate the number of character changes needed to turn one string into another."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+    if not s2:
+        return len(s1)
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
+
+
 def _read_csv_rows(file_path, description, required=False):
     """Return CSV rows from ``file_path`` with shared error handling."""
 
@@ -168,7 +187,12 @@ def read_words_mapping(file_path: str, required: bool = True) -> Dict[str, Set[s
         logging.info(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
     return mapping
 
-def _compare_word_lists(before_words: Sequence[str], after_words: Sequence[str], min_length: int) -> List[str]:
+def _compare_word_lists(
+    before_words: Sequence[str],
+    after_words: Sequence[str],
+    min_length: int,
+    max_dist: Optional[int] = None,
+) -> List[str]:
     """Return typo pairs discovered when comparing two word sequences."""
 
     if len(before_words) != len(after_words):
@@ -192,11 +216,14 @@ def _compare_word_lists(before_words: Sequence[str], after_words: Sequence[str],
             and before_clean
             and after_clean
         ):
-            typos.append(f"{before_clean} -> {after_clean}")
+            if max_dist is None or levenshtein_distance(before_clean, after_clean) <= max_dist:
+                typos.append(f"{before_clean} -> {after_clean}")
     return typos
 
 
-def process_diff_block(removals: List[str], additions: List[str], min_length: int) -> List[str]:
+def process_diff_block(
+    removals: List[str], additions: List[str], min_length: int, max_dist: Optional[int] = None
+) -> List[str]:
     """Return typos generated from matching removal/addition blocks."""
 
     if not removals or not additions:
@@ -206,16 +233,17 @@ def process_diff_block(removals: List[str], additions: List[str], min_length: in
     after_text = " ".join(additions)
     before_words = split_into_subwords(before_text)
     after_words = split_into_subwords(after_text)
-    return _compare_word_lists(before_words, after_words, min_length)
+    return _compare_word_lists(before_words, after_words, min_length, max_dist)
 
 
-def find_typos(diff_text: str, min_length: int = 2) -> List[str]:
+def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = None) -> List[str]:
     """
     Parses the diff text to identify typo corrections.
 
     Args:
         diff_text (str): The git diff text.
         min_length (int): Minimum length of differing substrings to consider as typos.
+        max_dist (int, optional): Maximum Levenshtein distance for typos.
 
     Returns:
         list: A list of typo candidates in the format "before -> after".
@@ -233,11 +261,11 @@ def find_typos(diff_text: str, min_length: int = 2) -> List[str]:
         elif line.startswith('+'):
             additions.append(line[1:].strip())
         else:
-            typos.extend(process_diff_block(removals, additions, min_length))
+            typos.extend(process_diff_block(removals, additions, min_length, max_dist))
             removals = []
             additions = []
 
-    typos.extend(process_diff_block(removals, additions, min_length))
+    typos.extend(process_diff_block(removals, additions, min_length, max_dist))
 
     return typos
 
@@ -577,6 +605,13 @@ def main():
     parser.add_argument('--min_length', type=int, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
+        '--max-dist',
+        type=int,
+        default=None,
+        help='Only include typos with a Levenshtein distance up to this value (default: no limit).',
+    )
+
+    analysis_group.add_argument(
         '--dictionary',
         '-d',
         dest='dictionary_file',
@@ -658,7 +693,7 @@ def main():
 
     # Extract candidate typo corrections from the diff.
     logging.info("Identifying potential typo corrections from the diff...")
-    candidates = find_typos(diff_text, min_length=args.min_length)
+    candidates = find_typos(diff_text, min_length=args.min_length, max_dist=args.max_dist)
     candidates = sort_and_deduplicate(candidates)
     logging.info(f"Identified {len(candidates)} candidate typo correction(s).")
 

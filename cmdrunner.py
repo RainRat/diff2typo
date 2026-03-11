@@ -118,10 +118,10 @@ def run_command_in_folders(
         current_command = command.replace("{}", item)
 
         if dry_run:
-            logging.warning(f"Dry run: would run command '{current_command}' in '{item_path}'")
+            logging.warning(f"Dry run: would run command '{current_command}' in '{item}'")
             continue
 
-        logging.info(f"Running command in: {item_path}")
+        logging.info(f"Running command in: {item}")
 
         # Run the command in the directory
         try:
@@ -134,16 +134,16 @@ def run_command_in_folders(
                 stderr=subprocess.PIPE,
                 text=True  # Automatically decode to string
             )
-            logging.info(f"Command output for '{item_path}':\n{result.stdout}")
+            logging.info(f"Command output for '{item}':\n{result.stdout}")
         except subprocess.CalledProcessError as e:
-            logging.error(f"Command failed in '{item_path}' with error:\n{e.stderr}")
+            logging.error(f"The command failed in '{item}':\n{e.stderr}")
 
 def parse_arguments() -> argparse.Namespace:
     """
     Parse command-line arguments to get the path to the YAML configuration file.
     """
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Run a specified command in each subdirectory of a base directory, excluding certain folders.{RESET}",
+        description=f"{BOLD}Run a command in every folder within a main folder, skipping specific folders.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Dynamic Commands:{RESET}
   You can use {BOLD}{{}}{RESET} as a placeholder in your command. It will be replaced
@@ -169,7 +169,7 @@ def parse_arguments() -> argparse.Namespace:
     options_group.add_argument(
         '--dry-run',
         action='store_true',
-        help='Show which directories would be processed without executing the command.'
+        help='Show which folders would be checked without executing the command.'
     )
     options_group.add_argument(
         '--quiet',

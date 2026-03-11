@@ -114,7 +114,7 @@ def test_run_command_in_folders_subprocess_failure(tmp_path, caplog):
     with caplog.at_level(logging.ERROR):
         cmdrunner.run_command_in_folders(str(base_dir), command)
 
-    assert any("Command failed" in message for message in caplog.messages)
+    assert any("The command failed" in message for message in caplog.messages)
 
 
 def test_run_command_in_folders_invalid_base_dir(tmp_path):

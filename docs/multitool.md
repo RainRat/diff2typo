@@ -111,6 +111,7 @@ These modes help you transform or combine your data.
   - **Supported Formats:** Supports CSV, Arrow, Table, JSON, and YAML mapping formats.
   - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (e.g., `--in-place .bak`), the tool will create a backup of each file before modifying it.
   - **Dry Run:** Use the `--dry-run` flag to see how many replacements would be made without actually changing any files.
+  - **Smart Casing:** Use the `--smart-case` flag to automatically match the casing of the original word. For example, if the mapping is `teh -> the`, then `Teh` will be replaced with `The`, and `TEH` with `THE`.
   - **Example:** `python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt`
   - **In-Place Example:** `python multitool.py scrub file1.txt file2.txt --mapping corrections.csv --in-place`
 

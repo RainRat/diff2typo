@@ -52,6 +52,22 @@ def filter_to_letters(text: str) -> str:
     return re.sub("[^a-z]", "", text.lower())
 
 
+def _apply_smart_case(original: str, replacement: str) -> str:
+    """
+    Applies the casing of the original string to the replacement string.
+    Supports ALL-CAPS, Title Case (Capitalized), and lowercase.
+    """
+    if not original:
+        return replacement
+    if original.isupper():
+        return replacement.upper()
+    if original[0].isupper():
+        # Capitalize first letter, keep rest as provided in replacement
+        # (Allows preservation of CamelCase in the replacement itself)
+        return replacement[:1].upper() + replacement[1:]
+    return replacement.lower()
+
+
 def levenshtein_distance(s1: str, s2: str) -> int:
     """Calculate the number of character changes needed to turn one string into another."""
     if len(s1) < len(s2):
@@ -2161,6 +2177,7 @@ def scrub_mode(
     limit: int | None = None,
     in_place: str | None = None,
     dry_run: bool = False,
+    smart_case: bool = False,
 ) -> None:
     """
     Performs replacements of typos in text files based on a mapping file.
@@ -2207,6 +2224,8 @@ def scrub_mode(
 
                     if match_key in mapping:
                         replacement = mapping[match_key]
+                        if smart_case:
+                            replacement = _apply_smart_case(part, replacement)
                         new_parts.append(replacement)
                         file_replacements += 1
                     else:
@@ -2219,7 +2238,10 @@ def scrub_mode(
                             if re.match(r'[a-zA-Z0-9]+', sp):
                                 sm_key = filter_to_letters(sp) if clean_items else sp
                                 if sm_key in mapping:
-                                    new_sub_parts.append(mapping[sm_key])
+                                    replacement = mapping[sm_key]
+                                    if smart_case:
+                                        replacement = _apply_smart_case(sp, replacement)
+                                    new_sub_parts.append(replacement)
                                     file_replacements += 1
                                 else:
                                     new_sub_parts.append(sp)
@@ -3373,6 +3395,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help="Show what would be changed without modifying any files.",
     )
+    scrub_options.add_argument(
+        '--smart-case',
+        action='store_true',
+        help="Automatically match the casing of the original word (e.g., 'Teh' -> 'The').",
+    )
     _add_common_mode_arguments(scrub_parser, include_process_output=False, include_limit=False)
 
     zip_parser = subparsers.add_parser(
@@ -3709,6 +3736,7 @@ def main() -> None:
                 'limit': limit,
                 'in_place': getattr(args, 'in_place', None),
                 'dry_run': getattr(args, 'dry_run', False),
+                'smart_case': getattr(args, 'smart_case', False),
             }
         ),
         'zip': (

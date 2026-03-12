@@ -15,7 +15,8 @@ def test_typostats_all_flag(tmp_path):
     assert result.returncode == 0
 
     # Check that enabled features are listed in stderr
-    assert "Enabled features: keyboard, transposition, 1-to-2, 2-to-1, deletions/insertions" in result.stderr
+    assert "Enabled features:" in result.stderr
+    assert "keyboard, transposition, 1-to-2, 2-to-1, deletions/insertions" in result.stderr
     # Check that transposition summary is in stderr
     assert "Transpositions:" in result.stderr
 

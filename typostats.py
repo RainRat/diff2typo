@@ -386,18 +386,23 @@ def generate_report(
     use_color_stdout = not output_file and sys.stdout.isatty()
     c_out_green = GREEN if use_color_stdout else ""
     c_out_red = RED if use_color_stdout else ""
+    c_out_yellow = YELLOW if use_color_stdout else ""
     c_out_bold = BOLD if use_color_stdout else ""
     c_out_reset = RESET if use_color_stdout else ""
 
     # standard error colors (used for human-readable headers)
-    use_color_stderr = not quiet and sys.stderr.isatty()
-    c_err_bold = BOLD if use_color_stderr else ""
-    c_err_reset = RESET if use_color_stderr else ""
+    # If output_file is set, we avoid colors in headers that might be written to the file
+    use_color_summary = not output_file and sys.stderr.isatty()
+    c_err_bold = BOLD if use_color_summary else ""
+    c_err_yellow = YELLOW if use_color_summary else ""
+    c_err_green = GREEN if use_color_summary else ""
+    c_err_reset = RESET if use_color_summary else ""
 
     if output_format == 'arrow':
         # arrow
         padding = "  "
         title = f"{padding}LETTER REPLACEMENTS"
+        label_width = 35
 
         enabled_features = []
         if keyboard: enabled_features.append("keyboard")
@@ -408,7 +413,7 @@ def generate_report(
 
         features_str = ""
         if enabled_features:
-            features_str = f"  Enabled features: {', '.join(enabled_features)}"
+            features_str = f"  {c_err_bold}{'Enabled features:':<{label_width}}{c_err_reset} {', '.join(enabled_features)}"
 
         keyboard_summary = ""
         adjacent_map = {}
@@ -424,7 +429,7 @@ def generate_report(
 
             if total_single_char > 0:
                 percent = (adjacent_count / total_single_char) * 100
-                keyboard_summary = f"Keyboard Adjacency: {adjacent_count}/{total_single_char} ({percent:.1f}%)"
+                keyboard_summary = f"  {c_err_bold}{'Keyboard Adjacency:':<{label_width}}{c_err_reset} {c_err_yellow}{adjacent_count}{c_err_reset}/{total_single_char} ({c_err_green}{percent:.1f}%{c_err_reset})"
 
         transposition_summary = ""
         if kwargs.get('allow_transposition'):
@@ -434,17 +439,17 @@ def generate_report(
                     trans_count += count
             if trans_count > 0:
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
-                transposition_summary = f"Transpositions: {trans_count}/{total_typos} ({percent:.1f}%)"
+                transposition_summary = f"  {c_err_bold}{'Transpositions:':<{label_width}}{c_err_reset} {c_err_yellow}{trans_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
 
-        analysis_summary = f"  Total replacements analyzed: {total_typos} ({unique_total} unique patterns)"
+        analysis_summary = f"  {c_err_bold}{'Total replacements analyzed:':<{label_width}}{c_err_reset} {c_err_yellow}{total_typos}{c_err_reset} ({unique_total} unique patterns)"
 
         criteria_summary = ""
         if unique_filtered != unique_total:
-            criteria_summary = f"  Patterns matching criteria:  {unique_filtered}"
+            criteria_summary = f"  {c_err_bold}{'Patterns matching criteria:':<{label_width}}{c_err_reset} {c_err_green}{unique_filtered}{c_err_reset}"
 
         display_summary = ""
         if unique_filtered > len(sorted_replacements):
-            display_summary = f"  Showing top {len(sorted_replacements)} of {unique_filtered} patterns matching criteria"
+            display_summary = f"  {c_err_bold}{'Showing patterns:':<{label_width}}{c_err_reset} {c_err_green}{len(sorted_replacements)}{c_err_reset} of {unique_filtered}"
 
         # Calculate padding for alignment (default to header labels' lengths)
         max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
@@ -475,7 +480,7 @@ def generate_report(
         header_row += f" │ {c_out_bold}{'VISUAL':<{max_bar}}{c_out_reset}"
         visible_header_len += 3 + max_bar
 
-        divider = f"{padding}{'─' * visible_header_len}"
+        divider = f"{padding}{c_out_bold}{'─' * visible_header_len}{c_out_reset}"
 
         if not output_file:
             # Move the human-readable header to standard error to keep the main output clean for piping
@@ -488,9 +493,9 @@ def generate_report(
                 if features_str:
                     sys.stderr.write(f"{features_str}\n")
                 if keyboard_summary:
-                    sys.stderr.write(f"  {keyboard_summary}\n")
+                    sys.stderr.write(f"{keyboard_summary}\n")
                 if transposition_summary:
-                    sys.stderr.write(f"  {transposition_summary}\n")
+                    sys.stderr.write(f"{transposition_summary}\n")
                 if sorted_replacements:
                     if display_summary:
                         sys.stderr.write(f"{display_summary}\n")
@@ -505,9 +510,9 @@ def generate_report(
             if features_str:
                 report_lines.append(features_str)
             if keyboard_summary:
-                report_lines.append(f"  {keyboard_summary}")
+                report_lines.append(keyboard_summary)
             if transposition_summary:
-                report_lines.append(f"  {transposition_summary}")
+                report_lines.append(transposition_summary)
             if sorted_replacements:
                 if display_summary:
                     report_lines.append(display_summary)
@@ -539,8 +544,8 @@ def generate_report(
             row = (
                 f"{padding}{c_out_green}{correct_char:>{max_c}}{c_out_reset} │ "
                 f"{c_out_red}{typo_char:<{max_t}}{c_out_reset} │ "
-                f"{c_out_bold}{count:>{max_n}}{c_out_reset} │ "
-                f"{percent:>5.1f}%"
+                f"{c_out_yellow}{count:>{max_n}}{c_out_reset} │ "
+                f"{c_out_green}{percent:>5.1f}%{c_out_reset}"
             )
 
             if keyboard:

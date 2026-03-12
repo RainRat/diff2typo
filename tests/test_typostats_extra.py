@@ -65,7 +65,9 @@ def test_generate_report_keyboard_arrow(capsys):
     typostats.generate_report(counts, keyboard=True, output_format='arrow', quiet=False)
     captured = capsys.readouterr()
     # Check stderr for the summary
-    assert "Keyboard Adjacency: 5/5 (100.0%)" in captured.err
+    assert "Keyboard Adjacency" in captured.err
+    assert "5/5" in captured.err
+    assert "100.0%" in captured.err
     # Check stdout for the marker
     # The [K] might be colorized
     assert "[K]" in captured.out
@@ -167,7 +169,9 @@ def test_generate_report_keyboard_with_limit(capsys):
     # Limit to 1, but keyboard summary should still show both (5+10 = 15)
     typostats.generate_report(counts, keyboard=True, limit=1, output_format='arrow', quiet=False)
     captured = capsys.readouterr()
-    assert "Keyboard Adjacency: 15/15 (100.0%)" in captured.err
+    assert "Keyboard Adjacency" in captured.err
+    assert "15/15" in captured.err
+    assert "100.0%" in captured.err
 
 def test_is_transposition_length_mismatch():
     # Covering line 73: length mismatch returns []

@@ -377,7 +377,7 @@ def generate_report(
         # Default to sort by count
         sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
 
-    if limit:
+    if limit is not None:
         sorted_replacements = sorted_replacements[:limit]
 
     # Color support detection

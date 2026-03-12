@@ -107,7 +107,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
 
 - **`scrub`**
-  - **What it does:** Performs replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors.
+  - **What it does:** Performs replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like `CamelCase` and `snake_case` variables.
   - **Supported Formats:** Supports CSV, Arrow, Table, JSON, and YAML mapping formats.
   - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (e.g., `--in-place .bak`), the tool will create a backup of each file before modifying it.
   - **Dry Run:** Use the `--dry-run` flag to see how many replacements would be made without actually changing any files.

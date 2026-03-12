@@ -18,12 +18,10 @@ def test_minimal_formatter_info(caplog):
 def test_minimal_formatter_warning_no_tty():
     formatter = diff2typo.MinimalFormatter()
     record = logging.LogRecord("name", logging.WARNING, "path", 10, "Warning message", None, None)
-    # Mock sys.stderr.isatty to False
     with patch("sys.stderr.isatty", return_value=False):
         assert formatter.format(record) == "WARNING: Warning message"
 
 def test_minimal_formatter_error_tty():
-    # Use a subclass that ensures color constants are NOT empty for testing
     class TestFormatter(diff2typo.MinimalFormatter):
         LEVEL_COLORS = {
             logging.WARNING: "\033[1;33m",
@@ -33,7 +31,6 @@ def test_minimal_formatter_error_tty():
 
     formatter = TestFormatter()
     record = logging.LogRecord("name", logging.ERROR, "path", 10, "Error message", None, None)
-    # Mock sys.stderr.isatty to True
     with patch("sys.stderr.isatty", return_value=True), \
          patch("diff2typo.RESET", "\033[0m"):
         formatted = formatter.format(record)
@@ -136,7 +133,6 @@ def test_main_both_modes(tmp_path, monkeypatch, caplog):
         "--allowed", "nonexistent.csv",
         "--quiet"
     ])
-    # Mock subprocess.run in filter_known_typos to return empty result
     def mock_run(*args, **kwargs):
         return MagicMock(stdout="")
     monkeypatch.setattr(diff2typo.subprocess, "run", mock_run)
@@ -149,8 +145,6 @@ def test_main_both_modes(tmp_path, monkeypatch, caplog):
     assert "eror -> error" in content
     assert "=== New Corrections ===" in content
     assert "teh -> thee" in content
-    # teh is already in dictionary, so it's not a NEW typo, but it could be a NEW correction if it had a different fix
-    # Here teh -> the is already in dictionary, so it's not a new correction either.
 
 def test_main_corrections_mode(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -175,9 +169,7 @@ def test_main_corrections_mode(tmp_path, monkeypatch):
     assert output_file.read_text().strip() == "teh -> thee"
 
 def test_main_allowed_read_fail(tmp_path, monkeypatch):
-    # Covers line 644 where read_allowed_words fails
     monkeypatch.chdir(tmp_path)
-    # Trigger Exception in read_allowed_words
     with patch("diff2typo.read_allowed_words", side_effect=OSError("read fail")):
         monkeypatch.setattr(sys, "argv", ["diff2typo.py", "--quiet"])
         monkeypatch.setattr(diff2typo, "_read_diff_sources", lambda _: "")
@@ -185,8 +177,17 @@ def test_main_allowed_read_fail(tmp_path, monkeypatch):
             diff2typo.main()
         assert excinfo.value.code == 1
 
+def test_levenshtein_distance_coverage():
+    assert diff2typo.levenshtein_distance("", "") == 0
+    assert diff2typo.levenshtein_distance("abc", "") == 3
+    assert diff2typo.levenshtein_distance("", "abc") == 3
+    assert diff2typo.levenshtein_distance("abc", "abc") == 0
+    assert diff2typo.levenshtein_distance("a", "abc") == 2
+    assert diff2typo.levenshtein_distance("kitten", "sitting") == 3
+    assert diff2typo.levenshtein_distance("flaw", "lawn") == 2
+    assert diff2typo.levenshtein_distance("intention", "execution") == 5
+
 def test_main_output_write_fail(tmp_path, monkeypatch):
-    # Covers line 705 where smart_open_output or writing fails
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(diff2typo, "_read_diff_sources", lambda _: "")
     monkeypatch.setattr(diff2typo, "read_words_mapping", lambda *_, **__: {})

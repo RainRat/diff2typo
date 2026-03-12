@@ -2702,7 +2702,7 @@ MODE_DETAILS = {
     },
     "scrub": {
         "summary": "Replaces typos in text files based on a mapping.",
-        "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
+        "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt",
         "flags": "[MAPPING]",
     },

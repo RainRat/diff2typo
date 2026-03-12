@@ -13,7 +13,7 @@ Features:
     - Integrates with the `typos` tool to avoid duplicate typo entries.
     - Automatically detects dictionary file format (single-word or typo-correction pairs).
     - Allows customization via command-line options, including output format.
-    - Uses the `--mode` option to output new typos, new corrections for existing typos, or both.
+    - Uses the `--mode` option to output new typos, new corrections for existing typos, both, or audit regressions.
 
 Usage:
     python diff2typo.py diff.txt --output=typos.txt --format=list
@@ -22,6 +22,7 @@ Examples:
     - Only new typos: python diff2typo.py diff.txt --output=typos.txt --mode typos
     - Only corrections for existing typos: python diff2typo.py diff.txt --output=typos.txt --mode corrections
     - Both typos and corrections: python diff2typo.py diff.txt --output=typos.txt --mode both
+    - Audit for introduced typos: python diff2typo.py diff.txt --mode audit
 
 Output Formats:
     - arrow: typo -> correction
@@ -524,6 +525,27 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
     new_corrections = sort_and_deduplicate(new_corrections)
     return new_corrections
 
+
+def process_audit_typos(candidates, args, valid_words, allowed_words):
+    """
+    Process candidate typos to find potential regressions (introduced typos).
+    Identifies cases where a word previously known as valid (in dictionary)
+    was changed to a word not found in the dictionary or allowed list.
+    """
+    audit_candidates = []
+    for candidate in candidates:
+        if ' -> ' in candidate:
+            before, after = [s.strip().lower() for s in candidate.split(' -> ')]
+            # Regression: was a valid word, now is not in dictionary or allowed list
+            if before in valid_words:
+                if after not in valid_words and after not in allowed_words:
+                    audit_candidates.append(candidate)
+
+    audit_candidates = sort_and_deduplicate(audit_candidates)
+    formatted = format_typos(audit_candidates, args.output_format)
+    return formatted
+
+
 def main():
 
     # Setup command-line argument parsing
@@ -584,13 +606,14 @@ def main():
     analysis_group.add_argument(
         '--mode',
         type=str,
-        choices=['typos', 'corrections', 'both'],
+        choices=['typos', 'corrections', 'both', 'audit'],
         default='typos',
         help=(
             f"{YELLOW}Analysis mode:{RESET}\n"
             f"  {GREEN}typos{RESET}:       Find new typo corrections not in dictionary (default).\n"
             f"  {GREEN}corrections{RESET}: Find new corrections for existing typos in dictionary.\n"
-            f"  {GREEN}both{RESET}:        Run both analyses and label output groups."
+            f"  {GREEN}both{RESET}:        Run both analyses and label output groups.\n"
+            f"  {GREEN}audit{RESET}:       Find potential regressions (changing valid words to typos)."
         ),
     )
     analysis_group.add_argument(
@@ -700,6 +723,7 @@ def main():
     # Prepare lists to hold results.
     new_typos_result = []
     new_corrections_result = []
+    audit_result = []
 
     # Process new typos if requested.
     if args.mode in ['typos', 'both']:
@@ -713,6 +737,12 @@ def main():
         new_corrections_raw = process_new_corrections(candidates, dictionary_mapping, quiet=args.quiet)
         new_corrections_result = format_typos(new_corrections_raw, args.output_format)
         logging.info(f"Found {len(new_corrections_result)} new correction(s).")
+
+    # Process audit for introduced typos if requested.
+    if args.mode == 'audit':
+        logging.info("Auditing for potential regressions (introduced typos)...")
+        audit_result = process_audit_typos(candidates, args, valid_words, allowed_words)
+        logging.info(f"Found {len(audit_result)} potential regression(s).")
 
     # Combine results if needed.
     final_output = []
@@ -728,6 +758,8 @@ def main():
         final_output = new_typos_result
     elif args.mode == 'corrections':
         final_output = new_corrections_result
+    elif args.mode == 'audit':
+        final_output = audit_result
 
     # Write the final output to the specified file.
     try:

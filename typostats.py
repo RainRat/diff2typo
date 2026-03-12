@@ -234,8 +234,9 @@ def print_processing_stats(
     c_yellow = YELLOW if sys.stderr.isatty() else ""
     c_green = GREEN if sys.stderr.isatty() else ""
 
-    logging.info(f"\n{c_bold}ANALYSIS STATISTICS{c_reset}")
-    logging.info(f"{c_bold}───────────────────────────────────────────────────────{c_reset}")
+    padding = "  "
+    logging.info(f"\n{padding}{c_bold}ANALYSIS STATISTICS{c_reset}")
+    logging.info(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
     logging.info(
         f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}"
     )
@@ -395,7 +396,8 @@ def generate_report(
 
     if output_format == 'arrow':
         # arrow
-        title = "LETTER REPLACEMENTS"
+        padding = "  "
+        title = f"{padding}LETTER REPLACEMENTS"
 
         enabled_features = []
         if keyboard: enabled_features.append("keyboard")
@@ -434,9 +436,11 @@ def generate_report(
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
                 transposition_summary = f"Transpositions: {trans_count}/{total_typos} ({percent:.1f}%)"
 
-        analysis_summary = f"Total replacements analyzed: {total_typos} ({unique_total} unique patterns)"
-        if min_occurrences > 1 or limit:
-            analysis_summary += f" (Patterns matching criteria: {unique_filtered})"
+        analysis_summary = f"  Total replacements analyzed: {total_typos} ({unique_total} unique patterns)"
+
+        criteria_summary = ""
+        if unique_filtered != unique_total:
+            criteria_summary = f"  Patterns matching criteria:  {unique_filtered}"
 
         display_summary = ""
         if unique_filtered > len(sorted_replacements):
@@ -477,8 +481,10 @@ def generate_report(
             # Move the human-readable header to standard error to keep the main output clean for piping
             if not quiet:
                 sys.stderr.write(f"\n{c_err_bold}{title}{c_err_reset}\n")
-                sys.stderr.write(f"{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")
-                sys.stderr.write(f"  {analysis_summary}\n")
+                sys.stderr.write(f"{padding}{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")
+                sys.stderr.write(f"{analysis_summary}\n")
+                if criteria_summary:
+                    sys.stderr.write(f"{criteria_summary}\n")
                 if features_str:
                     sys.stderr.write(f"{features_str}\n")
                 if keyboard_summary:
@@ -493,7 +499,9 @@ def generate_report(
                 sys.stderr.flush()
             report_lines = []
         else:
-            report_lines = [title, "───────────────────────────────────────────────────────", f"  {analysis_summary}"]
+            report_lines = [title, f"{padding}───────────────────────────────────────────────────────", analysis_summary]
+            if criteria_summary:
+                report_lines.append(criteria_summary)
             if features_str:
                 report_lines.append(features_str)
             if keyboard_summary:
@@ -536,14 +544,15 @@ def generate_report(
             )
 
             if keyboard:
-                marker = ""
                 if (
                     len(correct_char) == 1
                     and len(typo_char) == 1
                     and typo_char.lower() in adjacent_map.get(correct_char.lower(), set())
                 ):
                     marker = f"{c_out_bold}[K]{c_out_reset}"
-                row += f" │ {marker:<3}"
+                else:
+                    marker = "   "
+                row += f" │ {marker}"
 
             row += f" │ {bar}"
             report_lines.append(row)

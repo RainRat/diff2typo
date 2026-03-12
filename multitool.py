@@ -254,8 +254,9 @@ def print_processing_stats(
     c_green = GREEN if sys.stderr.isatty() else ""
     c_reset = RESET if sys.stderr.isatty() else ""
 
-    logging.info(f"\n{c_bold}ANALYSIS STATISTICS{c_reset}")
-    logging.info(f"{c_bold}───────────────────────────────────────────────────────{c_reset}")
+    padding = "  "
+    logging.info(f"\n{padding}{c_bold}ANALYSIS STATISTICS{c_reset}")
+    logging.info(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
     logging.info(f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}")
     logging.info(f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<35}{c_reset} {c_green}{len(filtered_items)}{c_reset}")
 
@@ -1251,8 +1252,9 @@ def stats_mode(
             c_reset = RESET if f.isatty() else ""
 
             report = []
-            report.append(f"\n{c_bold}ANALYSIS STATISTICS{c_reset}")
-            report.append(f"{c_bold}───────────────────────────────────────────────────────{c_reset}")
+            padding = "  "
+            report.append(f"\n{padding}{c_bold}ANALYSIS STATISTICS{c_reset}")
+            report.append(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
 
             label_width = 35
             report.append(f"  {c_bold}{'Total items encountered:':<{label_width}}{c_reset} {c_yellow}{stats['items']['total_encountered']}{c_reset}")
@@ -1272,8 +1274,8 @@ def stats_mode(
                 report.append(f"  {c_bold}{'Longest item:':<{label_width}}{c_reset} '{longest}' (length: {len(longest)})")
 
             if "pairs" in stats:
-                report.append(f"\n{c_bold}PAIRED DATA STATISTICS{c_reset}")
-                report.append(f"{c_bold}───────────────────────────────────────────────────────{c_reset}")
+                report.append(f"\n{padding}{c_bold}PAIRED DATA STATISTICS{c_reset}")
+                report.append(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
                 report.append(f"  {c_bold}{'Total pairs extracted:':<{label_width}}{c_reset} {c_yellow}{stats['pairs']['total_extracted']}{c_reset}")
                 report.append(f"  {c_bold}{'Total pairs after filtering:':<{label_width}}{c_reset} {c_green}{stats['pairs']['total_filtered']}{c_reset}")
 

@@ -2232,21 +2232,16 @@ def scrub_mode(
                         file_replacements += 1
                     else:
                         # Try subword replacement if the whole word didn't match.
-                        sub_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+|[^a-zA-Z0-9]+', part)
+                        sub_parts = _smart_split(part)
                         new_sub_parts = []
                         for sp in sub_parts:
-                            if not sp:
-                                continue
-                            if re.match(r'[a-zA-Z0-9]+', sp):
-                                sm_key = filter_to_letters(sp) if clean_items else sp
-                                if sm_key in mapping:
-                                    replacement = mapping[sm_key]
-                                    if smart_case:
-                                        replacement = _apply_smart_case(sp, replacement)
-                                    new_sub_parts.append(replacement)
-                                    file_replacements += 1
-                                else:
-                                    new_sub_parts.append(sp)
+                            sm_key = filter_to_letters(sp) if clean_items else sp
+                            if sm_key in mapping:
+                                replacement = mapping[sm_key]
+                                if smart_case:
+                                    replacement = _apply_smart_case(sp, replacement)
+                                new_sub_parts.append(replacement)
+                                file_replacements += 1
                             else:
                                 new_sub_parts.append(sp)
                         new_parts.append("".join(new_sub_parts))

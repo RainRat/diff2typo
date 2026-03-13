@@ -40,11 +40,11 @@ RESET = "\033[0m"
 BOLD = "\033[1m"
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
-# We check both stdout and stderr as help goes to stdout and logging/stats to stderr
+# We check the main output and error output as help goes to the main output and logging/stats to error output
 if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
     BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
-# Note: we use stdout's status for the global constants, but individual
-# functions might still check stderr if they specifically log to it.
+# Note: we use the main output's status for the global constants, but individual
+# functions might still check the error output if they specifically log to it.
 
 
 def filter_to_letters(text: str) -> str:
@@ -282,7 +282,7 @@ def print_processing_stats(
 def smart_open_output(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
     """
     Context manager that yields a file object for writing.
-    If filename is '-', yields the main output (stdout).
+    If filename is '-', yields the main output (the screen).
     Otherwise, opens the file for writing.
     """
     if filename == '-':

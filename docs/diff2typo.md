@@ -8,7 +8,7 @@
 # Read from a file
 python diff2typo.py my_changes.diff [OPTIONS]
 
-# Read from standard input (piping)
+# Read from standard input
 git diff | python diff2typo.py [OPTIONS]
 ```
 

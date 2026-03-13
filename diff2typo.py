@@ -274,7 +274,7 @@ def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = No
 def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO]:
     """
     Context manager that yields a file object for writing.
-    If filename is '-', yields sys.stdout.
+    If filename is '-', yields the screen.
     Otherwise, opens the file for writing.
     """
     if filename == '-':

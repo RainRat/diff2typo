@@ -70,9 +70,16 @@ def load_config(config_path: str) -> Dict[str, Any]:
         raise ConfigError(f"Configuration file '{config_path}' is empty or malformed.")
 
     errors = []
-    missing_fields = [field for field in ("base_directory", "command_to_run") if not config.get(field)]
-    if missing_fields:
-        errors.append(f"Missing required configuration field(s): {', '.join(missing_fields)}.")
+    # Support both 'main_folder' and the legacy 'base_directory'
+    main_folder = config.get("main_folder") or config.get("base_directory")
+    if not main_folder:
+        errors.append("Missing required configuration field: 'main_folder'.")
+
+    if not config.get("command_to_run"):
+        errors.append("Missing required configuration field: 'command_to_run'.")
+
+    if "main_folder" in config and not isinstance(config.get("main_folder"), str):
+        errors.append("'main_folder' must be a string.")
 
     if "base_directory" in config and not isinstance(config.get("base_directory"), str):
         errors.append("'base_directory' must be a string.")
@@ -89,32 +96,32 @@ def load_config(config_path: str) -> Dict[str, Any]:
     return config
 
 def run_command_in_folders(
-    base_dir: str,
+    main_folder: str,
     command: str,
     excluded_folders: Optional[List[str]] = None,
     dry_run: bool = False,
     quiet: bool = False,
 ) -> None:
     """
-    Run a specified command in each subdirectory of the base directory,
+    Run a specified command in each folder within the main folder,
     excluding specified folders.
     """
     excluded_folders = excluded_folders or []
 
-    if not os.path.isdir(base_dir):
-        logging.error(f"The base directory '{base_dir}' does not exist or is not a directory.")
+    if not os.path.isdir(main_folder):
+        logging.error(f"The main folder '{main_folder}' does not exist or is not a folder.")
         sys.exit(1)
 
     directories = sorted([
-        item for item in os.listdir(base_dir)
-        if os.path.isdir(os.path.join(base_dir, item)) and item not in excluded_folders
+        item for item in os.listdir(main_folder)
+        if os.path.isdir(os.path.join(main_folder, item)) and item not in excluded_folders
     ])
 
-    iterator = tqdm(directories, desc="Processing directories", unit="dir", disable=dry_run or quiet)
+    iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
 
-    # Iterate through each item in the base directory
+    # Iterate through each item in the main folder
     for item in iterator:
-        item_path = os.path.join(base_dir, item)
+        item_path = os.path.join(main_folder, item)
         current_command = command.replace("{}", item)
 
         if dry_run:
@@ -201,13 +208,14 @@ def main() -> None:
         sys.exit(1)
 
     # Extract configuration parameters with defaults
-    base_directory = config.get('base_directory', '')
+    # Support both 'main_folder' and the legacy 'base_directory'
+    main_folder = config.get('main_folder') or config.get('base_directory', '')
     command_to_run = config.get('command_to_run', '')
     excluded = config.get('excluded_folders', [])
 
     # Run the command in the specified folders
     run_command_in_folders(
-        base_directory,
+        main_folder,
         command_to_run,
         excluded,
         dry_run=args.dry_run,

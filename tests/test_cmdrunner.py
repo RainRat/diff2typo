@@ -48,8 +48,8 @@ def test_load_config_empty_file(tmp_path):
 @pytest.mark.parametrize(
     "config_data,expected_message",
     [
-        ({'command_to_run': 'echo test'}, "base_directory"),
-        ({'base_directory': '/tmp'}, "command_to_run"),
+        ({'command_to_run': 'echo test'}, "main_folder"),
+        ({'main_folder': '/tmp'}, "command_to_run"),
     ],
 )
 def test_load_config_missing_required_fields(tmp_path, config_data, expected_message):

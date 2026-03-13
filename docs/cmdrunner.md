@@ -1,6 +1,6 @@
 # cmdrunner.py
 
-**cmdrunner.py** runs a specific command in every folder within a main directory. This is useful for running tools like `git diff` or `npm install` across many different projects at once.
+**cmdrunner.py** runs a specific command in every folder within a main folder. This is useful for running tools like `git diff` or `npm install` across many different projects at once.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ The tool uses a YAML file to know where to look and what to do.
 
 ```yaml
 # The main folder containing your projects
-base_directory: "/home/user/projects"
+main_folder: "/home/user/projects"
 
 # The command you want to run in each folder
 command_to_run: "git diff >> ../daily_diff.txt"
@@ -50,7 +50,7 @@ You can use `{}` as a placeholder in your `command_to_run`. The tool will replac
 This is useful for creating unique output files for each project:
 
 ```yaml
-base_directory: "/home/user/projects"
+main_folder: "/home/user/projects"
 command_to_run: "git diff > ../{}-changes.diff"
 ```
 
@@ -58,7 +58,7 @@ In this example, if the tool processes a folder named `my-web-app`, it will run 
 
 ## How it Works
 
-1. **Find Folders:** The tool looks inside your `base_directory` and finds every sub-folder.
+1. **Find Folders:** The tool looks inside your `main_folder` and finds every sub-folder.
 2. **Filter:** It removes any folders you listed in `excluded_folders`.
 3. **Execute:** It enters each remaining folder and runs your `command_to_run`.
 4. **Report:** It shows you the results of each command or any errors that occurred.

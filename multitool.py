@@ -502,6 +502,9 @@ def _write_paired_output(
             elif mode_label == "NearDuplicates":
                 left_header = "Word 1"
                 right_header = "Word 2"
+            elif mode_label == "Casing":
+                left_header = "Normalized"
+                right_header = "Variations"
 
             out_file.write(f"| {left_header} | {right_header} |\n")
             out_file.write("| :--- | :--- |\n")
@@ -1596,6 +1599,59 @@ def fuzzymatch_mode(
     )
 
     print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].rsplit(' (changes: ', 1)[0] for pair in results], item_label="fuzzy-match")
+
+
+def casing_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    delimiter: str | None = None,
+    smart: bool = False,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Identifies words that appear with inconsistent capitalization.
+    """
+    raw_item_count = 0
+    # Map normalized word -> set of original forms
+    normalized_to_original = defaultdict(set)
+
+    for input_file in input_files:
+        words = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
+        for word in words:
+            raw_item_count += 1
+            # Normalize for grouping
+            norm = filter_to_letters(word) if clean_items else word.lower()
+            if not norm:
+                continue
+
+            # Apply length filtering
+            if min_length <= len(norm) <= max_length:
+                normalized_to_original[norm].add(word)
+
+    conflicts = []
+    for norm, originals in normalized_to_original.items():
+        if len(originals) > 1:
+            conflicts.append((norm, ", ".join(sorted(originals))))
+
+    if process_output:
+        conflicts.sort()
+
+    _write_paired_output(
+        conflicts,
+        output_file,
+        output_format,
+        "Casing",
+        quiet,
+        limit=limit
+    )
+
+    print_processing_stats(raw_item_count, [c[0] for c in conflicts], item_label="casing-conflict")
 
 
 def discovery_mode(
@@ -2695,6 +2751,12 @@ MODE_DETAILS = {
         "example": "python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1",
         "flags": "[--rare-max N] [--freq-min N] [--max-dist N]",
     },
+    "casing": {
+        "summary": "Identifies words with inconsistent capitalization.",
+        "description": "Finds words that appear in your files with multiple different casing styles (e.g., 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.",
+        "example": "python multitool.py casing report.txt --smart --output-format arrow",
+        "flags": "[-d DELIMITER] [--smart]",
+    },
     "scrub": {
         "summary": "Replaces typos in text files based on a mapping.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
@@ -2709,7 +2771,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
         "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
-        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "discovery"],
+        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "discovery", "casing"],
     }
 
     lines = []
@@ -3263,6 +3325,26 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(discovery_parser)
 
+    casing_parser = subparsers.add_parser(
+        'casing',
+        help=MODE_DETAILS['casing']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['casing']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['casing']['example']}{RESET}",
+    )
+    casing_options = casing_parser.add_argument_group(f"{BLUE}CASING OPTIONS{RESET}")
+    casing_options.add_argument(
+        '-d', '--delimiter',
+        type=str,
+        help='The delimiter character to split words by (default: whitespace).',
+    )
+    casing_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+    )
+    _add_common_mode_arguments(casing_parser)
+
     set_parser = subparsers.add_parser(
         'set_operation',
         help=MODE_DETAILS['set_operation']['summary'],
@@ -3564,6 +3646,15 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'casing': (
+            casing_mode,
+            {
+                **common_kwargs,
+                'delimiter': getattr(args, 'delimiter', None),
+                'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
         ),

@@ -173,6 +173,14 @@ These modes help you analyze your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1`
 
+- **`casing`**
+  - **What it does:** Identifies words that appear in your files with multiple different casing styles (e.g., 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.
+  - **Options:**
+    - `-d`, `--delimiter`: The character to split words by (default: whitespace).
+    - `-S`, `--smart`: Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Example:** `python multitool.py casing report.txt --smart --output-format arrow`
+
 ## Common Options
 
 These options work with most modes:

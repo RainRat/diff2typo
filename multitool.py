@@ -47,6 +47,37 @@ if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
 # functions might still check stderr if they specifically log to it.
 
 
+def _parse_markdown_table_row(line: str) -> List[str] | None:
+    """
+    Parses a single line as a Markdown table row.
+    Returns a list of cell contents if it's a valid data row, otherwise None.
+    """
+    content = line.strip()
+    if not (content.startswith('|') and content.count('|') >= 2):
+        return None
+
+    parts = [p.strip() for p in content.split('|')]
+    # Filter out empty parts from edges if they exist
+    if parts and not parts[0]:
+        parts = parts[1:]
+    if parts and not parts[-1]:
+        parts = parts[:-1]
+
+    if len(parts) < 2:
+        return None
+
+    # Skip divider lines like | --- | --- |
+    if all(re.match(r'^:?-+:?$', p) for p in parts):
+        return None
+
+    # Skip header line if it contains generic labels
+    if parts[0].lower() in ('typo', 'left', 'word 1', 'item') and \
+       parts[1].lower() in ('correction', 'right', 'word 2', 'count', 'corrections'):
+        return None
+
+    return parts
+
+
 def filter_to_letters(text: str) -> str:
     """Return text containing only lowercase a-z characters."""
     return re.sub("[^a-z]", "", text.lower())
@@ -400,23 +431,10 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
             # Strip Markdown bullet points if present to handle list items consistently
             content = re.sub(r'^\s*[-*+]\s+', '', content)
 
-            if content.startswith('|') and content.count('|') >= 2:
-                # Potential Markdown table row
-                parts = [p.strip() for p in content.split('|')]
-                # Filter out empty parts from edges if they exist
-                if parts and not parts[0]: parts = parts[1:]
-                if parts and not parts[-1]: parts = parts[:-1]
-
-                if len(parts) >= 2:
-                    # Skip divider lines like | --- | --- |
-                    if all(re.match(r'^:?-+:?$', p) for p in parts):
-                        continue
-                    # Skip header line if it contains generic labels
-                    if parts[0].lower() in ('typo', 'left', 'word 1', 'item') and \
-                       parts[1].lower() in ('correction', 'right', 'word 2', 'count', 'corrections'):
-                        continue
-                    yield parts[0], parts[1]
-                    continue
+            table_parts = _parse_markdown_table_row(line)
+            if table_parts:
+                yield table_parts[0], table_parts[1]
+                continue
 
             if " -> " in content:
                 parts = content.split(" -> ", 1)
@@ -770,28 +788,15 @@ def _extract_md_table_items(
     """Yield text from a specific column in Markdown tables."""
     lines = _read_file_lines_robust(input_file)
     for line in tqdm(lines, desc=f'Processing {input_file} (md-table)', unit=' lines', disable=quiet):
-        content = line.strip()
-        if content.startswith('|') and content.count('|') >= 2:
-            parts = [p.strip() for p in content.split('|')]
-            if parts and not parts[0]: parts = parts[1:]
-            if parts and not parts[-1]: parts = parts[:-1]
-
-            if len(parts) >= 2:
-                # Skip divider lines
-                if all(re.match(r'^:?-+:?$', p) for p in parts):
-                    continue
-                # Skip headers
-                if parts[0].lower() in ('typo', 'left', 'word 1', 'item') and \
-                   parts[1].lower() in ('correction', 'right', 'word 2', 'count', 'corrections'):
-                    continue
-
-                if columns is not None:
-                    for idx in columns:
-                        if 0 <= idx < len(parts):
-                            yield parts[idx]
-                else:
-                    idx = 1 if right_side else 0
-                    yield parts[idx]
+        parts = _parse_markdown_table_row(line)
+        if parts:
+            if columns is not None:
+                for idx in columns:
+                    if 0 <= idx < len(parts):
+                        yield parts[idx]
+            else:
+                idx = 1 if right_side else 0
+                yield parts[idx]
 
 
 def _extract_regex_items(input_file: str, pattern: str, quiet: bool = False) -> Iterable[str]:

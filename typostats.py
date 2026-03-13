@@ -441,7 +441,8 @@ def generate_report(
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
                 transposition_summary = f"  {c_err_bold}{'Transpositions:':<{label_width}}{c_err_reset} {c_err_yellow}{trans_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
 
-        analysis_summary = f"  {c_err_bold}{'Total replacements analyzed:':<{label_width}}{c_err_reset} {c_err_yellow}{total_typos}{c_err_reset} ({unique_total} unique patterns)"
+        analysis_summary = f"  {c_err_bold}{'Total replacements analyzed:':<{label_width}}{c_err_reset} {c_err_yellow}{total_typos}{c_err_reset}"
+        unique_patterns_summary = f"  {c_err_bold}{'Unique patterns identified:':<{label_width}}{c_err_reset} {unique_total}"
 
         criteria_summary = ""
         if unique_filtered != unique_total:
@@ -471,9 +472,11 @@ def generate_report(
         # 3 chars for each " │ " (total 3 * 3 = 9)
         visible_header_len = max_c + max_t + max_n + max_p + 9
 
-        if keyboard:
-            header_row += f" │ {c_out_bold}{'ADJ':<3}{c_out_reset}"
-            visible_header_len += 6
+        show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1')])
+
+        if show_attr:
+            header_row += f" │ {c_out_bold}{'ATTR':<4}{c_out_reset}"
+            visible_header_len += 7
 
         # Add Visual column header
         max_bar = 15
@@ -488,6 +491,7 @@ def generate_report(
                 sys.stderr.write(f"\n{c_err_bold}{title}{c_err_reset}\n")
                 sys.stderr.write(f"{padding}{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")
                 sys.stderr.write(f"{analysis_summary}\n")
+                sys.stderr.write(f"{unique_patterns_summary}\n")
                 if criteria_summary:
                     sys.stderr.write(f"{criteria_summary}\n")
                 if features_str:
@@ -504,7 +508,7 @@ def generate_report(
                 sys.stderr.flush()
             report_lines = []
         else:
-            report_lines = [title, f"{padding}───────────────────────────────────────────────────────", analysis_summary]
+            report_lines = [title, f"{padding}───────────────────────────────────────────────────────", analysis_summary, unique_patterns_summary]
             if criteria_summary:
                 report_lines.append(criteria_summary)
             if features_str:
@@ -548,15 +552,15 @@ def generate_report(
                 f"{c_out_green}{percent:>5.1f}%{c_out_reset}"
             )
 
-            if keyboard:
-                if (
-                    len(correct_char) == 1
-                    and len(typo_char) == 1
-                    and typo_char.lower() in adjacent_map.get(correct_char.lower(), set())
-                ):
-                    marker = f"{c_out_bold}[K]{c_out_reset}"
-                else:
-                    marker = "   "
+            if show_attr:
+                marker = "    "
+                if len(correct_char) == 1 and len(typo_char) == 1:
+                    if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+                        marker = f"{c_out_bold}[K]{c_out_reset} "
+                elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
+                    marker = f"{c_out_bold}[T]{c_out_reset} "
+                elif len(correct_char) != len(typo_char):
+                    marker = f"{c_out_bold}[M]{c_out_reset} "
                 row += f" │ {marker}"
 
             row += f" │ {bar}"

@@ -1100,6 +1100,71 @@ def count_mode(
             out_file.write("| :--- | :--- |\n")
             for word, count in final_results:
                 out_file.write(f"| {word} | {count} |\n")
+        elif output_format == 'arrow':
+            # Rich visual report with histogram
+            total_filtered_count = len(filtered_words)
+
+            # main output colors
+            use_color = out_file.isatty() and not os.environ.get('NO_COLOR')
+            c_green = GREEN if use_color else ""
+            c_yellow = YELLOW if use_color else ""
+            c_bold = BOLD if use_color else ""
+            c_reset = RESET if use_color else ""
+
+            # Header Labels
+            padding = "  "
+            title = f"{padding}ITEM FREQUENCIES"
+
+            max_item_len = max((len(word) for word, count in final_results), default=4)
+            max_item_len = max(max_item_len, 4) # 'ITEM' is 4
+
+            max_count_len = max((len(str(count)) for word, count in final_results), default=5)
+            max_count_len = max(max_count_len, 5) # 'COUNT' is 5
+
+            max_p = 6 # '100.0%'
+            max_bar = 15
+
+            header_row = (
+                f"{padding}{c_bold}{'ITEM':<{max_item_len}}{c_reset} │ "
+                f"{c_bold}{'COUNT':>{max_count_len}}{c_reset} │ "
+                f"{c_bold}{'%':>{max_p}}{c_reset} │ "
+                f"{c_bold}{'VISUAL':<{max_bar}}{c_reset}"
+            )
+
+            # Separator line
+            # 3 vertical separators ( │ ) = 3 * 3 = 9 characters
+            visible_header_len = max_item_len + max_count_len + max_p + max_bar + 9
+            divider = f"{padding}{c_bold}{'─' * visible_header_len}{c_reset}"
+
+            out_file.write(f"\n{c_bold}{title}{c_reset}\n")
+            out_file.write(f"{padding}{c_bold}{'─' * max(55, visible_header_len)}{c_reset}\n")
+            out_file.write(f"  {c_bold}{'Total items analyzed:':<35}{c_reset} {c_yellow}{total_filtered_count}{c_reset}\n")
+            out_file.write(f"  {c_bold}{'Unique items identified:':<35}{c_reset} {len(word_counts)}\n\n")
+            out_file.write(f"{header_row}\n")
+            out_file.write(f"{divider}\n")
+
+            for word, count in final_results:
+                percent = (count / total_filtered_count * 100) if total_filtered_count > 0 else 0
+
+                # High-res visual bar
+                total_blocks = (percent * max_bar) / 100
+                full_blocks = int(total_blocks)
+                fraction = total_blocks - full_blocks
+                blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+                frac_idx = int(fraction * 8)
+
+                bar = "█" * full_blocks
+                if full_blocks < max_bar:
+                    bar += blocks[frac_idx]
+                    bar += " " * (max_bar - full_blocks - 1)
+
+                row = (
+                    f"{padding}{c_green}{word:<{max_item_len}}{c_reset} │ "
+                    f"{c_yellow}{count:>{max_count_len}}{c_reset} │ "
+                    f"{c_green}{percent:>5.1f}%{c_reset} │ "
+                    f"{bar}"
+                )
+                out_file.write(f"{row}\n")
         else:  # 'line' or fallback
             for word, count in final_results:
                 out_file.write(f"{word}: {count}\n")
@@ -2397,11 +2462,11 @@ def _add_common_mode_arguments(
         help="Where to save the results. Use '-' to print to the screen (default: the screen).",
     )
     io_group.add_argument(
-        '-f', '--output-format', '--format',
+        '-f', '--format', '--output-format',
         dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
         metavar='FMT',
-        default=argparse.SUPPRESS,
+        default='line',
         help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml.",
     )
     io_group.add_argument(
@@ -2662,9 +2727,9 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how many times each word appears.",
-        "description": "Counts word frequency and sorts the list from most frequent to least frequent.",
-        "example": "python multitool.py count typos.log --min-count 5 --output-format json --output counts.json",
-        "flags": "[--min-count N]",
+        "description": "Counts word frequency and sorts the list from most frequent to least frequent. It can produce a rich visual report with histograms when using '--format arrow'.",
+        "example": "python multitool.py count report.txt --format arrow",
+        "flags": "[--min-count N] [-f arrow]",
     },
     "filterfragments": {
         "summary": "Removes words if they are found inside words in another file.",

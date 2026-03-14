@@ -2,18 +2,17 @@
 diff2typo.py
 
 Purpose:
-    Process a git diff to extract typo corrections and prepare a data update for the `typos` tool,
-    a spell-checking tool that uses a list of known typos. This ensures that the identified typos
-    are not missed in future code changes.
+    Read a git diff to find typo corrections and prepare an update for the `typos` tool.
+    This helps make sure that the typos you find are caught in future code changes.
 
 Features:
-    - Identifies typo corrections from git diffs.
-    - Splits compound words based on spaces, underscores, and casing boundaries.
-    - Filters out corrections where the "before" word is a valid dictionary word to exclude grammar fixes.
-    - Integrates with the `typos` tool to avoid duplicate typo entries.
-    - Automatically detects dictionary file format (single-word or typo-correction pairs).
-    - Allows customization via command-line options, including output format.
-    - Uses the `--mode` option to output new typos, new corrections for existing typos, both, or audit regressions.
+    - Finds typo corrections in git diffs.
+    - Splits compound words based on spaces, underscores, and capital letters.
+    - Skips corrections where the "before" word is already a valid word.
+    - Works with the `typos` tool to avoid duplicate entries.
+    - Automatically detects the word list file format.
+    - Allows customization through command-line options.
+    - Uses the `--mode` option to find new typos, new corrections for existing typos, or cases where a correct word was changed into a typo.
 
 Usage:
     python diff2typo.py diff.txt --output=typos.txt --format=list
@@ -22,7 +21,7 @@ Examples:
     - Only new typos: python diff2typo.py diff.txt --output=typos.txt --mode typos
     - Only corrections for existing typos: python diff2typo.py diff.txt --output=typos.txt --mode corrections
     - Both typos and corrections: python diff2typo.py diff.txt --output=typos.txt --mode both
-    - Audit for introduced typos: python diff2typo.py diff.txt --mode audit
+    - Find correct words changed into typos: python diff2typo.py diff.txt --mode audit
 
 Output Formats:
     - arrow: typo -> correction
@@ -89,7 +88,7 @@ def filter_to_letters(text: str) -> str:
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
-    """Calculate the number of character changes needed to turn one string into another."""
+    """Calculate the number of character changes needed to turn one word into another."""
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)
     if not s2:
@@ -168,14 +167,14 @@ def split_into_subwords(word: str) -> List[str]:
 
 def read_words_mapping(file_path: str, required: bool = True) -> Dict[str, Set[str]]:
     """
-    Reads a CSV file of typo fixes and returns a mapping:
-         incorrect_word (lowercase) -> set(corrections)
+    Reads a CSV file of typo fixes and returns a list:
+         incorrect_word -> corrections
 
     Each row should be in the form:
          incorrect_word, correction1, correction2, ...
 
     We can also accept a list of valid words. They will
-        just map to nothing.
+        not have any corrections.
     """
     mapping: Dict[str, Set[str]] = {}
     rows = _read_csv_rows(file_path, "Dictionary file", required=required)
@@ -393,7 +392,7 @@ def filter_known_typos(candidates, typos_tool_path):
 
     Args:
         candidates (list): A list of typo candidates in "before -> after" format.
-        typos_tool_path (str): The path to the 'typos' tool executable.
+        typos_tool_path (str): The path to the 'typos' tool.
 
     Returns:
         list: A filtered list of typo candidates.
@@ -459,12 +458,11 @@ def _filter_candidates_by_set(candidates, filter_set, desc, quiet=False):
 
 def process_new_typos(candidates, args, valid_words, allowed_words):
     """
-    Process candidate typos (list of "before -> after") to produce
-    new typos—that is, typo corrections not already registered by the typos tool.
-    Applies additional filtering using allowed words and a dictionary of valid
-    words. The dictionary may be a simple word list (one word per line) or a
-    words.csv file, where only the correction columns are treated as valid
-    words. Returns the formatted list of new typos.
+    Find new typos that are not already known.
+    Uses allowed words and a list of valid words to filter the results.
+    The list can be a simple word list (one word per line) or a
+    CSV file where the first word is a typo and the rest are corrections.
+    Returns the formatted list of new typos.
     """
     candidates = filter_known_typos(candidates, typos_tool_path=args.typos_tool_path)
     candidates = _filter_candidates_by_set(
@@ -489,11 +487,11 @@ def process_new_typos(candidates, args, valid_words, allowed_words):
 
 def process_new_corrections(candidates, words_mapping, quiet=False):
     """
-    Process candidate typos to produce new corrections for known typos.
-    It loads a words mapping file (ie. words.csv) and for each candidate correction,
-    if the "before" word is already known but the "after" is not among its registered fixes,
-    then it is output.
-    Returns a sorted, deduplicated list of new corrections in "before -> after" form.
+    Find new corrections for typos that are already known.
+    It reads a word list and for each potential correction,
+    if the "before" word is already known but the "after" word is not,
+    then it is saved.
+    Returns a sorted list of new corrections in "before -> after" form.
 
     Args:
         candidates (list): Candidate "before -> after" strings.
@@ -528,15 +526,15 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
 
 def process_audit_typos(candidates, args, valid_words, allowed_words):
     """
-    Process candidate typos to find potential regressions (introduced typos).
-    Identifies cases where a word previously known as valid (in dictionary)
-    was changed to a word not found in the dictionary or allowed list.
+    Find cases where a correct word was changed into a typo.
+    Identifies cases where a word that used to be valid
+    was changed to a word that is not in the dictionary.
     """
     audit_candidates = []
     for candidate in candidates:
         if ' -> ' in candidate:
             before, after = [s.strip().lower() for s in candidate.split(' -> ')]
-            # Regression: was a valid word, now is not in dictionary or allowed list
+            # Find cases where a valid word was changed to an invalid one
             if before in valid_words:
                 if after not in valid_words and after not in allowed_words:
                     audit_candidates.append(candidate)
@@ -610,10 +608,10 @@ def main():
         default='typos',
         help=(
             f"{YELLOW}Analysis mode:{RESET}\n"
-            f"  {GREEN}typos{RESET}:       Find new typo corrections not in dictionary (default).\n"
-            f"  {GREEN}corrections{RESET}: Find new corrections for existing typos in dictionary.\n"
-            f"  {GREEN}both{RESET}:        Run both analyses and label output groups.\n"
-            f"  {GREEN}audit{RESET}:       Find potential regressions (changing valid words to typos)."
+            f"  {GREEN}typos{RESET}:       Find new typos that are not in your dictionary (default).\n"
+            f"  {GREEN}corrections{RESET}: Find new corrections for typos already in your dictionary.\n"
+            f"  {GREEN}both{RESET}:        Run both analyses and label the results.\n"
+            f"  {GREEN}audit{RESET}:       Find cases where a correct word was changed into a typo."
         ),
     )
     analysis_group.add_argument(
@@ -631,7 +629,7 @@ def main():
         '--max-dist',
         type=int,
         default=None,
-        help='Only include typos with a Levenshtein distance up to this value (default: no limit).',
+        help='Only include typos with a number of character changes up to this value (default: no limit).',
     )
 
     analysis_group.add_argument(
@@ -689,7 +687,7 @@ def main():
     diff_text = _read_diff_sources(input_files)
 
     # Load the dictionary (words mapping) once.
-    # If the file is missing, we don't exit. Instead we just warn and proceed without filtering against it.
+    # If the file is missing, we don't exit. Instead we just warn and continue without filtering.
     if args.dictionary_file == 'words.csv' and not os.path.exists(args.dictionary_file):
         logging.warning("Default dictionary file 'words.csv' not found. Skipping valid word filtering.")
         dictionary_mapping = {}
@@ -704,9 +702,9 @@ def main():
             "Failed to read allowed words file '%s': %s", args.allowed_file, exc
         )
         sys.exit(1)
-    # Build a set of valid words. For simple word lists, each entry is treated as
+    # Build a set of valid words. For simple word lists, every entry is treated as
     # valid. For words.csv files, only the corrections (columns after the first)
-    # are considered valid dictionary words.
+    # are considered valid words.
     valid_words = set()
     for typo, fixes in dictionary_mapping.items():
         if fixes:
@@ -714,8 +712,8 @@ def main():
         else:
             valid_words.add(typo)
 
-    # Extract candidate typo corrections from the diff.
-    logging.info("Identifying potential typo corrections from the diff...")
+    # Find candidate typo corrections from the diff.
+    logging.info("Finding potential typo corrections from the diff...")
     candidates = find_typos(diff_text, min_length=args.min_length, max_dist=args.max_dist)
     candidates = sort_and_deduplicate(candidates)
     logging.info(f"Identified {len(candidates)} candidate typo correction(s).")
@@ -738,11 +736,11 @@ def main():
         new_corrections_result = format_typos(new_corrections_raw, args.output_format)
         logging.info(f"Found {len(new_corrections_result)} new correction(s).")
 
-    # Process audit for introduced typos if requested.
+    # Check for correct words changed into typos if requested.
     if args.mode == 'audit':
-        logging.info("Auditing for potential regressions (introduced typos)...")
+        logging.info("Finding cases where correct words were changed into typos...")
         audit_result = process_audit_typos(candidates, args, valid_words, allowed_words)
-        logging.info(f"Found {len(audit_result)} potential regression(s).")
+        logging.info(f"Found {len(audit_result)} case(s) where a correct word was changed to a typo.")
 
     # Combine results if needed.
     final_output = []

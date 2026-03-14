@@ -1045,6 +1045,8 @@ def count_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    delimiter: str | None = None,
+    smart: bool = False,
 ) -> None:
     """
     Counts the frequency of each word in the input file(s) and writes the
@@ -1058,13 +1060,15 @@ def count_mode(
     word_counts = Counter()
 
     for input_file in input_files:
-        lines = _read_file_lines_robust(input_file)
-        for line in tqdm(lines, desc=f'Counting words in {input_file}', unit=' lines', disable=quiet):
-            words = line.split()
-            raw_count += len(words)
-            filtered = clean_and_filter(words, min_length, max_length, clean=clean_items)
-            filtered_words.extend(filtered)
-            word_counts.update(filtered)
+        # Use the shared extraction logic to support custom delimiters and smart splitting
+        words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
+        for word in words_gen:
+            raw_count += 1
+            # Filter and clean the word
+            filtered = clean_and_filter([word], min_length, max_length, clean=clean_items)
+            if filtered:
+                filtered_words.extend(filtered)
+                word_counts.update(filtered)
 
     sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
 
@@ -1100,6 +1104,62 @@ def count_mode(
             out_file.write("| :--- | :--- |\n")
             for word, count in final_results:
                 out_file.write(f"| {word} | {count} |\n")
+        elif output_format == 'arrow':
+            # Rich visual report for arrow format
+            total_count = sum(word_counts.values())
+
+            # Find max width for columns
+            max_item = max((len(word) for word, count in final_results), default=4)
+            max_item = max(max_item, 4)  # 'ITEM'
+            max_count_len = max((len(str(count)) for word, count in final_results), default=5)
+            max_count_len = max(max_count_len, 5)  # 'COUNT'
+            max_pct = 6  # "100.0%"
+            max_bar = 20
+
+            # Colors for output
+            c_bold = BOLD if out_file.isatty() else ""
+            c_green = GREEN if out_file.isatty() else ""
+            c_red = RED if out_file.isatty() else ""
+            c_yellow = YELLOW if out_file.isatty() else ""
+            c_reset = RESET if out_file.isatty() else ""
+
+            # Header and divider
+            padding = "  "
+            header = (
+                f"{padding}{c_bold}{'ITEM':<{max_item}}{c_reset} │ "
+                f"{c_bold}{'COUNT':>{max_count_len}}{c_reset} │ "
+                f"{c_bold}{'%':>{max_pct}}{c_reset} │ "
+                f"{c_bold}{'VISUAL':<{max_bar}}{c_reset}"
+            )
+            visible_header_len = max_item + max_count_len + max_pct + max_bar + 9
+            divider = f"{padding}{c_bold}{'─' * visible_header_len}{c_reset}"
+
+            out_file.write(f"\n{header}\n")
+            out_file.write(f"{divider}\n")
+
+            for word, count in final_results:
+                percent = (count / total_count * 100) if total_count > 0 else 0
+
+                # High-res visual bar
+                total_blocks = (percent * max_bar) / 100
+                full_blocks = int(total_blocks)
+                fraction = total_blocks - full_blocks
+                blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+                frac_idx = int(fraction * 8)
+
+                bar = "█" * full_blocks
+                if full_blocks < max_bar:
+                    bar += blocks[frac_idx]
+                    bar += " " * (max_bar - full_blocks - 1)
+
+                row = (
+                    f"{padding}{c_green}{word:<{max_item}}{c_reset} │ "
+                    f"{c_yellow}{count:>{max_count_len}}{c_reset} │ "
+                    f"{c_green}{percent:>5.1f}%{c_reset} │ "
+                    f"{c_red}{bar}{c_reset}"
+                )
+                out_file.write(f"{row}\n")
+            out_file.write("\n")
         else:  # 'line' or fallback
             for word, count in final_results:
                 out_file.write(f"{word}: {count}\n")
@@ -2662,9 +2722,9 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how many times each word appears.",
-        "description": "Counts word frequency and sorts the list from most frequent to least frequent.",
-        "example": "python multitool.py count typos.log --min-count 5 --output-format json --output counts.json",
-        "flags": "[--min-count N]",
+        "description": "Counts word frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with histograms.",
+        "example": "python multitool.py count typos.log -f arrow --smart",
+        "flags": "[--min-count N] [-d DELIM] [--smart]",
     },
     "filterfragments": {
         "summary": "Removes words if they are found inside words in another file.",
@@ -3153,6 +3213,16 @@ def _build_parser() -> argparse.ArgumentParser:
         '--max-count',
         type=int,
         help="Maximum occurrence count to include an item in the output.",
+    )
+    count_options.add_argument(
+        '-d', '--delimiter',
+        type=str,
+        help='The delimiter character to split words by (default: whitespace).',
+    )
+    count_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
     )
     _add_common_mode_arguments(count_parser, include_process_output=False)
 
@@ -3735,6 +3805,8 @@ def main() -> None:
                 'min_count': getattr(args, 'min_count', 1),
                 'max_count': getattr(args, 'max_count', None),
                 'output_format': output_format,
+                'delimiter': getattr(args, 'delimiter', None),
+                'smart': getattr(args, 'smart', False),
             },
         ),
         'filterfragments': (

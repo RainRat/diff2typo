@@ -899,8 +899,8 @@ def main() -> None:
     if is_cli_mode:
         config['input_file'] = None # Will use CLI words
         if not args.output and 'output_file' not in config:
-            config['output_file'] = '-' # Default to stdout
-            config['output_format'] = 'arrow' # Safer default for stdout
+            config['output_file'] = '-' # Default to the screen
+            config['output_format'] = 'arrow' # Safer default for the screen
 
     # Universal CLI overrides
     if args.output:
@@ -976,7 +976,7 @@ def main() -> None:
     try:
         output_target = settings.output_file
         if output_target == '-':
-            # Write to stdout
+            # Write to the screen
             if settings.output_header:
                 print(settings.output_header)
             for typo in formatted_typos:

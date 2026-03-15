@@ -333,6 +333,8 @@ def generate_report(
     limit: int | None = None,
     quiet: bool = False,
     keyboard: bool = False,
+    total_pairs: int | None = None,
+    total_lines: int | None = None,
     **kwargs,
 ) -> None:
     """
@@ -401,7 +403,7 @@ def generate_report(
     if output_format == 'arrow':
         # arrow
         padding = "  "
-        title = f"{padding}LETTER REPLACEMENTS"
+        title = f"{padding}ANALYSIS SUMMARY"
         label_width = 35
 
         enabled_features = []
@@ -441,7 +443,18 @@ def generate_report(
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
                 transposition_summary = f"  {c_err_bold}{'Transpositions:':<{label_width}}{c_err_reset} {c_err_yellow}{trans_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
 
-        analysis_summary = f"  {c_err_bold}{'Total replacements analyzed:':<{label_width}}{c_err_reset} {c_err_yellow}{total_typos}{c_err_reset}"
+        analysis_summary = ""
+        if total_lines is not None:
+            analysis_summary += f"  {c_err_bold}{'Total lines processed:':<{label_width}}{c_err_reset} {c_err_yellow}{total_lines}{c_err_reset}\n"
+        if total_pairs is not None:
+            analysis_summary += f"  {c_err_bold}{'Total pairs processed:':<{label_width}}{c_err_reset} {c_err_yellow}{total_pairs}{c_err_reset}\n"
+
+        analysis_summary += f"  {c_err_bold}{'Replacements identified:':<{label_width}}{c_err_reset} {c_err_green}{total_typos}{c_err_reset}"
+
+        if total_pairs is not None and total_pairs > 0:
+            retention = (total_typos / total_pairs) * 100
+            analysis_summary += f"\n  {c_err_bold}{'Retention rate:':<{label_width}}{c_err_reset} {c_err_green}{retention:.1f}%{c_err_reset}"
+
         unique_patterns_summary = f"  {c_err_bold}{'Unique patterns identified:':<{label_width}}{c_err_reset} {unique_total}"
 
         criteria_summary = ""
@@ -503,7 +516,12 @@ def generate_report(
                 if sorted_replacements:
                     if display_summary:
                         sys.stderr.write(f"{display_summary}\n")
-                    sys.stderr.write(f"\n{header_row}\n")
+
+                    # Frequency table header
+                    table_title = f"{padding}LETTER REPLACEMENTS"
+                    sys.stderr.write(f"\n{c_err_bold}{table_title}{c_err_reset}\n")
+                    sys.stderr.write(f"{padding}{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")
+                    sys.stderr.write(f"{header_row}\n")
                     sys.stderr.write(f"{divider}\n")
                 sys.stderr.flush()
             report_lines = []
@@ -520,7 +538,9 @@ def generate_report(
             if sorted_replacements:
                 if display_summary:
                     report_lines.append(display_summary)
-                report_lines.extend(["", header_row, divider])
+
+                table_title = f"{padding}LETTER REPLACEMENTS"
+                report_lines.extend(["", table_title, f"{padding}───────────────────────────────────────────────────────", header_row, divider])
 
         if not sorted_replacements:
             no_results = f"{padding}No replacements found matching the criteria."
@@ -834,9 +854,6 @@ def main() -> None:
             total_lines_all += lines_count
             total_pairs_all += pairs_count
 
-    if not args.quiet:
-        print_processing_stats(total_pairs_all, sum(all_counts.values()), item_label="replacement")
-
     generate_report(
         all_counts,
         output_file=output_file,
@@ -850,6 +867,8 @@ def main() -> None:
         allow_1to2=allow_1to2,
         allow_2to1=allow_2to1,
         include_deletions=include_deletions,
+        total_pairs=total_pairs_all,
+        total_lines=total_lines_all,
     )
 
 

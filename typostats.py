@@ -157,23 +157,18 @@ def is_one_letter_replacement(
       found.
     """
 
-    allow_two_char = kwargs.get('allow_two_char', False)
-    if allow_two_char:
-        allow_1to2 = True
-        allow_2to1 = True
+    if kwargs.get("allow_two_char"):
+        allow_1to2 = allow_2to1 = True
 
     # Same length scenario: one-to-one replacement
     if len(typo) == len(correction):
-        differences = []
-        for t_char, c_char in zip(typo, correction):
-            if t_char != c_char:
-                # t_char is from typo, c_char is from correction
-                # We want to store (correct_char, typo_char)
-                differences.append((c_char, t_char))
+        differences = [
+            (c_char, t_char)
+            for t_char, c_char in zip(typo, correction)
+            if t_char != c_char
+        ]
 
-        if len(differences) == 1:
-            return differences
-        return []
+        return differences if len(differences) == 1 else []
 
     # One-to-two replacement scenario allowed only if difference in length is 1
     if allow_1to2 and len(typo) == len(correction) + 1:
@@ -261,10 +256,8 @@ def process_typos(
     allow_transposition: bool = False,
     **kwargs,
 ) -> tuple[dict[tuple[str, str], int], int, int]:
-    allow_two_char = kwargs.get('allow_two_char', False)
-    if allow_two_char:
-        allow_1to2 = True
-        allow_2to1 = True
+    if kwargs.get("allow_two_char"):
+        allow_1to2 = allow_2to1 = True
 
     replacement_counts = defaultdict(int)
     total_lines = 0

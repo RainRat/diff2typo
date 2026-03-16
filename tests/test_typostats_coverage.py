@@ -16,7 +16,7 @@ def test_generate_report_transposition_summary(capsys):
     # allow_transposition=True will trigger the transposition summary calculation
     typostats.generate_report(counts, allow_transposition=True, quiet=False)
     captured = capsys.readouterr()
-    assert "Transpositions:" in captured.err
+    assert "Transpositions [T]:" in captured.err
     assert "1/1" in captured.err
 
 def test_generate_report_criteria_summary_stderr(capsys):
@@ -39,7 +39,7 @@ def test_generate_report_output_file_summaries(tmp_path):
     )
     content = output_file.read_text()
     assert "Patterns matching criteria:" in content # line 509
-    assert "Transpositions:" in content # line 515
+    assert "Transpositions [T]:" in content # line 515
 
     # Trigger display_summary (line 518)
     typostats.generate_report(

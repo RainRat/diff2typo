@@ -431,7 +431,7 @@ def generate_report(
 
             if total_single_char > 0:
                 percent = (adjacent_count / total_single_char) * 100
-                keyboard_summary = f"  {c_err_bold}{'Keyboard Adjacency:':<{label_width}}{c_err_reset} {c_err_yellow}{adjacent_count}{c_err_reset}/{total_single_char} ({c_err_green}{percent:.1f}%{c_err_reset})"
+                keyboard_summary = f"  {c_err_bold}{'Keyboard Adjacency [K]:':<{label_width}}{c_err_reset} {c_err_yellow}{adjacent_count}{c_err_reset}/{total_single_char} ({c_err_green}{percent:.1f}%{c_err_reset})"
 
         transposition_summary = ""
         if kwargs.get('allow_transposition'):
@@ -441,7 +441,17 @@ def generate_report(
                     trans_count += count
             if trans_count > 0:
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
-                transposition_summary = f"  {c_err_bold}{'Transpositions:':<{label_width}}{c_err_reset} {c_err_yellow}{trans_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
+                transposition_summary = f"  {c_err_bold}{'Transpositions [T]:':<{label_width}}{c_err_reset} {c_err_yellow}{trans_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
+
+        multi_char_summary = ""
+        if any([kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions')]):
+            multi_count = 0
+            for (c, t), count in replacement_counts.items():
+                if len(c) != len(t):
+                    multi_count += count
+            if multi_count > 0:
+                percent = (multi_count / total_typos) * 100 if total_typos > 0 else 0
+                multi_char_summary = f"  {c_err_bold}{'Multi-character [M]:':<{label_width}}{c_err_reset} {c_err_yellow}{multi_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
 
         analysis_summary = ""
         if total_lines is not None:
@@ -513,6 +523,8 @@ def generate_report(
                     sys.stderr.write(f"{keyboard_summary}\n")
                 if transposition_summary:
                     sys.stderr.write(f"{transposition_summary}\n")
+                if multi_char_summary:
+                    sys.stderr.write(f"{multi_char_summary}\n")
                 if sorted_replacements:
                     if display_summary:
                         sys.stderr.write(f"{display_summary}\n")
@@ -535,6 +547,8 @@ def generate_report(
                 report_lines.append(keyboard_summary)
             if transposition_summary:
                 report_lines.append(transposition_summary)
+            if multi_char_summary:
+                report_lines.append(multi_char_summary)
             if sorted_replacements:
                 if display_summary:
                     report_lines.append(display_summary)
@@ -583,7 +597,7 @@ def generate_report(
                     marker = f"{c_out_bold}[M]{c_out_reset} "
                 row += f" │ {marker}"
 
-            row += f" │ {bar}"
+            row += f" │ {c_out_red}{bar}{c_out_reset}"
             report_lines.append(row)
         report_content = "\n".join(report_lines)
     elif output_format == 'json':

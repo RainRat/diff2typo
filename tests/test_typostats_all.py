@@ -18,7 +18,7 @@ def test_typostats_all_flag(tmp_path):
     assert "Enabled features:" in result.stderr
     assert "keyboard, transposition, 1-to-2, 2-to-1, deletions/insertions" in result.stderr
     # Check that transposition summary is in stderr
-    assert "Transpositions:" in result.stderr
+    assert "Transpositions [T]:" in result.stderr
 
     # Check stdout for some expected output
     # Since we have teh->the and recieve->receive, we expect transposition

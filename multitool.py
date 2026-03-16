@@ -523,6 +523,9 @@ def _write_paired_output(
             elif mode_label == "Casing":
                 left_header = "Normalized"
                 right_header = "Variations"
+            elif mode_label == "Repeated":
+                left_header = "Repeated Words"
+                right_header = "Fix"
 
             out_file.write(f"| {left_header} | {right_header} |\n")
             out_file.write("| :--- | :--- |\n")
@@ -820,6 +823,43 @@ def _extract_regex_items(input_file: str, pattern: str, quiet: bool = False) -> 
                     yield group
             else:
                 yield match
+
+
+def _extract_repeated_items(
+    input_files: Sequence[str],
+    delimiter: str | None = None,
+    quiet: bool = False,
+    smart: bool = False,
+    clean_items: bool = True,
+    min_length: int = 1,
+    max_length: int = 1000,
+) -> Iterable[Tuple[str, str]]:
+    """Yield pairs of (repeated words, single word) from input files."""
+
+    for input_file in input_files:
+        prev_word: str | None = None
+        prev_raw: str | None = None
+        words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
+        for word in words_gen:
+            # Word for matching
+            match_word = filter_to_letters(word) if clean_items else word
+            if not match_word:
+                continue
+
+            # Check length of the word itself
+            if not (min_length <= len(match_word) <= max_length):
+                continue
+
+            if prev_word is not None and match_word == prev_word:
+                # If cleaning is enabled, we use the cleaned version for both.
+                # This ensures consistent casing and format in the output.
+                if clean_items:
+                    yield f"{match_word} {match_word}", match_word
+                else:
+                    yield f"{prev_raw} {word}", word
+
+            prev_word = match_word
+            prev_raw = word
 
 
 def arrow_mode(
@@ -1757,6 +1797,47 @@ def casing_mode(
     )
 
     print_processing_stats(raw_item_count, [c[0] for c in conflicts], item_label="casing-conflict")
+
+
+def repeated_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    delimiter: str | None = None,
+    smart: bool = False,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Identifies consecutive identical words.
+    """
+    results = list(_extract_repeated_items(
+        input_files,
+        delimiter=delimiter,
+        quiet=quiet,
+        smart=smart,
+        clean_items=clean_items,
+        min_length=min_length,
+        max_length=max_length
+    ))
+
+    if process_output:
+        results = sorted(set(results))
+
+    _write_paired_output(
+        results,
+        output_file,
+        output_format,
+        "Repeated",
+        quiet,
+        limit=limit
+    )
+
+    print_processing_stats(len(results), [r[1] for r in results], item_label="repeated-word")
 
 
 def discovery_mode(
@@ -2862,6 +2943,12 @@ MODE_DETAILS = {
         "example": "python multitool.py casing report.txt --smart --output-format arrow",
         "flags": "[-d DELIMITER] [--smart]",
     },
+    "repeated": {
+        "summary": "Finds consecutive identical words.",
+        "description": "Identifies doubled words (e.g., 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
+        "example": "python multitool.py repeated report.txt --smart --output-format arrow",
+        "flags": "[-d DELIMITER] [--smart]",
+    },
     "scrub": {
         "summary": "Replaces typos in text files based on a mapping.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
@@ -2876,7 +2963,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
         "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
-        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "discovery", "casing"],
+        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "discovery", "casing", "repeated"],
     }
 
     lines = []
@@ -3465,6 +3552,26 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(casing_parser)
 
+    repeated_parser = subparsers.add_parser(
+        'repeated',
+        help=MODE_DETAILS['repeated']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['repeated']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['repeated']['example']}{RESET}",
+    )
+    repeated_options = repeated_parser.add_argument_group(f"{BLUE}REPEATED OPTIONS{RESET}")
+    repeated_options.add_argument(
+        '-d', '--delimiter',
+        type=str,
+        help='The delimiter character to split words by (default: whitespace).',
+    )
+    repeated_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+    )
+    _add_common_mode_arguments(repeated_parser)
+
     set_parser = subparsers.add_parser(
         'set_operation',
         help=MODE_DETAILS['set_operation']['summary'],
@@ -3766,6 +3873,15 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'repeated': (
+            repeated_mode,
+            {
+                **common_kwargs,
+                'delimiter': getattr(args, 'delimiter', None),
+                'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
         ),

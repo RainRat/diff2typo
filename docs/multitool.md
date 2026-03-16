@@ -185,6 +185,14 @@ These modes help you analyze your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py casing report.txt --smart --output-format arrow`
 
+- **`repeated`**
+  - **What it does:** Finds consecutive identical words (e.g., "the the"). It's a common typing error that is often missed by standard spell-checkers.
+  - **Options:**
+    - `-d`, `--delimiter`: The character to split words by (default: whitespace).
+    - `-S`, `--smart`: Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
+
 ## Common Options
 
 These options work with most modes:

@@ -1047,39 +1047,54 @@ def count_mode(
     limit: int | None = None,
     delimiter: str | None = None,
     smart: bool = False,
+    pairs: bool = False,
 ) -> None:
     """
-    Counts the frequency of each word in the input file(s) and writes the
-    sorted results to the output file. Only words with length between
+    Counts the frequency of each word or pair in the input file(s) and writes the
+    sorted results to the output file. Only items with length between
     min_length and max_length are counted.
-    The stats are based on the raw count of words versus the filtered words.
+    The stats are based on the raw count of items versus the filtered items.
     Note: process_output is ignored in count mode.
     """
     raw_count = 0
-    filtered_words = []
-    word_counts = Counter()
+    filtered_items = []
+    item_counts = Counter()
 
-    for input_file in input_files:
-        # Use the shared extraction logic to support custom delimiters and smart splitting
-        words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
-        for word in words_gen:
+    if pairs:
+        # Mode for counting typo -> correction pairs
+        for left, right in _extract_pairs(input_files, quiet=quiet):
             raw_count += 1
-            # Filter and clean the word
-            filtered = clean_and_filter([word], min_length, max_length, clean=clean_items)
-            if filtered:
-                filtered_words.extend(filtered)
-                word_counts.update(filtered)
+            if clean_items:
+                left = filter_to_letters(left)
+                right = filter_to_letters(right)
+            if not left or not right:
+                continue
+            if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+                filtered_items.append((left, right))
+                item_counts.update([(left, right)])
+    else:
+        # Default mode for counting individual words
+        for input_file in input_files:
+            # Use the shared extraction logic to support custom delimiters and smart splitting
+            words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
+            for word in words_gen:
+                raw_count += 1
+                # Filter and clean the word
+                filtered = clean_and_filter([word], min_length, max_length, clean=clean_items)
+                if filtered:
+                    filtered_items.extend(filtered)
+                    item_counts.update(filtered)
 
-    sorted_words = sorted(word_counts.items(), key=lambda x: (-x[1], x[0]))
+    sorted_words = sorted(item_counts.items(), key=lambda x: (-x[1], x[0]))
 
     # Apply frequency filtering
     final_results = []
-    for word, count in sorted_words:
+    for item, count in sorted_words:
         if count < min_count:
             continue
         if max_count is not None and count > max_count:
             continue
-        final_results.append((word, count))
+        final_results.append((item, count))
 
     if limit is not None:
         final_results = final_results[:limit]
@@ -1089,29 +1104,52 @@ def count_mode(
 
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
-            json_data = [{"item": word, "count": count} for word, count in final_results]
+            if pairs:
+                json_data = [{"typo": item[0], "correction": item[1], "count": count} for item, count in final_results]
+            else:
+                json_data = [{"item": item, "count": count} for item, count in final_results]
             json.dump(json_data, out_file, indent=2)
             out_file.write('\n')
         elif output_format == 'csv':
             writer = csv.writer(out_file)
-            for word, count in final_results:
-                writer.writerow([word, count])
+            if pairs:
+                writer.writerow(["typo", "correction", "count"])
+                for item, count in final_results:
+                    writer.writerow([item[0], item[1], count])
+            else:
+                for item, count in final_results:
+                    writer.writerow([item, count])
         elif output_format == 'markdown':
-            for word, count in final_results:
-                out_file.write(f"- {word}: {count}\n")
+            for item, count in final_results:
+                label = f"{item[0]} -> {item[1]}" if pairs else item
+                out_file.write(f"- {label}: {count}\n")
         elif output_format == 'md-table':
-            out_file.write("| Item | Count |\n")
-            out_file.write("| :--- | :--- |\n")
-            for word, count in final_results:
-                out_file.write(f"| {word} | {count} |\n")
+            if pairs:
+                out_file.write("| Typo | Correction | Count |\n")
+                out_file.write("| :--- | :--- | :--- |\n")
+                for item, count in final_results:
+                    out_file.write(f"| {item[0]} | {item[1]} | {count} |\n")
+            else:
+                out_file.write("| Item | Count |\n")
+                out_file.write("| :--- | :--- |\n")
+                for item, count in final_results:
+                    out_file.write(f"| {item} | {count} |\n")
         elif output_format == 'arrow':
             # Rich visual report for arrow format
-            total_count = sum(word_counts.values())
+            total_count = sum(item_counts.values())
+
+            # Format item labels for visualization
+            if pairs:
+                labels = [f"{item[0]} -> {item[1]}" for item, _ in final_results]
+                item_header = "TYPO -> CORRECTION"
+            else:
+                labels = [str(item) for item, _ in final_results]
+                item_header = "ITEM"
 
             # Find max width for columns
-            max_item = max((len(word) for word, count in final_results), default=4)
-            max_item = max(max_item, 4)  # 'ITEM'
-            max_count_len = max((len(str(count)) for word, count in final_results), default=5)
+            max_item = max((len(label) for label in labels), default=len(item_header))
+            max_item = max(max_item, len(item_header))
+            max_count_len = max((len(str(count)) for item, count in final_results), default=5)
             max_count_len = max(max_count_len, 5)  # 'COUNT'
             max_pct = 6  # "100.0%"
             max_bar = 20
@@ -1126,7 +1164,7 @@ def count_mode(
             # Header and divider
             padding = "  "
             header = (
-                f"{padding}{c_bold}{'ITEM':<{max_item}}{c_reset} │ "
+                f"{padding}{c_bold}{item_header:<{max_item}}{c_reset} │ "
                 f"{c_bold}{'COUNT':>{max_count_len}}{c_reset} │ "
                 f"{c_bold}{'%':>{max_pct}}{c_reset} │ "
                 f"{c_bold}{'VISUAL':<{max_bar}}{c_reset}"
@@ -1137,8 +1175,9 @@ def count_mode(
             out_file.write(f"\n{header}\n")
             out_file.write(f"{divider}\n")
 
-            for word, count in final_results:
+            for i, (item, count) in enumerate(final_results):
                 percent = (count / total_count * 100) if total_count > 0 else 0
+                label = labels[i]
 
                 # High-res visual bar
                 total_blocks = (percent * max_bar) / 100
@@ -1153,7 +1192,7 @@ def count_mode(
                     bar += " " * (max_bar - full_blocks - 1)
 
                 row = (
-                    f"{padding}{c_green}{word:<{max_item}}{c_reset} │ "
+                    f"{padding}{c_green}{label:<{max_item}}{c_reset} │ "
                     f"{c_yellow}{count:>{max_count_len}}{c_reset} │ "
                     f"{c_green}{percent:>5.1f}%{c_reset} │ "
                     f"{c_red}{bar}{c_reset}"
@@ -1161,10 +1200,11 @@ def count_mode(
                 out_file.write(f"{row}\n")
             out_file.write("\n")
         else:  # 'line' or fallback
-            for word, count in final_results:
-                out_file.write(f"{word}: {count}\n")
+            for item, count in final_results:
+                label = f"{item[0]} -> {item[1]}" if pairs else item
+                out_file.write(f"{label}: {count}\n")
 
-    print_processing_stats(raw_count, filtered_words, item_label="word")
+    print_processing_stats(raw_count, filtered_items, item_label="pair" if pairs else "word")
     logging.info(
         f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
     )
@@ -2721,10 +2761,10 @@ MODE_DETAILS = {
         "flags": "[-d DELIMITER] [--smart]",
     },
     "count": {
-        "summary": "Counts how many times each word appears.",
-        "description": "Counts word frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with histograms.",
-        "example": "python multitool.py count typos.log -f arrow --smart",
-        "flags": "[--min-count N] [-d DELIM] [--smart]",
+        "summary": "Counts how many times each word or pair appears.",
+        "description": "Counts frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with histograms. Use --pairs to count word pairs (e.g., typo -> correction) instead of single words.",
+        "example": "python multitool.py count typos.log -f arrow --smart --pairs",
+        "flags": "[--min-count N] [-d DELIM] [--smart] [--pairs]",
     },
     "filterfragments": {
         "summary": "Removes words if they are found inside words in another file.",
@@ -3223,6 +3263,11 @@ def _build_parser() -> argparse.ArgumentParser:
         '-S', '--smart',
         action='store_true',
         help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+    )
+    count_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help='Count frequencies of word pairs (e.g., typo -> correction) instead of single words.',
     )
     _add_common_mode_arguments(count_parser, include_process_output=False)
 
@@ -3807,6 +3852,7 @@ def main() -> None:
                 'output_format': output_format,
                 'delimiter': getattr(args, 'delimiter', None),
                 'smart': getattr(args, 'smart', False),
+                'pairs': getattr(args, 'pairs', False),
             },
         ),
         'filterfragments': (

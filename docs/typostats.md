@@ -61,10 +61,10 @@ When using the default **arrow** format, the report displays results in a table:
   Keyboard Adjacency: 12/15 (80.0%)
   Transpositions: 1/15 (6.7%)
 
-  CORRECT │ TYPO │ COUNT │      % │ ADJ │ VISUAL
-  ─────────────────────────────────────────────────
-        o │ p    │    12 │  80.0% │ [K] │ ████████
-        i │ u    │     3 │  20.0% │     │ ██
+  CORRECT │ TYPO │ COUNT │      % │ ATTR │ VISUAL
+  ───────────────────────────────────────────────────────
+        o │ p    │    12 │  80.0% │ [K]  │ ████████
+        i │ u    │     3 │  20.0% │      │ ██
 ```
 
 In this table:
@@ -75,10 +75,13 @@ In this table:
 
 For example, a row showing `o │ p` means you typed `p` when you meant to type `o`.
 
-### Keyboard Analysis
-When you use the `--keyboard` flag, the report adds extra information:
-- **ADJ Column:** This shows a **[K]** marker if the two keys are next to each other on a standard keyboard.
-- **Keyboard Adjacency Summary:** A percentage at the top showing how many of your typos were likely caused by physical slips on the keyboard.
+### Typo Attributes
+When you enable analysis features, the report adds markers to the **ATTR Column**:
+- **[K]**: Keyboard slip (the keys are next to each other).
+- **[T]**: Swapped letters (like "teh" instead of "the").
+- **[M]**: Multiple changes (the replacement involves more than one character).
+
+The summary section at the top of the report also shows percentages for how often these patterns occur in your data.
 
 ### Visual Bar
 The **VISUAL** column provides a small bar chart to help you quickly see which mistakes are the most frequent.

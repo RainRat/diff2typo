@@ -1850,6 +1850,127 @@ def casing_mode(
     print_processing_stats(raw_item_count, [c[0] for c in conflicts], item_label="casing-conflict")
 
 
+def diff_mode(
+    input_files: Sequence[str],
+    file2: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    pairs: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Identifies added, removed, and changed items between two files or lists.
+    """
+    if pairs:
+        # Load pairs from both sources
+        left_pairs = dict(_extract_pairs(input_files, quiet=quiet))
+        right_pairs = dict(_extract_pairs([file2], quiet=quiet))
+
+        if clean_items:
+            left_pairs = {filter_to_letters(k): filter_to_letters(v) for k, v in left_pairs.items()}
+            right_pairs = {filter_to_letters(k): filter_to_letters(v) for k, v in right_pairs.items()}
+
+        # Filter by length
+        left_pairs = {k: v for k, v in left_pairs.items()
+                      if min_length <= len(k) <= max_length and min_length <= len(v) <= max_length}
+        right_pairs = {k: v for k, v in right_pairs.items()
+                       if min_length <= len(k) <= max_length and min_length <= len(v) <= max_length}
+
+        left_keys = set(left_pairs.keys())
+        right_keys = set(right_pairs.keys())
+
+        added_keys = right_keys - left_keys
+        removed_keys = left_keys - right_keys
+        common_keys = left_keys & right_keys
+
+        changed = []
+        for k in sorted(common_keys):
+            if left_pairs[k] != right_pairs[k]:
+                changed.append((k, f"{left_pairs[k]} -> {right_pairs[k]}"))
+
+        added = sorted([(k, right_pairs[k]) for k in added_keys])
+        removed = sorted([(k, left_pairs[k]) for k in removed_keys])
+
+        # Prepare combined output
+        results = []
+        for k, v in removed:
+            results.append(f"- {k} -> {v}")
+        for k, v in added:
+            results.append(f"+ {k} -> {v}")
+        for k, v in changed:
+            results.append(f"~ {k}: {v}")
+
+    else:
+        # Load items from both sources
+        _, _, left_items = _load_and_clean_file(
+            input_files[0] if input_files else '-',
+            min_length,
+            max_length,
+            clean_items=clean_items
+        )
+        # Handle multiple input files by merging them for the "left" side
+        if len(input_files) > 1:
+            for f in input_files[1:]:
+                _, _, extra = _load_and_clean_file(f, min_length, max_length, clean_items=clean_items)
+                left_items.extend(extra)
+            left_items = sorted(set(left_items))
+
+        _, _, right_items = _load_and_clean_file(
+            file2,
+            min_length,
+            max_length,
+            clean_items=clean_items
+        )
+
+        left_set = set(left_items)
+        right_set = set(right_items)
+
+        added = sorted(right_set - left_set)
+        removed = sorted(left_set - right_set)
+
+        results = [f"- {item}" for item in removed] + [f"+ {item}" for item in added]
+
+    if limit is not None:
+        results = results[:limit]
+
+    # Handle output
+    with smart_open_output(output_file) as out:
+        if output_format == 'json':
+            if pairs:
+                diff_data = {
+                    "added": {k: v for k, v in added},
+                    "removed": {k: v for k, v in removed},
+                    "changed": {k: v for k, v in changed}
+                }
+            else:
+                diff_data = {"added": added, "removed": removed}
+            json.dump(diff_data, out, indent=2)
+            out.write('\n')
+        else:
+            # Terminal/Line output with colors
+            c_red = RED if out.isatty() else ""
+            c_green = GREEN if out.isatty() else ""
+            c_yellow = YELLOW if out.isatty() else ""
+            c_reset = RESET if out.isatty() else ""
+
+            for line in results:
+                if line.startswith('+'):
+                    out.write(f"{c_green}{line}{c_reset}\n")
+                elif line.startswith('-'):
+                    out.write(f"{c_red}{line}{c_reset}\n")
+                elif line.startswith('~'):
+                    out.write(f"{c_yellow}{line}{c_reset}\n")
+                else:
+                    out.write(f"{line}\n")
+
+    logging.info(f"[Diff Mode] Comparison complete. Output written to '{output_file}'.")
+
+
 def repeated_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -3006,6 +3127,12 @@ MODE_DETAILS = {
         "example": "python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt",
         "flags": "[MAPPING]",
     },
+    "diff": {
+        "summary": "Compares two files to find added, removed, or changed items.",
+        "description": "Identifies differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what's new (+), what's gone (-), and what changed (~).",
+        "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
+        "flags": "[FILE2] [--pairs]",
+    },
 }
 
 
@@ -3013,7 +3140,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
-        "Manipulation": ["combine", "unique", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
+        "Manipulation": ["combine", "unique", "diff", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
         "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "discovery", "casing", "repeated"],
     }
 
@@ -3760,6 +3887,27 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(scrub_parser, include_process_output=False, include_limit=False)
 
+    diff_parser = subparsers.add_parser(
+        'diff',
+        help=MODE_DETAILS['diff']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['diff']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['diff']['example']}{RESET}",
+    )
+    diff_options = diff_parser.add_argument_group(f"{BLUE}DIFF OPTIONS{RESET}")
+    diff_options.add_argument(
+        '--file2',
+        type=str,
+        required=False,
+        help='Path to the second file to compare against.',
+    )
+    diff_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help='Compare word pairs (typo -> correction) instead of single words.',
+    )
+    _add_common_mode_arguments(diff_parser)
+
     zip_parser = subparsers.add_parser(
         'zip',
         help=MODE_DETAILS['zip']['summary'],
@@ -3878,7 +4026,7 @@ def main() -> None:
 
     # Fallback logic for modes that require a secondary file (e.g., zip, map)
     # If the flag is missing but we have at least 2 positional arguments, use the last one as the secondary file.
-    if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch'}:
+    if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'}:
         if getattr(args, 'file2', None) is None and len(input_paths) >= 2:
             args.file2 = input_paths.pop()
             args.input = input_paths
@@ -3889,7 +4037,7 @@ def main() -> None:
 
     file2 = getattr(args, 'file2', None)
     # Check for missing secondary files after fallback attempt
-    if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch'} and file2 is None:
+    if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
     if args.mode in {'map', 'scrub'} and getattr(args, 'mapping', None) is None:
@@ -4053,6 +4201,15 @@ def main() -> None:
                 'clean_items': clean_items,
                 'limit': limit,
             },
+        ),
+        'diff': (
+            diff_mode,
+            {
+                **common_kwargs,
+                'file2': file2,
+                'pairs': getattr(args, 'pairs', False),
+                'output_format': output_format,
+            }
         ),
         'unique': (
             unique_mode,

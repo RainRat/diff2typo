@@ -2955,6 +2955,7 @@ class ModeHelpAction(argparse.Action):
             details = MODE_DETAILS.get(values)
             if not details:
                 parser.error(f"Unknown mode: {values}")
+                return
 
             divider = f"{BLUE}{'─' * 80}{RESET}"
             block = [

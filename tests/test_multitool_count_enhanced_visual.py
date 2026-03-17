@@ -50,6 +50,9 @@ def test_count_mode_visual_report_content(tmp_path, monkeypatch):
     multitool.count_mode([str(input_file)], str(output_file), 1, 10, False, output_format='arrow', min_count=1)
     content = output_file.read_text()
 
+    assert "ANALYSIS SUMMARY" in content
+    assert "Total words encountered" in content
+    assert "Retention rate" in content
     assert "ITEM" in content
     assert "COUNT" in content
     assert "VISUAL" in content

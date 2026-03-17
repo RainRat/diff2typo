@@ -93,7 +93,7 @@ def test_stats_mode_markdown(tmp_path):
 
     multitool.stats_mode([str(f)], str(out), min_length=1, max_length=100, process_output=False, include_pairs=True, output_format='markdown')
     content = out.read_text()
-    assert "### ANALYSIS STATISTICS" in content
+    assert "### ANALYSIS SUMMARY" in content
     assert "### PAIRED DATA STATISTICS" in content
     assert "| Total items encountered | 1 |" in content
 
@@ -112,7 +112,7 @@ def test_stats_mode_human_readable(tmp_path):
 
     # Collect written calls
     written_content = "".join(call.args[0] for call in mock_file.write.call_args_list)
-    assert "ANALYSIS STATISTICS" in written_content
+    assert "ANALYSIS SUMMARY" in written_content
     assert "PAIRED DATA STATISTICS" in written_content
     assert "\033" not in written_content # No ANSI colors
 

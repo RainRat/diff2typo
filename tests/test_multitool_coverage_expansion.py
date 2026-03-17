@@ -57,7 +57,7 @@ def test_stats_mode_markdown_with_pairs(tmp_path):
     multitool.stats_mode([str(f)], str(out), min_length=1, max_length=100, process_output=False, include_pairs=True, output_format='markdown', clean_items=True)
 
     content = out.read_text()
-    assert "### ANALYSIS STATISTICS" in content
+    assert "### ANALYSIS SUMMARY" in content
     assert "### PAIRED DATA STATISTICS" in content
     # Simple pair to ensure dist 1
     f.write_text("a -> b\n")

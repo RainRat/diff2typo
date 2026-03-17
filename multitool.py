@@ -274,7 +274,7 @@ def _load_and_clean_file(
 
 
 def print_processing_stats(
-    raw_item_count: int, filtered_items: Sequence[str], item_label: str = "item"
+    raw_item_count: int, filtered_items: Sequence[Any], item_label: str = "item"
 ) -> None:
     """Print summary statistics for processed text items with visual hierarchy."""
     item_label_plural = f"{item_label}s"
@@ -286,7 +286,7 @@ def print_processing_stats(
     c_reset = RESET if sys.stderr.isatty() else ""
 
     padding = "  "
-    logging.info(f"\n{padding}{c_bold}ANALYSIS STATISTICS{c_reset}")
+    logging.info(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}")
     logging.info(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
     logging.info(f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}")
     logging.info(f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<35}{c_reset} {c_green}{len(filtered_items)}{c_reset}")
@@ -296,13 +296,22 @@ def print_processing_stats(
         logging.info(f"  {c_bold}{'Retention rate:':<35}{c_reset} {c_green}{retention:.1f}%{c_reset}")
 
     if filtered_items:
-        shortest = min(filtered_items, key=len)
-        longest = max(filtered_items, key=len)
+        def format_item(it: Any) -> str:
+            if isinstance(it, tuple) and len(it) == 2:
+                return f"{it[0]} -> {it[1]}"
+            return str(it)
+
+        shortest = min(filtered_items, key=lambda x: len(format_item(x)))
+        longest = max(filtered_items, key=lambda x: len(format_item(x)))
+
+        s_display = format_item(shortest)
+        l_display = format_item(longest)
+
         logging.info(
-            f"  {c_bold}{'Shortest ' + item_label + ':':<35}{c_reset} '{shortest}' (length: {len(shortest)})"
+            f"  {c_bold}{'Shortest ' + item_label + ':':<35}{c_reset} '{s_display}' (length: {len(s_display)})"
         )
         logging.info(
-            f"  {c_bold}{'Longest ' + item_label + ':':<35}{c_reset} '{longest}' (length: {len(longest)})"
+            f"  {c_bold}{'Longest ' + item_label + ':':<35}{c_reset} '{l_display}' (length: {len(l_display)})"
         )
     else:
         logging.info(f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}")
@@ -1182,6 +1191,11 @@ def count_mode(
             # Rich visual report for arrow format
             total_count = sum(item_counts.values())
 
+            # Suppress standard logging stats since we are about to print a consolidated summary
+            # We do this by locally disabling logging for this part if it's going to stdout anyway
+            # But print_processing_stats is called AFTER count_mode returns.
+            # So we need a flag or logic to skip it.
+
             # Format item labels for visualization
             if pairs:
                 labels = [f"{item[0]} -> {item[1]}" for item, _ in final_results]
@@ -1207,6 +1221,37 @@ def count_mode(
 
             # Header and divider
             padding = "  "
+
+            # Dashboard Summary (Consolidated)
+            label_width = 35
+            out_file.write(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}\n")
+            out_file.write(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}\n")
+
+            item_label = "pair" if pairs else "word"
+            item_label_plural = f"{item_label}s"
+
+            out_file.write(f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}\n")
+            out_file.write(f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{len(filtered_items)}{c_reset}\n")
+
+            if raw_count > 0:
+                retention = (len(filtered_items) / raw_count) * 100
+                out_file.write(f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:.1f}%{c_reset}\n")
+
+            if filtered_items:
+                def format_item_local(it: Any) -> str:
+                    if isinstance(it, tuple) and len(it) == 2:
+                        return f"{it[0]} -> {it[1]}"
+                    return str(it)
+
+                shortest = min(filtered_items, key=lambda x: len(format_item_local(x)))
+                longest = max(filtered_items, key=lambda x: len(format_item_local(x)))
+
+                s_display = format_item_local(shortest)
+                l_display = format_item_local(longest)
+
+                out_file.write(f"  {c_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})\n")
+                out_file.write(f"  {c_bold}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})\n")
+
             header = (
                 f"{padding}{c_bold}{item_header:<{max_item}}{c_reset} │ "
                 f"{c_bold}{'COUNT':>{max_count_len}}{c_reset} │ "
@@ -1248,7 +1293,9 @@ def count_mode(
                 label = f"{item[0]} -> {item[1]}" if pairs else item
                 out_file.write(f"{label}: {count}\n")
 
-    print_processing_stats(raw_count, filtered_items, item_label="pair" if pairs else "word")
+    if output_format != 'arrow':
+        print_processing_stats(raw_count, filtered_items, item_label="pair" if pairs else "word")
+
     logging.info(
         f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
     )
@@ -1369,7 +1416,7 @@ def stats_mode(
                         f.write(f"  {k}: {v}\n")
     elif output_format in ('markdown', 'md-table'):
         with smart_open_output(output_file) as f:
-            f.write("### ANALYSIS STATISTICS\n\n")
+            f.write("### ANALYSIS SUMMARY\n\n")
             f.write("| Metric | Value |\n")
             f.write("| :--- | :--- |\n")
             f.write(f"| Total items encountered | {stats['items']['total_encountered']} |\n")
@@ -1405,7 +1452,7 @@ def stats_mode(
 
             report = []
             padding = "  "
-            report.append(f"\n{padding}{c_bold}ANALYSIS STATISTICS{c_reset}")
+            report.append(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}")
             report.append(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
 
             label_width = 35

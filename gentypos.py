@@ -10,8 +10,8 @@ Features:
     - Generates typos based on common typing patterns (skipping letters, swapping neighbors, etc.).
     - Uses keyboard adjacency to predict likely finger-slips on a QWERTY layout.
     - Supports custom substitution rules for specific character patterns (e.g., 'ph' -> 'f').
-    - Filters out generated typos that are actually valid words in a dictionary.
-    - Can process words directly from the command line or from a large text file.
+    - Checks generated typos against a list of valid words and removes any that are correct words.
+    - Can process words directly from the command line or from a text file.
     - Integrates with results from 'typostats.py' to use your own personal typo history.
 
 Usage:
@@ -700,7 +700,7 @@ def _run_typo_generation(
 ) -> dict[str, str]:
     """Generate, filter, and sort typos based on the provided settings."""
 
-    logging.info("Generating synthetic typos...")
+    logging.info("Generating fake typos...")
     typo_to_correct_word = defaultdict(list)
 
     for word in tqdm(word_list, desc="Processing words", disable=quiet):
@@ -733,21 +733,21 @@ def _run_typo_generation(
 
     total_typos_generated = len(typo_to_correct_word)
     logging.info(
-        "Generated %d unique synthetic typos before filtering.", total_typos_generated
+        "Generated %d unique fake typos before filtering.", total_typos_generated
     )
 
     filtered_typo_to_correct_word = {}
     filtered_typos_count = 0
 
     if all_words:
-        logging.info("Filtering typos against the large dictionary...")
+        logging.info("Filtering typos against the list of valid words...")
         filter_start_time = time.perf_counter()
 
         for typo, correct_words in typo_to_correct_word.items():
             if typo in all_words:
                 filtered_typos_count += 1
                 logging.debug(
-                    "Filtered out typo '%s' as it exists in the large dictionary.", typo
+                    "Filtered out typo '%s' as it exists in the list of valid words.", typo
                 )
                 continue
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
@@ -761,8 +761,8 @@ def _run_typo_generation(
             filter_duration,
         )
     else:
-        # No dictionary filtering
-        logging.info("Skipping dictionary filtering (dictionary empty or disabled).")
+        # No valid word filtering
+        logging.info("Skipping valid word filtering (list of valid words empty or disabled).")
         for typo, correct_words in typo_to_correct_word.items():
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
@@ -772,11 +772,11 @@ def _run_typo_generation(
 
 def main() -> None:
     """
-    Main function to generate synthetic typos and save them to a file based on YAML configuration.
+    Main function to generate fake typos and save them to a file based on YAML configuration.
     """
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Synthetic Typo Generator: Create lists of common typing mistakes.{RESET}",
+        description=f"{BOLD}Fake Typo Generator: Create lists of common typing mistakes.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python gentypos.py "hello" "world"{RESET}
@@ -836,7 +836,7 @@ def main() -> None:
     gen_group.add_argument(
         '--no-filter',
         action='store_true',
-        help="Do not check typos against the dictionary (this is faster).",
+        help="Do not check typos against the list of valid words (this is faster).",
     )
     gen_group.add_argument(
         '-v', '--verbose',
@@ -929,11 +929,11 @@ def main() -> None:
         word_list = [w.lower() for w in cli_words]
         logging.info(f"Processing {len(word_list)} words from CLI arguments.")
     else:
-        logging.info("Loading wordlist (small dictionary)...")
+        logging.info("Loading wordlist (source words)...")
         word_set = load_file(settings.input_file)
         word_list = list(word_set)
         logging.info(
-            "Loaded %d words from the small dictionary ('%s').",
+            "Loaded %d words from the source words ('%s').",
             len(word_list),
             settings.input_file,
         )
@@ -949,10 +949,10 @@ def main() -> None:
                 settings.dictionary_file,
             )
         else:
-            logging.info("Loading dictionary (large dictionary)...")
+            logging.info("Loading valid words (list of valid words)...")
             all_words = load_file(settings.dictionary_file)
             logging.info(
-                "Loaded %d words from the large dictionary ('%s').",
+                "Loaded %d words from the list of valid words ('%s').",
                 len(all_words),
                 settings.dictionary_file,
             )
@@ -988,7 +988,7 @@ def main() -> None:
                 for typo in formatted_typos:
                     file.write(f"{typo}\n")
             logging.info(
-                "Successfully generated %d synthetic typos and saved to '%s'.",
+                "Successfully generated %d fake typos and saved to '%s'.",
                 len(formatted_typos),
                 output_target,
             )

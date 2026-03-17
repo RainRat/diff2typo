@@ -844,10 +844,14 @@ def _extract_repeated_items(
             # Word for matching
             match_word = filter_to_letters(word) if clean_items else word
             if not match_word:
+                prev_word = None
+                prev_raw = None
                 continue
 
             # Check length of the word itself
             if not (min_length <= len(match_word) <= max_length):
+                prev_word = None
+                prev_raw = None
                 continue
 
             if prev_word is not None and match_word == prev_word:

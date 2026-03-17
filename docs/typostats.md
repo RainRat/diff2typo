@@ -51,37 +51,53 @@ The tool automatically recognizes three common ways of listing typos:
 
 ## Understanding the Report
 
-When using the default **arrow** format, the report displays results in a table:
+When using the default **arrow** format, the report displays results in two sections: a summary dashboard and a detailed replacement table.
 
 ```text
- LETTER REPLACEMENTS
- ───────────────────────────────────────────────────────
-  Total replacements analyzed: 15
-  Enabled features: keyboard, transposition
-  Keyboard Adjacency: 12/15 (80.0%)
-  Transpositions: 1/15 (6.7%)
+  ANALYSIS SUMMARY
+  ───────────────────────────────────────────────────────
+  Total lines processed:              10
+  Total pairs processed:              15
+  Replacements identified:            15
+  Retention rate:                     100.0%
+  Unique patterns identified:         2
+  Enabled features:                   keyboard, transposition
+  Keyboard Adjacency [K]:             12/15 (80.0%)
+  Transpositions [T]:                 3/15 (20.0%)
 
+  LETTER REPLACEMENTS
+  ───────────────────────────────────────────────────────
   CORRECT │ TYPO │ COUNT │      % │ ATTR │ VISUAL
   ───────────────────────────────────────────────────────
-        o │ p    │    12 │  80.0% │ [K]  │ ████████
-        i │ u    │     3 │  20.0% │      │ ██
+        o │ p    │    12 │  80.0% │ [K]  │ ████████████
+       th │ ht   │     3 │  20.0% │ [T]  │ ███
 ```
 
-In this table:
+### Analysis Summary
+The dashboard at the top gives you an overview of your typo history:
+- **Total lines/pairs processed:** How much data was analyzed.
+- **Replacements identified:** How many actual mistakes were found.
+- **Unique patterns:** How many different types of mistakes were found.
+- **Keyboard Adjacency [K]:** Percentage of typos caused by hitting a key next to the correct one.
+- **Transpositions [T]:** Percentage of typos caused by swapping two letters.
+- **Multi-character [M]:** Percentage of typos involving multiple letters (like `m` -> `rn`).
+
+### Letter Replacements Table
+This section breaks down every mistake:
 - **CORRECT:** The character you intended to type.
 - **TYPO:** The mistake you actually made.
 - **COUNT:** How many times this specific mistake happened.
-- **%:** What percentage of all analyzed typos this mistake represents.
+- **%:** What percentage of all identified replacements this mistake represents.
+- **ATTR:** Special markers identifying the type of mistake (e.g., `[K]` for keyboard slip).
+- **VISUAL:** A small bar chart for quick comparison.
 
 For example, a row showing `o │ p` means you typed `p` when you meant to type `o`.
 
-### Typo Attributes
-When you enable analysis features, the report adds markers to the **ATTR Column**:
-- **[K]**: Keyboard slip (the keys are next to each other).
-- **[T]**: Swapped letters (like "teh" instead of "the").
-- **[M]**: Multiple changes (the replacement involves more than one character).
-
-The summary section at the top of the report also shows percentages for how often these patterns occur in your data.
+### Typo Attributes (ATTR)
+When you enable analysis features, the tool identifies specific patterns in the **ATTR** column:
+- **[K]**: Keyboard slip (the keys are next to each other on a QWERTY layout).
+- **[T]**: Transposition (swapped letters, like `teh` instead of `the`).
+- **[M]**: Multi-character replacement (e.g., `m` to `rn` or `ph` to `f`).
 
 ### Visual Bar
 The **VISUAL** column provides a small bar chart to help you quickly see which mistakes are the most frequent.

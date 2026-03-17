@@ -77,6 +77,12 @@ These modes help you transform or combine your data.
   - **What it does:** Removes duplicate items from your list while **preserving the original order**. This is useful when the sequence of items is important.
   - **Example:** `python multitool.py unique raw_typos.txt`
 
+- **`diff`**
+  - **What it does:** Identifies added, removed, and changed items between two files. It can compare simple lists of words or (with the `--pairs` flag) identify changes in typo-correction mappings.
+  - **Supported Formats:** Color-coded terminal output (default) and structured JSON output.
+  - **Example:** `python multitool.py diff old_list.txt new_list.txt`
+  - **Pairs Example:** `python multitool.py diff old_typos.csv new_typos.csv --pairs`
+
 - **`filterfragments`**
   - **What it does:** Removes words from your input file if they appear anywhere inside a second file (`--file2`).
   - **Example:** `python multitool.py filterfragments candidates.txt --file2 dictionary.txt`

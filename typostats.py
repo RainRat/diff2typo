@@ -230,7 +230,7 @@ def print_processing_stats(
     c_green = GREEN if sys.stderr.isatty() else ""
 
     padding = "  "
-    logging.info(f"\n{padding}{c_bold}ANALYSIS STATISTICS{c_reset}")
+    logging.info(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}")
     logging.info(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
     logging.info(
         f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}"

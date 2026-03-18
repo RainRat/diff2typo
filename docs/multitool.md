@@ -145,10 +145,12 @@ These modes help you analyze your data.
     - `--min-count` and `--max-count`: Filter results by their frequency.
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").
-  - **Visual Report:** Use `--output-format arrow` to generate a rich visual report with an aligned table, percentages, and high-resolution Unicode histograms.
+    - `-p`, `--pairs`: Count frequencies of word pairs (e.g., `typo -> correction`) instead of single words.
+  - **Visual Report:** Use `--output-format arrow` to generate a rich visual report. This includes an **ANALYSIS SUMMARY** dashboard with metrics like retention rate, an aligned frequency table, and high-resolution histograms.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, and `line`.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5 -f arrow --smart`
+  - **Pairs Example:** `python multitool.py count typos.log --pairs --output-format arrow`
 
 - **`fuzzymatch`**
   - **What it does:** Identifies words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos.

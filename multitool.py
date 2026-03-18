@@ -565,11 +565,10 @@ def _process_items(
 ) -> None:
     """Generic processing for modes that extract raw string items from one or more files."""
 
-    def chained_extractor() -> Iterable[str]:
-        for input_file in input_files:
-            yield from extractor_func(input_file, quiet=quiet)
-
-    raw_items = list(chained_extractor())
+    raw_items = [
+        item for input_file in input_files
+        for item in extractor_func(input_file, quiet=quiet)
+    ]
     filtered_items = clean_and_filter(raw_items, min_length, max_length, clean=clean_items)
 
     if process_output:
@@ -2415,12 +2414,11 @@ def sample_mode(
 ) -> None:
     """Randomly sample lines from the input file(s)."""
 
-    def chained_extractor() -> Iterable[str]:
-        for input_file in input_files:
-            yield from _extract_line_items(input_file, quiet=quiet)
-
     # Extract raw items first
-    raw_items = list(chained_extractor())
+    raw_items = [
+        item for input_file in input_files
+        for item in _extract_line_items(input_file, quiet=quiet)
+    ]
 
     if not raw_items:
         logging.warning("Input is empty or no lines found.")

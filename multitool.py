@@ -1237,6 +1237,17 @@ def count_mode(
                 retention = (len(filtered_items) / raw_count) * 100
                 out_file.write(f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:.1f}%{c_reset}\n")
 
+            unique_count = len(item_counts)
+            out_file.write(f"  {c_bold}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}\n")
+
+            if pairs and filtered_items:
+                distances = [levenshtein_distance(p[0], p[1]) for p in filtered_items]
+                if distances:
+                    min_dist = min(distances)
+                    max_dist = max(distances)
+                    avg_dist = sum(distances) / len(distances)
+                    out_file.write(f"  {c_bold}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}\n")
+
             if filtered_items:
                 def format_item_local(it: Any) -> str:
                     if isinstance(it, tuple) and len(it) == 2:
@@ -1295,10 +1306,9 @@ def count_mode(
 
     if output_format != 'arrow':
         print_processing_stats(raw_count, filtered_items, item_label="pair" if pairs else "word")
-
-    logging.info(
-        f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
-    )
+        logging.info(
+            f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
+        )
 
 
 def stats_mode(

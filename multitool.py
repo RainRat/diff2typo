@@ -117,6 +117,91 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
+def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
+    """
+    Returns a dictionary of adjacent keys on a QWERTY keyboard.
+    """
+    keyboard = [
+        'qwertyuiop',
+        'asdfghjkl',
+        'zxcvbnm',
+    ]
+
+    coords: dict[str, tuple[int, int]] = {}
+    for r, row in enumerate(keyboard):
+        for c, ch in enumerate(row):
+            coords[ch] = (r, c)
+
+    adjacent: dict[str, set[str]] = {ch: set() for ch in coords}
+
+    for ch, (r, c) in coords.items():
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                if dr == 0 and dc == 0:
+                    continue
+
+                nr, nc = r + dr, c + dc
+                if nr < 0 or nr >= len(keyboard):
+                    continue
+                if nc < 0 or nc >= len(keyboard[nr]):
+                    continue
+
+                if not include_diagonals and dr != 0 and dc != 0:
+                    continue
+
+                adjacent_char = keyboard[nr][nc]
+                adjacent[ch].add(adjacent_char)
+
+    return adjacent
+
+
+def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> str:
+    """
+    Categorizes a typo based on its relationship to the correction.
+    Returns a code: [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, [M] Multi-character.
+    """
+    if not typo or not correction:
+        return "[?]"
+
+    t_len, c_len = len(typo), len(correction)
+
+    # 1. Transposition [T]
+    if t_len == c_len:
+        diffs = [i for i in range(t_len) if typo[i] != correction[i]]
+        if len(diffs) == 2 and diffs[1] == diffs[0] + 1:
+            i, j = diffs
+            if typo[i] == correction[j] and typo[j] == correction[i]:
+                return "[T]"
+
+    # 2. Deletion [D] - Typo is shorter (a character was removed)
+    if t_len == c_len - 1:
+        for i in range(c_len):
+            if correction[:i] + correction[i+1:] == typo:
+                return "[D]"
+
+    # 3. Insertion [I] - Typo is longer (a character was added)
+    if t_len == c_len + 1:
+        for i in range(t_len):
+            if typo[:i] + typo[i+1:] == correction:
+                return "[I]"
+
+    # 4. Replacement [R] or [K] - Same length, one character difference
+    if t_len == c_len:
+        diffs = [i for i in range(t_len) if typo[i] != correction[i]]
+        if len(diffs) == 1:
+            idx = diffs[0]
+            t_char, c_char = typo[idx].lower(), correction[idx].lower()
+            if t_char in adj_keys.get(c_char, set()):
+                return "[K]"
+            return "[R]"
+
+    # 5. Multi-character [M]
+    if levenshtein_distance(typo, correction) > 1:
+        return "[M]"
+
+    return "[?]"
+
+
 def _smart_split(text: str) -> List[str]:
     """
     Splits text into subwords based on non-alphanumeric characters
@@ -1299,6 +1384,63 @@ def count_mode(
     logging.info(
         f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
     )
+
+
+def classify_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    show_dist: bool = False,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Categorizes typo corrections based on their error type.
+    """
+    raw_pairs = _extract_pairs(input_files, quiet=quiet)
+    adj_keys = get_adjacent_keys()
+
+    results = []
+    raw_count = 0
+    for left, right in raw_pairs:
+        raw_count += 1
+        # Clean if requested
+        if clean_items:
+            left_clean = filter_to_letters(left)
+            right_clean = filter_to_letters(right)
+        else:
+            left_clean = left
+            right_clean = right
+
+        # Skip if either side is empty after cleaning
+        if not left_clean or not right_clean:
+            continue
+
+        # Apply length filtering
+        if min_length <= len(left_clean) <= max_length and min_length <= len(right_clean) <= max_length:
+            label = classify_typo(left_clean, right_clean, adj_keys)
+            if show_dist:
+                dist = levenshtein_distance(left_clean, right_clean)
+                label = f"{label} (dist: {dist})"
+            results.append((left, f"{right} {label}"))
+
+    if process_output:
+        results = sorted(set(results))
+
+    _write_paired_output(
+        results,
+        output_file,
+        output_format,
+        "Classify",
+        quiet,
+        limit=limit
+    )
+
+    print_processing_stats(raw_count, [r[0] for r in results], item_label="classified-typo")
 
 
 def stats_mode(
@@ -3103,6 +3245,12 @@ MODE_DETAILS = {
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
+    "classify": {
+        "summary": "Categorizes typo corrections based on their error type.",
+        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, and [M] Multi-character. Use --show-dist to include the number of character changes.",
+        "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
+        "flags": "[--show-dist]",
+    },
     "discovery": {
         "summary": "Discovers potential typos by comparing rare words to frequent words.",
         "description": "Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
@@ -3141,7 +3289,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
         "Manipulation": ["combine", "unique", "diff", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
-        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "discovery", "casing", "repeated"],
+        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated"],
     }
 
     lines = []
@@ -3672,6 +3820,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(stats_parser, include_process_output=False)
 
+    classify_parser = subparsers.add_parser(
+        'classify',
+        help=MODE_DETAILS['classify']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['classify']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['classify']['example']}{RESET}",
+    )
+    classify_options = classify_parser.add_argument_group(f"{BLUE}CLASSIFY OPTIONS{RESET}")
+    classify_options.add_argument(
+        '--show-dist',
+        action='store_true',
+        help="Include the number of character changes in the output labels.",
+    )
+    _add_common_mode_arguments(classify_parser)
+
     discovery_parser = subparsers.add_parser(
         'discovery',
         help=MODE_DETAILS['discovery']['summary'],
@@ -4073,6 +4236,14 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'classify': (
+            classify_mode,
+            {
+                **common_kwargs,
+                'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
             },
         ),

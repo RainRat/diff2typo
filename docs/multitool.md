@@ -134,6 +134,12 @@ These modes help you analyze your data.
   - **What it does:** Finds words that appear as both a typo *and* a correction. This is useful for spotting errors in your typo database (loops).
   - **Example:** `python multitool.py check mappings.csv`
 
+- **`classify`**
+  - **What it does:** Categorizes typo corrections based on their error type. It labels each pair with a code like `[K]` (Keyboard), `[T]` (Transposition), `[D]` (Deletion), `[I]` (Insertion), `[R]` (Replacement), or `[M]` (Multi-character).
+  - **Options:** Use `--show-dist` to include the number of character changes (Levenshtein distance) in the output labels.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Example:** `python multitool.py classify typos.txt --show-dist --output labeled.txt`
+
 - **`conflict`**
   - **What it does:** Identifies typos that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.

@@ -2092,14 +2092,21 @@ def diff_mode(
     # Handle output
     with smart_open_output(output_file) as out:
         if output_format == 'json':
+            # Count how many items from each category were kept after the limit
+            rem_limit = sum(1 for r in results if r.startswith('- '))
+            add_limit = sum(1 for r in results if r.startswith('+ '))
             if pairs:
+                chg_limit = sum(1 for r in results if r.startswith('~ '))
                 diff_data = {
-                    "added": {k: v for k, v in added},
-                    "removed": {k: v for k, v in removed},
-                    "changed": {k: v for k, v in changed}
+                    "added": {k: v for k, v in added[:add_limit]},
+                    "removed": {k: v for k, v in removed[:rem_limit]},
+                    "changed": {k: v for k, v in changed[:chg_limit]}
                 }
             else:
-                diff_data = {"added": added, "removed": removed}
+                diff_data = {
+                    "added": added[:add_limit],
+                    "removed": removed[:rem_limit]
+                }
             json.dump(diff_data, out, indent=2)
             out.write('\n')
         else:

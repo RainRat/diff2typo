@@ -1383,10 +1383,11 @@ def count_mode(
             output_summary = "\n".join(summary_buffer) + "\n"
             output_header_block = f"\n{header}\n{divider}\n"
 
-            if output_file == '-' and not quiet:
-                sys.stderr.write(output_summary)
-                sys.stderr.write(output_header_block)
-                sys.stderr.flush()
+            if output_file == '-':
+                if not quiet:
+                    sys.stderr.write(output_summary)
+                    sys.stderr.write(output_header_block)
+                    sys.stderr.flush()
             else:
                 out_file.write(output_summary)
                 out_file.write(output_header_block)

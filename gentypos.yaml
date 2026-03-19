@@ -1,35 +1,36 @@
-# Configuration for Synthetic Typo Generator
+# Configuration for Fake Typo Generator
 
 # File Paths
-input_file: "wordlist_small.txt"       # Path to the input (small) wordlist
-dictionary_file: "wordlist_large.txt"     # Path to the dictionary (large) wordlist
-output_file: "typos_mega.toml"     # Path to the output file
+input_file: "wordlist_small.txt"       # Path to the source words
+dictionary_file: "wordlist_large.txt"     # Path to the list of valid words
+output_file: "typos.txt"            # Path to the output file
 
 # Output_format options: arrow, csv, table, list
-# Default: table
-output_format: "table"
+# Default: arrow
+output_format: "arrow"
 
-# Number of times to repeat typo generation, stacking modifications
+# How many times to repeat the process on the same word
 repeat_modifications: 1
 
 # Typo Generation Options
 typo_types:
-  deletion: true                        # Enable deletion typos
-  transposition: true                   # Enable transposition typos
-  replacement: true                     # Enable replacement typos
-  duplication: true                     # Enable duplication typos
+  deletion: true                        # Skipping a letter (e.g., 'hello' -> 'helo')
+  transposition: true                   # Swapping two letters (e.g., 'the' -> 'teh')
+  replacement: true                     # Hitting the wrong key (e.g., 'key' -> 'ley')
+  duplication: true                     # Typing a letter twice (e.g., 'word' -> 'woord')
 
 # Replacement Options
 replacement_options:
-  include_diagonals: false              # Exclude diagonally adjacent keys in replacements
-  enable_adjacent_substitutions: true   # Enable adjacent-key-based substitutions
-  enable_custom_substitutions: true     # Enable custom substitution rules
+  include_diagonals: false              # Include keys that are diagonal on the keyboard
+  enable_adjacent_substitutions: true   # Use keys that are next to each other
+  enable_custom_substitutions: true     # Use your own custom patterns (defined below)
 
 # Transposition Options
 transposition_options:
-  distance: 1                           # 1 for adjacent, 2 for a gap of one character
+  distance: 1                           # 1 for adjacent letters, 2 for a gap of one character
 
-# Custom Substitutions
+# Custom Patterns
+# These define common mistakes for specific letters or patterns.
 custom_substitutions:
   a:
   - "e"
@@ -74,5 +75,5 @@ custom_substitutions:
 
 # Word Length Filters
 word_length:
-  min_length: 3                         # Minimum word length to generate typos
-  max_length: 20                        # Maximum word length to generate typos
+  min_length: 3                         # Minimum word length
+  max_length: 20                        # Maximum word length

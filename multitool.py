@@ -2870,6 +2870,111 @@ def scrub_mode(
         logging.warning(f"[Dry Run] Total replacements that would be made across all files: {total_replacements}")
 
 
+def highlight_mode(
+    input_files: Sequence[str],
+    mapping_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    matches_only: bool = False,
+    smart_case: bool = False,
+) -> None:
+    """
+    Highlights typos in text files based on a mapping file and shows suggested fixes.
+    """
+    # Load mapping
+    raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
+
+    # Clean the mapping keys for matching if clean_items is True
+    if clean_items:
+        mapping = {filter_to_letters(k): v for k, v in raw_mapping.items() if filter_to_letters(k)}
+    else:
+        mapping = raw_mapping
+
+    total_matches = 0
+    # Pattern for splitting lines into words and non-words (delimiters)
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    with smart_open_output(output_file) as out:
+        # Check if output is a terminal for colors
+        use_colors = out.isatty() and not os.environ.get('NO_COLOR')
+        c_red = RED if use_colors else ""
+        c_green = GREEN if use_colors else ""
+        c_bold = BOLD if use_colors else ""
+        c_reset = RESET if use_colors else ""
+
+        for input_file in input_files:
+            file_lines = _read_file_lines_robust(input_file)
+            file_matches = 0
+
+            for line in tqdm(file_lines, desc=f"Highlighting {input_file}", unit=" lines", disable=quiet):
+                # Split into words and non-words
+                parts = pattern.split(line)
+                new_parts = []
+                line_has_match = False
+
+                for part in parts:
+                    if not part:
+                        continue
+
+                    if pattern.match(part):
+                        # It's a word candidate.
+                        match_key = filter_to_letters(part) if clean_items else part
+
+                        if match_key in mapping:
+                            replacement = mapping[match_key]
+                            if smart_case:
+                                replacement = _apply_smart_case(part, replacement)
+
+                            highlighted = f"{c_red}{c_bold}{part}{c_reset} ({c_green}{replacement}{c_reset})"
+                            new_parts.append(highlighted)
+                            line_has_match = True
+                            file_matches += 1
+                        else:
+                            # Try subword replacement if the whole word didn't match.
+                            sub_parts = _smart_split(part)
+                            new_sub_parts = []
+                            part_has_match = False
+                            for sp in sub_parts:
+                                sm_key = filter_to_letters(sp) if clean_items else sp
+                                if sm_key in mapping:
+                                    replacement = mapping[sm_key]
+                                    if smart_case:
+                                        replacement = _apply_smart_case(sp, replacement)
+                                    highlighted = f"{c_red}{c_bold}{sp}{c_reset} ({c_green}{replacement}{c_reset})"
+                                    new_sub_parts.append(highlighted)
+                                    part_has_match = True
+                                    file_matches += 1
+                                else:
+                                    new_sub_parts.append(sp)
+
+                            if part_has_match:
+                                new_parts.append("".join(new_sub_parts))
+                                line_has_match = True
+                            else:
+                                new_parts.append(part)
+                    else:
+                        # It's a delimiter (punctuation, whitespace)
+                        new_parts.append(part)
+
+                if line_has_match or not matches_only:
+                    highlighted_line = "".join(new_parts)
+                    out.write(highlighted_line)
+                    if not highlighted_line.endswith('\n'):
+                        out.write('\n')
+
+            total_matches += file_matches
+
+    logging.info(
+        f"[Highlight Mode] Completed highlighting {len(input_files)} file(s) using '{mapping_file}'. "
+        f"Found {total_matches} matches. Output written to '{output_file}'."
+    )
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True, include_limit: bool = True
 ) -> None:
@@ -3289,6 +3394,12 @@ MODE_DETAILS = {
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
         "flags": "[FILE2] [--pairs]",
     },
+    "highlight": {
+        "summary": "Highlights typos and their corrections in a text file.",
+        "description": "Scans your text files for typos defined in a mapping file. It displays the text with typos colorized in RED and suggested fixes in GREEN. Use --matches-only to hide lines that do not contain any typos.",
+        "example": "python multitool.py highlight report.txt --mapping corrections.csv --matches-only",
+        "flags": "[MAPPING] [--matches-only] [--smart-case]",
+    },
 }
 
 
@@ -3297,7 +3408,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
         "Manipulation": ["combine", "unique", "diff", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
-        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated"],
+        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "highlight"],
     }
 
     lines = []
@@ -4113,6 +4224,32 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(pairs_parser)
 
+    highlight_parser = subparsers.add_parser(
+        'highlight',
+        help=MODE_DETAILS['highlight']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['highlight']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['highlight']['example']}{RESET}",
+    )
+    highlight_options = highlight_parser.add_argument_group(f"{BLUE}HIGHLIGHT OPTIONS{RESET}")
+    highlight_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file.',
+    )
+    highlight_options.add_argument(
+        '--matches-only',
+        action='store_true',
+        help='If set, only lines containing at least one typo are shown.',
+    )
+    highlight_options.add_argument(
+        '--smart-case',
+        action='store_true',
+        help="Automatically match the casing of the original word (e.g., 'Teh' -> 'The').",
+    )
+    _add_common_mode_arguments(highlight_parser, include_process_output=False, include_limit=False)
+
     return parser
 
 
@@ -4201,7 +4338,7 @@ def main() -> None:
         if getattr(args, 'file2', None) is None and len(input_paths) >= 2:
             args.file2 = input_paths.pop()
             args.input = input_paths
-    elif args.mode in {'map', 'scrub'}:
+    elif args.mode in {'map', 'scrub', 'highlight'}:
         if getattr(args, 'mapping', None) is None and len(input_paths) >= 2:
             args.mapping = input_paths.pop()
             args.input = input_paths
@@ -4211,7 +4348,7 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode in {'map', 'scrub'} and getattr(args, 'mapping', None) is None:
+    if args.mode in {'map', 'scrub', 'highlight'} and getattr(args, 'mapping', None) is None:
         logging.error(f"{args.mode.capitalize()} mode requires a mapping file (provide MAPPING positionally or use --mapping).")
         sys.exit(1)
 
@@ -4530,6 +4667,22 @@ def main() -> None:
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
             },
+        ),
+        'highlight': (
+            highlight_mode,
+            {
+                'input_files': args.input,
+                'mapping_file': getattr(args, 'mapping', ''),
+                'output_file': args.output,
+                'min_length': args.min_length,
+                'max_length': args.max_length,
+                'process_output': False,
+                'quiet': args.quiet,
+                'clean_items': clean_items,
+                'limit': limit,
+                'matches_only': getattr(args, 'matches_only', False),
+                'smart_case': getattr(args, 'smart_case', False),
+            }
         ),
     }
 

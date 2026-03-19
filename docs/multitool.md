@@ -207,6 +207,15 @@ These modes help you analyze your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
 
+- **`highlight`**
+  - **What it does:** Scans your text files for typos and colorizes them in the output. It uses a mapping file to identify typos and suggests the correct spelling alongside each match.
+  - **Options:**
+    - `-s`, `--mapping`: The file containing typo-correction pairs.
+    - `--matches-only`: If set, the tool only displays lines that contain at least one typo.
+    - `--smart-case`: Automatically matches the casing of the original word.
+  - **Visual Output:** Typos are highlighted in **RED** and suggested corrections are shown in **GREEN**. Note that color is only shown when outputting to a terminal.
+  - **Example:** `python multitool.py highlight report.txt --mapping corrections.csv --matches-only`
+
 ## Common Options
 
 These options work with most modes:

@@ -153,7 +153,10 @@ def test_mode_help_action_error():
     action = multitool.ModeHelpAction(option_strings=["--mode-help"], dest="mode_help")
 
     mock_parser = MagicMock()
-    # Mocking parser.error to not raise SystemExit for simpler testing of the branch
-    action(mock_parser, MagicMock(), "nonexistent_mode")
+    # parser.error should raise SystemExit, as the real argparse.ArgumentParser.error does.
+    mock_parser.error.side_effect = SystemExit(1)
+
+    with pytest.raises(SystemExit):
+        action(mock_parser, MagicMock(), "nonexistent_mode")
 
     mock_parser.error.assert_called_with("Unknown mode: nonexistent_mode")

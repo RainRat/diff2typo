@@ -94,7 +94,7 @@ def test_repeated_mode_basic(tmp_path):
     out = tmp_path / "out.txt"
 
     # process_output=False (no deduplication)
-    multitool.repeated_mode([str(f)], str(out), 1, 100, False, output_format='arrow')
+    multitool.repeated_mode([str(f)], str(out), 1, 100, False, output_format='line')
     content = out.read_text()
     assert content.count("the the -> the") == 3
 
@@ -104,7 +104,7 @@ def test_repeated_mode_process_output(tmp_path):
     out = tmp_path / "out.txt"
 
     # process_output=True (deduplication)
-    multitool.repeated_mode([str(f)], str(out), 1, 100, True, output_format='arrow')
+    multitool.repeated_mode([str(f)], str(out), 1, 100, True, output_format='line')
     content = out.read_text()
     assert content.count("the the -> the") == 1
 
@@ -113,7 +113,7 @@ def test_repeated_mode_limit(tmp_path):
     f.write_text("the the quick quick brown brown")
     out = tmp_path / "out.txt"
 
-    multitool.repeated_mode([str(f)], str(out), 1, 100, True, output_format='arrow', limit=2)
+    multitool.repeated_mode([str(f)], str(out), 1, 100, True, output_format='line', limit=2)
     content = out.read_text().splitlines()
     # Filter out empty lines or headers if any
     data_lines = [l for l in content if "->" in l]
@@ -133,7 +133,7 @@ def test_repeated_across_lines(tmp_path):
     f.write_text("the\nthe")
     out = tmp_path / "out.txt"
 
-    multitool.repeated_mode([str(f)], str(out), 1, 100, False, output_format='arrow')
+    multitool.repeated_mode([str(f)], str(out), 1, 100, False, output_format='line')
     assert "the the -> the" in out.read_text()
 
 def test_repeated_mode_stats_output(tmp_path, caplog):

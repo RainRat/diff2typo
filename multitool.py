@@ -2903,6 +2903,96 @@ def scrub_mode(
         logging.warning(f"[Dry Run] Total replacements that would be made across all files: {total_replacements}")
 
 
+def highlight_mode(
+    input_files: Sequence[str],
+    mapping_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    smart: bool = False,
+) -> None:
+    """
+    Highlights words from a mapping file or list within the input text files.
+    """
+    # Load mapping or list
+    if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml')):
+        raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
+    else:
+        # Treat as a simple list of words if not a common mapping format
+        lines = _read_file_lines_robust(mapping_file)
+        raw_mapping = {line.strip(): "" for line in lines if line.strip()}
+
+    # Clean the mapping keys for matching if clean_items is True
+    if clean_items:
+        mapping = {filter_to_letters(k): True for k in raw_mapping.keys() if filter_to_letters(k)}
+    else:
+        mapping = {k: True for k in raw_mapping.keys() if k}
+
+    total_highlights = 0
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    accumulated_lines = []
+
+    for input_file in input_files:
+        file_lines = _read_file_lines_robust(input_file)
+        highlighted_lines = []
+        file_highlights = 0
+
+        for line in tqdm(file_lines, desc=f"Highlighting {input_file}", unit=" lines", disable=quiet):
+            parts = pattern.split(line)
+            new_parts = []
+            for part in parts:
+                if not part:
+                    continue
+
+                if pattern.match(part):
+                    # It's a word candidate
+                    match_key = filter_to_letters(part) if clean_items else part
+
+                    if match_key in mapping:
+                        new_parts.append(f"{YELLOW}{part}{RESET}")
+                        file_highlights += 1
+                    elif smart:
+                        # Try subword matching
+                        sub_parts = _smart_split(part)
+                        new_sub_parts = []
+                        for sp in sub_parts:
+                            sm_key = filter_to_letters(sp) if clean_items else sp
+                            if sm_key in mapping:
+                                new_sub_parts.append(f"{YELLOW}{sp}{RESET}")
+                                file_highlights += 1
+                            else:
+                                new_sub_parts.append(sp)
+                        new_parts.append("".join(new_sub_parts))
+                    else:
+                        new_parts.append(part)
+                else:
+                    new_parts.append(part)
+
+            highlighted_lines.append("".join(new_parts))
+
+        total_highlights += file_highlights
+        accumulated_lines.extend(highlighted_lines)
+
+    if limit is not None:
+        accumulated_lines = accumulated_lines[:limit]
+
+    with smart_open_output(output_file) as out:
+        for line in accumulated_lines:
+            out.write(line)
+            if not line.endswith('\n'):
+                out.write('\n')
+
+    logging.info(
+        f"[Highlight Mode] Completed highlighting {len(input_files)} file(s) using '{mapping_file}'. "
+        f"Found {total_highlights} highlight(s). Output written to '{output_file}'."
+    )
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True, include_limit: bool = True
 ) -> None:
@@ -3322,6 +3412,12 @@ MODE_DETAILS = {
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
         "flags": "[FILE2] [--pairs]",
     },
+    "highlight": {
+        "summary": "Highlights specific words or typos within text files.",
+        "description": "Searches for words from a list or mapping and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
+        "example": "python multitool.py highlight input.txt --mapping corrections.csv",
+        "flags": "[MAPPING] [--smart]",
+    },
 }
 
 
@@ -3329,7 +3425,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
-        "Manipulation": ["combine", "unique", "diff", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
+        "Manipulation": ["combine", "unique", "diff", "highlight", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
         "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated"],
     }
 
@@ -4145,6 +4241,27 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(pairs_parser)
 
+    highlight_parser = subparsers.add_parser(
+        'highlight',
+        help=MODE_DETAILS['highlight']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['highlight']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['highlight']['example']}{RESET}",
+    )
+    highlight_options = highlight_parser.add_argument_group(f"{BLUE}HIGHLIGHT OPTIONS{RESET}")
+    highlight_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file or word list.',
+    )
+    highlight_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Highlight subword matches (e.g., highlighting "teh" inside "tehWord").',
+    )
+    _add_common_mode_arguments(highlight_parser)
+
     return parser
 
 
@@ -4562,6 +4679,14 @@ def main() -> None:
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
             },
+        ),
+        'highlight': (
+            highlight_mode,
+            {
+                **common_kwargs,
+                'mapping_file': getattr(args, 'mapping', ''),
+                'smart': getattr(args, 'smart', False),
+            }
         ),
     }
 

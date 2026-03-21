@@ -121,6 +121,11 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt`
   - **In-Place Example:** `python multitool.py scrub file1.txt file2.txt --mapping corrections.csv --in-place`
 
+- **`highlight`**
+  - **What it does:** Searches for words from a list or mapping and highlights them with color in the output. This is useful as a non-destructive preview before using the `scrub` mode to make permanent changes.
+  - **Options:** Use the `--mapping` flag to provide a file with typos or words to find. The `--smart` flag allows for highlighting subwords within larger compound words (like variable names).
+  - **Example:** `python multitool.py highlight input.txt --mapping corrections.csv`
+
 - **`pairs`**
   - **What it does:** Processes paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (e.g., from JSON to CSV) while applying cleaning and length filters.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.

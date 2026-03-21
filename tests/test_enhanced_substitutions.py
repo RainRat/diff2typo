@@ -4,11 +4,11 @@ from gentypos import generate_typos_by_replacement
 
 def test_typostats_2_to_1_replacement():
     # Basic 2 -> 1
-    assert is_one_letter_replacement("f", "ph", allow_two_char=True) == [("ph", "f")]
+    assert is_one_letter_replacement("f", "ph", allow_2to1=True) == [("ph", "f")]
     # Context 2 -> 1
-    assert is_one_letter_replacement("elefant", "elephant", allow_two_char=True) == [("ph", "f")]
+    assert is_one_letter_replacement("elefant", "elephant", allow_2to1=True) == [("ph", "f")]
     # Should not detect without flag
-    assert is_one_letter_replacement("f", "ph", allow_two_char=False) == []
+    assert is_one_letter_replacement("f", "ph", allow_2to1=False) == []
 
 def test_gentypos_multi_char_substitution():
     adjacent = {}

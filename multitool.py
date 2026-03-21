@@ -2,7 +2,7 @@ import os
 import argparse
 import csv
 import glob
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 import random
 import contextlib
 import sys
@@ -854,15 +854,13 @@ def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
         yield line.rstrip('\n')
 
 
-def _extract_words_items(
-    input_file: str,
+def _yield_words_from_lines(
+    lines: Iterable[str],
     delimiter: str | None = None,
-    quiet: bool = False,
     smart: bool = False,
 ) -> Iterable[str]:
-    """Yield individual words from each line, split by delimiter (default whitespace)."""
-    lines = _read_file_lines_robust(input_file)
-    for line in tqdm(lines, desc=f'Processing {input_file} (words)', unit=' lines', disable=quiet):
+    """Yield individual words from an iterable of lines."""
+    for line in lines:
         parts = line.split(delimiter)
         for part in parts:
             if smart:
@@ -871,6 +869,21 @@ def _extract_words_items(
                 word = part.strip()
                 if word:
                     yield word
+
+
+def _extract_words_items(
+    input_file: str,
+    delimiter: str | None = None,
+    quiet: bool = False,
+    smart: bool = False,
+) -> Iterable[str]:
+    """Yield individual words from each line, split by delimiter (default whitespace)."""
+    lines = _read_file_lines_robust(input_file)
+    yield from _yield_words_from_lines(
+        tqdm(lines, desc=f'Processing {input_file} (words)', unit=' lines', disable=quiet),
+        delimiter=delimiter,
+        smart=smart
+    )
 
 
 def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
@@ -983,6 +996,69 @@ def _extract_repeated_items(
 
             prev_word = match_word
             prev_raw = word
+
+
+def _extract_ngram_items(
+    input_file: str,
+    n: int = 2,
+    delimiter: str | None = None,
+    quiet: bool = False,
+    smart: bool = False,
+    clean_items: bool = True,
+) -> Iterable[str]:
+    """Yield sequences of N words joined by spaces."""
+    lines = _read_file_lines_robust(input_file)
+    words_gen = _yield_words_from_lines(
+        tqdm(lines, desc=f'Processing {input_file} (ngrams)', unit=' lines', disable=quiet),
+        delimiter=delimiter,
+        smart=smart
+    )
+
+    window = deque(maxlen=n)
+    for word in words_gen:
+        if clean_items:
+            word = filter_to_letters(word)
+            if not word:
+                continue
+
+        window.append(word)
+        if len(window) == n:
+            yield " ".join(window)
+
+
+def ngrams_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    n: int = 2,
+    delimiter: str | None = None,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    smart: bool = False,
+) -> None:
+    """Wrapper for extracting N-grams from file(s)."""
+    extractor = lambda f, quiet=False: _extract_ngram_items(
+        f, n=n, delimiter=delimiter, quiet=quiet, smart=smart, clean_items=clean_items
+    )
+    # Pass clean_items=False to _process_items to preserve spaces in n-grams.
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Ngrams',
+        f'{n}-grams extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=False,
+        limit=limit,
+    )
 
 
 def arrow_mode(
@@ -3319,6 +3395,12 @@ MODE_DETAILS = {
         "example": "python multitool.py words report.txt --smart --output wordlist.txt",
         "flags": "[-d DELIMITER] [--smart]",
     },
+    "ngrams": {
+        "summary": "Extracts sequences of N words (n-grams).",
+        "description": "Extracts sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sliding windows across line boundaries.",
+        "example": "python multitool.py ngrams report.txt -n 2 --smart --output phrases.txt",
+        "flags": "[-n N] [-d DELIMITER] [--smart]",
+    },
     "count": {
         "summary": "Counts how many times each word or pair appears.",
         "description": "Counts frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with histograms. Use --pairs to count word pairs (e.g., typo -> correction) instead of single words.",
@@ -3457,7 +3539,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "regex"],
+        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
         "Manipulation": ["combine", "unique", "diff", "highlight", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
         "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated"],
     }
@@ -4149,6 +4231,32 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(words_parser)
 
+    ngrams_parser = subparsers.add_parser(
+        'ngrams',
+        help=MODE_DETAILS['ngrams']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['ngrams']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['ngrams']['example']}{RESET}",
+    )
+    ngrams_options = ngrams_parser.add_argument_group(f"{BLUE}NGRAMS OPTIONS{RESET}")
+    ngrams_options.add_argument(
+        '-n', '--n',
+        type=int,
+        default=2,
+        help='The number of words in each n-gram (default: 2).',
+    )
+    ngrams_options.add_argument(
+        '-d', '--delimiter',
+        type=str,
+        help='The delimiter character to split words by (default: whitespace).',
+    )
+    ngrams_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+    )
+    _add_common_mode_arguments(ngrams_parser)
+
     regex_parser = subparsers.add_parser(
         'regex',
         help=MODE_DETAILS['regex']['summary'],
@@ -4426,6 +4534,16 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'ngrams': (
+            ngrams_mode,
+            {
+                **common_kwargs,
+                'n': getattr(args, 'n', 2),
+                'delimiter': getattr(args, 'delimiter', None),
+                'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
         ),

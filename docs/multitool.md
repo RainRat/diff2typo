@@ -33,7 +33,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py backtick build.log`
 
 - **`csv`**
-  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column, or `--column` (or `-c`) followed by one or more indices to extract specific columns. Use `--delimiter` (or `-d`) to specify a different column separator (e.g., `;`).
+  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column, or `--column` (or `-c`) followed by one or more indices to extract specific columns. Use `--delimiter` (or `-d`) to specify a different column separator (for example, `;`).
   - **Example:** `python multitool.py csv data.csv --column 2`
 
 - **`markdown`**
@@ -45,11 +45,11 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py md-table readme.md --column 2`
 
 - **`json`**
-  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (e.g., `user.name`). If you do not provide a key, it extracts keys from the root object (or all items if the root is a list). It automatically handles lists and objects.
+  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (for example, `user.name`). If you do not provide a key, it extracts keys from the root object (or all items if the root is a list). It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`
 
 - **`yaml`**
-  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (e.g., `config.items`). If you do not provide a key, it extracts keys from the root object (or all items if the root is a list).
+  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (for example, `config.items`). If you do not provide a key, it extracts keys from the root object (or all items if the root is a list).
   - **Example:** `python multitool.py yaml config.yaml --key config.items`
 
 - **`line`**
@@ -57,7 +57,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py line raw_words.txt`
 
 - **`words`**
-  - **What it does:** Extracts individual words from a file. It splits lines by whitespace by default, but you can specify a custom character using `--delimiter` (or `-d`). Use the `--smart` (or `-S`) flag to also split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").
+  - **What it does:** Extracts individual words from a file. It splits lines by whitespace by default, but you can specify a custom character using `--delimiter` (or `-d`). Use the `--smart` (or `-S`) flag to also split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
   - **Example:** `python multitool.py words report.txt --smart`
 
 - **`regex`**
@@ -108,14 +108,14 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
 - **`swap`**
-  - **What it does:** Reverses the order of elements in paired data (e.g., `typo -> correction` becomes `correction -> typo`).
+  - **What it does:** Reverses the order of elements in paired data (for example, `typo -> correction` becomes `correction -> typo`).
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
 
 - **`scrub`**
   - **What it does:** Performs replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like `CamelCase` and `snake_case` variables.
   - **Supported Formats:** Supports CSV, Arrow, Table, JSON, and YAML mapping formats.
-  - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (e.g., `--in-place .bak`), the tool will create a backup of each file before modifying it.
+  - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (for example, `--in-place .bak`), the tool will create a backup of each file before modifying it.
   - **Dry Run:** Use the `--dry-run` flag to see how many replacements would be made without actually changing any files.
   - **Smart Casing:** Use the `--smart-case` flag to automatically match the casing of the original word. For example, if the mapping is `teh -> the`, then `Teh` will be replaced with `The`, and `TEH` with `THE`.
   - **Example:** `python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt`
@@ -127,7 +127,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py highlight input.txt --mapping corrections.csv`
 
 - **`pairs`**
-  - **What it does:** Processes paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (e.g., from JSON to CSV) while applying cleaning and length filters.
+  - **What it does:** Processes paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (for example, from JSON to CSV) while applying cleaning and length filters.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py pairs typos.json --output-format csv`
 
@@ -155,9 +155,9 @@ These modes help you analyze your data.
   - **Options:**
     - `--min-count` and `--max-count`: Filter results by their frequency.
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
-    - `-S`, `--smart`: Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").
-    - `-p`, `--pairs`: Count frequencies of word pairs (e.g., `typo -> correction`) instead of single words.
-  - **Visual Report:** Use `--output-format arrow` to generate a rich visual report. This includes an **ANALYSIS SUMMARY** dashboard with metrics like retention rate, an aligned frequency table, and high-resolution histograms.
+    - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
+    - `-p`, `--pairs`: Count frequencies of word pairs (for example, `typo -> correction`) instead of single words.
+  - **Visual Report:** Use `--output-format arrow` to generate a rich visual report. This includes an **ANALYSIS SUMMARY** dashboard with metrics like retention rate, an aligned frequency table, and high-resolution bar charts.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, and `line`.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5 -f arrow --smart`
@@ -197,18 +197,18 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1`
 
 - **`casing`**
-  - **What it does:** Identifies words that appear in your files with multiple different casing styles (e.g., 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.
+  - **What it does:** Identifies words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.
   - **Options:**
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
-    - `-S`, `--smart`: Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").
+    - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py casing report.txt --smart --output-format arrow`
 
 - **`repeated`**
-  - **What it does:** Finds consecutive identical words (e.g., "the the"). It's a common typing error that is often missed by standard spell-checkers.
+  - **What it does:** Finds consecutive identical words (for example, "the the"). It's a common typing error that is often missed by standard spell-checkers.
   - **Options:**
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
-    - `-S`, `--smart`: Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").
+    - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
 

@@ -575,6 +575,25 @@ def _write_paired_output(
     # Determine newline behavior for CSV
     newline = '' if output_format == 'csv' else None
 
+    # Determine headers for paired data modes (used in md-table and arrow formats)
+    left_header = "Left"
+    right_header = "Right"
+    if mode_label == "Conflict":
+        left_header = "Typo"
+        right_header = "Corrections"
+    elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery"):
+        left_header = "Typo"
+        right_header = "Correction"
+    elif mode_label == "NearDuplicates":
+        left_header = "Word 1"
+        right_header = "Word 2"
+    elif mode_label == "Casing":
+        left_header = "Normalized"
+        right_header = "Variations"
+    elif mode_label == "Repeated":
+        left_header = "Repeated Words"
+        right_header = "Fix"
+
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
             json_data = {left: right for left, right in pairs_list}
@@ -603,29 +622,36 @@ def _write_paired_output(
             for left, right in pairs_list:
                 out_file.write(f"- {left}: {right}\n")
         elif output_format == 'md-table':
-            left_header = "Left"
-            right_header = "Right"
-            if mode_label == "Conflict":
-                left_header = "Typo"
-                right_header = "Corrections"
-            elif mode_label in ("Similarity", "Pairs", "Swap", "Zip"):
-                left_header = "Typo"
-                right_header = "Correction"
-            elif mode_label == "NearDuplicates":
-                left_header = "Word 1"
-                right_header = "Word 2"
-            elif mode_label == "Casing":
-                left_header = "Normalized"
-                right_header = "Variations"
-            elif mode_label == "Repeated":
-                left_header = "Repeated Words"
-                right_header = "Fix"
-
             out_file.write(f"| {left_header} | {right_header} |\n")
             out_file.write("| :--- | :--- |\n")
             for left, right in pairs_list:
                 out_file.write(f"| {left} | {right} |\n")
-        else:  # 'arrow' or 'line' or fallback
+        elif output_format == 'arrow' and (out_file.isatty() or os.environ.get('FORCE_COLOR')):
+            # Dynamic column width calculation for aligned table
+            max_left = max((len(str(left)) for left, _ in pairs_list), default=len(left_header))
+            max_left = max(max_left, len(left_header))
+            max_right = max((len(str(right)) for _, right in pairs_list), default=len(right_header))
+            max_right = max(max_right, len(right_header))
+
+            # Colors for table
+            c_bold = BOLD if out_file.isatty() else ""
+            c_blue = BLUE if out_file.isatty() else ""
+            c_green = GREEN if out_file.isatty() else ""
+            c_reset = RESET if out_file.isatty() else ""
+
+            # Header and divider
+            padding = "  "
+            header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} │ {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
+            # 3 chars for the separator " │ "
+            visible_width = max_left + max_right + 3
+            divider = f"{padding}{c_bold}{'─' * visible_width}{c_reset}"
+
+            out_file.write(f"\n{header}\n")
+            out_file.write(f"{divider}\n")
+            for left, right in pairs_list:
+                out_file.write(f"{padding}{c_green}{left:<{max_left}}{c_reset} │ {right}\n")
+            out_file.write("\n")
+        else:  # 'line' or fallback
             for left, right in pairs_list:
                 out_file.write(f"{left} -> {right}\n")
 

@@ -19,7 +19,7 @@ def test_zip_mode_basic(tmp_path):
     f2 = tmp_path / "f2.txt"
     f2.write_text("the\n")
     out = tmp_path / "out.txt"
-    multitool.zip_mode([str(f1)], str(f2), str(out), 1, 100, False)
+    multitool.zip_mode([str(f1)], str(f2), str(out), 1, 100, False, output_format='line')
     assert out.read_text().strip() == "teh -> the"
 
 # SWAP MODE
@@ -27,7 +27,7 @@ def test_swap_mode_basic(tmp_path):
     f = tmp_path / "f.txt"
     f.write_text("the -> teh\n")
     out = tmp_path / "out.txt"
-    multitool.swap_mode([str(f)], str(out), 1, 100, False)
+    multitool.swap_mode([str(f)], str(out), 1, 100, False, output_format='line')
     assert out.read_text().strip() == "teh -> the"
 
 # PAIRS MODE
@@ -35,7 +35,7 @@ def test_pairs_mode_basic(tmp_path):
     f = tmp_path / "f.txt"
     f.write_text("teh,the\n")
     out = tmp_path / "out.txt"
-    multitool.pairs_mode([str(f)], str(out), 1, 100, False)
+    multitool.pairs_mode([str(f)], str(out), 1, 100, False, output_format='line')
     assert out.read_text().strip() == "teh -> the"
 
 # CONFLICT MODE
@@ -54,7 +54,7 @@ def test_similarity_mode_basic(tmp_path):
     f = tmp_path / "f.txt"
     f.write_text("cat -> bat\n")
     out = tmp_path / "out.txt"
-    multitool.similarity_mode([str(f)], str(out), 1, 100, False, min_dist=1, max_dist=1)
+    multitool.similarity_mode([str(f)], str(out), 1, 100, False, min_dist=1, max_dist=1, output_format='line')
     assert out.read_text().strip() == "cat -> bat"
 
 # FUZZYMATCH MODE
@@ -64,7 +64,7 @@ def test_fuzzymatch_mode_basic(tmp_path):
     f2 = tmp_path / "f2.txt"
     f2.write_text("bat\n")
     out = tmp_path / "out.txt"
-    multitool.fuzzymatch_mode([str(f1)], str(f2), str(out), 1, 100, False, min_dist=1, max_dist=1)
+    multitool.fuzzymatch_mode([str(f1)], str(f2), str(out), 1, 100, False, min_dist=1, max_dist=1, output_format='line')
     assert out.read_text().strip() == "cat -> bat"
 
 # NEAR DUPLICATES MODE
@@ -72,6 +72,6 @@ def test_near_duplicates_mode_basic(tmp_path):
     f = tmp_path / "f.txt"
     f.write_text("cat\nbat\n")
     out = tmp_path / "out.txt"
-    multitool.near_duplicates_mode([str(f)], str(out), 1, 100, False, min_dist=1, max_dist=1)
+    multitool.near_duplicates_mode([str(f)], str(out), 1, 100, False, min_dist=1, max_dist=1, output_format='line')
     content = out.read_text().strip()
     assert content == "cat -> bat" or content == "bat -> cat"

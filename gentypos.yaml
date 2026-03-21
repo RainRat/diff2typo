@@ -1,8 +1,8 @@
-# Configuration for Synthetic Typo Generator
+# Configuration for Fake Typo Generator
 
 # File Paths
-input_file: "wordlist_small.txt"       # Path to the input (small) wordlist
-dictionary_file: "wordlist_large.txt"     # Path to the dictionary (large) wordlist
+input_file: "wordlist_small.txt"       # Path to the source words (one per line)
+dictionary_file: "wordlist_large.txt"     # Path to the valid words (used to filter out real words)
 output_file: "typos_mega.toml"     # Path to the output file
 
 # Output_format options: arrow, csv, table, list
@@ -14,10 +14,10 @@ repeat_modifications: 1
 
 # Typo Generation Options
 typo_types:
-  deletion: true                        # Enable deletion typos
-  transposition: true                   # Enable transposition typos
-  replacement: true                     # Enable replacement typos
-  duplication: true                     # Enable duplication typos
+  deletion: true                        # Skipping a letter: "word" becomes "wrd"
+  transposition: true                   # Swapping two letters: "word" becomes "wrod"
+  replacement: true                     # Hitting a nearby key: "word" becomes "wprd"
+  duplication: true                     # Typing a letter twice: "word" becomes "woord"
 
 # Replacement Options
 replacement_options:

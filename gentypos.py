@@ -890,17 +890,20 @@ def main() -> None:
     # Avoid mutating global DEFAULT_CONFIG to ensure thread/process safety and testability
     run_defaults = copy.deepcopy(DEFAULT_CONFIG)
 
-    # In CLI mode, we might want to adjust default word length if not specified in config
-    if is_cli_mode and 'word_length' not in config:
-        # Default to a smaller min_length for adhoc queries if user didn't provide a config
-        run_defaults['word_length']['min_length'] = 0
-
     # Apply CLI overrides
     if is_cli_mode:
         config['input_file'] = None # Will use CLI words
-        if not args.output and 'output_file' not in config:
-            config['output_file'] = '-' # Default to the screen
-            config['output_format'] = 'arrow' # Safer default for the screen
+        # Default to the screen and arrow format for ad-hoc usage unless explicit flags are provided.
+        # This overrides any persistent settings in the configuration file.
+        if not args.output:
+            config['output_file'] = '-'
+        if not args.format:
+            config['output_format'] = 'arrow'
+        # Ensure ad-hoc words aren't filtered out by default project-wide min_length settings.
+        if args.min_length is None:
+            if 'word_length' not in config:
+                config['word_length'] = {}
+            config['word_length']['min_length'] = 0
 
     # Universal CLI overrides
     if args.output:

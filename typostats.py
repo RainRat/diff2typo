@@ -140,7 +140,6 @@ def is_one_letter_replacement(
     allow_1to2: bool = False,
     allow_2to1: bool = False,
     include_deletions: bool = False,
-    **kwargs,
 ) -> list[tuple[str, str]]:
     """
     Check if 'typo' differs from 'correction' by one or more "letter replacements".
@@ -156,9 +155,6 @@ def is_one_letter_replacement(
       value comes from the observed typo. Returns an empty list if no replacements are
       found.
     """
-
-    if kwargs.get("allow_two_char"):
-        allow_1to2 = allow_2to1 = True
 
     # Same length scenario: one-to-one replacement
     if len(typo) == len(correction):
@@ -254,10 +250,7 @@ def process_typos(
     allow_2to1: bool = False,
     include_deletions: bool = False,
     allow_transposition: bool = False,
-    **kwargs,
 ) -> tuple[dict[tuple[str, str], int], int, int]:
-    if kwargs.get("allow_two_char"):
-        allow_1to2 = allow_2to1 = True
 
     replacement_counts = defaultdict(int)
     total_lines = 0

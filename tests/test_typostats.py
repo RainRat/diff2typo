@@ -18,12 +18,12 @@ def test_is_one_letter_replacement_basic():
 
 def test_is_one_letter_replacement_one_to_two():
     # By default, insertions (a -> aa) are filtered out
-    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=True) == []
+    assert typostats.is_one_letter_replacement('aa', 'a', allow_1to2=True) == []
     # If include_deletions is True, they are included
-    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=True, include_deletions=True) == [('a', 'aa')]
+    assert typostats.is_one_letter_replacement('aa', 'a', allow_1to2=True, include_deletions=True) == [('a', 'aa')]
     # 'rn' for 'm' is a replacement, not an insertion, so it should be included by default
-    assert typostats.is_one_letter_replacement('rn', 'm', allow_two_char=True) == [('m', 'rn')]
-    assert typostats.is_one_letter_replacement('aa', 'a', allow_two_char=False) == []
+    assert typostats.is_one_letter_replacement('rn', 'm', allow_1to2=True) == [('m', 'rn')]
+    assert typostats.is_one_letter_replacement('aa', 'a', allow_1to2=False) == []
 
 
 def test_is_one_letter_replacement_multiple_two_char():
@@ -32,9 +32,9 @@ def test_is_one_letter_replacement_multiple_two_char():
     # 1. 'a' in 'cat' is replaced by 'ab' in 'cabt' (insertion, 'a' in 'ab')
     # 2. 't' in 'cat' is replaced by 'bt' in 'cabt' (insertion, 't' in 'bt')
     # By default, all are filtered out
-    assert typostats.is_one_letter_replacement('cabt', 'cat', allow_two_char=True) == []
+    assert typostats.is_one_letter_replacement('cabt', 'cat', allow_1to2=True) == []
     # If include_deletions is True, both are included
-    assert typostats.is_one_letter_replacement('cabt', 'cat', allow_two_char=True, include_deletions=True) == [
+    assert typostats.is_one_letter_replacement('cabt', 'cat', allow_1to2=True, include_deletions=True) == [
         ('a', 'ab'),
         ('t', 'bt'),
     ]
@@ -44,9 +44,9 @@ def test_is_one_letter_replacement_doubled_letter():
     # For a doubled letter, we capture all valid one-to-two interpretations.
     # While 'a' -> 'aa' is the most likely, 'c' -> 'ca' and 't' -> 'at' are also technically valid.
     # By default, all of these are filtered out as insertions.
-    assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True) == []
+    assert typostats.is_one_letter_replacement('caat', 'cat', allow_1to2=True) == []
     # With include_deletions=True, they all return
-    assert typostats.is_one_letter_replacement('caat', 'cat', allow_two_char=True, include_deletions=True) == [
+    assert typostats.is_one_letter_replacement('caat', 'cat', allow_1to2=True, include_deletions=True) == [
         ('a', 'aa'),
         ('c', 'ca'),
         ('t', 'at'),
@@ -71,7 +71,7 @@ def test_process_typos_counts_and_filtering():
         'fóo, foo',  # non-ASCII; should be skipped
     ]
     # By default, 'aa, a' (insertion) is filtered out
-    counts, _, _ = typostats.process_typos(lines, allow_two_char=True)
+    counts, _, _ = typostats.process_typos(lines, allow_1to2=True, allow_2to1=True)
     assert counts == {('s', 'z'): 1, ('e', 'a'): 1}
 
 
@@ -80,7 +80,7 @@ def test_process_typos_table_format():
         'tezt = "test"',
         'lavel = "level"',
     ]
-    counts, _, _ = typostats.process_typos(lines, allow_two_char=False)
+    counts, _, _ = typostats.process_typos(lines, allow_1to2=False, allow_2to1=False)
     assert counts == {('s', 'z'): 1, ('e', 'a'): 1}
 
 
@@ -89,7 +89,7 @@ def test_process_typos_colon_format():
         'tezt: test',
         'lavel: level',
     ]
-    counts, _, _ = typostats.process_typos(lines, allow_two_char=False)
+    counts, _, _ = typostats.process_typos(lines, allow_1to2=False, allow_2to1=False)
     assert counts == {('s', 'z'): 1, ('e', 'a'): 1}
 
 
@@ -99,11 +99,11 @@ def test_process_typos_with_transposition():
         'tset -> test',
     ]
     # Without allow_transposition, these should return nothing (multi-letter diff)
-    counts, _, _ = typostats.process_typos(lines, allow_two_char=False, allow_transposition=False)
+    counts, _, _ = typostats.process_typos(lines, allow_1to2=False, allow_2to1=False, allow_transposition=False)
     assert counts == {}
 
     # With allow_transposition, they should be detected
-    counts, _, _ = typostats.process_typos(lines, allow_two_char=False, allow_transposition=True)
+    counts, _, _ = typostats.process_typos(lines, allow_1to2=False, allow_2to1=False, allow_transposition=True)
     assert counts == {('he', 'eh'): 1, ('es', 'se'): 1}
 
 
@@ -252,5 +252,5 @@ def test_process_typos_skips_non_ascii_corrections():
     lines = [
         'tezt, tézt, test',
     ]
-    counts, _, _ = typostats.process_typos(lines, allow_two_char=False)
+    counts, _, _ = typostats.process_typos(lines, allow_1to2=False, allow_2to1=False)
     assert counts == {('s', 'z'): 1}

@@ -581,7 +581,7 @@ def _write_paired_output(
     if mode_label == "Conflict":
         left_header = "Typo"
         right_header = "Corrections"
-    elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery"):
+    elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery", "Map"):
         left_header = "Typo"
         right_header = "Correction"
     elif mode_label == "NearDuplicates":
@@ -2796,6 +2796,8 @@ def map_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    pairs: bool = False,
+    smart_case: bool = False,
 ) -> None:
     """
     Transforms items based on a mapping file.
@@ -2808,14 +2810,6 @@ def map_mode(
         cleaned_mapping = {}
         for k, v in raw_mapping.items():
             cleaned_k = filter_to_letters(k)
-            # We assume value is the replacement and should be used as is?
-            # Or should value also be cleaned?
-            # If I map "TeH" -> "The", and input is "teh".
-            # Cleaned input: "teh". Cleaned key: "teh". Value: "The".
-            # Output: "The".
-            # If output is also cleaned later (e.g. by process_output)?
-            # But here we are producing the item.
-            # Let's keep value as is, but clean key.
             if cleaned_k:
                 cleaned_mapping[cleaned_k] = v
         mapping = cleaned_mapping
@@ -2823,51 +2817,45 @@ def map_mode(
         mapping = raw_mapping
 
     raw_item_count = 0
-    transformed_items = []
+    results = []
 
     for input_file in input_files:
-        # We reuse _load_and_clean_file logic to get items
-        # But _load_and_clean_file returns unique items in the third return value.
-        # We probably want raw_items (first return) to preserve count/order if process_output is False?
-        # Or we want cleaned_items (second return)?
-        # If clean_items=True, we want cleaned_items.
-        # If clean_items=False, we want raw_items.
+        # We manually iterate to keep raw and cleaned synchronized for smart casing
+        lines = _read_file_lines_robust(input_file)
+        for line in lines:
+            line_content = line.strip()
+            if not line_content:
+                continue
 
-        raw, cleaned, _ = _load_and_clean_file(
-            input_file,
-            min_length,
-            max_length,
-            apply_length_filter=False,
-            clean_items=clean_items,
-        )
+            # Default behavior of map_mode is processing the whole line item.
+            parts = [line_content]
+            for part in parts:
+                raw_item_count += 1
+                match_key = filter_to_letters(part) if clean_items else part
 
-        source_items = cleaned
-        raw_item_count += len(source_items)
+                if match_key in mapping:
+                    transformed = mapping[match_key]
+                    if smart_case:
+                        transformed = _apply_smart_case(part, transformed)
 
-        for item in source_items:
-            if item in mapping:
-                transformed = mapping[item]
-                # Re-apply length filtering to the result of the mapping
-                if transformed and min_length <= len(transformed) <= max_length:
-                    transformed_items.append(transformed)
-            else:
-                # item did NOT pass length filter yet, so check it now if not dropping missing
-                if not drop_missing and item and min_length <= len(item) <= max_length:
-                    transformed_items.append(item)
+                    # Re-apply length filtering to the result of the mapping
+                    if transformed and min_length <= len(transformed) <= max_length:
+                        results.append((part, transformed) if pairs else transformed)
+                elif not drop_missing:
+                    if part and min_length <= len(part) <= max_length:
+                        results.append((part, part) if pairs else part)
 
     if process_output:
-        # If processing output, we sort and dedup.
-        # Also clean? The output might be "The" which is not "the".
-        # If user wanted clean output, they got clean input.
-        # The map result might introduce non-clean items.
-        # Usually process_output implies sorting and deduping.
-        # multitool usually assumes clean items for set operations.
-        # Here we trust the map result.
-        transformed_items = sorted(set(transformed_items))
+        results = sorted(set(results))
 
-    write_output(transformed_items, output_file, output_format, quiet, limit=limit)
+    if pairs:
+        _write_paired_output(results, output_file, output_format, "Map", quiet, limit=limit)
+    else:
+        write_output(results, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(raw_item_count, transformed_items, item_label="item")
+    # For stats, if pairs, use the transformed side
+    stats_items = [r[1] if isinstance(r, tuple) else r for r in results]
+    print_processing_stats(raw_item_count, stats_items, item_label="item")
     logging.info(
         f"[Map Mode] Transformed items using '{mapping_file}'. Output written to '{output_file}'."
     )
@@ -3439,9 +3427,9 @@ MODE_DETAILS = {
     },
     "map": {
         "summary": "Replaces items using a mapping file.",
-        "description": "Replaces items in your list with new values from a mapping file. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
-        "example": "python multitool.py map input.txt mapping.csv -o fixed.txt",
-        "flags": "[MAPPING]",
+        "description": "Replaces items in your list with new values from a mapping file. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
+        "example": "python multitool.py map input.txt mapping.csv --smart-case --pairs",
+        "flags": "[MAPPING] [--smart-case] [--pairs]",
     },
     "zip": {
         "summary": "Pairs lines from two files together.",
@@ -4292,6 +4280,16 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='If set, items not found in the mapping are dropped. Default is to keep them.',
     )
+    map_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help='Output the original word along with its transformation.',
+    )
+    map_options.add_argument(
+        '--smart-case',
+        action='store_true',
+        help="Automatically match the casing of the original word (for example, 'TeH' -> 'The').",
+    )
     _add_common_mode_arguments(map_parser)
 
     scrub_parser = subparsers.add_parser(
@@ -4735,6 +4733,8 @@ def main() -> None:
                 'mapping_file': getattr(args, 'mapping', ''),
                 'drop_missing': getattr(args, 'drop_missing', False),
                 'output_format': output_format,
+                'pairs': getattr(args, 'pairs', False),
+                'smart_case': getattr(args, 'smart_case', False),
             }
         ),
         'scrub': (

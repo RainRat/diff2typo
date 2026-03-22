@@ -480,15 +480,19 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                     if isinstance(data, dict):
                         if 'replacements' in data and isinstance(data['replacements'], list):
                             for item in data['replacements']:
-                                if 'typo' in item and 'correct' in item:
-                                    yield str(item['typo']), str(item['correct'])
+                                if isinstance(item, dict) and 'typo' in item:
+                                    correct = item.get('correct', item.get('correction'))
+                                    if correct is not None:
+                                        yield str(item['typo']), str(correct)
                         else:
                             for k, v in data.items():
                                 yield str(k), str(v)
                     elif isinstance(data, list):
                         for item in data:
-                            if isinstance(item, dict) and 'typo' in item and 'correct' in item:
-                                yield str(item['typo']), str(item['correct'])
+                            if isinstance(item, dict) and 'typo' in item:
+                                correct = item.get('correct', item.get('correction'))
+                                if correct is not None:
+                                    yield str(item['typo']), str(correct)
                 except Exception as e:
                     logging.error(f"Failed to parse JSON in '{input_file}': {e}")
             continue
@@ -504,11 +508,13 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                     elif isinstance(doc, list):
                         for item in doc:
                             if isinstance(item, dict):
-                                if 'typo' in item and 'correct' in item:
-                                    yield str(item['typo']), str(item['correct'])
-                                else:
-                                    for k, v in item.items():
-                                        yield str(k), str(v)
+                                if 'typo' in item:
+                                    correct = item.get('correct', item.get('correction'))
+                                    if correct is not None:
+                                        yield str(item['typo']), str(correct)
+                                        continue
+                                for k, v in item.items():
+                                    yield str(k), str(v)
             except ImportError:
                 logging.error("PyYAML not installed.")
             except Exception as e:

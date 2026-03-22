@@ -88,7 +88,7 @@ This section breaks down every mistake:
 - **TYPO:** The mistake you actually made.
 - **COUNT:** How many times this specific mistake happened.
 - **%:** What percentage of all identified replacements this mistake represents.
-- **ATTR:** Special markers identifying the type of mistake (e.g., `[K]` for keyboard slip).
+- **ATTR:** Special markers identifying the type of mistake (for example, `[K]` for keyboard slip).
 - **VISUAL:** A small bar chart for quick comparison.
 
 For example, a row showing `o │ p` means you typed `p` when you meant to type `o`.
@@ -97,7 +97,7 @@ For example, a row showing `o │ p` means you typed `p` when you meant to type 
 When you enable analysis features, the tool identifies specific patterns in the **ATTR** column:
 - **[K]**: Keyboard slip (the keys are next to each other on a QWERTY layout).
 - **[T]**: Transposition (swapped letters, like `teh` instead of `the`).
-- **[M]**: Multi-character replacement (e.g., `m` to `rn` or `ph` to `f`).
+- **[M]**: Multi-character replacement (for example, `m` to `rn` or `ph` to `f`).
 
 ### Visual Bar
 The **VISUAL** column provides a small bar chart to help you quickly see which mistakes are the most frequent.

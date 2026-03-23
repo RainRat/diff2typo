@@ -46,19 +46,6 @@ def test_is_one_letter_replacement_2to1_advanced():
     # include_deletions=True
     assert typostats.is_one_letter_replacement('o', 'or', allow_2to1=True, include_deletions=True) == [('or', 'o')]
 
-def test_print_processing_stats_retention(caplog):
-    caplog.set_level(logging.INFO)
-    # 2 raw, 1 filtered -> 50.0% retention
-    typostats.print_processing_stats(2, 1, item_label="replacement")
-    assert "Total replacements encountered:     2" in caplog.text
-    assert "Total replacements after filtering: 1" in caplog.text
-    assert "Retention rate:                     50.0%" in caplog.text
-
-    # 0 raw, 0 filtered -> should not divide by zero
-    caplog.clear()
-    typostats.print_processing_stats(0, 0, item_label="replacement")
-    assert "No replacements passed the filtering criteria." in caplog.text
-
 def test_generate_report_keyboard_arrow(capsys):
     counts = {('q', 'w'): 5} # 'q' and 'w' are adjacent
     typostats.generate_report(counts, keyboard=True, output_format='arrow', quiet=False)

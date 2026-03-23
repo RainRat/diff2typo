@@ -209,39 +209,6 @@ def is_one_letter_replacement(
     return []
 
 
-def print_processing_stats(
-    raw_item_count: int,
-    filtered_item_count: int,
-    item_label: str = "item",
-) -> None:
-    """Print summary statistics for processed text items with visual hierarchy."""
-    item_label_plural = f"{item_label}s"
-
-    # Use stderr-specific color check for logging output
-    c_bold = BOLD if sys.stderr.isatty() else ""
-    c_reset = RESET if sys.stderr.isatty() else ""
-    c_yellow = YELLOW if sys.stderr.isatty() else ""
-    c_green = GREEN if sys.stderr.isatty() else ""
-
-    padding = "  "
-    logging.info(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}")
-    logging.info(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
-    logging.info(
-        f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}"
-    )
-    logging.info(
-        f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<35}{c_reset} {c_green}{filtered_item_count}{c_reset}"
-    )
-
-    if raw_item_count > 0:
-        retention = (filtered_item_count / raw_item_count) * 100
-        logging.info(f"  {c_bold}{'Retention rate:':<35}{c_reset} {c_green}{retention:.1f}%{c_reset}")
-
-    if filtered_item_count == 0:
-        logging.info(f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}")
-    logging.info("")
-
-
 def process_typos(
     lines: Iterable[str],
     allow_1to2: bool = False,

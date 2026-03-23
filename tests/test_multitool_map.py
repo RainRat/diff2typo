@@ -1,7 +1,5 @@
 import pytest
-from pathlib import Path
 import multitool
-import sys
 
 @pytest.fixture(autouse=True)
 def disable_tqdm(monkeypatch):

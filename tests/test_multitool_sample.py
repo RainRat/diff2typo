@@ -1,6 +1,4 @@
 import pytest
-import os
-import sys
 from unittest.mock import patch
 import multitool
 
@@ -41,7 +39,7 @@ def test_sample_mode_n(tmp_path):
 
     # Verify lines are from the source (cleaned versions)
     with open(input_file, 'r') as f:
-        source_lines = set(l.strip() for l in f)
+        source_lines = set(line.strip() for line in f)
 
     for line in lines:
         assert line.strip() in source_lines

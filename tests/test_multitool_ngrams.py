@@ -1,11 +1,8 @@
 import sys
 from pathlib import Path
-import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from multitool import _extract_ngram_items, ngrams_mode
-import io
-import os
 
 def test_extract_ngram_items_basic(tmp_path):
     f = tmp_path / "test.txt"

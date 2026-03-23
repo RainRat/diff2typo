@@ -1,4 +1,3 @@
-import pytest
 from typostats import is_one_letter_replacement
 from gentypos import generate_typos_by_replacement
 

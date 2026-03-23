@@ -1,8 +1,6 @@
 import sys
 import json
 from pathlib import Path
-from io import StringIO
-from collections import Counter
 
 # Add repository root to path
 sys.path.append(str(Path(__file__).resolve().parents[1]))

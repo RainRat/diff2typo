@@ -1,5 +1,4 @@
 import json
-import yaml
 from multitool import _extract_pairs
 
 def test_extract_pairs_json_list_typo_correct(tmp_path):

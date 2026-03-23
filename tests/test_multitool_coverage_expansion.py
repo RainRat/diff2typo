@@ -1,6 +1,4 @@
 import sys
-import json
-import csv
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 

@@ -1,5 +1,3 @@
-import json
-import csv
 import sys
 import logging
 import argparse
@@ -149,7 +147,7 @@ def test_minimal_formatter_colorized():
                     assert "WARNING: Warning message" in formatted
 
 def test_mode_help_action_error():
-    parser = argparse.ArgumentParser()
+    argparse.ArgumentParser()
     action = multitool.ModeHelpAction(option_strings=["--mode-help"], dest="mode_help")
 
     mock_parser = MagicMock()

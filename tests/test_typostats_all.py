@@ -1,7 +1,5 @@
-import os
 import subprocess
 import sys
-import pytest
 
 def test_typostats_all_flag(tmp_path):
     typos_file = tmp_path / "typos.txt"

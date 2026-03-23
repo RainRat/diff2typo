@@ -35,11 +35,11 @@ def test_write_paired_output_arrow_rich_visual(tmp_path):
     assert "address" in content
 
     lines = content.strip().splitlines()
-    data_lines = [l for l in lines if "│" in l and "Typo" not in l and "──" not in l]
+    data_lines = [line for line in lines if "│" in line and "Typo" not in line and "──" not in line]
     assert len(data_lines) == 2
 
-    assert any("  addr │ address" in l for l in data_lines)
-    assert any("  teh  │ the" in l for l in data_lines)
+    assert any("  addr │ address" in line for line in data_lines)
+    assert any("  teh  │ the" in line for line in data_lines)
 
 def test_write_paired_output_arrow_rich_visual_empty(tmp_path):
     input_file = tmp_path / "input.txt"

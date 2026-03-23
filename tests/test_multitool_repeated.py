@@ -116,7 +116,7 @@ def test_repeated_mode_limit(tmp_path):
     multitool.repeated_mode([str(f)], str(out), 1, 100, True, output_format='line', limit=2)
     content = out.read_text().splitlines()
     # Filter out empty lines or headers if any
-    data_lines = [l for l in content if "->" in l]
+    data_lines = [line for line in content if "->" in line]
     assert len(data_lines) == 2
 
 def test_repeated_mode_csv(tmp_path):

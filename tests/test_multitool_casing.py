@@ -1,7 +1,5 @@
 import sys
 from pathlib import Path
-import pytest
-from io import StringIO
 
 # Add repository root to path
 sys.path.append(str(Path(__file__).resolve().parents[1]))

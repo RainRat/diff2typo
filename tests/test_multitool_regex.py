@@ -1,6 +1,4 @@
 import pytest
-import os
-import json
 from unittest.mock import patch
 import multitool
 
@@ -42,4 +40,4 @@ def test_regex_invalid_pattern(sample_file, capsys):
             multitool.main()
         assert excinfo.value.code == 1
 
-    captured = capsys.readouterr()
+    capsys.readouterr()

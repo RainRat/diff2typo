@@ -4,7 +4,7 @@ import types
 from pathlib import Path
 from io import StringIO
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import gentypos

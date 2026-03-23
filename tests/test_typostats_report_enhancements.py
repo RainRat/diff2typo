@@ -2,7 +2,6 @@ import sys
 import importlib
 from pathlib import Path
 from unittest.mock import patch
-import pytest
 
 # Add repository root to path
 sys.path.append(str(Path(__file__).resolve().parents[1]))

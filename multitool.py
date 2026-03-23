@@ -8,7 +8,7 @@ import contextlib
 import sys
 import re
 from textwrap import dedent
-from typing import Any, Callable, Iterable, List, Sequence, Tuple, TextIO, Union
+from typing import Any, Callable, Iterable, List, Sequence, Tuple, TextIO
 from tqdm import tqdm
 import logging
 import json
@@ -1041,9 +1041,10 @@ def ngrams_mode(
     smart: bool = False,
 ) -> None:
     """Wrapper for extracting N-grams from file(s)."""
-    extractor = lambda f, quiet=False: _extract_ngram_items(
-        f, n=n, delimiter=delimiter, quiet=quiet, smart=smart, clean_items=clean_items
-    )
+    def extractor(f, quiet=False):
+        return _extract_ngram_items(
+            f, n=n, delimiter=delimiter, quiet=quiet, smart=smart, clean_items=clean_items
+        )
     # Pass clean_items=False to _process_items to preserve spaces in n-grams.
     _process_items(
         extractor,
@@ -1074,7 +1075,8 @@ def arrow_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for processing items separated by ' -> '."""
-    extractor = lambda f, quiet=False: _extract_arrow_items(f, right_side=right_side, quiet=quiet)
+    def extractor(f, quiet=False):
+        return _extract_arrow_items(f, right_side=right_side, quiet=quiet)
     _process_items(
         extractor,
         input_files,
@@ -1104,7 +1106,8 @@ def table_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for processing items in 'key = \"value\"' format."""
-    extractor = lambda f, quiet=False: _extract_table_items(f, right_side=right_side, quiet=quiet)
+    def extractor(f, quiet=False):
+        return _extract_table_items(f, right_side=right_side, quiet=quiet)
     _process_items(
         extractor,
         input_files,
@@ -1134,7 +1137,8 @@ def markdown_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for processing items from Markdown bulleted lists."""
-    extractor = lambda f, quiet=False: _extract_markdown_items(f, right_side=right_side, quiet=quiet)
+    def extractor(f, quiet=False):
+        return _extract_markdown_items(f, right_side=right_side, quiet=quiet)
     _process_items(
         extractor,
         input_files,
@@ -1165,9 +1169,10 @@ def md_table_mode(
     columns: List[int] | None = None,
 ) -> None:
     """Wrapper for processing items from Markdown tables."""
-    extractor = lambda f, quiet=False: _extract_md_table_items(
-        f, right_side=right_side, quiet=quiet, columns=columns
-    )
+    def extractor(f, quiet=False):
+        return _extract_md_table_items(
+            f, right_side=right_side, quiet=quiet, columns=columns
+        )
     _process_items(
         extractor,
         input_files,
@@ -1225,7 +1230,8 @@ def json_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for extracting fields from JSON files."""
-    extractor = lambda f, quiet=False: _extract_json_items(f, key, quiet=quiet)
+    def extractor(f, quiet=False):
+        return _extract_json_items(f, key, quiet=quiet)
     _process_items(
         extractor,
         input_files,
@@ -1255,7 +1261,8 @@ def yaml_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for extracting fields from YAML files."""
-    extractor = lambda f, quiet=False: _extract_yaml_items(f, key, quiet=quiet)
+    def extractor(f, quiet=False):
+        return _extract_yaml_items(f, key, quiet=quiet)
     _process_items(
         extractor,
         input_files,
@@ -2387,9 +2394,10 @@ def csv_mode(
     columns: List[int] | None = None,
 ) -> None:
     """Wrapper for extracting fields from CSV files."""
-    extractor = lambda f, quiet=False: _extract_csv_items(
-        f, first_column, delimiter, quiet=quiet, columns=columns
-    )
+    def extractor(f, quiet=False):
+        return _extract_csv_items(
+            f, first_column, delimiter, quiet=quiet, columns=columns
+        )
     _process_items(
         extractor,
         input_files,
@@ -2448,7 +2456,8 @@ def words_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for extracting individual words from file(s)."""
-    extractor = lambda f, quiet=False: _extract_words_items(f, delimiter=delimiter, quiet=quiet, smart=smart)
+    def extractor(f, quiet=False):
+        return _extract_words_items(f, delimiter=delimiter, quiet=quiet, smart=smart)
     _process_items(
         extractor,
         input_files,
@@ -2761,7 +2770,8 @@ def regex_mode(
     # Regex mode skips the default 'clean_and_filter' (to lower, letters only)
     # because users often want exact matches (e.g. Emails, URLs, IDs).
     # Users can still use --process-output to sort/dedup, but we don't force lowercase/clean.
-    extractor = lambda f, quiet=False: _extract_regex_items(f, pattern, quiet=quiet)
+    def extractor(f, quiet=False):
+        return _extract_regex_items(f, pattern, quiet=quiet)
     _process_items(
         extractor,
         input_files,

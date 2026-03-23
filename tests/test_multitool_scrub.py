@@ -1,6 +1,4 @@
 import subprocess
-import os
-import pytest
 
 def test_scrub_basic(tmp_path):
     mapping_file = tmp_path / "mapping.csv"

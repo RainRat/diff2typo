@@ -1,11 +1,8 @@
 import logging
 import sys
-import os
-import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import multitool

@@ -1,7 +1,6 @@
 import json
 import logging
 import pytest
-from pathlib import Path
 import multitool
 
 @pytest.fixture(autouse=True)

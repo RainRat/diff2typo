@@ -1,8 +1,4 @@
-import pytest
 from multitool import words_mode
-import io
-import contextlib
-import sys
 
 def test_words_mode_basic(tmp_path):
     input_file = tmp_path / "input.txt"

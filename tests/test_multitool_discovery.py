@@ -1,7 +1,4 @@
-import pytest
 from multitool import discovery_mode
-import io
-import contextlib
 import json
 
 def test_discovery_mode_basic(tmp_path):

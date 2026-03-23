@@ -1,10 +1,9 @@
 import sys
 from pathlib import Path
-import pytest
 import logging
 import json
 import io
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import patch, mock_open
 
 # Add repository root to path
 sys.path.append(str(Path(__file__).resolve().parents[1]))

@@ -1,8 +1,6 @@
 import sys
 import io
 from pathlib import Path
-import pytest
-import logging
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import multitool

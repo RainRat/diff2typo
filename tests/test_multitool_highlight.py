@@ -1,5 +1,3 @@
-import os
-import pytest
 from multitool import highlight_mode, YELLOW, RESET
 
 def test_highlight_mode_basic(tmp_path):

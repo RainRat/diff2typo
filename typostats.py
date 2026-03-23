@@ -5,9 +5,7 @@ import logging
 import csv
 import io
 import os
-import copy
-from typing import Iterable, Sequence, Mapping, Set, List, Any
-from types import SimpleNamespace
+from typing import Iterable
 
 try:
     from tqdm import tqdm
@@ -393,11 +391,16 @@ def generate_report(
         label_width = 35
 
         enabled_features = []
-        if keyboard: enabled_features.append("keyboard")
-        if kwargs.get('allow_transposition'): enabled_features.append("transposition")
-        if kwargs.get('allow_1to2'): enabled_features.append("1-to-2")
-        if kwargs.get('allow_2to1'): enabled_features.append("2-to-1")
-        if kwargs.get('include_deletions'): enabled_features.append("deletions/insertions")
+        if keyboard:
+            enabled_features.append("keyboard")
+        if kwargs.get('allow_transposition'):
+            enabled_features.append("transposition")
+        if kwargs.get('allow_1to2'):
+            enabled_features.append("1-to-2")
+        if kwargs.get('allow_2to1'):
+            enabled_features.append("2-to-1")
+        if kwargs.get('include_deletions'):
+            enabled_features.append("deletions/insertions")
 
         features_str = ""
         if enabled_features:

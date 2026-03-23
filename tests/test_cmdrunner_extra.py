@@ -1,8 +1,7 @@
-import sys
 import logging
 import pytest
 import runpy
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import cmdrunner
 from cmdrunner import MinimalFormatter
 

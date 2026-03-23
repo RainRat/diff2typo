@@ -1,8 +1,4 @@
-import pytest
 from multitool import unique_mode
-import io
-import contextlib
-import os
 
 def test_unique_mode_order_preservation(tmp_path):
     input_file = tmp_path / "input.txt"

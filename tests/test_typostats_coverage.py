@@ -3,7 +3,7 @@ import logging
 import io
 import runpy
 from pathlib import Path
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch
 import pytest
 
 # Add repository root to path

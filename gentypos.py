@@ -7,9 +7,9 @@ Purpose:
     useful for building robust spell-checkers.
 
 Features:
-    - Generates typos based on common typing patterns (skipping letters, swapping neighbors, etc.).
+    - Generates typos based on common typing patterns (skipping letters, swapping neighbors, and so on).
     - Uses keyboard adjacency to predict likely finger-slips on a QWERTY layout.
-    - Supports custom substitution rules for specific character patterns (e.g., 'ph' -> 'f').
+    - Supports custom substitution rules for specific character patterns (for example, 'ph' -> 'f').
     - Checks generated typos against a list of valid words and removes any that are correct words.
     - Can process words directly from the command line or from a text file.
     - Integrates with results from 'typostats.py' to use your own personal typo history.

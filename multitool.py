@@ -2731,7 +2731,7 @@ def sample_mode(
 
     if not raw_items:
         logging.warning("Input is empty or no lines found.")
-        # Create empty output using write_output to ensure consistent formatting (e.g. empty JSON list)
+        # Create empty output using write_output to ensure consistent formatting (for example empty JSON list)
         write_output([], output_file, output_format, quiet)
         return
 
@@ -2774,7 +2774,7 @@ def regex_mode(
 ) -> None:
     """Wrapper for extracting text matching a regex pattern."""
     # Regex mode skips the default 'clean_and_filter' (to lower, letters only)
-    # because users often want exact matches (e.g. Emails, URLs, IDs).
+    # because users often want exact matches (for example Emails, URLs, IDs).
     # Users can still use --process-output to sort/dedup, but we don't force lowercase/clean.
     def extractor(f, quiet=False):
         return _extract_regex_items(f, pattern, quiet=quiet)
@@ -2829,7 +2829,7 @@ def map_mode(
             # If I map "TeH" -> "The", and input is "teh".
             # Cleaned input: "teh". Cleaned key: "teh". Value: "The".
             # Output: "The".
-            # If output is also cleaned later (e.g. by process_output)?
+            # If output is also cleaned later (for example by process_output)?
             # But here we are producing the item.
             # Let's keep value as is, but clean key.
             if cleaned_k:
@@ -3419,7 +3419,7 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how many times each word or pair appears.",
-        "description": "Counts frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with histograms. Use --pairs to count word pairs (e.g., typo -> correction) instead of single words.",
+        "description": "Counts frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs (for example, typo -> correction) instead of single words.",
         "example": "python multitool.py count typos.log -f arrow --smart --pairs",
         "flags": "[--min-count N] [-d DELIM] [--smart] [--pairs]",
     },
@@ -3467,7 +3467,7 @@ MODE_DETAILS = {
     },
     "swap": {
         "summary": "Reverses the order of elements in paired data.",
-        "description": "Flips the left and right elements of pairs (e.g., 'typo -> correction' becomes 'correction -> typo'). Supports Arrow, Table, CSV, and Markdown formats.",
+        "description": "Flips the left and right elements of pairs (for example, 'typo -> correction' becomes 'correction -> typo'). Supports Arrow, Table, CSV, and Markdown formats.",
         "example": "python multitool.py swap typos.csv --output-format arrow --output flipped.txt",
         "flags": "",
     },
@@ -3521,13 +3521,13 @@ MODE_DETAILS = {
     },
     "casing": {
         "summary": "Identifies words with inconsistent capitalization.",
-        "description": "Finds words that appear in your files with multiple different casing styles (e.g., 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.",
+        "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.",
         "example": "python multitool.py casing report.txt --smart --output-format arrow",
         "flags": "[-d DELIMITER] [--smart]",
     },
     "repeated": {
         "summary": "Finds consecutive identical words.",
-        "description": "Identifies doubled words (e.g., 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
+        "description": "Identifies doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
         "example": "python multitool.py repeated report.txt --smart --output-format arrow",
         "flags": "[-d DELIMITER] [--smart]",
     },
@@ -3869,7 +3869,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-k', '--key',
         type=str,
         default='',
-        help="The key path to extract (e.g. 'items.name'). If omitted, extracts from the root.",
+        help="The key path to extract (for example 'items.name'). If omitted, extracts from the root.",
     )
     _add_common_mode_arguments(json_parser)
 
@@ -3885,7 +3885,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-k', '--key',
         type=str,
         default='',
-        help="The key path to extract (e.g. 'config.items'). If omitted, extracts from the root.",
+        help="The key path to extract (for example 'config.items'). If omitted, extracts from the root.",
     )
     _add_common_mode_arguments(yaml_parser)
 
@@ -3943,12 +3943,12 @@ def _build_parser() -> argparse.ArgumentParser:
     count_options.add_argument(
         '-S', '--smart',
         action='store_true',
-        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+        help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
     )
     count_options.add_argument(
         '-p', '--pairs',
         action='store_true',
-        help='Count frequencies of word pairs (e.g., typo -> correction) instead of single words.',
+        help='Count frequencies of word pairs (for example, typo -> correction) instead of single words.',
     )
     _add_common_mode_arguments(count_parser, include_process_output=False)
 
@@ -4157,7 +4157,7 @@ def _build_parser() -> argparse.ArgumentParser:
     casing_options.add_argument(
         '-S', '--smart',
         action='store_true',
-        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+        help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
     )
     _add_common_mode_arguments(casing_parser)
 
@@ -4177,7 +4177,7 @@ def _build_parser() -> argparse.ArgumentParser:
     repeated_options.add_argument(
         '-S', '--smart',
         action='store_true',
-        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+        help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
     )
     _add_common_mode_arguments(repeated_parser)
 
@@ -4243,7 +4243,7 @@ def _build_parser() -> argparse.ArgumentParser:
     words_options.add_argument(
         '-S', '--smart',
         action='store_true',
-        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+        help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
     )
     _add_common_mode_arguments(words_parser)
 
@@ -4269,7 +4269,7 @@ def _build_parser() -> argparse.ArgumentParser:
     ngrams_options.add_argument(
         '-S', '--smart',
         action='store_true',
-        help='Split by symbols and capital letters (e.g., splitting "CamelCase" into "Camel" and "Case").',
+        help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
     )
     _add_common_mode_arguments(ngrams_parser)
 
@@ -4329,7 +4329,7 @@ def _build_parser() -> argparse.ArgumentParser:
         nargs='?',
         const='',
         metavar='EXT',
-        help="Modify files in place. If an extension is provided (e.g., '.bak'), a backup is created.",
+        help="Modify files in place. If an extension is provided (for example, '.bak'), a backup is created.",
     )
     scrub_options.add_argument(
         '--dry-run',
@@ -4339,7 +4339,7 @@ def _build_parser() -> argparse.ArgumentParser:
     scrub_options.add_argument(
         '--smart-case',
         action='store_true',
-        help="Automatically match the casing of the original word (e.g., 'Teh' -> 'The').",
+        help="Automatically match the casing of the original word (for example, 'Teh' -> 'The').",
     )
     _add_common_mode_arguments(scrub_parser, include_process_output=False, include_limit=False)
 
@@ -4415,7 +4415,7 @@ def _build_parser() -> argparse.ArgumentParser:
     highlight_options.add_argument(
         '-S', '--smart',
         action='store_true',
-        help='Highlight subword matches (e.g., highlighting "teh" inside "tehWord").',
+        help='Highlight subword matches (for example, highlighting "teh" inside "tehWord").',
     )
     _add_common_mode_arguments(highlight_parser)
 
@@ -4501,7 +4501,7 @@ def main() -> None:
     # Store for handler
     args.input = input_paths
 
-    # Fallback logic for modes that require a secondary file (e.g., zip, map)
+    # Fallback logic for modes that require a secondary file (for example, zip, map)
     # If the flag is missing but we have at least 2 positional arguments, use the last one as the secondary file.
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'}:
         if getattr(args, 'file2', None) is None and len(input_paths) >= 2:

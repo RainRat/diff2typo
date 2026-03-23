@@ -167,7 +167,7 @@ def is_one_letter_replacement(
     # One-to-two replacement scenario allowed only if difference in length is 1
     if allow_1to2 and len(typo) == len(correction) + 1:
         # Find all positions i where correction[i] is replaced by typo[i:i+2].
-        # We use a set to avoid counting identical interpretations (e.g. for doubled letters) multiple times.
+        # We use a set to avoid counting identical interpretations (for example for doubled letters) multiple times.
         replacements = set()
         for i in range(len(correction)):
             # To be a replacement of correction[i] with typo[i:i+2],
@@ -186,7 +186,7 @@ def is_one_letter_replacement(
                 replacements.add((repl_correction, repl_typo))
         return sorted(replacements)
 
-    # Two-to-one replacement scenario (e.g. 'ph' -> 'f')
+    # Two-to-one replacement scenario (for example 'ph' -> 'f')
     if allow_2to1 and len(typo) == len(correction) - 1:
         replacements = set()
         for i in range(len(typo)):
@@ -471,7 +471,7 @@ def generate_report(
         max_t = max(max_t, 4)  # 'TYPO' is 4
         max_n = max((len(str(count)) for (c, t), count in sorted_replacements), default=5)
         max_n = max(max_n, 5)  # 'COUNT' is 5
-        max_p = 6  # Width for percentage (e.g., "100.0%")
+        max_p = 6  # Width for percentage (for example, "100.0%")
 
         # Header row and divider with consistent padding and vertical separators
         padding = "  "
@@ -767,25 +767,25 @@ def main() -> None:
         '--1to2',
         dest='allow_1to2',
         action='store_true',
-        help="Allow single-to-double character replacements (e.g., 'm' to 'rn').",
+        help="Allow single-to-double character replacements (for example, 'm' to 'rn').",
     )
     analysis_group.add_argument(
         '--2to1',
         dest='allow_2to1',
         action='store_true',
-        help="Allow double-to-single character replacements (e.g., 'ph' to 'f').",
+        help="Allow double-to-single character replacements (for example, 'ph' to 'f').",
     )
     analysis_group.add_argument(
         '--include-deletions',
         action='store_true',
-        help="Include 2-to-1 deletions (e.g., 'or' to 'o') and 1-to-2 insertions (e.g., 'a' to 'aa').",
+        help="Include 2-to-1 deletions (for example, 'or' to 'o') and 1-to-2 insertions (for example, 'a' to 'aa').",
     )
 
     analysis_group.add_argument(
         '-t',
         '--transposition',
         action='store_true',
-        help="Detect transpositions of adjacent characters (e.g., 'teh' to 'the').",
+        help="Detect transpositions of adjacent characters (for example, 'teh' to 'the').",
     )
     analysis_group.add_argument(
         '-k',

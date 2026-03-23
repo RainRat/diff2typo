@@ -802,6 +802,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # If no analysis flags are provided, enable all of them by default
+    analysis_flags = [
+        'allow_1to2', 'allow_2to1', 'include_deletions',
+        'transposition', 'keyboard', 'all', 'allow_two_char'
+    ]
+    if not any(getattr(args, flag) for flag in analysis_flags):
+        args.all = True
+
     log_level = logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()

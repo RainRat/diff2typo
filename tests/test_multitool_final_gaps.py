@@ -1,11 +1,9 @@
 import sys
-import os
-import json
 import logging
 import io
 import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import pytest
 
 # Add repository root to path

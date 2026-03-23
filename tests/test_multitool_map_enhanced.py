@@ -1,7 +1,4 @@
-import pytest
 from multitool import map_mode
-import io
-import os
 import json
 
 def test_map_mode_pairs(tmp_path):

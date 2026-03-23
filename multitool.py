@@ -29,7 +29,6 @@ except ImportError:  # pragma: no cover - optional dependency
 
 # Cache for standard input to allow multiple passes
 _STDIN_CACHE: List[str] | None = None
-_STDIN_ENCODING: str | None = None
 
 # ANSI Color Codes
 BLUE = "\033[1;34m"
@@ -256,7 +255,7 @@ def detect_encoding(file_path: str) -> str | None:
 
 def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     """Read lines from a file with robust encoding fallback (UTF-8 -> Detect -> Latin-1)."""
-    global _STDIN_CACHE, _STDIN_ENCODING
+    global _STDIN_CACHE
     lines = []
     used_encoding = 'utf-8'
 
@@ -281,7 +280,6 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
             lines = text.splitlines(keepends=True)
 
         _STDIN_CACHE = lines
-        _STDIN_ENCODING = used_encoding
     else:
         try:
             with open(path, 'r', encoding='utf-8', newline=newline) as handle:
@@ -2271,8 +2269,6 @@ def diff_mode(
                     out.write(f"{c_red}{line}{c_reset}\n")
                 elif line.startswith('~'):
                     out.write(f"{c_yellow}{line}{c_reset}\n")
-                else:
-                    out.write(f"{line}\n")
 
     logging.info(f"[Diff Mode] Comparison complete. Output written to '{output_file}'.")
 

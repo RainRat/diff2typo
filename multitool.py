@@ -7,6 +7,7 @@ import random
 import contextlib
 import sys
 import re
+import time
 from textwrap import dedent
 from typing import Any, Callable, Iterable, List, Sequence, Tuple, TextIO
 from tqdm import tqdm
@@ -357,7 +358,10 @@ def _load_and_clean_file(
 
 
 def print_processing_stats(
-    raw_item_count: int, filtered_items: Sequence[Any], item_label: str = "item"
+    raw_item_count: int,
+    filtered_items: Sequence[Any],
+    item_label: str = "item",
+    start_time: float | None = None,
 ) -> None:
     """Print summary statistics for processed text items with visual hierarchy."""
     item_label_plural = f"{item_label}s"
@@ -369,16 +373,47 @@ def print_processing_stats(
     c_reset = RESET if sys.stderr.isatty() else ""
 
     padding = "  "
-    logging.info(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}")
-    logging.info(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
-    logging.info(f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<35}{c_reset} {c_yellow}{raw_item_count}{c_reset}")
-    logging.info(f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<35}{c_reset} {c_green}{len(filtered_items)}{c_reset}")
+    label_width = 35
+
+    report = []
+    report.append(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}")
+    report.append(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
+    report.append(
+        f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_item_count}{c_reset}"
+    )
+    report.append(
+        f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{len(filtered_items)}{c_reset}"
+    )
 
     if raw_item_count > 0:
         retention = (len(filtered_items) / raw_item_count) * 100
-        logging.info(f"  {c_bold}{'Retention rate:':<35}{c_reset} {c_green}{retention:.1f}%{c_reset}")
+        report.append(
+            f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:.1f}%{c_reset}"
+        )
+
+    # Unique Items
+    unique_count = len(set(filtered_items))
+    report.append(
+        f"  {c_bold}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
+    )
+
+    # Levenshtein distance for paired data
+    if (
+        filtered_items
+        and isinstance(filtered_items[0], tuple)
+        and len(filtered_items[0]) == 2
+    ):
+        distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
+        if distances:
+            min_dist = min(distances)
+            max_dist = max(distances)
+            avg_dist = sum(distances) / len(distances)
+            report.append(
+                f"  {c_bold}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
+            )
 
     if filtered_items:
+
         def format_item(it: Any) -> str:
             if isinstance(it, tuple) and len(it) == 2:
                 return f"{it[0]} -> {it[1]}"
@@ -390,15 +425,26 @@ def print_processing_stats(
         s_display = format_item(shortest)
         l_display = format_item(longest)
 
-        logging.info(
-            f"  {c_bold}{'Shortest ' + item_label + ':':<35}{c_reset} '{s_display}' (length: {len(s_display)})"
+        report.append(
+            f"  {c_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
         )
-        logging.info(
-            f"  {c_bold}{'Longest ' + item_label + ':':<35}{c_reset} '{l_display}' (length: {len(l_display)})"
+        report.append(
+            f"  {c_bold}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
         )
     else:
-        logging.info(f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}")
-    logging.info("")
+        report.append(
+            f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}"
+        )
+
+    # Processing Time
+    if start_time is not None:
+        duration = time.perf_counter() - start_time
+        report.append(
+            f"  {c_bold}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+        )
+
+    report.append("")
+    logging.info("\n".join(report))
 
 
 @contextlib.contextmanager
@@ -679,6 +725,7 @@ def _process_items(
     limit: int | None = None,
 ) -> None:
     """Generic processing for modes that extract raw string items from one or more files."""
+    start_time = time.perf_counter()
 
     raw_items = [
         item for input_file in input_files
@@ -694,7 +741,7 @@ def _process_items(
 
     write_output(filtered_items, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(len(raw_items), filtered_items)
+    print_processing_stats(len(raw_items), filtered_items, start_time=start_time)
     logging.info(
         f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'."
     )
@@ -1310,6 +1357,7 @@ def count_mode(
     filtered_items = []
     item_counts = Counter()
 
+    start_time = time.perf_counter()
     if pairs:
         # Mode for counting typo -> correction pairs
         for left, right in _extract_pairs(input_files, quiet=quiet):
@@ -1387,11 +1435,6 @@ def count_mode(
         elif output_format == 'arrow':
             # Rich visual report for arrow format
             total_count = sum(item_counts.values())
-
-            # Suppress standard logging stats since we are about to print a consolidated summary
-            # We do this by locally disabling logging for this part if it's going to stdout anyway
-            # But print_processing_stats is called AFTER count_mode returns.
-            # So we need a flag or logic to skip it.
 
             # Format item labels for visualization
             if pairs:
@@ -1472,6 +1515,11 @@ def count_mode(
                 summary_buffer.append(f"  {c_err_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_err_reset} '{s_display}' (length: {len(s_display)})")
                 summary_buffer.append(f"  {c_err_bold}{'Longest ' + item_label + ':':<{label_width}}{c_err_reset} '{l_display}' (length: {len(l_display)})")
 
+            duration = time.perf_counter() - start_time
+            summary_buffer.append(
+                f"  {c_err_bold}{'Processing time:':<{label_width}}{c_err_reset} {c_err_green}{duration:.3f}s{c_err_reset}"
+            )
+
             # Determine colors for headers (might go to stdout or stderr)
             if output_file == '-' and not quiet:
                 # Headers go to stderr
@@ -1535,7 +1583,12 @@ def count_mode(
                 out_file.write(f"{label}: {count}\n")
 
     if output_format != 'arrow':
-        print_processing_stats(raw_count, filtered_items, item_label="pair" if pairs else "word")
+        print_processing_stats(
+            raw_count,
+            filtered_items,
+            item_label="pair" if pairs else "word",
+            start_time=start_time,
+        )
         logging.info(
             f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
         )
@@ -1556,6 +1609,7 @@ def classify_mode(
     """
     Categorizes typo corrections based on their error type.
     """
+    start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
     adj_keys = get_adjacent_keys()
 
@@ -1595,7 +1649,17 @@ def classify_mode(
         limit=limit
     )
 
-    print_processing_stats(raw_count, [r[0] for r in results], item_label="classified-typo")
+    # Use actual result pairs for stats to enable distance calculation
+    stats_items = []
+    for typo, correction_with_label in results:
+        # correction_with_label is like "correction [T]" or "correction [T] (dist: 1)"
+        # We need the base correction for distance stats
+        base_correction = correction_with_label.split(' [')[0]
+        stats_items.append((typo, base_correction))
+
+    print_processing_stats(
+        raw_count, stats_items, item_label="classified-typo", start_time=start_time
+    )
 
 
 def stats_mode(
@@ -1613,6 +1677,7 @@ def stats_mode(
     """
     Calculates and displays statistics for items or paired data.
     """
+    start_time = time.perf_counter()
     # 1. Collect Items
     raw_item_count = 0
     all_items = []
@@ -1769,6 +1834,11 @@ def stats_mode(
                 report.append(f"  {c_bold}{'Shortest item:':<{label_width}}{c_reset} '{shortest}' (length: {len(shortest)})")
                 report.append(f"  {c_bold}{'Longest item:':<{label_width}}{c_reset} '{longest}' (length: {len(longest)})")
 
+            duration = time.perf_counter() - start_time
+            report.append(
+                f"  {c_bold}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+            )
+
             if "pairs" in stats:
                 report.append(f"\n{padding}{c_bold}PAIRED DATA STATISTICS{c_reset}")
                 report.append(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
@@ -1807,6 +1877,7 @@ def check_mode(
     Checks CSV file(s) of typos and corrections for any words that appear
     as both a typo and a correction anywhere in the dataset.
     """
+    start_time = time.perf_counter()
     typos = set()
     corrections = set()
 
@@ -1829,7 +1900,9 @@ def check_mode(
 
     write_output(filtered_items, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(len(duplicates), filtered_items)
+    print_processing_stats(
+        len(duplicates), filtered_items, start_time=start_time
+    )
     logging.info(
         f"[Check Mode] Found {len(filtered_items)} overlapping words across {len(input_files)} file(s). Output written to '{output_file}'."
     )
@@ -1849,6 +1922,7 @@ def conflict_mode(
     """
     Identifies typos that are associated with more than one unique correction.
     """
+    start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
     typo_to_corrections = defaultdict(set)
 
@@ -1879,6 +1953,9 @@ def conflict_mode(
         limit=limit
     )
 
+    print_processing_stats(
+        len(conflicts), conflicts, item_label="conflict", start_time=start_time
+    )
     logging.info(f"[Conflict Mode] Found {len(conflicts)} typos with conflicting corrections. Output written to '{output_file}'.")
 
 
@@ -1899,6 +1976,7 @@ def similarity_mode(
     """
     Filters paired data based on the number of character changes between words.
     """
+    start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
 
     filtered_results = []
@@ -1939,6 +2017,16 @@ def similarity_mode(
         limit=limit
     )
 
+    stats_items = []
+    for left, right_with_dist in filtered_results:
+        # Strip "(changes: N)" from right side
+        base_right = right_with_dist.rsplit(' (changes: ', 1)[0]
+        stats_items.append((left, base_right))
+
+    print_processing_stats(
+        len(filtered_results), stats_items, item_label="similar-pair", start_time=start_time
+    )
+
 
 def near_duplicates_mode(
     input_files: Sequence[str],
@@ -1957,6 +2045,7 @@ def near_duplicates_mode(
     """
     Finds pairs of words in a single list that are similar to each other.
     """
+    start_time = time.perf_counter()
     raw_item_count = 0
     all_unique_items = []
 
@@ -2010,7 +2099,14 @@ def near_duplicates_mode(
         limit=limit
     )
 
-    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].rsplit(' (changes: ', 1)[0] for pair in results], item_label="near-duplicate")
+    stats_items = []
+    for left, right_with_dist in results:
+        base_right = right_with_dist.rsplit(' (changes: ', 1)[0]
+        stats_items.append((left, base_right))
+
+    print_processing_stats(
+        raw_item_count, stats_items, item_label="near-duplicate", start_time=start_time
+    )
 
 
 def fuzzymatch_mode(
@@ -2031,6 +2127,7 @@ def fuzzymatch_mode(
     """
     Finds pairs of words between two lists that are similar to each other.
     """
+    start_time = time.perf_counter()
     raw_item_count = 0
     list1_unique = []
 
@@ -2091,7 +2188,15 @@ def fuzzymatch_mode(
         limit=limit
     )
 
-    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].rsplit(' (changes: ', 1)[0] for pair in results], item_label="fuzzy-match")
+    stats_items = []
+    for left, right_with_dist in results:
+        # Strip "(changes: N)" from right side
+        base_right = right_with_dist.rsplit(' (changes: ', 1)[0]
+        stats_items.append((left, base_right))
+
+    print_processing_stats(
+        raw_item_count, stats_items, item_label="fuzzy-match", start_time=start_time
+    )
 
 
 def casing_mode(
@@ -2110,6 +2215,7 @@ def casing_mode(
     """
     Identifies words that appear with inconsistent capitalization.
     """
+    start_time = time.perf_counter()
     raw_item_count = 0
     # Map normalized word -> set of original forms
     normalized_to_original = defaultdict(set)
@@ -2144,7 +2250,12 @@ def casing_mode(
         limit=limit
     )
 
-    print_processing_stats(raw_item_count, [c[0] for c in conflicts], item_label="casing-conflict")
+    print_processing_stats(
+        raw_item_count,
+        [c[0] for c in conflicts],
+        item_label="casing-conflict",
+        start_time=start_time,
+    )
 
 
 def diff_mode(
@@ -2163,6 +2274,7 @@ def diff_mode(
     """
     Identifies added, removed, and changed items between two files or lists.
     """
+    start_time = time.perf_counter()
     if pairs:
         # Load pairs from both sources
         left_pairs = dict(_extract_pairs(input_files, quiet=quiet))
@@ -2270,7 +2382,11 @@ def diff_mode(
                 elif line.startswith('~'):
                     out.write(f"{c_yellow}{line}{c_reset}\n")
 
-    logging.info(f"[Diff Mode] Comparison complete. Output written to '{output_file}'.")
+    duration = time.perf_counter() - start_time
+    logging.info(
+        f"[Diff Mode] Comparison complete. Output written to '{output_file}'. "
+        f"Processing time: {duration:.3f}s"
+    )
 
 
 def repeated_mode(
@@ -2289,6 +2405,7 @@ def repeated_mode(
     """
     Identifies consecutive identical words.
     """
+    start_time = time.perf_counter()
     results = list(_extract_repeated_items(
         input_files,
         delimiter=delimiter,
@@ -2311,7 +2428,9 @@ def repeated_mode(
         limit=limit
     )
 
-    print_processing_stats(len(results), [r[1] for r in results], item_label="repeated-word")
+    print_processing_stats(
+        len(results), results, item_label="repeated-word", start_time=start_time
+    )
 
 
 def discovery_mode(
@@ -2333,6 +2452,7 @@ def discovery_mode(
     """
     Identifies potential typos by comparing rare words to frequent words.
     """
+    start_time = time.perf_counter()
     word_counts = Counter()
     raw_item_count = 0
 
@@ -2378,7 +2498,15 @@ def discovery_mode(
         limit=limit
     )
 
-    print_processing_stats(raw_item_count, [pair[0] for pair in results] + [pair[1].rsplit(' (changes: ', 1)[0] for pair in results], item_label="discovered-typo")
+    stats_items = []
+    for left, right_with_dist in results:
+        # Strip "(changes: N)" from right side
+        base_right = right_with_dist.rsplit(' (changes: ', 1)[0]
+        stats_items.append((left, base_right))
+
+    print_processing_stats(
+        raw_item_count, stats_items, item_label="discovered-typo", start_time=start_time
+    )
 
 
 def csv_mode(
@@ -2488,7 +2616,7 @@ def combine_mode(
     limit: int | None = None,
 ) -> None:
     """Merge cleaned contents from multiple files into one deduplicated list."""
-
+    start_time = time.perf_counter()
     raw_item_count = 0
     combined_unique: list[str] = []
 
@@ -2506,7 +2634,7 @@ def combine_mode(
 
     write_output(combined_unique, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(raw_item_count, combined_unique)
+    print_processing_stats(raw_item_count, combined_unique, start_time=start_time)
     logging.info(
         "[Combine Mode] Combined %d file(s). Output written to '%s'.",
         len(input_files),
@@ -2526,6 +2654,7 @@ def unique_mode(
     limit: int | None = None,
 ) -> None:
     """Deduplicate items while preserving their first appearance in the input files."""
+    start_time = time.perf_counter()
     raw_item_count = 0
     combined_unique: list[str] = []
 
@@ -2549,7 +2678,7 @@ def unique_mode(
 
     write_output(final_items, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(raw_item_count, final_items)
+    print_processing_stats(raw_item_count, final_items, start_time=start_time)
     logging.info(
         "[Unique Mode] Deduplicated %d file(s). Output written to '%s'.",
         len(input_files),
@@ -2570,6 +2699,7 @@ def zip_mode(
     limit: int | None = None,
 ) -> None:
     """Combines items from input_files and file2 line-by-line into a paired format."""
+    start_time = time.perf_counter()
 
     def get_cleaned_lines(path: str) -> List[str]:
         lines = _read_file_lines_robust(path)
@@ -2614,6 +2744,10 @@ def zip_mode(
         limit=limit
     )
 
+    print_processing_stats(
+        len(raw_pairs), filtered_pairs, item_label="zipped-pair", start_time=start_time
+    )
+
 
 def pairs_mode(
     input_files: Sequence[str],
@@ -2627,11 +2761,14 @@ def pairs_mode(
     limit: int | None = None,
 ) -> None:
     """Processes paired data from input file(s)."""
+    start_time = time.perf_counter()
 
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
 
     filtered_pairs = []
+    raw_count = 0
     for left, right in raw_pairs:
+        raw_count += 1
         # Clean if requested
         if clean_items:
             left = filter_to_letters(left)
@@ -2657,6 +2794,10 @@ def pairs_mode(
         limit=limit
     )
 
+    print_processing_stats(
+        raw_count, filtered_pairs, item_label="pair", start_time=start_time
+    )
+
 
 def swap_mode(
     input_files: Sequence[str],
@@ -2670,11 +2811,14 @@ def swap_mode(
     limit: int | None = None,
 ) -> None:
     """Reverses the order of pairs in the input file(s)."""
+    start_time = time.perf_counter()
 
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
 
     filtered_pairs = []
+    raw_count = 0
     for left, right in raw_pairs:
+        raw_count += 1
         # Swap
         new_left, new_right = right, left
 
@@ -2703,6 +2847,10 @@ def swap_mode(
         limit=limit
     )
 
+    print_processing_stats(
+        raw_count, filtered_pairs, item_label="swapped-pair", start_time=start_time
+    )
+
 
 def sample_mode(
     input_files: Sequence[str],
@@ -2718,6 +2866,7 @@ def sample_mode(
     limit: int | None = None,
 ) -> None:
     """Randomly sample lines from the input file(s)."""
+    start_time = time.perf_counter()
 
     # Extract raw items first
     raw_items = [
@@ -2751,7 +2900,7 @@ def sample_mode(
 
     write_output(sampled_items, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(len(raw_items), sampled_items)
+    print_processing_stats(len(raw_items), sampled_items, start_time=start_time)
     logging.info(
         f"[Sample Mode] Sampled {k}/{total_valid_items} valid lines from {len(input_files)} file(s). Output written to '{output_file}'."
     )
@@ -2812,6 +2961,7 @@ def map_mode(
     """
     Transforms items based on a mapping file.
     """
+    start_time = time.perf_counter()
     # Load mapping
     raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
 
@@ -2879,7 +3029,9 @@ def map_mode(
 
     write_output(transformed_items, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(raw_item_count, transformed_items, item_label="item")
+    print_processing_stats(
+        raw_item_count, transformed_items, item_label="item", start_time=start_time
+    )
     logging.info(
         f"[Map Mode] Transformed items using '{mapping_file}'. Output written to '{output_file}'."
     )
@@ -2903,6 +3055,7 @@ def scrub_mode(
     Performs replacements of typos in text files based on a mapping file.
     Supports in-place modification and dry-run preview.
     """
+    start_time = time.perf_counter()
     # Load mapping
     raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
 
@@ -3007,8 +3160,9 @@ def scrub_mode(
         if limit is not None:
             accumulated_lines = accumulated_lines[:limit]
 
+        duration = time.perf_counter() - start_time
         if dry_run:
-            logging.warning(f"[Dry Run] Total replacements that would be made: {total_replacements}")
+            logging.warning(f"[Dry Run] Total replacements that would be made: {total_replacements}. Processing time: {duration:.3f}s")
         else:
             with smart_open_output(output_file) as out:
                 for line in accumulated_lines:
@@ -3018,7 +3172,8 @@ def scrub_mode(
 
             logging.info(
                 f"[Scrub Mode] Completed scrubbing {len(input_files)} file(s) using '{mapping_file}'. "
-                f"Made {total_replacements} replacements. Output written to '{output_file}'."
+                f"Made {total_replacements} replacements. Output written to '{output_file}'. "
+                f"Processing time: {duration:.3f}s"
             )
     elif dry_run:
         logging.warning(f"[Dry Run] Total replacements that would be made across all files: {total_replacements}")
@@ -3039,6 +3194,7 @@ def highlight_mode(
     """
     Highlights words from a mapping file or list within the input text files.
     """
+    start_time = time.perf_counter()
     # Load mapping or list
     if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml')):
         raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
@@ -3108,9 +3264,11 @@ def highlight_mode(
             if not line.endswith('\n'):
                 out.write('\n')
 
+    duration = time.perf_counter() - start_time
     logging.info(
         f"[Highlight Mode] Completed highlighting {len(input_files)} file(s) using '{mapping_file}'. "
-        f"Found {total_highlights} highlight(s). Output written to '{output_file}'."
+        f"Found {total_highlights} highlight(s). Output written to '{output_file}'. "
+        f"Processing time: {duration:.3f}s"
     )
 
 
@@ -3218,6 +3376,7 @@ def filter_fragments_mode(
     Filters words from input_files (list1) that do not appear as substrings of any
     word in file2 (list2).
     """
+    start_time = time.perf_counter()
 
     # Load and merge all input files
     all_raw_list1 = []
@@ -3271,7 +3430,7 @@ def filter_fragments_mode(
 
     write_output(filtered_items, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(len(all_raw_list1), filtered_items)
+    print_processing_stats(len(all_raw_list1), filtered_items, start_time=start_time)
     logging.info(
         f"[FilterFragments Mode] Filtering complete. Results saved to '{output_file}'."
     )
@@ -3291,6 +3450,7 @@ def set_operation_mode(
     limit: int | None = None,
 ) -> None:
     """Perform set operations (intersection, union, difference) between input files (merged) and a second file."""
+    start_time = time.perf_counter()
     allowed_operations = {'intersection', 'union', 'difference'}
     if operation not in allowed_operations:
         raise ValueError(
@@ -3328,7 +3488,9 @@ def set_operation_mode(
 
     write_output(result_items, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(raw_item_count_a + len(raw_items_b), result_items)
+    print_processing_stats(
+        raw_item_count_a + len(raw_items_b), result_items, start_time=start_time
+    )
     logging.info(
         f"[Set Operation Mode] Completed {operation} between {len(input_files)} input file(s) and "
         f"'{file2}'. Output written to '{output_file}'."

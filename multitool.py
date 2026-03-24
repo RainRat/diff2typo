@@ -4779,7 +4779,7 @@ def main() -> None:
         if getattr(args, 'file2', None) is None and len(input_paths) >= 2:
             args.file2 = input_paths.pop()
             args.input = input_paths
-    elif args.mode in {'map', 'scrub'}:
+    elif args.mode in {'map', 'scrub', 'highlight'}:
         if getattr(args, 'mapping', None) is None and len(input_paths) >= 2:
             args.mapping = input_paths.pop()
             args.input = input_paths
@@ -4789,7 +4789,7 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode in {'map', 'scrub'} and getattr(args, 'mapping', None) is None:
+    if args.mode in {'map', 'scrub', 'highlight'} and getattr(args, 'mapping', None) is None:
         logging.error(f"{args.mode.capitalize()} mode requires a mapping file (provide MAPPING positionally or use --mapping).")
         sys.exit(1)
 

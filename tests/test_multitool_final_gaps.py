@@ -2,6 +2,7 @@ import sys
 import logging
 import io
 import subprocess
+import runpy
 from pathlib import Path
 from unittest.mock import patch
 import pytest
@@ -102,17 +103,6 @@ def test_minimal_formatter_colorized_branch():
                 formatted = formatter.format(record)
                 assert "\033[31mERROR\033[0m: Error message" in formatted
 
-def test_main_entry_point():
-    """Cover line 4862: the __main__ block by running as a subprocess."""
-    # We just run --help to see if it works
-    result = subprocess.run(
-        [sys.executable, "multitool.py", "--help"],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-    assert "A versatile tool" in result.stdout
-
 def test_count_mode_arrow_to_file_header_coverage(tmp_path):
     """Cover lines 1471-1472: header colors when outputting to a file in count_mode arrow."""
     input_file = tmp_path / "input.txt"
@@ -133,3 +123,53 @@ def test_count_mode_arrow_to_file_header_coverage(tmp_path):
     content = output_file.read_text()
     assert "ANALYSIS SUMMARY" in content
     assert "ITEM" in content
+
+def test_cycles_mode_visited_node(tmp_path):
+    """Cover line 2021: if node in visited: return in cycles_mode."""
+    # a -> b, c -> b
+    # Starting at a visits a, b.
+    # Starting at c visits c, then hits b which is already visited.
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("a -> b\nc -> b")
+    output_file = tmp_path / "output.txt"
+
+    multitool.cycles_mode(
+        input_files=[str(input_file)],
+        output_file=str(output_file),
+        min_length=1,
+        max_length=100,
+        process_output=True,
+        output_format='line',
+        quiet=True,
+        clean_items=True
+    )
+    # No cycles expected
+    assert output_file.read_text().strip() == ""
+
+def test_map_mode_empty_line_skipping(tmp_path):
+    """Cover line 3091: if not line_content: continue in map_mode."""
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("apple\n\nbanana")
+    mapping_file = tmp_path / "mapping.txt"
+    mapping_file.write_text("teh -> the")
+    output_file = tmp_path / "output.txt"
+
+    multitool.map_mode(
+        input_files=[str(input_file)],
+        mapping_file=str(mapping_file),
+        output_file=str(output_file),
+        min_length=1,
+        max_length=100,
+        process_output=False,
+        quiet=True
+    )
+
+    content = output_file.read_text().strip().splitlines()
+    assert content == ["apple", "banana"]
+
+def test_multitool_main_invocation():
+    """Cover line 5156: the __main__ block using runpy."""
+    with patch("sys.argv", ["multitool.py", "--help"]):
+        with pytest.raises(SystemExit) as excinfo:
+            runpy.run_module("multitool", run_name="__main__")
+        assert excinfo.value.code == 0

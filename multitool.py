@@ -1987,6 +1987,7 @@ def cycles_mode(
 
     cycles = []
     visited = set()
+    found_normalized_cycles = set()
 
     for start_node in sorted(adj.keys()):
         if start_node not in visited:
@@ -1998,30 +1999,40 @@ def cycles_mode(
                 if node in path_set:
                     # Found a cycle! Extract it from the current path.
                     idx = path_list.index(node)
-                    return path_list[idx:] + [node]
+                    cycle_nodes = path_list[idx:]
+                    
+                    # Normalize the cycle to avoid duplicates (e.g., a->b->a and b->a->b)
+                    # We use the lexicographically smallest rotation as the representative.
+                    min_node = min(cycle_nodes)
+                    min_idx = cycle_nodes.index(min_node)
+                    normalized = tuple(cycle_nodes[min_idx:] + cycle_nodes[:min_idx])
+                    
+                    if normalized not in found_normalized_cycles:
+                        found_normalized_cycles.add(normalized)
+                        # Format as a chain: a -> b -> a
+                        chain = " -> ".join(list(normalized) + [normalized[0]])
+                        cycles.append((normalized[0], chain))
+                    return
+
                 if node in visited:
-                    # Already explored this node in a previous traversal.
-                    return None
+                    # Already explored this node. In some cases we might want to re-explore 
+                    # to find all cycles, but for typo detection, visiting each node once 
+                    # in the DFS tree is a good balance between discovery and performance.
+                    return
 
                 visited.add(node)
                 path_set.add(node)
                 path_list.append(node)
 
-                for next_node in adj.get(node, set()):
-                    res = walk(next_node)
-                    if res:
-                        return res
+                # Sort neighbors to ensure deterministic behavior
+                for next_node in sorted(adj.get(node, set())):
+                    walk(next_node)
 
                 # Unwind path tracking for the current branch
                 path_list.pop()
                 path_set.remove(node)
-                return None
 
-            cycle = walk(start_node)
-            if cycle:
-                # Format as a chain: a -> b -> a
-                chain = " -> ".join(cycle)
-                cycles.append((cycle[0], chain))
+            walk(start_node)
 
     if process_output:
         cycles.sort()

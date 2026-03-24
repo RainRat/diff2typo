@@ -2001,7 +2001,7 @@ def cycles_mode(
                     idx = path_list.index(node)
                     cycle_nodes = path_list[idx:]
                     
-                    # Normalize the cycle to avoid duplicates (e.g., a->b->a and b->a->b)
+                    # Normalize the cycle to avoid duplicates (for example, a->b->a and b->a->b)
                     # We use the lexicographically smallest rotation as the representative.
                     min_node = min(cycle_nodes)
                     min_idx = cycle_nodes.index(min_node)
@@ -2049,7 +2049,7 @@ def cycles_mode(
     print_processing_stats(
         len(cycles), cycles, item_label="cycle", start_time=start_time
     )
-    logging.info(f"[Cycles Mode] Found {len(cycles)} circular dependencies. Output written to '{output_file}'.")
+    logging.info(f"[Cycles Mode] Found {len(cycles)} repeated loops. Output written to '{output_file}'.")
 
 
 def similarity_mode(
@@ -3630,7 +3630,7 @@ MODE_DETAILS = {
     },
     "md-table": {
         "summary": "Extracts text from Markdown tables.",
-        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific indices. It automatically skips header and divider rows.",
+        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers. It automatically skips header and divider rows.",
         "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
         "flags": "[--right] [--column IDX]",
     },
@@ -3732,7 +3732,7 @@ MODE_DETAILS = {
     },
     "similarity": {
         "summary": "Filters paired data by the number of changes.",
-        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove noise or find specific types of typos.",
+        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.",
         "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
@@ -3750,13 +3750,13 @@ MODE_DETAILS = {
     },
     "stats": {
         "summary": "Calculates detailed statistics for a typo list.",
-        "description": "Provides a comprehensive summary of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
+        "description": "Provides a detailed overview of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
     "classify": {
         "summary": "Categorizes typo corrections based on their error type.",
-        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, and [M] Multi-character. Use --show-dist to include the number of character changes.",
+        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, and [M] Multi-character. Use --show-dist to include the number of character changes.",
         "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
         "flags": "[--show-dist]",
     },
@@ -3773,8 +3773,8 @@ MODE_DETAILS = {
         "flags": "[-d DELIMITER] [--smart]",
     },
     "cycles": {
-        "summary": "Identifies circular references in typo-correction pairs.",
-        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Circular references can cause issues during automated scrubbing and represent logic errors in your data.",
+        "summary": "Identifies loops in typo-correction pairs.",
+        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Loops can cause issues during automated scrubbing and represent logic errors in your data.",
         "example": "python multitool.py cycles typos.csv --output-format arrow",
         "flags": "",
     },

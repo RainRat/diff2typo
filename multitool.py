@@ -1959,6 +1959,88 @@ def conflict_mode(
     logging.info(f"[Conflict Mode] Found {len(conflicts)} typos with conflicting corrections. Output written to '{output_file}'.")
 
 
+def cycles_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Identifies circular references in typo-correction pairs.
+    """
+    start_time = time.perf_counter()
+    raw_pairs = _extract_pairs(input_files, quiet=quiet)
+    adj = defaultdict(set)
+
+    for left, right in raw_pairs:
+        if clean_items:
+            left = filter_to_letters(left)
+            right = filter_to_letters(right)
+
+        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+            adj[left].add(right)
+
+    cycles = []
+    visited = set()
+
+    for start_node in sorted(adj.keys()):
+        if start_node not in visited:
+            # Re-initialize path tracking for each new component search
+            path_set = set()
+            path_list = []
+
+            def walk(node):
+                if node in path_set:
+                    # Found a cycle! Extract it from the current path.
+                    idx = path_list.index(node)
+                    return path_list[idx:] + [node]
+                if node in visited:
+                    # Already explored this node in a previous traversal.
+                    return None
+
+                visited.add(node)
+                path_set.add(node)
+                path_list.append(node)
+
+                for next_node in adj.get(node, set()):
+                    res = walk(next_node)
+                    if res:
+                        return res
+
+                # Unwind path tracking for the current branch
+                path_list.pop()
+                path_set.remove(node)
+                return None
+
+            cycle = walk(start_node)
+            if cycle:
+                # Format as a chain: a -> b -> a
+                chain = " -> ".join(cycle)
+                cycles.append((cycle[0], chain))
+
+    if process_output:
+        cycles.sort()
+
+    _write_paired_output(
+        cycles,
+        output_file,
+        output_format,
+        "Cycles",
+        quiet,
+        limit=limit
+    )
+
+    print_processing_stats(
+        len(cycles), cycles, item_label="cycle", start_time=start_time
+    )
+    logging.info(f"[Cycles Mode] Found {len(cycles)} circular dependencies. Output written to '{output_file}'.")
+
+
 def similarity_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -3679,6 +3761,12 @@ MODE_DETAILS = {
         "example": "python multitool.py casing report.txt --smart --output-format arrow",
         "flags": "[-d DELIMITER] [--smart]",
     },
+    "cycles": {
+        "summary": "Identifies circular references in typo-correction pairs.",
+        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Circular references can cause issues during automated scrubbing and represent logic errors in your data.",
+        "example": "python multitool.py cycles typos.csv --output-format arrow",
+        "flags": "",
+    },
     "repeated": {
         "summary": "Finds consecutive identical words.",
         "description": "Identifies doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
@@ -3711,7 +3799,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
         "Manipulation": ["combine", "unique", "diff", "highlight", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
-        "Analysis": ["count", "check", "conflict", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated"],
+        "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated"],
     }
 
     lines = []
@@ -4139,6 +4227,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['conflict']['example']}{RESET}",
     )
     _add_common_mode_arguments(conflict_parser)
+
+    cycles_parser = subparsers.add_parser(
+        'cycles',
+        help=MODE_DETAILS['cycles']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['cycles']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['cycles']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(cycles_parser)
 
     similarity_parser = subparsers.add_parser(
         'similarity',
@@ -4960,6 +5057,10 @@ def main() -> None:
         ),
         'conflict': (
             conflict_mode,
+            {**common_kwargs, 'output_format': output_format},
+        ),
+        'cycles': (
+            cycles_mode,
             {**common_kwargs, 'output_format': output_format},
         ),
         'similarity': (

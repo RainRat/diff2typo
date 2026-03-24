@@ -165,13 +165,21 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
 
     t_len, c_len = len(typo), len(correction)
 
-    # 1. Transposition [T]
+    # Handle same-length operations (Transposition, Keyboard, Replacement)
     if t_len == c_len:
         diffs = [i for i in range(t_len) if typo[i] != correction[i]]
+        # 1. Transposition [T]
         if len(diffs) == 2 and diffs[1] == diffs[0] + 1:
             i, j = diffs
             if typo[i] == correction[j] and typo[j] == correction[i]:
                 return "[T]"
+        # 4. Replacement [R] or [K]
+        if len(diffs) == 1:
+            idx = diffs[0]
+            t_char, c_char = typo[idx].lower(), correction[idx].lower()
+            if t_char in adj_keys.get(c_char, set()):
+                return "[K]"
+            return "[R]"
 
     # 2. Deletion [D] - Typo is shorter (a character was removed)
     if t_len == c_len - 1:
@@ -184,16 +192,6 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
         for i in range(t_len):
             if typo[:i] + typo[i+1:] == correction:
                 return "[I]"
-
-    # 4. Replacement [R] or [K] - Same length, one character difference
-    if t_len == c_len:
-        diffs = [i for i in range(t_len) if typo[i] != correction[i]]
-        if len(diffs) == 1:
-            idx = diffs[0]
-            t_char, c_char = typo[idx].lower(), correction[idx].lower()
-            if t_char in adj_keys.get(c_char, set()):
-                return "[K]"
-            return "[R]"
 
     # 5. Multi-character [M]
     if levenshtein_distance(typo, correction) > 1:

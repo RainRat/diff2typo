@@ -69,6 +69,15 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Extracts text matching a Python regular expression pattern. Unlike other modes, it **preserves exact text** (it does not convert to lowercase or remove punctuation) by default.
   - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`
 
+- **`search`**
+  - **What it does:** Searches for words from a list or mapping within your files and outputs only the lines that contain matches. It acts like a "typo-aware" version of `grep`.
+  - **Options:**
+    - `--mapping`: Provide a word list, a mapping file (like CSV or JSON), or even a single word to search for.
+    - `--smart`: Enable subword matching to find typos inside CamelCase or snake_case variables.
+    - `--max-dist`: Set a Levenshtein distance for fuzzy matching. For example, if searching for "hello" with `--max-dist 1`, it will also find "helo".
+    - `--line-numbers`: Include line numbers in the output for easy navigation.
+  - **Example:** `python multitool.py search input.txt --mapping "teh" --line-numbers`
+
 ### 2. Manipulation Modes
 
 These modes help you transform or combine your data.

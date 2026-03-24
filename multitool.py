@@ -3361,6 +3361,120 @@ def highlight_mode(
     )
 
 
+def search_mode(
+    input_files: Sequence[str],
+    mapping_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    smart: bool = False,
+    max_dist: int = 0,
+    line_numbers: bool = False,
+) -> None:
+    """
+    Searches for words from a mapping file or list within the input text files,
+    outputting only the lines that contain matches.
+    """
+    start_time = time.perf_counter()
+    # Load mapping or list
+    if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml')):
+        raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
+    else:
+        # Treat as a simple list of words if not a common mapping format
+        # If the query is just a single word provided on the CLI, this still works
+        if os.path.exists(mapping_file):
+            lines = _read_file_lines_robust(mapping_file)
+            raw_mapping = {line.strip(): "" for line in lines if line.strip()}
+        else:
+            # Assume the mapping_file argument IS the word to search for
+            raw_mapping = {mapping_file: ""}
+
+    # Clean the search keys for matching and apply length filtering
+    mapping = {}
+    for k in raw_mapping.keys():
+        key = filter_to_letters(k) if clean_items else k
+        if key and min_length <= len(key) <= max_length:
+            mapping[key] = True
+
+    total_matches = 0
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    results = []
+
+    for input_file in input_files:
+        file_lines = _read_file_lines_robust(input_file)
+        file_matches = 0
+
+        for line_idx, line in enumerate(tqdm(file_lines, desc=f"Searching {input_file}", unit=" lines", disable=quiet)):
+            found_in_line = False
+            parts = pattern.split(line)
+
+            for part in parts:
+                if not part or not pattern.match(part):
+                    continue
+
+                # It's a word candidate
+                match_key = filter_to_letters(part) if clean_items else part
+
+                # Exact or Fuzzy matching
+                if match_key in mapping:
+                    found_in_line = True
+                elif max_dist > 0:
+                    for key in mapping:
+                        if levenshtein_distance(match_key, key) <= max_dist:
+                            found_in_line = True
+                            break
+
+                if not found_in_line and smart:
+                    # Try subword matching
+                    sub_parts = _smart_split(part)
+                    for sp in sub_parts:
+                        sm_key = filter_to_letters(sp) if clean_items else sp
+                        if sm_key in mapping:
+                            found_in_line = True
+                            break
+                        elif max_dist > 0:
+                            for key in mapping:
+                                if levenshtein_distance(sm_key, key) <= max_dist:
+                                    found_in_line = True
+                                    break
+                        if found_in_line:
+                            break
+
+                if found_in_line:
+                    break
+
+            if found_in_line:
+                display_line = line.rstrip('\n')
+                if line_numbers:
+                    display_line = f"{BLUE}{line_idx + 1}{RESET}:{display_line}"
+                if len(input_files) > 1:
+                    display_line = f"{GREEN}{input_file}{RESET}:{display_line}"
+
+                results.append(display_line)
+                file_matches += 1
+
+        total_matches += file_matches
+
+    if limit is not None:
+        results = results[:limit]
+
+    with smart_open_output(output_file) as out:
+        for res in results:
+            out.write(res + '\n')
+
+    duration = time.perf_counter() - start_time
+    logging.info(
+        f"[Search Mode] Completed search in {len(input_files)} file(s) using '{mapping_file}'. "
+        f"Found {total_matches} matching line(s). Output written to '{output_file}'. "
+        f"Processing time: {duration:.3f}s"
+    )
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True, include_limit: bool = True
 ) -> None:
@@ -3802,13 +3916,19 @@ MODE_DETAILS = {
         "example": "python multitool.py highlight input.txt --mapping corrections.csv",
         "flags": "[MAPPING] [--smart]",
     },
+    "search": {
+        "summary": "Searches for words within files and outputs matching lines.",
+        "description": "Finds lines containing words from a list or mapping. Similar to 'grep' but aware of typos and subwords. Supports fuzzy matching with --max-dist and line numbering.",
+        "example": "python multitool.py search input.txt --mapping corrections.csv --line-numbers",
+        "flags": "[MAPPING] [--smart] [--max-dist N] [--line-numbers]",
+    },
 }
 
 
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
+        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex", "search"],
         "Manipulation": ["combine", "unique", "diff", "highlight", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
         "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated"],
     }
@@ -4691,6 +4811,38 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(highlight_parser)
 
+    search_parser = subparsers.add_parser(
+        'search',
+        help=MODE_DETAILS['search']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['search']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['search']['example']}{RESET}",
+    )
+    search_options = search_parser.add_argument_group(f"{BLUE}SEARCH OPTIONS{RESET}")
+    search_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file or word list. Can also be a single word to search for.',
+    )
+    search_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Search for subword matches (for example, finding "teh" inside "tehWord").',
+    )
+    search_options.add_argument(
+        '-d', '--max-dist',
+        type=int,
+        default=0,
+        help='Maximum Levenshtein distance for fuzzy matching (default: 0).',
+    )
+    search_options.add_argument(
+        '-n', '--line-numbers',
+        action='store_true',
+        help='Show line numbers in the output.',
+    )
+    _add_common_mode_arguments(search_parser)
+
     return parser
 
 
@@ -4779,7 +4931,7 @@ def main() -> None:
         if getattr(args, 'file2', None) is None and len(input_paths) >= 2:
             args.file2 = input_paths.pop()
             args.input = input_paths
-    elif args.mode in {'map', 'scrub'}:
+    elif args.mode in {'map', 'scrub', 'search'}:
         if getattr(args, 'mapping', None) is None and len(input_paths) >= 2:
             args.mapping = input_paths.pop()
             args.input = input_paths
@@ -4789,8 +4941,8 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode in {'map', 'scrub'} and getattr(args, 'mapping', None) is None:
-        logging.error(f"{args.mode.capitalize()} mode requires a mapping file (provide MAPPING positionally or use --mapping).")
+    if args.mode in {'map', 'scrub', 'search'} and getattr(args, 'mapping', None) is None:
+        logging.error(f"{args.mode.capitalize()} mode requires a mapping file or search term (provide positionally or use --mapping).")
         sys.exit(1)
 
     operation = getattr(args, 'operation', None)
@@ -5131,6 +5283,16 @@ def main() -> None:
                 **common_kwargs,
                 'mapping_file': getattr(args, 'mapping', ''),
                 'smart': getattr(args, 'smart', False),
+            }
+        ),
+        'search': (
+            search_mode,
+            {
+                **common_kwargs,
+                'mapping_file': getattr(args, 'mapping', ''),
+                'smart': getattr(args, 'smart', False),
+                'max_dist': getattr(args, 'max_dist', 0),
+                'line_numbers': getattr(args, 'line_numbers', False),
             }
         ),
     }

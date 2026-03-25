@@ -4771,16 +4771,28 @@ def main() -> None:
     # Store for handler
     args.input = input_paths
 
-    # Fallback logic for modes that require a secondary file (for example, zip, map)
-    # If the flag is missing but we have at least 2 positional arguments, use the last one as the secondary file.
+    # Fallback logic for modes that require a secondary file (for example, zip, map, scrub, highlight)
+    # If the flag is missing, we check positional arguments.
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'}:
-        if getattr(args, 'file2', None) is None and len(input_paths) >= 2:
-            args.file2 = input_paths.pop()
-            args.input = input_paths
+        if getattr(args, 'file2', None) is None:
+            if len(input_paths) >= 2:
+                # Use the last positional argument as the secondary file
+                args.file2 = input_paths.pop()
+                args.input = input_paths
+            elif len(input_paths) == 1 and input_paths[0] != '-':
+                # Use the only positional argument as the secondary file and read input from stdin
+                args.file2 = input_paths[0]
+                args.input = ['-']
     elif args.mode in {'map', 'scrub', 'highlight'}:
-        if getattr(args, 'mapping', None) is None and len(input_paths) >= 2:
-            args.mapping = input_paths.pop()
-            args.input = input_paths
+        if getattr(args, 'mapping', None) is None:
+            if len(input_paths) >= 2:
+                # Use the last positional argument as the mapping file
+                args.mapping = input_paths.pop()
+                args.input = input_paths
+            elif len(input_paths) == 1 and input_paths[0] != '-':
+                # Use the only positional argument as the mapping file and read input from stdin
+                args.mapping = input_paths[0]
+                args.input = ['-']
 
     file2 = getattr(args, 'file2', None)
     # Check for missing secondary files after fallback attempt

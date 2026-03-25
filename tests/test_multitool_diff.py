@@ -75,7 +75,7 @@ def test_diff_pairs_json_output(tmp_path):
 
 def test_diff_no_file2_error(caplog):
     # Testing the error logic in main() by bypassing actual sys.exit
-    with patch("sys.argv", ["multitool.py", "diff", "file1.txt"]):
+    with patch("sys.argv", ["multitool.py", "diff"]):
         with pytest.raises(SystemExit) as e:
             multitool.main()
         assert e.value.code != 0

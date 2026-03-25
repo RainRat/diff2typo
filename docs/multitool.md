@@ -217,6 +217,15 @@ These modes help you analyze your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
 
+- **`search`**
+  - **What it does:** A typo-aware version of grep. It searches for a query in your files and can find fuzzy matches (typos) or subword matches.
+  - **Options:**
+    - `-Q`, `--query`: The word or pattern to search for.
+    - `--max-dist`: Maximum number of character changes for fuzzy matching (default: 0).
+    - `-S`, `--smart`: Search for subwords within larger items (for example, finding "teh" inside "tehWord").
+    - `--line-numbers`: Show the filename and line number for each match.
+  - **Example:** `python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers`
+
 ## Common Options
 
 These options work with most modes:

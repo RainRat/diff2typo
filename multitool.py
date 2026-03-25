@@ -158,7 +158,7 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
 def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> str:
     """
     Categorizes a typo based on its relationship to the correction.
-    Returns a code: [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, [M] Multi-character.
+    Returns a code: [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, [M] Multiple letters.
     """
     if not typo or not correction:
         return "[?]"
@@ -195,7 +195,7 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
                 return "[K]"
             return "[R]"
 
-    # 5. Multi-character [M]
+    # 5. Multiple letters [M]
     if levenshtein_distance(typo, correction) > 1:
         return "[M]"
 
@@ -2001,7 +2001,7 @@ def cycles_mode(
                     idx = path_list.index(node)
                     cycle_nodes = path_list[idx:]
                     
-                    # Normalize the cycle to avoid duplicates (e.g., a->b->a and b->a->b)
+                    # Normalize the cycle to avoid duplicates (for example, a->b->a and b->a->b)
                     # We use the lexicographically smallest rotation as the representative.
                     min_node = min(cycle_nodes)
                     min_idx = cycle_nodes.index(min_node)
@@ -3618,7 +3618,7 @@ MODE_DETAILS = {
     },
     "csv": {
         "summary": "Extracts specific columns from a CSV file.",
-        "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column, or --column to pick specific indices.",
+        "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
         "example": "python multitool.py csv typos.csv --column 2 -o corrections.txt",
         "flags": "[--first-column] [--column IDX]",
     },
@@ -3630,7 +3630,7 @@ MODE_DETAILS = {
     },
     "md-table": {
         "summary": "Extracts text from Markdown tables.",
-        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific indices. It automatically skips header and divider rows.",
+        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers. It automatically skips header and divider rows.",
         "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
         "flags": "[--right] [--column IDX]",
     },
@@ -3732,7 +3732,7 @@ MODE_DETAILS = {
     },
     "similarity": {
         "summary": "Filters paired data by the number of changes.",
-        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove noise or find specific types of typos.",
+        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.",
         "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
@@ -3750,13 +3750,13 @@ MODE_DETAILS = {
     },
     "stats": {
         "summary": "Calculates detailed statistics for a typo list.",
-        "description": "Provides a comprehensive summary of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
+        "description": "Provides a detailed overview of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
     "classify": {
         "summary": "Categorizes typo corrections based on their error type.",
-        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, and [M] Multi-character. Use --show-dist to include the number of character changes.",
+        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, and [M] Multiple letters. Use --show-dist to include the number of character changes.",
         "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
         "flags": "[--show-dist]",
     },
@@ -4068,7 +4068,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         nargs='+',
         metavar='IDX',
-        help='One or more 0-based column indices to extract.',
+        help='One or more 0-based column numbers to extract.',
     )
     _add_common_mode_arguments(csv_parser)
 
@@ -4106,7 +4106,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         nargs='+',
         metavar='IDX',
-        help='One or more 0-based column indices to extract.',
+        help='One or more 0-based column numbers to extract.',
     )
     _add_common_mode_arguments(md_table_parser)
 

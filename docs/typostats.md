@@ -80,7 +80,7 @@ The dashboard at the top gives you an overview of your typo history:
 - **Unique patterns:** How many different types of mistakes were found.
 - **Keyboard Adjacency [K]:** Percentage of typos caused by hitting a key next to the correct one.
 - **Transpositions [T]:** Percentage of typos caused by swapping two letters.
-- **Multi-character [M]:** Percentage of typos involving multiple letters (like `m` -> `rn`).
+- **Multiple letters [M]:** Percentage of typos involving multiple letters (like `m` -> `rn`).
 
 ### Letter Replacements Table
 This section breaks down every mistake:
@@ -97,7 +97,7 @@ For example, a row showing `o │ p` means you typed `p` when you meant to type 
 When you enable analysis features, the tool identifies specific patterns in the **ATTR** column:
 - **[K]**: Keyboard slip (the keys are next to each other on a QWERTY layout).
 - **[T]**: Transposition (swapped letters, like `teh` instead of `the`).
-- **[M]**: Multi-character replacement (for example, `m` to `rn` or `ph` to `f`).
+- **[M]**: Multiple letters replacement (for example, `m` to `rn` or `ph` to `f`).
 
 ### Visual Bar
 The **VISUAL** column provides a small bar chart to help you quickly see which mistakes are the most frequent.

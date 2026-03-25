@@ -33,7 +33,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py backtick build.log`
 
 - **`csv`**
-  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column, or `--column` (or `-c`) followed by one or more indices to extract specific columns. Use `--delimiter` (or `-d`) to specify a different column separator (for example, `;`).
+  - **What it does:** Extracts columns from a CSV file. By default, it extracts **all columns except the first one**. Use `--first-column` to keep *only* the first column, or `--column` (or `-c`) followed by one or more numbers to extract specific columns. Use `--delimiter` (or `-d`) to specify a different column separator (for example, `;`).
   - **Example:** `python multitool.py csv data.csv --column 2`
 
 - **`markdown`**
@@ -41,7 +41,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py markdown notes.md --right`
 
 - **`md-table`**
-  - **What it does:** Extracts text from Markdown tables. It saves the first column by default. Use the `--right` flag to save the second column instead, or `--column` (or `-c`) followed by one or more indices to extract specific columns. It automatically skips header and divider rows.
+  - **What it does:** Extracts text from Markdown tables. It saves the first column by default. Use the `--right` flag to save the second column instead, or `--column` (or `-c`) followed by one or more numbers to extract specific columns. It automatically skips header and divider rows.
   - **Example:** `python multitool.py md-table readme.md --column 2`
 
 - **`json`**
@@ -145,7 +145,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py check mappings.csv`
 
 - **`classify`**
-  - **What it does:** Categorizes typo corrections based on their error type. It labels each pair with a code like `[K]` (Keyboard), `[T]` (Transposition), `[D]` (Deletion), `[I]` (Insertion), `[R]` (Replacement), or `[M]` (Multi-character).
+  - **What it does:** Categorizes typo corrections based on their error type. It labels each pair with a code like `[K]` (Keyboard), `[T]` (Transposition), `[D]` (Deletion), `[I]` (Insertion), `[R]` (Replacement), or `[M]` (Multiple letters).
   - **Options:** Use `--show-dist` to include the number of character changes (Levenshtein distance) in the output labels.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py classify typos.txt --show-dist --output labeled.txt`
@@ -181,7 +181,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py near_duplicates words.txt --max-dist 1 --show-dist`
 
 - **`similarity`**
-  - **What it does:** Filters paired data (like `typo -> correction`) based on the number of character changes needed to turn one word into another. Use this to remove noise or find specific types of typos.
+  - **What it does:** Filters paired data (like `typo -> correction`) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.
   - **Options:** Use `--min-dist` and `--max-dist` to set the range of allowed changes, and `--show-dist` to include the number of changes in the output.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py similarity typos.txt --max-dist 2 --show-dist`

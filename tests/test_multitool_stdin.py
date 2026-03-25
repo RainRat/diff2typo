@@ -49,7 +49,7 @@ def test_explicit_stdin_flag(monkeypatch, capsys):
     assert "correction" in output
 
 def test_stdin_multi_pass(monkeypatch, capsys):
-    """Test that stdin can be read multiple times (e.g. for stats --pairs)."""
+    """Test that stdin can be read multiple times (for example for stats --pairs)."""
 
     input_data = "apple -> fruit\n"
 

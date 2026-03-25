@@ -2697,6 +2697,129 @@ def words_mode(
     )
 
 
+def search_mode(
+    input_files: Sequence[str],
+    query: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    max_dist: int = 0,
+    smart: bool = False,
+    line_numbers: bool = False,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Searches for words or patterns in text files, supporting fuzzy matching and smart subword detection.
+    """
+    start_time = time.perf_counter()
+    total_matches = 0
+    query_clean = filter_to_letters(query) if clean_items else query.lower()
+
+    # Split query for smart matching if requested
+    query_parts = _smart_split(query) if smart else [query]
+    query_parts_clean = [filter_to_letters(p) for p in query_parts] if clean_items else [p.lower() for p in query_parts]
+
+    accumulated_lines = []
+
+    for input_file in input_files:
+        file_lines = _read_file_lines_robust(input_file)
+        file_matches = 0
+
+        for i, line in enumerate(tqdm(file_lines, desc=f"Searching {input_file}", unit=" lines", disable=quiet)):
+            match_found = False
+            line_content = line.rstrip('\n')
+
+            # 1. Try exact match on whole line first (optimized, but might bypass length filter)
+            if query.lower() in line_content.lower():
+                # If no length filtering, we can stop here
+                if min_length <= 1 and max_length >= 1000:
+                    match_found = True
+
+            # 2. Re-evaluate with word-by-word logic for filtering/fuzzy/smart if needed
+            if not match_found or max_dist > 0 or smart or min_length > 1 or max_length < 1000:
+                match_found = False
+                words = re.findall(r'([a-zA-Z0-9]+)', line_content)
+                for word in words:
+                    # Check the whole word
+                    word_clean = filter_to_letters(word) if clean_items else word.lower()
+                    if not word_clean:
+                        continue
+
+                    # Apply length filtering to the word candidate
+                    if not (min_length <= len(word_clean) <= max_length):
+                        continue
+
+                    # 1. Exact match within the valid word
+                    if query_clean in word_clean:
+                        match_found = True
+                        break
+
+                    # 2. Fuzzy match whole word
+                    if max_dist > 0 and levenshtein_distance(word_clean, query_clean) <= max_dist:
+                        match_found = True
+                        break
+
+                    if smart:
+                        # Check subwords
+                        sub_parts = _smart_split(word)
+                        for sp in sub_parts:
+                            sp_clean = filter_to_letters(sp) if clean_items else sp.lower()
+                            if not sp_clean:
+                                continue
+
+                            # Match against any of the query parts
+                            for qp_clean in query_parts_clean:
+                                if levenshtein_distance(sp_clean, qp_clean) <= max_dist:
+                                    match_found = True
+                                    break
+                            if match_found:
+                                break
+                    if match_found:
+                        break
+
+            if match_found:
+                file_matches += 1
+                display_line = line_content
+
+                # Highlight the query in the line if possible
+                # (Simple highlighting for the raw query string)
+                if sys.stdout.isatty() or os.environ.get('FORCE_COLOR'):
+                    # We use a case-insensitive regex for highlighting the literal query
+                    try:
+                        pattern = re.compile(f"({re.escape(query)})", re.IGNORECASE)
+                        display_line = pattern.sub(f"{YELLOW}\\1{RESET}", display_line)
+                    except Exception:
+                        pass # Fallback to no highlight if regex fails
+
+                if line_numbers:
+                    prefix = f"{BLUE}{input_file}:{i+1}:{RESET} " if (sys.stdout.isatty() or os.environ.get('FORCE_COLOR')) else f"{input_file}:{i+1}: "
+                    display_line = f"{prefix}{display_line}"
+
+                accumulated_lines.append(display_line)
+
+        total_matches += file_matches
+
+    if process_output:
+        accumulated_lines = sorted(set(accumulated_lines))
+
+    if limit is not None:
+        accumulated_lines = accumulated_lines[:limit]
+
+    with smart_open_output(output_file) as out:
+        for line in accumulated_lines:
+            out.write(line + '\n')
+
+    duration = time.perf_counter() - start_time
+    logging.info(
+        f"[Search Mode] Completed search in {len(input_files)} file(s) for '{query}'. "
+        f"Found {total_matches} match(es). Output written to '{output_file}'. "
+        f"Processing time: {duration:.3f}s"
+    )
+
+
 def combine_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -3784,6 +3907,12 @@ MODE_DETAILS = {
         "example": "python multitool.py repeated report.txt --smart --output-format arrow",
         "flags": "[-d DELIMITER] [--smart]",
     },
+    "search": {
+        "summary": "Searches for words or patterns in text files.",
+        "description": "A typo-aware version of grep. It searches for a query in your files and can find fuzzy matches (typos) or subword matches. It supports highlighting and line numbers.",
+        "example": "python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers",
+        "flags": "[-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
+    },
     "scrub": {
         "summary": "Replaces typos in text files based on a mapping.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
@@ -3810,7 +3939,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
         "Manipulation": ["combine", "unique", "diff", "highlight", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
-        "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated"],
+        "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search"],
     }
 
     lines = []
@@ -4443,6 +4572,36 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(repeated_parser)
 
+    search_parser = subparsers.add_parser(
+        'search',
+        help="Searches for words or patterns in text files.",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    search_options = search_parser.add_argument_group(f"{BLUE}SEARCH OPTIONS{RESET}")
+    search_options.add_argument(
+        '-Q', '--query',
+        type=str,
+        required=False,
+        help="The word or pattern to search for.",
+    )
+    search_options.add_argument(
+        '--max-dist',
+        type=int,
+        default=0,
+        help="Maximum character changes for fuzzy matching (default: 0).",
+    )
+    search_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Search for subwords using smart splitting (for example, finding "teh" inside "tehWord").',
+    )
+    search_options.add_argument(
+        '--line-numbers',
+        action='store_true',
+        help="Show line numbers in the search results.",
+    )
+    _add_common_mode_arguments(search_parser)
+
     set_parser = subparsers.add_parser(
         'set_operation',
         help=MODE_DETAILS['set_operation']['summary'],
@@ -4783,6 +4942,12 @@ def main() -> None:
         if getattr(args, 'mapping', None) is None and len(input_paths) >= 2:
             args.mapping = input_paths.pop()
             args.input = input_paths
+    elif args.mode == 'search':
+        if getattr(args, 'query', None) is None and len(input_paths) >= 1:
+            # If no -q provided, the last positional argument is the query.
+            # If only one positional, it's the query and input is stdin.
+            args.query = input_paths.pop()
+            args.input = input_paths
 
     file2 = getattr(args, 'file2', None)
     # Check for missing secondary files after fallback attempt
@@ -4791,6 +4956,9 @@ def main() -> None:
         sys.exit(1)
     if args.mode in {'map', 'scrub'} and getattr(args, 'mapping', None) is None:
         logging.error(f"{args.mode.capitalize()} mode requires a mapping file (provide MAPPING positionally or use --mapping).")
+        sys.exit(1)
+    if args.mode == 'search' and getattr(args, 'query', None) is None:
+        logging.error("Search mode requires a search query (provide QUERY positionally or use --query).")
         sys.exit(1)
 
     operation = getattr(args, 'operation', None)
@@ -4976,6 +5144,16 @@ def main() -> None:
                 'file2': file2,
                 'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
+            }
+        ),
+        'search': (
+            search_mode,
+            {
+                **common_kwargs,
+                'query': getattr(args, 'query', ''),
+                'max_dist': getattr(args, 'max_dist', 0),
+                'smart': getattr(args, 'smart', False),
+                'line_numbers': getattr(args, 'line_numbers', False),
             }
         ),
         'unique': (

@@ -296,14 +296,14 @@ def test_extract_yaml_items_doc_none_and_error(tmp_path, caplog):
 def test_main_secondary_file_errors(monkeypatch, caplog):
     """Covers lines 2329-2331 and 2341-2345: missing file2 error"""
     # filterfragments
-    monkeypatch.setattr(sys, "argv", ["multitool.py", "filterfragments", "file1.txt"])
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "filterfragments"])
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit):
             multitool.main()
     assert "Filterfragments mode requires a secondary file" in caplog.text
 
     # set_operation
-    monkeypatch.setattr(sys, "argv", ["multitool.py", "set_operation", "file1.txt", "--operation", "union"])
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "set_operation", "--operation", "union"])
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit):
             multitool.main()

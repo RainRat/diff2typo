@@ -25,7 +25,8 @@ def test_main_max_length_error(monkeypatch, caplog):
     assert "--max-length must be greater than or equal to --min-length" in caplog.text
 
 def test_main_zip_missing_file2(monkeypatch, caplog):
-    monkeypatch.setattr(sys, "argv", ["multitool.py", "zip", "file1.txt"])
+    # Now it should error ONLY if NO positional arguments are provided
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "zip"])
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit) as cm:
             multitool.main()
@@ -33,7 +34,8 @@ def test_main_zip_missing_file2(monkeypatch, caplog):
     assert "Zip mode requires a secondary file" in caplog.text
 
 def test_main_map_missing_mapping(monkeypatch, caplog):
-    monkeypatch.setattr(sys, "argv", ["multitool.py", "map", "file1.txt"])
+    # Now it should error ONLY if NO positional arguments are provided
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "map"])
     with caplog.at_level(logging.ERROR):
         with pytest.raises(SystemExit) as cm:
             multitool.main()

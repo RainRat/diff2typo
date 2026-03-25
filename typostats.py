@@ -407,7 +407,7 @@ def generate_report(
                     multi_count += count
             if multi_count > 0:
                 percent = (multi_count / total_typos) * 100 if total_typos > 0 else 0
-                multi_char_summary = f"  {c_err_bold}{'Multi-character [M]:':<{label_width}}{c_err_reset} {c_err_yellow}{multi_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
+                multi_char_summary = f"  {c_err_bold}{'Multiple letters [M]:':<{label_width}}{c_err_reset} {c_err_yellow}{multi_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
 
         analysis_summary = ""
         if total_lines is not None:
@@ -725,7 +725,7 @@ def main() -> None:
         '--allow-two-char',
         dest='allow_two_char',
         action='store_true',
-        help="Shortcut for --1to2 and --2to1. Allow multi-character letter replacements.",
+        help="Shortcut for --1to2 and --2to1. Allow multiple letters replacements.",
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--allow_two_char', action='store_true', help=argparse.SUPPRESS)

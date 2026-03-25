@@ -146,7 +146,7 @@ These modes help you analyze your data.
 
 - **`classify`**
   - **What it does:** Categorizes typo corrections based on their error type. It labels each pair with a code like `[K]` (Keyboard), `[T]` (Transposition), `[D]` (Deletion), `[I]` (Insertion), `[R]` (Replacement), or `[M]` (Multiple letters).
-  - **Options:** Use `--show-dist` to include the number of character changes (Levenshtein distance) in the output labels.
+  - **Options:** Use `--show-dist` to include the number of character changes in the output labels.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py classify typos.txt --show-dist --output labeled.txt`
 

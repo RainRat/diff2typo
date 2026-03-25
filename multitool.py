@@ -395,7 +395,7 @@ def print_processing_stats(
         f"  {c_bold}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
     )
 
-    # Levenshtein distance for paired data
+    # character changes for paired data
     if (
         filtered_items
         and isinstance(filtered_items[0], tuple)

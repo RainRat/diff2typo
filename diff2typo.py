@@ -194,30 +194,76 @@ def _compare_word_lists(
     max_dist: Optional[int] = None,
 ) -> List[str]:
     """Return typo pairs discovered when comparing two word sequences."""
+    import difflib
 
-    if len(before_words) != len(after_words):
-        return []
-
+    # Use sequence alignment to identify corresponding changes in words.
+    # This allows correctly identifying typo corrections even when words
+    # are added or removed within the same diff block.
+    matcher = difflib.SequenceMatcher(None, before_words, after_words)
     typos: List[str] = []
-    for index, (before_word, after_word) in enumerate(zip(before_words, after_words)):
-        if before_word == after_word:
-            continue
 
-        if index > 0 and before_words[index - 1] != after_words[index - 1]:
-            continue
-        if index < len(before_words) - 1 and before_words[index + 1] != after_words[index + 1]:
-            continue
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'replace':
+            # Extraction of words from the identified replaced blocks.
+            # We match them 1-to-1 if the block sizes are identical.
+            # Otherwise, we attempt to find the most likely pairing.
+            removals = before_words[i1:i2]
+            additions = after_words[j1:j2]
 
-        before_clean = filter_to_letters(before_word)
-        after_clean = filter_to_letters(after_word)
-        if (
-            len(before_clean) >= min_length
-            and len(after_clean) >= min_length
-            and before_clean
-            and after_clean
-        ):
-            if max_dist is None or levenshtein_distance(before_clean, after_clean) <= max_dist:
-                typos.append(f"{before_clean} -> {after_clean}")
+            # If the number of removed and added words in the block matches,
+            # we can process them as individual substitutions.
+            if len(removals) == len(additions):
+                for k, (before_word, after_word) in enumerate(zip(removals, additions)):
+                    if before_word == after_word:
+                        continue
+
+                    # Context check (Safety): To avoid false positives in complex changes,
+                    # we only accept a substitution if its immediate neighbors are identical.
+                    # Since we are inside a 'replace' block, neighbors inside the block
+                    # must be checked explicitly. Neighbors outside the block are
+                    # identical by definition (Equal blocks).
+                    if k > 0 and removals[k-1] != additions[k-1]:
+                        continue
+                    if k < len(removals) - 1 and removals[k+1] != additions[k+1]:
+                        continue
+
+                    before_clean = filter_to_letters(before_word)
+                    after_clean = filter_to_letters(after_word)
+
+                    if (
+                        len(before_clean) >= min_length
+                        and len(after_clean) >= min_length
+                        and before_clean
+                        and after_clean
+                    ):
+                        if max_dist is None or levenshtein_distance(before_clean, after_clean) <= max_dist:
+                            typos.append(f"{before_clean} -> {after_clean}")
+            else:
+                # If block sizes differ (e.g., "teh house" -> "the big house"),
+                # we perform a local fuzzy matching to find the best candidate pair.
+                for b_word in removals:
+                    b_clean = filter_to_letters(b_word)
+                    if len(b_clean) < min_length:
+                        continue
+
+                    best_match = None
+                    best_dist = float('inf')
+
+                    for a_word in additions:
+                        a_clean = filter_to_letters(a_word)
+                        if len(a_clean) < min_length:
+                            continue
+
+                        dist = levenshtein_distance(b_clean, a_clean)
+                        # We only consider it a typo if the distance is low relative to the word length
+                        # and fits within the global max_dist constraint.
+                        if dist < best_dist and dist <= (max_dist if max_dist is not None else 2):
+                            best_match = a_clean
+                            best_dist = dist
+
+                    if best_match:
+                        typos.append(f"{b_clean} -> {best_match}")
+
     return typos
 
 

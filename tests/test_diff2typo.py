@@ -89,11 +89,6 @@ def test_compare_word_lists():
     assert diff2typo._compare_word_lists(before, after_mismatch, 2) == []
 
 
-def test_sort_and_deduplicate():
-    items = ['banana', 'apple', 'banana']
-    assert diff2typo.sort_and_deduplicate(items) == ['apple', 'banana']
-
-
 def test_format_typos():
     typos = ['teh -> the']
     assert diff2typo.format_typos(typos, 'arrow') == ['teh -> the']

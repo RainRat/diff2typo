@@ -45,11 +45,11 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py md-table readme.md --column 2`
 
 - **`json`**
-  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (for example, `user.name`). If you do not provide a key, it extracts keys from the root object (or all items if the root is a list). It automatically handles lists and objects.
+  - **What it does:** Extracts values from a JSON file based on a specific key. You can use dots to access nested keys (for example, `user.name`). If you do not provide a key, it extracts keys from the top level (or all items if the top level is a list). It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`
 
 - **`yaml`**
-  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (for example, `config.items`). If you do not provide a key, it extracts keys from the root object (or all items if the root is a list).
+  - **What it does:** Extracts values from a YAML file based on a key path. Like JSON mode, it supports dot notation (for example, `config.items`). If you do not provide a key, it extracts keys from the top level (or all items if the top level is a list).
   - **Example:** `python multitool.py yaml config.yaml --key config.items`
 
 - **`line`**
@@ -61,7 +61,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py words report.txt --smart`
 
 - **`ngrams`**
-  - **What it does:** Extracts sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sliding windows across line boundaries.
+  - **What it does:** Extracts sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.
   - **Options:** Use `-n` to specify the number of words in each sequence (default is 2). Like the `words` mode, it supports custom delimiters and smart word splitting.
   - **Example:** `python multitool.py ngrams report.txt -n 2 --smart`
 
@@ -187,12 +187,12 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py similarity typos.txt --max-dist 2 --show-dist`
 
 - **`stats`**
-  - **What it does:** Provides a high-level summary of your dataset. It reports counts, unique items, and length distributions. If the `--pairs` flag is used, it additionally analyzes the file as paired data (typos/corrections) and reports conflicts (one typo to multiple corrections), overlaps (words that are both typos and corrections), and character change statistics.
+  - **What it does:** Provides a high-level summary of your dataset. It reports counts, unique items, and length statistics. If the `--pairs` flag is used, it additionally analyzes the file as paired data (typos/corrections) and reports conflicts (one typo to multiple corrections), overlaps (words that are both typos and corrections), and character change statistics.
   - **Supported Formats:** `json`, `yaml`, `markdown`, `md-table`, and `line` (human-readable).
   - **Example:** `python multitool.py stats typos.csv --pairs`
 
 - **`discovery`**
-  - **What it does:** Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors in a dataset without needing a pre-existing dictionary.
+  - **What it does:** Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors in a dataset without needing a dictionary.
   - **Options:**
     - `--rare-max`: Maximum frequency for a word to be considered a potential typo (default: 1).
     - `--freq-min`: Minimum frequency for a word to be considered a potential correction (default: 5).
@@ -218,7 +218,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
 
 - **`search`**
-  - **What it does:** A typo-aware version of grep. It searches for a query in your files and can find fuzzy matches (typos) or subword matches.
+  - **What it does:** A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches.
   - **Options:**
     - `-Q`, `--query`: The word or pattern to search for.
     - `--max-dist`: Maximum number of character changes for fuzzy matching (default: 0).

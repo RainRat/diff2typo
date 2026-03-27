@@ -2738,25 +2738,23 @@ def search_mode(
     # Determine if we should use color for the output file/screen
     use_color = (sys.stdout.isatty() or os.environ.get('FORCE_COLOR')) and output_file == '-'
 
+    # Pre-compile literal search regex for efficiency and handle length filtering once
+    literal_match_enabled = min_length <= len(effective_query) <= max_length
+    literal_regex = re.compile(re.escape(query_lower)) if literal_match_enabled else None
+
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         file_matches = 0
 
         for i, line in enumerate(tqdm(file_lines, desc=f"Searching {input_file}", unit=" lines", disable=quiet)):
             line_content = line.rstrip('\n')
+            line_lower = line_content.lower()
             matching_spans = []
 
             # 1. Literal query match (highest priority for highlighting)
-            if query_lower in line_content.lower():
-                # Check if literal query itself meets length criteria
-                if len(effective_query) >= min_length:
-                    start_search = 0
-                    while True:
-                        idx = line_content.lower().find(query_lower, start_search)
-                        if idx == -1:
-                            break
-                        matching_spans.append((idx, idx + len(query)))
-                        start_search = idx + 1
+            if literal_regex:
+                for match in literal_regex.finditer(line_lower):
+                    matching_spans.append(match.span())
 
             # 2. Word-by-word logic for filtering/fuzzy/smart matches
             # We use finditer to get spans for highlighting

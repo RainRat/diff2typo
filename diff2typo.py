@@ -283,18 +283,6 @@ def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO
             yield f
 
 
-def sort_and_deduplicate(input_list: Iterable[str]) -> List[str]:
-    """
-    Removes duplicates from the input list and sorts them.
-
-    Args:
-        input_list (list): List of strings.
-
-    Returns:
-        list: Sorted and deduplicated list of strings.
-    """
-    return sorted(set(input_list))
-
 def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     """
     Formats the list of typos based on the specified output format.
@@ -479,7 +467,7 @@ def process_new_typos(candidates, args, valid_words, allowed_words):
     )
 
     # Deduplicate and sort.
-    filtered_candidates = sort_and_deduplicate(filtered_candidates)
+    filtered_candidates = sorted(set(filtered_candidates))
     # Format the output according to the requested output format.
     formatted = format_typos(filtered_candidates, args.output_format)
     return formatted
@@ -520,7 +508,7 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
                     new_corrections.append(f"{before} -> {after}")
     if progress:
         progress.close()
-    new_corrections = sort_and_deduplicate(new_corrections)
+    new_corrections = sorted(set(new_corrections))
     return new_corrections
 
 
@@ -539,7 +527,7 @@ def process_audit_typos(candidates, args, valid_words, allowed_words):
                 if after not in valid_words and after not in allowed_words:
                     audit_candidates.append(candidate)
 
-    audit_candidates = sort_and_deduplicate(audit_candidates)
+    audit_candidates = sorted(set(audit_candidates))
     formatted = format_typos(audit_candidates, args.output_format)
     return formatted
 
@@ -715,7 +703,7 @@ def main():
     # Find candidate typo corrections from the diff.
     logging.info("Finding potential typo corrections from the diff...")
     candidates = find_typos(diff_text, min_length=args.min_length, max_dist=args.max_dist)
-    candidates = sort_and_deduplicate(candidates)
+    candidates = sorted(set(candidates))
     logging.info(f"Identified {len(candidates)} candidate typo correction(s).")
 
     # Prepare lists to hold results.

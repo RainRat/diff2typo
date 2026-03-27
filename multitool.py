@@ -1094,7 +1094,7 @@ def ngrams_mode(
         return _extract_ngram_items(
             f, n=n, delimiter=delimiter, quiet=quiet, smart=smart, clean_items=clean_items
         )
-    # Pass clean_items=False to _process_items to preserve spaces in n-grams.
+    # Pass clean_items=False to _process_items to preserve spaces in sequences of words.
     _process_items(
         extractor,
         input_files,
@@ -1969,7 +1969,7 @@ def cycles_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies circular references in typo-correction pairs.
+    Identifies repeated loops in typo-correction pairs.
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
@@ -2047,7 +2047,7 @@ def cycles_mode(
     print_processing_stats(
         len(cycles), cycles, item_label="cycle", start_time=start_time
     )
-    logging.info(f"[Cycles Mode] Found {len(cycles)} circular dependencies. Output written to '{output_file}'.")
+    logging.info(f"[Cycles Mode] Found {len(cycles)} repeated loops. Output written to '{output_file}'.")
 
 
 def similarity_mode(
@@ -3780,8 +3780,8 @@ MODE_DETAILS = {
         "flags": "[-d DELIMITER] [--smart]",
     },
     "ngrams": {
-        "summary": "Extracts sequences of N words (n-grams).",
-        "description": "Extracts sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sliding windows across line boundaries.",
+        "summary": "Extracts sequences of N words.",
+        "description": "Extracts sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
         "example": "python multitool.py ngrams report.txt -n 2 --smart --output phrases.txt",
         "flags": "[-n N] [-d DELIMITER] [--smart]",
     },
@@ -3871,7 +3871,7 @@ MODE_DETAILS = {
     },
     "stats": {
         "summary": "Calculates detailed statistics for a typo list.",
-        "description": "Provides a detailed overview of your dataset. It reports counts, unique items, length distributions, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
+        "description": "Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
@@ -3894,8 +3894,8 @@ MODE_DETAILS = {
         "flags": "[-d DELIMITER] [--smart]",
     },
     "cycles": {
-        "summary": "Identifies circular references in typo-correction pairs.",
-        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Circular references can cause issues during automated scrubbing and represent logic errors in your data.",
+        "summary": "Identifies loops in typo-correction pairs.",
+        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues during automated scrubbing and represent logic errors in your data.",
         "example": "python multitool.py cycles typos.csv --output-format arrow",
         "flags": "",
     },
@@ -3907,7 +3907,7 @@ MODE_DETAILS = {
     },
     "search": {
         "summary": "Searches for words or patterns in text files.",
-        "description": "A typo-aware version of grep. It searches for a query in your files and can find fuzzy matches (typos) or subword matches. It supports highlighting and line numbers.",
+        "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting and line numbers.",
         "example": "python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers",
         "flags": "[-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
     },

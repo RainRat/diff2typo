@@ -41,7 +41,7 @@ BOLD = "\033[1m"
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
 # We check the main output and error output as help goes to the main output and logging/stats to error output
-if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
+if (not sys.stdout.isatty() and not os.environ.get('FORCE_COLOR')) or os.environ.get('NO_COLOR'):
     BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
 # Note: we use the main output's status for the global constants, but individual
 # functions might still check the error output if they specifically log to it.
@@ -2716,84 +2716,137 @@ def search_mode(
     total_matches = 0
     query_clean = filter_to_letters(query) if clean_items else query.lower()
 
+    # Safety check for match-all queries
+    if clean_items and not query_clean:
+        logging.warning(
+            f"Search query '{query}' contains no alphanumeric characters and 'clean_items' is enabled. "
+            "Skipping search to avoid matching every line."
+        )
+        return
+
     # Split query for smart matching if requested
     query_parts = _smart_split(query) if smart else [query]
-    query_parts_clean = [filter_to_letters(p) for p in query_parts] if clean_items else [p.lower() for p in query_parts]
+    query_parts_clean = (
+        [filter_to_letters(p) for p in query_parts]
+        if clean_items
+        else [p.lower() for p in query_parts]
+    )
 
     accumulated_lines = []
+    # Check if color is enabled by global setup
+    use_color = bool(YELLOW)
+
+    # Pre-compile patterns outside the loop for better performance
+    lit_pattern = re.compile(re.escape(query), re.IGNORECASE)
+    word_pattern = re.compile(r'([a-zA-Z0-9]+)')
+    query_len = len(query_clean) if clean_items else len(query)
+    apply_literal_match = min_length <= query_len <= max_length
 
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         file_matches = 0
 
-        for i, line in enumerate(tqdm(file_lines, desc=f"Searching {input_file}", unit=" lines", disable=quiet)):
-            match_found = False
+        for i, line in enumerate(
+            tqdm(file_lines, desc=f"Searching {input_file}", unit=" lines", disable=quiet)
+        ):
             line_content = line.rstrip('\n')
+            spans = []
 
-            # 1. Try exact match on whole line first (optimized, but might bypass length filter)
-            if query.lower() in line_content.lower():
-                # If no length filtering, we can stop here
-                if min_length <= 1 and max_length >= 1000:
-                    match_found = True
+            # 1. Exact match on whole line first (case-insensitive)
+            # We use finditer to capture all literal occurrences of the query.
+            if apply_literal_match:
+                for m in lit_pattern.finditer(line_content):
+                    spans.append(m.span())
 
-            # 2. Re-evaluate with word-by-word logic for filtering/fuzzy/smart if needed
-            if not match_found or max_dist > 0 or smart or min_length > 1 or max_length < 1000:
-                match_found = False
-                words = re.findall(r'([a-zA-Z0-9]+)', line_content)
-                for word in words:
-                    # Check the whole word
-                    word_clean = filter_to_letters(word) if clean_items else word.lower()
-                    if not word_clean:
-                        continue
+            # 2. Word-by-word logic for filtering/fuzzy/smart matching.
+            # We use finditer to get precise offsets for word boundaries.
+            for m_word in word_pattern.finditer(line_content):
+                word = m_word.group(0)
+                word_start, word_end = m_word.span()
 
-                    # Apply length filtering to the word candidate
-                    if not (min_length <= len(word_clean) <= max_length):
-                        continue
+                word_clean = filter_to_letters(word) if clean_items else word.lower()
+                if not word_clean:
+                    continue
 
-                    # 1. Exact match within the valid word
-                    if query_clean in word_clean:
-                        match_found = True
-                        break
+                # Apply length filtering to the word candidate.
+                if not (min_length <= len(word_clean) <= max_length):
+                    continue
 
-                    # 2. Fuzzy match whole word
-                    if max_dist > 0 and levenshtein_distance(word_clean, query_clean) <= max_dist:
-                        match_found = True
-                        break
+                match_found_in_word = False
 
-                    if smart:
-                        # Check subwords
-                        sub_parts = _smart_split(word)
-                        for sp in sub_parts:
-                            sp_clean = filter_to_letters(sp) if clean_items else sp.lower()
-                            if not sp_clean:
-                                continue
+                # a. Exact match within the valid word.
+                if query_clean in word_clean:
+                    # Attempt to find literal occurrences within the word for precise highlighting.
+                    for m_lit in lit_pattern.finditer(word):
+                        spans.append((word_start + m_lit.start(), word_start + m_lit.end()))
+                        match_found_in_word = True
 
-                            # Match against any of the query parts
-                            for qp_clean in query_parts_clean:
-                                if levenshtein_distance(sp_clean, qp_clean) <= max_dist:
-                                    match_found = True
-                                    break
-                            if match_found:
+                    if not match_found_in_word:
+                        # Fallback: highlight the whole word if literal query didn't match
+                        # (for example, if clean_items altered the string substantially).
+                        spans.append((word_start, word_end))
+                        match_found_in_word = True
+
+                # b. Fuzzy match whole word.
+                elif (
+                    max_dist > 0
+                    and levenshtein_distance(word_clean, query_clean) <= max_dist
+                ):
+                    spans.append((word_start, word_end))
+                    match_found_in_word = True
+
+                # c. Smart subword matching.
+                elif smart:
+                    sub_parts = _smart_split(word)
+                    for sp in sub_parts:
+                        sp_clean = filter_to_letters(sp) if clean_items else sp.lower()
+                        if not sp_clean:
+                            continue
+
+                        # Match subword against any of the query parts.
+                        for qp_clean in query_parts_clean:
+                            if levenshtein_distance(sp_clean, qp_clean) <= max_dist:
+                                spans.append((word_start, word_end))
+                                match_found_in_word = True
                                 break
-                    if match_found:
-                        break
+                        if match_found_in_word:
+                            break
 
-            if match_found:
+            if spans:
                 file_matches += 1
-                display_line = line_content
 
-                # Highlight the query in the line if possible
-                # (Simple highlighting for the raw query string)
-                if sys.stdout.isatty() or os.environ.get('FORCE_COLOR'):
-                    # We use a case-insensitive regex for highlighting the literal query
-                    try:
-                        pattern = re.compile(f"({re.escape(query)})", re.IGNORECASE)
-                        display_line = pattern.sub(f"{YELLOW}\\1{RESET}", display_line)
-                    except Exception:
-                        pass # Fallback to no highlight if regex fails
+                # Merge overlapping or adjacent spans to avoid broken ANSI codes.
+                spans.sort()
+                merged = []
+                if spans:
+                    curr_start, curr_end = spans[0]
+                    for next_start, next_end in spans[1:]:
+                        if next_start <= curr_end:  # Overlap or touch
+                            curr_end = max(curr_end, next_end)
+                        else:
+                            merged.append((curr_start, curr_end))
+                            curr_start, curr_end = next_start, next_end
+                    merged.append((curr_start, curr_end))
+
+                # Apply intelligent highlighting to the line.
+                if use_color:
+                    last_idx = 0
+                    highlighted_line = ""
+                    for start, end in merged:
+                        highlighted_line += line_content[last_idx:start]
+                        highlighted_line += f"{YELLOW}{line_content[start:end]}{RESET}"
+                        last_idx = end
+                    highlighted_line += line_content[last_idx:]
+                    display_line = highlighted_line
+                else:
+                    display_line = line_content
 
                 if line_numbers:
-                    prefix = f"{BLUE}{input_file}:{i+1}:{RESET} " if (sys.stdout.isatty() or os.environ.get('FORCE_COLOR')) else f"{input_file}:{i+1}: "
+                    prefix = (
+                        f"{BLUE}{input_file}:{i+1}:{RESET} "
+                        if use_color
+                        else f"{input_file}:{i+1}: "
+                    )
                     display_line = f"{prefix}{display_line}"
 
                 accumulated_lines.append(display_line)

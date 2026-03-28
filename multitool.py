@@ -3535,6 +3535,123 @@ def highlight_mode(
     )
 
 
+def scan_mode(
+    input_files: Sequence[str],
+    mapping_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    smart: bool = False,
+) -> None:
+    """
+    Scans files for occurrences of words from a mapping/list, providing context.
+    """
+    start_time = time.perf_counter()
+    # Load mapping or list
+    if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml')):
+        raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
+    else:
+        # Treat as a simple list of words if not a common mapping format
+        lines = _read_file_lines_robust(mapping_file)
+        raw_mapping = {line.strip(): "" for line in lines if line.strip()}
+
+    # Clean the mapping keys for matching if clean_items is True
+    if clean_items:
+        mapping = {filter_to_letters(k): True for k in raw_mapping.keys() if filter_to_letters(k)}
+    else:
+        mapping = {k: True for k in raw_mapping.keys() if k}
+
+    total_matches = 0
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    accumulated_lines = []
+
+    for input_file in input_files:
+        file_lines = _read_file_lines_robust(input_file)
+        file_matches = 0
+
+        for i, line in enumerate(tqdm(file_lines, desc=f"Scanning {input_file}", unit=" lines", disable=quiet)):
+            line_content = line.rstrip('\n')
+            parts = pattern.split(line_content)
+            match_found = False
+
+            # First pass: check if any word in the line is in our mapping
+            for part in parts:
+                if not part or not pattern.match(part):
+                    continue
+
+                match_key = filter_to_letters(part) if clean_items else part
+                if match_key in mapping:
+                    match_found = True
+                    break
+
+                if smart:
+                    sub_parts = _smart_split(part)
+                    for sp in sub_parts:
+                        sm_key = filter_to_letters(sp) if clean_items else sp
+                        if sm_key in mapping:
+                            match_found = True
+                            break
+                    if match_found:
+                        break
+
+            if match_found:
+                file_matches += 1
+
+                # Second pass: apply highlighting for the output
+                display_line = line_content
+                if sys.stdout.isatty() or os.environ.get('FORCE_COLOR'):
+                    new_parts = []
+                    for part in parts:
+                        if not part:
+                            continue
+                        if pattern.match(part):
+                            mk = filter_to_letters(part) if clean_items else part
+                            if mk in mapping:
+                                new_parts.append(f"{YELLOW}{part}{RESET}")
+                            elif smart:
+                                sub_parts = _smart_split(part)
+                                sub_new_parts = []
+                                for sp in sub_parts:
+                                    smk = filter_to_letters(sp) if clean_items else sp
+                                    if smk in mapping:
+                                        sub_new_parts.append(f"{YELLOW}{sp}{RESET}")
+                                    else:
+                                        sub_new_parts.append(sp)
+                                new_parts.append("".join(sub_new_parts))
+                            else:
+                                new_parts.append(part)
+                        else:
+                            new_parts.append(part)
+                    display_line = "".join(new_parts)
+
+                prefix = f"{BLUE}{input_file}:{i+1}:{RESET} " if (sys.stdout.isatty() or os.environ.get('FORCE_COLOR')) else f"{input_file}:{i+1}: "
+                accumulated_lines.append(f"{prefix}{display_line}")
+
+        total_matches += file_matches
+
+    if process_output:
+        accumulated_lines = sorted(set(accumulated_lines))
+
+    if limit is not None:
+        accumulated_lines = accumulated_lines[:limit]
+
+    with smart_open_output(output_file) as out:
+        for line in accumulated_lines:
+            out.write(line + '\n')
+
+    duration = time.perf_counter() - start_time
+    logging.info(
+        f"[Scan Mode] Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
+        f"Found {total_matches} match(es). Output written to '{output_file}'. "
+        f"Processing time: {duration:.3f}s"
+    )
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True, include_limit: bool = True
 ) -> None:
@@ -3964,6 +4081,12 @@ MODE_DETAILS = {
         "example": "python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers",
         "flags": "[-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
     },
+    "scan": {
+        "summary": "Scans projects for occurrences of multiple words or typos.",
+        "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or list and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
+        "example": "python multitool.py scan . --mapping typos.csv --smart",
+        "flags": "[MAPPING] [--smart]",
+    },
     "scrub": {
         "summary": "Replaces typos in text files based on a mapping.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
@@ -3990,7 +4113,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
         "Manipulation": ["combine", "unique", "diff", "highlight", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
-        "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search"],
+        "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
     }
 
     lines = []
@@ -4901,6 +5024,27 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(highlight_parser)
 
+    scan_parser = subparsers.add_parser(
+        'scan',
+        help=MODE_DETAILS['scan']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['scan']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['scan']['example']}{RESET}",
+    )
+    scan_options = scan_parser.add_argument_group(f"{BLUE}SCAN OPTIONS{RESET}")
+    scan_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file or word list.',
+    )
+    scan_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Scan for subword matches (for example, finding "teh" inside "tehWord").',
+    )
+    _add_common_mode_arguments(scan_parser)
+
     return parser
 
 
@@ -4995,7 +5139,7 @@ def main() -> None:
                 # Use the only positional argument as the secondary file and read input from stdin
                 args.file2 = input_paths[0]
                 args.input = ['-']
-    elif args.mode in {'map', 'scrub', 'highlight'}:
+    elif args.mode in {'map', 'scrub', 'highlight', 'scan'}:
         if getattr(args, 'mapping', None) is None:
             if len(input_paths) >= 2:
                 # Use the last positional argument as the mapping file
@@ -5017,7 +5161,7 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode in {'map', 'scrub', 'highlight'} and getattr(args, 'mapping', None) is None:
+    if args.mode in {'map', 'scrub', 'highlight', 'scan'} and getattr(args, 'mapping', None) is None:
         logging.error(f"{args.mode.capitalize()} mode requires a mapping file (provide MAPPING positionally or use --mapping).")
         sys.exit(1)
     if args.mode == 'search' and getattr(args, 'query', None) is None:
@@ -5368,6 +5512,14 @@ def main() -> None:
         ),
         'highlight': (
             highlight_mode,
+            {
+                **common_kwargs,
+                'mapping_file': getattr(args, 'mapping', ''),
+                'smart': getattr(args, 'smart', False),
+            }
+        ),
+        'scan': (
+            scan_mode,
             {
                 **common_kwargs,
                 'mapping_file': getattr(args, 'mapping', ''),

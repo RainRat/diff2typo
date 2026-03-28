@@ -226,6 +226,11 @@ These modes help you analyze your data.
     - `--line-numbers`: Show the filename and line number for each match.
   - **Example:** `python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers`
 
+- **`scan`**
+  - **What it does:** Like a batch version of the `search` mode. It searches for every word in a mapping file or list and reports all matches with filename, line number, and highlighting. This is the recommended way to audit your project for a set of known typos before performing replacements.
+  - **Options:** Use the `--mapping` flag to provide a file with typos or words to find. The `--smart` flag allows for finding subwords within larger compound words.
+  - **Example:** `python multitool.py scan . --mapping typos.csv --smart`
+
 ## Common Options
 
 These options work with most modes:

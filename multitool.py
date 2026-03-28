@@ -160,7 +160,7 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
     Categorizes a typo based on its relationship to the correction.
     Returns a code: [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, [M] Multiple letters.
     """
-    if not typo or not correction:
+    if not typo or not correction or typo == correction:
         return "[?]"
 
     t_len, c_len = len(typo), len(correction)
@@ -181,23 +181,24 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
                 return "[K]"
             return "[R]"
 
+        return "[M]"
+
     # 2. Deletion [D] - Typo is shorter (a character was removed)
     if t_len == c_len - 1:
         for i in range(c_len):
             if correction[:i] + correction[i+1:] == typo:
                 return "[D]"
+        return "[M]"
 
     # 3. Insertion [I] - Typo is longer (a character was added)
     if t_len == c_len + 1:
         for i in range(t_len):
             if typo[:i] + typo[i+1:] == correction:
                 return "[I]"
-
-    # 5. Multiple letters [M]
-    if levenshtein_distance(typo, correction) > 1:
         return "[M]"
 
-    return "[?]"
+    # 5. Multiple letters [M] - Fallback for any other length difference or non-match
+    return "[M]"
 
 
 def _smart_split(text: str) -> List[str]:

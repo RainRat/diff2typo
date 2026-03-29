@@ -164,9 +164,10 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
         return "[?]"
 
     t_len, c_len = len(typo), len(correction)
+    len_diff = t_len - c_len
 
     # Handle same-length operations (Transposition, Keyboard, Replacement)
-    if t_len == c_len:
+    if len_diff == 0:
         diffs = [i for i in range(t_len) if typo[i] != correction[i]]
         # 1. Transposition [T]
         if len(diffs) == 2 and diffs[1] == diffs[0] + 1:
@@ -184,14 +185,14 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
         return "[M]"
 
     # 2. Deletion [D] - Typo is shorter (a character was removed)
-    if t_len == c_len - 1:
+    if len_diff == -1:
         for i in range(c_len):
             if correction[:i] + correction[i+1:] == typo:
                 return "[D]"
         return "[M]"
 
     # 3. Insertion [I] - Typo is longer (a character was added)
-    if t_len == c_len + 1:
+    if len_diff == 1:
         for i in range(t_len):
             if typo[:i] + typo[i+1:] == correction:
                 return "[I]"

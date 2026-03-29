@@ -4048,7 +4048,7 @@ MODE_DETAILS = {
         "flags": "[--min-count N] [-d DELIM] [--smart] [--pairs]",
     },
     "filterfragments": {
-        "summary": "Removes words if they are found inside words in another file.",
+        "summary": "Removes words found inside words in another file.",
         "description": "Removes words from your list if they appear anywhere (even as a fragment) inside words in a second file.",
         "example": "python multitool.py filterfragments list.txt reference.txt --output unique.txt",
         "flags": "[FILE2]",
@@ -4138,7 +4138,7 @@ MODE_DETAILS = {
         "flags": "[--show-dist]",
     },
     "discovery": {
-        "summary": "Discovers potential typos by comparing rare words to frequent words.",
+        "summary": "Finds typos by comparing rare and frequent words.",
         "description": "Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
         "example": "python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1",
         "flags": "[--rare-max N] [--freq-min N] [--max-dist N]",
@@ -4168,7 +4168,7 @@ MODE_DETAILS = {
         "flags": "[-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
     },
     "scan": {
-        "summary": "Scans projects for occurrences of multiple words or typos.",
+        "summary": "Scans for multiple words or typos with context.",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or list and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
         "example": "python multitool.py scan . --mapping typos.csv --smart",
         "flags": "[MAPPING] [--smart]",
@@ -4180,7 +4180,7 @@ MODE_DETAILS = {
         "flags": "[MAPPING]",
     },
     "diff": {
-        "summary": "Compares two files to find added, removed, or changed items.",
+        "summary": "Finds added, removed, or changed items between files.",
         "description": "Identifies differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what's new (+), what's gone (-), and what changed (~).",
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
         "flags": "[FILE2] [--pairs]",

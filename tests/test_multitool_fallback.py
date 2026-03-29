@@ -1,7 +1,4 @@
 import subprocess
-import pytest
-import os
-import json
 
 def run_multitool(args, input_data=None):
     cmd = ["python", "multitool.py"] + args

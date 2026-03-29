@@ -1,7 +1,4 @@
-import pytest
 from multitool import resolve_mode
-import io
-import os
 
 def test_resolve_mode_basic(tmp_path):
     input_file = tmp_path / "input.txt"

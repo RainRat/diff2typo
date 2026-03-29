@@ -1,7 +1,4 @@
-import pytest
 from multitool import cycles_mode
-import io
-from unittest.mock import patch, MagicMock
 
 def test_cycles_mode_simple(tmp_path):
     # a -> b, b -> a

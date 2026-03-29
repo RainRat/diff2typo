@@ -1,9 +1,7 @@
 import sys
-import os
 from pathlib import Path
 import pytest
 import runpy
-from unittest.mock import patch, MagicMock
 
 # Add repository root to path
 sys.path.append(str(Path(__file__).resolve().parents[1]))

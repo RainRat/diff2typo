@@ -1,7 +1,5 @@
 import sys
 import os
-import pytest
-import re
 from unittest.mock import patch
 
 # Add the repository root to the Python path

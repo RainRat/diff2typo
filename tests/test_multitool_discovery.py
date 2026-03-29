@@ -128,3 +128,44 @@ def test_discovery_mode_distance(tmp_path):
     content = output_file.read_text().splitlines()
     assert "distnce -> distance" in content
     assert "distnc -> distance" in content
+
+def test_discovery_mode_smart_splitting(tmp_path):
+    input_file = tmp_path / "input.txt"
+    # "Message" appears 10 times, "Mesage" appears once inside a CamelCase word
+    text = " ".join(["Message"] * 10) + "\nUpdatedMesage\n"
+    input_file.write_text(text)
+
+    output_file = tmp_path / "output.txt"
+
+    # Without smart splitting, "UpdatedMesage" is treated as one word and ignored (rare, but no similar freq word)
+    discovery_mode(
+        input_files=[str(input_file)],
+        output_file=str(output_file),
+        min_length=3,
+        max_length=100,
+        process_output=True,
+        rare_max=1,
+        freq_min=5,
+        min_dist=1,
+        max_dist=1,
+        output_format='line',
+        smart=False
+    )
+    assert "mesage -> message" not in output_file.read_text()
+
+    # With smart splitting, "UpdatedMesage" is split into "Updated" and "Mesage"
+    # "Mesage" (rare) is matched against "Message" (freq)
+    discovery_mode(
+        input_files=[str(input_file)],
+        output_file=str(output_file),
+        min_length=3,
+        max_length=100,
+        process_output=True,
+        rare_max=1,
+        freq_min=5,
+        min_dist=1,
+        max_dist=1,
+        output_format='line',
+        smart=True
+    )
+    assert "mesage -> message" in output_file.read_text()

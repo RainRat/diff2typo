@@ -2540,6 +2540,8 @@ def discovery_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    delimiter: str | None = None,
+    smart: bool = False,
 ) -> None:
     """
     Identifies potential typos by comparing rare words to frequent words.
@@ -2549,12 +2551,14 @@ def discovery_mode(
     raw_item_count = 0
 
     for input_file in input_files:
-        lines = _read_file_lines_robust(input_file)
-        for line in tqdm(lines, desc=f'Analyzing frequencies in {input_file}', unit=' lines', disable=quiet):
-            words = line.split()
-            raw_item_count += len(words)
-            filtered = clean_and_filter(words, min_length, max_length, clean=clean_items)
-            word_counts.update(filtered)
+        # Use the shared extraction logic to support custom delimiters and smart splitting
+        words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
+        for word in words_gen:
+            raw_item_count += 1
+            # Filter and clean the word
+            filtered = clean_and_filter([word], min_length, max_length, clean=clean_items)
+            if filtered:
+                word_counts.update(filtered)
 
     # Identify rare and frequent words
     rare_words = sorted([word for word, count in word_counts.items() if count <= rare_max])
@@ -4140,8 +4144,8 @@ MODE_DETAILS = {
     "discovery": {
         "summary": "Discovers potential typos by comparing rare words to frequent words.",
         "description": "Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
-        "example": "python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1",
-        "flags": "[--rare-max N] [--freq-min N] [--max-dist N]",
+        "example": "python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1",
+        "flags": "[--rare-max N] [--freq-min N] [--max-dist N] [-d DELIM] [--smart]",
     },
     "casing": {
         "summary": "Identifies words with inconsistent capitalization.",
@@ -4799,6 +4803,16 @@ def _build_parser() -> argparse.ArgumentParser:
         '--show-dist',
         action='store_true',
         help="Include the number of character changes in the output.",
+    )
+    discovery_options.add_argument(
+        '-d', '--delimiter',
+        type=str,
+        help='The delimiter character to split words by (default: whitespace).',
+    )
+    discovery_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
     )
     _add_common_mode_arguments(discovery_parser)
 
@@ -5621,6 +5635,8 @@ def main() -> None:
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
+                'delimiter': getattr(args, 'delimiter', None),
+                'smart': getattr(args, 'smart', False),
             },
         ),
         'fuzzymatch': (

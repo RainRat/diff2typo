@@ -206,8 +206,10 @@ These modes help you analyze your data.
     - `--freq-min`: Minimum frequency for a word to be considered a potential correction (default: 5).
     - `--min-dist` and `--max-dist`: Control the number of allowed character changes between the typo and the correction.
     - `--show-dist`: Include the number of character changes in the output.
+    - `-d`, `--delimiter`: The character to split words by (default: whitespace).
+    - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
-  - **Example:** `python multitool.py discovery report.txt --rare-max 2 --freq-min 10 --max-dist 1`
+  - **Example:** `python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1`
 
 - **`casing`**
   - **What it does:** Identifies words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.

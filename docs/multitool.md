@@ -168,6 +168,10 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5 -f arrow --smart`
   - **Pairs Example:** `python multitool.py count typos.log --pairs --output-format arrow`
 
+- **`cycles`**
+  - **What it does:** Identifies loops in typo-correction pairs (for example, "A" maps to "B" and "B" maps back to "A"). These repeated loops can cause issues when automatically fixing text and often indicate errors in your data.
+  - **Example:** `python multitool.py cycles typos.csv --output-format arrow`
+
 - **`fuzzymatch`**
   - **What it does:** Identifies words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos.
   - **Options:** Use `--min-dist` and `--max-dist` to control the number of changes allowed, and `--show-dist` to see the number of changes in the output.

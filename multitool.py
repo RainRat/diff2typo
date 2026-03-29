@@ -2709,6 +2709,7 @@ def search_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    with_filename: bool | None = None,
 ) -> None:
     """
     Searches for words or patterns in text files, supporting fuzzy matching and smart subword detection.
@@ -2720,7 +2721,7 @@ def search_mode(
     # Safety check for match-all queries
     if clean_items and not query_clean:
         logging.warning(
-            f"Search query '{query}' contains no alphanumeric characters and 'clean_items' is enabled. "
+            f"Search query \"{query}\" contains no alphanumeric characters and \"clean_items\" is enabled. "
             "Skipping search to avoid matching every line."
         )
         return
@@ -2737,9 +2738,14 @@ def search_mode(
     # Check if color is enabled by global setup
     use_color = bool(YELLOW)
 
+    # Determine if filenames should be shown
+    show_filename = with_filename
+    if show_filename is None:
+        show_filename = len(input_files) > 1
+
     # Pre-compile patterns outside the loop for better performance
     lit_pattern = re.compile(re.escape(query), re.IGNORECASE)
-    word_pattern = re.compile(r'([a-zA-Z0-9]+)')
+    word_pattern = re.compile(r"([a-zA-Z0-9]+)")
     query_len = len(query_clean) if clean_items else len(query)
     apply_literal_match = min_length <= query_len <= max_length
 
@@ -2750,17 +2756,15 @@ def search_mode(
         for i, line in enumerate(
             tqdm(file_lines, desc=f"Searching {input_file}", unit=" lines", disable=quiet)
         ):
-            line_content = line.rstrip('\n')
+            line_content = line.rstrip("\n")
             spans = []
 
             # 1. Exact match on whole line first (case-insensitive)
-            # We use finditer to capture all literal occurrences of the query.
             if apply_literal_match:
                 for m in lit_pattern.finditer(line_content):
                     spans.append(m.span())
 
             # 2. Word-by-word logic for filtering/fuzzy/smart matching.
-            # We use finditer to get precise offsets for word boundaries.
             for m_word in word_pattern.finditer(line_content):
                 word = m_word.group(0)
                 word_start, word_end = m_word.span()
@@ -2769,26 +2773,20 @@ def search_mode(
                 if not word_clean:
                     continue
 
-                # Apply length filtering to the word candidate.
                 if not (min_length <= len(word_clean) <= max_length):
                     continue
 
                 match_found_in_word = False
 
-                # a. Exact match within the valid word.
                 if query_clean in word_clean:
-                    # Attempt to find literal occurrences within the word for precise highlighting.
                     for m_lit in lit_pattern.finditer(word):
                         spans.append((word_start + m_lit.start(), word_start + m_lit.end()))
                         match_found_in_word = True
 
                     if not match_found_in_word:
-                        # Fallback: highlight the whole word if literal query didn't match
-                        # (for example, if clean_items altered the string substantially).
                         spans.append((word_start, word_end))
                         match_found_in_word = True
 
-                # b. Fuzzy match whole word.
                 elif (
                     max_dist > 0
                     and levenshtein_distance(word_clean, query_clean) <= max_dist
@@ -2796,7 +2794,6 @@ def search_mode(
                     spans.append((word_start, word_end))
                     match_found_in_word = True
 
-                # c. Smart subword matching.
                 elif smart:
                     sub_parts = _smart_split(word)
                     for sp in sub_parts:
@@ -2804,7 +2801,6 @@ def search_mode(
                         if not sp_clean:
                             continue
 
-                        # Match subword against any of the query parts.
                         for qp_clean in query_parts_clean:
                             if levenshtein_distance(sp_clean, qp_clean) <= max_dist:
                                 spans.append((word_start, word_end))
@@ -2816,20 +2812,18 @@ def search_mode(
             if spans:
                 file_matches += 1
 
-                # Merge overlapping or adjacent spans to avoid broken ANSI codes.
                 spans.sort()
                 merged = []
                 if spans:
                     curr_start, curr_end = spans[0]
                     for next_start, next_end in spans[1:]:
-                        if next_start <= curr_end:  # Overlap or touch
+                        if next_start <= curr_end:
                             curr_end = max(curr_end, next_end)
                         else:
                             merged.append((curr_start, curr_end))
                             curr_start, curr_end = next_start, next_end
                     merged.append((curr_start, curr_end))
 
-                # Apply intelligent highlighting to the line.
                 if use_color:
                     last_idx = 0
                     highlighted_line = ""
@@ -2842,13 +2836,19 @@ def search_mode(
                 else:
                     display_line = line_content
 
+                prefix_parts = []
+                if show_filename:
+                    prefix_parts.append(input_file)
                 if line_numbers:
-                    prefix = (
-                        f"{BLUE}{input_file}:{i+1}:{RESET} "
+                    prefix_parts.append(str(i+1))
+
+                if prefix_parts:
+                    raw_prefix = ":".join(prefix_parts) + ":"
+                    display_line = (
+                        f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
                         if use_color
-                        else f"{input_file}:{i+1}: "
+                        else f"{raw_prefix} {display_line}"
                     )
-                    display_line = f"{prefix}{display_line}"
 
                 accumulated_lines.append(display_line)
 
@@ -2862,12 +2862,12 @@ def search_mode(
 
     with smart_open_output(output_file) as out:
         for line in accumulated_lines:
-            out.write(line + '\n')
+            out.write(line + "\n")
 
     duration = time.perf_counter() - start_time
     logging.info(
-        f"[Search Mode] Completed search in {len(input_files)} file(s) for '{query}'. "
-        f"Found {total_matches} match(es). Output written to '{output_file}'. "
+        f"[Search Mode] Completed search in {len(input_files)} file(s) for \"{query}\". "
+        f"Found {total_matches} match(es). Output written to \"{output_file}\". "
         f"Processing time: {duration:.3f}s"
     )
 
@@ -3547,6 +3547,8 @@ def scan_mode(
     clean_items: bool = True,
     limit: int | None = None,
     smart: bool = False,
+    line_numbers: bool = False,
+    with_filename: bool | None = None,
 ) -> None:
     """
     Scans files for occurrences of words from a mapping/list, providing context.
@@ -3570,6 +3572,13 @@ def scan_mode(
     pattern = re.compile(r'([a-zA-Z0-9]+)')
 
     accumulated_lines = []
+    # Check if color is enabled by global setup
+    use_color = bool(YELLOW)
+
+    # Determine if filenames should be shown
+    show_filename = with_filename
+    if show_filename is None:
+        show_filename = len(input_files) > 1
 
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
@@ -3604,8 +3613,7 @@ def scan_mode(
                 file_matches += 1
 
                 # Second pass: apply highlighting for the output
-                display_line = line_content
-                if sys.stdout.isatty() or os.environ.get('FORCE_COLOR'):
+                if use_color:
                     new_parts = []
                     for part in parts:
                         if not part:
@@ -3629,9 +3637,24 @@ def scan_mode(
                         else:
                             new_parts.append(part)
                     display_line = "".join(new_parts)
+                else:
+                    display_line = line_content
 
-                prefix = f"{BLUE}{input_file}:{i+1}:{RESET} " if (sys.stdout.isatty() or os.environ.get('FORCE_COLOR')) else f"{input_file}:{i+1}: "
-                accumulated_lines.append(f"{prefix}{display_line}")
+                prefix_parts = []
+                if show_filename:
+                    prefix_parts.append(input_file)
+                if line_numbers:
+                    prefix_parts.append(str(i+1))
+
+                if prefix_parts:
+                    raw_prefix = ":".join(prefix_parts) + ":"
+                    display_line = (
+                        f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
+                        if use_color
+                        else f"{raw_prefix} {display_line}"
+                    )
+
+                accumulated_lines.append(display_line)
 
         total_matches += file_matches
 
@@ -4165,8 +4188,12 @@ class MinimalFormatter(logging.Formatter):
             return record.getMessage()
 
         levelname = record.levelname
-        # Colorize the level name if stderr is a terminal and color is available
-        if sys.stderr.isatty() and levelname:
+        # Determine if color should be used for this log record
+        # We respect the global constants (YELLOW, RESET, etc.) which already account for
+        # TTY, FORCE_COLOR, and NO_COLOR.
+        use_color = bool(YELLOW)
+
+        if use_color and levelname:
             color = self.LEVEL_COLORS.get(record.levelno)
             if color:
                 levelname = f"{color}{levelname}{RESET}"
@@ -4771,9 +4798,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Search for subwords using smart splitting (for example, finding "teh" inside "tehWord").',
     )
     search_options.add_argument(
-        '--line-numbers',
+        '-n', '--line-numbers',
         action='store_true',
         help="Show line numbers in the search results.",
+    )
+    search_options.add_argument(
+        '--with-filename',
+        action='store_true',
+        dest='with_filename',
+        default=None,
+        help="Force the output of the filename for each match.",
+    )
+    search_options.add_argument(
+        '--no-filename',
+        action='store_false',
+        dest='with_filename',
+        help="Suppress the prefixing of filenames on output.",
     )
     _add_common_mode_arguments(search_parser)
 
@@ -5043,6 +5083,24 @@ def _build_parser() -> argparse.ArgumentParser:
         '-S', '--smart',
         action='store_true',
         help='Scan for subword matches (for example, finding "teh" inside "tehWord").',
+    )
+    scan_options.add_argument(
+        '-n', '--line-numbers',
+        action='store_true',
+        help="Show line numbers in the results.",
+    )
+    scan_options.add_argument(
+        '--with-filename',
+        action='store_true',
+        dest='with_filename',
+        default=None,
+        help="Force the output of the filename for each match.",
+    )
+    scan_options.add_argument(
+        '--no-filename',
+        action='store_false',
+        dest='with_filename',
+        help="Suppress the prefixing of filenames on output.",
     )
     _add_common_mode_arguments(scan_parser)
 
@@ -5362,6 +5420,7 @@ def main() -> None:
                 'max_dist': getattr(args, 'max_dist', 0),
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
+                'with_filename': getattr(args, 'with_filename', None),
             }
         ),
         'unique': (
@@ -5525,6 +5584,8 @@ def main() -> None:
                 **common_kwargs,
                 'mapping_file': getattr(args, 'mapping', ''),
                 'smart': getattr(args, 'smart', False),
+                'line_numbers': getattr(args, 'line_numbers', False),
+                'with_filename': getattr(args, 'with_filename', None),
             }
         ),
     }

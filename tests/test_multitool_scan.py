@@ -31,14 +31,15 @@ def test_scan_basic(tmp_path):
         min_length=1,
         max_length=100,
         process_output=False,
+        line_numbers=True,
     )
 
     results = output_file.read_text(encoding='utf-8').splitlines()
     results = [strip_ansi(r) for r in results]
 
     assert len(results) == 2
-    assert "input.txt:1: This is teh first line." in results[0]
-    assert "input.txt:2: I did not recieve it." in results[1]
+    assert "1: This is teh first line." in results[0]
+    assert "2: I did not recieve it." in results[1]
 
 def test_scan_mapping_csv(tmp_path):
     # Mapping file (CSV)
@@ -57,13 +58,14 @@ def test_scan_mapping_csv(tmp_path):
         min_length=1,
         max_length=100,
         process_output=False,
+        line_numbers=True,
     )
 
     results = output_file.read_text(encoding='utf-8').splitlines()
     results = [strip_ansi(r) for r in results]
 
     assert len(results) == 1
-    assert "input.txt:1: Check teh logic." in results[0]
+    assert "1: Check teh logic." in results[0]
 
 def test_scan_smart_mode(tmp_path):
     mapping_file = tmp_path / "typos.txt"
@@ -117,8 +119,8 @@ def test_scan_multiple_files(tmp_path):
     results = [strip_ansi(r) for r in results]
 
     assert len(results) == 2
-    assert "f1.txt:1: contains badword" in results[0]
-    assert "f3.txt:1: another badword here" in results[1]
+    assert "f1.txt: contains badword" in results[0]
+    assert "f3.txt: another badword here" in results[1]
 
 def test_scan_raw_mode(tmp_path):
     mapping_file = tmp_path / "typos.txt"

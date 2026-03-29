@@ -100,7 +100,8 @@ def test_search_line_numbers(tmp_path):
     results = output_file.read_text(encoding='utf-8').splitlines()
     results = [strip_ansi(r) for r in results]
     assert len(results) == 1
-    assert "test.txt:2: Line two" in results[0]
+    # Standard grep behavior: no filename for single file unless forced
+    assert "2: Line two" in results[0]
 
 def test_search_limit(tmp_path):
     input_file = tmp_path / "test.txt"

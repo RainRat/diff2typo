@@ -630,7 +630,7 @@ def _write_paired_output(
     if mode_label == "Conflict":
         left_header = "Typo"
         right_header = "Corrections"
-    elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery", "Map"):
+    elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery", "Map", "Resolve"):
         left_header = "Typo"
         right_header = "Correction"
     elif mode_label == "NearDuplicates":
@@ -3120,6 +3120,68 @@ def swap_mode(
     )
 
 
+def resolve_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Identifies and flattens chains of typo corrections to their terminal values.
+    """
+    start_time = time.perf_counter()
+    raw_pairs = list(_extract_pairs(input_files, quiet=quiet))
+    mapping = {}
+
+    for left, right in raw_pairs:
+        if clean_items:
+            left = filter_to_letters(left)
+            right = filter_to_letters(right)
+
+        if not left or not right:
+            continue
+
+        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+            # We take the first mapping encountered for each typo if there are conflicts.
+            # Using dict.setdefault ensures the first entry wins.
+            mapping.setdefault(left, right)
+
+    resolved_pairs = []
+
+    for typo in sorted(mapping.keys()):
+        visited = {typo}
+        curr = mapping[typo]
+
+        # Follow the chain until it reaches a word not in the mapping (a terminal value)
+        # or we hit a cycle.
+        while curr in mapping and mapping[curr] not in visited:
+            visited.add(curr)
+            curr = mapping[curr]
+
+        resolved_pairs.append((typo, curr))
+
+    if process_output:
+        resolved_pairs = sorted(set(resolved_pairs))
+
+    _write_paired_output(
+        resolved_pairs,
+        output_file,
+        output_format,
+        "Resolve",
+        quiet,
+        limit=limit
+    )
+
+    print_processing_stats(
+        len(raw_pairs), resolved_pairs, item_label="resolved-pair", start_time=start_time
+    )
+
+
 def sample_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -4129,6 +4191,12 @@ MODE_DETAILS = {
         "example": "python multitool.py highlight input.txt --mapping corrections.csv",
         "flags": "[MAPPING] [--smart]",
     },
+    "resolve": {
+        "summary": "Flattens chains of typo corrections.",
+        "description": "Identifies and flattens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of scrubbing and analysis.",
+        "example": "python multitool.py resolve mappings.csv --output resolved.csv",
+        "flags": "",
+    },
 }
 
 
@@ -4136,7 +4204,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "Manipulation": ["combine", "unique", "diff", "highlight", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
+        "Manipulation": ["combine", "unique", "diff", "highlight", "resolve", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
         "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
     }
 
@@ -5104,6 +5172,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(scan_parser)
 
+    resolve_parser = subparsers.add_parser(
+        'resolve',
+        help=MODE_DETAILS['resolve']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['resolve']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['resolve']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(resolve_parser)
+
     return parser
 
 
@@ -5256,6 +5333,13 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'resolve': (
+            resolve_mode,
+            {
+                **common_kwargs,
                 'output_format': output_format,
             },
         ),

@@ -82,6 +82,10 @@ These modes help you transform or combine your data.
   - **What it does:** Removes duplicate items from your list while **preserving the original order**. This is useful when the sequence of items is important.
   - **Example:** `python multitool.py unique raw_typos.txt`
 
+- **`resolve`**
+  - **What it does:** Identifies and flattens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`. This ensures that your mappings always point directly to the final correct word, making them more efficient for scrubbing and analysis.
+  - **Example:** `python multitool.py resolve mappings.csv`
+
 - **`diff`**
   - **What it does:** Identifies added, removed, and changed items between two files. It can compare simple lists of words or (with the `--pairs` flag) identify changes in typo-correction mappings.
   - **Supported Formats:** Color-coded terminal output (default) and structured JSON output.

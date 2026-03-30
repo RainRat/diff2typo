@@ -217,29 +217,14 @@ def _compare_word_lists(
                     if before_word == after_word:
                         continue
 
-                    # Context check (Safety): To avoid false positives in complex changes,
-                    # we only accept a substitution if its immediate neighbors are identical.
-                    # Since we are inside a 'replace' block, neighbors inside the block
-                    # must be checked explicitly. Neighbors outside the block are
-                    # identical by definition (Equal blocks).
-                    if k > 0 and removals[k-1] != additions[k-1]:
-                        continue
-                    if k < len(removals) - 1 and removals[k+1] != additions[k+1]:
-                        continue
-
                     before_clean = filter_to_letters(before_word)
                     after_clean = filter_to_letters(after_word)
 
-                    if (
-                        len(before_clean) >= min_length
-                        and len(after_clean) >= min_length
-                        and before_clean
-                        and after_clean
-                    ):
+                    if len(before_clean) >= min_length and len(after_clean) >= min_length:
                         if max_dist is None or levenshtein_distance(before_clean, after_clean) <= max_dist:
                             typos.append(f"{before_clean} -> {after_clean}")
             else:
-                # If block sizes differ (e.g., "teh house" -> "the big house"),
+                # If block sizes differ (for example, "teh house" -> "the big house"),
                 # we perform a local fuzzy matching to find the best candidate pair.
                 for b_word in removals:
                     b_clean = filter_to_letters(b_word)

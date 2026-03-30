@@ -82,11 +82,10 @@ def test_compare_word_lists():
     assert diff2typo._compare_word_lists(before_words, after_words, 2) == ['eror -> error']
     assert diff2typo._compare_word_lists(['foo'], ['foo', 'bar'], 2) == []
 
-    # Check context mismatch
+    # Check multiple changes in one block
     before = ['a', 'eror', 'line']
     after_mismatch = ['a', 'error', 'change']
-    # 'line' != 'change', so 'eror' -> 'error' should be rejected
-    assert diff2typo._compare_word_lists(before, after_mismatch, 2) == []
+    assert diff2typo._compare_word_lists(before, after_mismatch, 2) == ['eror -> error', 'line -> change']
 
 
 def test_format_typos():

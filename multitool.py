@@ -9,7 +9,7 @@ import sys
 import re
 import time
 from textwrap import dedent
-from typing import Any, Callable, Iterable, List, Sequence, Tuple, TextIO
+from typing import Any, Callable, Iterable, List, Mapping, Sequence, Tuple, TextIO
 from tqdm import tqdm
 import logging
 import json
@@ -3368,6 +3368,196 @@ def map_mode(
     )
 
 
+def _scrub_line(
+    line: str,
+    mapping: Mapping[str, str],
+    pattern: re.Pattern,
+    clean_items: bool = True,
+    smart_case: bool = False,
+    standardize: bool = False,
+) -> Tuple[str, int]:
+    """
+    Replaces words in a line based on a mapping.
+    Returns a tuple of (modified_line, replacement_count).
+    """
+    parts = pattern.split(line)
+    new_parts = []
+    replacements = 0
+    for part in parts:
+        if not part:
+            continue
+
+        if pattern.match(part):
+            # It's a word candidate.
+            if standardize:
+                match_key = filter_to_letters(part) if clean_items else part.lower()
+            else:
+                match_key = filter_to_letters(part) if clean_items else part
+
+            if match_key in mapping:
+                replacement = mapping[match_key]
+                if smart_case:
+                    replacement = _apply_smart_case(part, replacement)
+                new_parts.append(replacement)
+                if replacement != part:
+                    replacements += 1
+            else:
+                # Try subword replacement if the whole word didn't match.
+                sub_parts = _smart_split(part)
+                new_sub_parts = []
+                for sp in sub_parts:
+                    sm_key = filter_to_letters(sp) if clean_items else sp
+                    if sm_key in mapping:
+                        replacement = mapping[sm_key]
+                        if smart_case:
+                            replacement = _apply_smart_case(sp, replacement)
+                        new_sub_parts.append(replacement)
+                        if replacement != sp:
+                            replacements += 1
+                    else:
+                        new_sub_parts.append(sp)
+                new_parts.append("".join(new_sub_parts))
+        else:
+            # It's a delimiter (punctuation, whitespace)
+            new_parts.append(part)
+
+    return "".join(new_parts), replacements
+
+
+def standardize_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    in_place: str | None = None,
+    dry_run: bool = False,
+) -> None:
+    """
+    Standardizes inconsistent casing of words within files by replacing less frequent
+    variations with the most frequent one found across all input files.
+    """
+    start_time = time.perf_counter()
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    # Pass 1: Count variations
+    variation_counts = defaultdict(Counter)
+
+    for input_file in input_files:
+        file_lines = _read_file_lines_robust(input_file)
+        for line in tqdm(file_lines, desc=f"Analyzing {input_file}", unit=" lines", disable=quiet):
+            parts = pattern.findall(line)
+            for part in parts:
+                if not part:
+                    continue
+                # Full word analysis
+                norm = filter_to_letters(part) if clean_items else part.lower()
+                if norm:
+                    if min_length <= len(norm) <= max_length:
+                        variation_counts[norm][part] += 1
+
+                # Sub-word analysis for CamelCase/snake_case consistency
+                sub_parts = _smart_split(part)
+                if len(sub_parts) > 1:
+                    for sp in sub_parts:
+                        sp_norm = filter_to_letters(sp) if clean_items else sp.lower()
+                        if sp_norm:
+                            if min_length <= len(sp_norm) <= max_length:
+                                variation_counts[sp_norm][sp] += 1
+
+    # Pass 2: Identify "winners" and build mapping
+    mapping = {}
+    for norm, counts in variation_counts.items():
+        if len(counts) > 1:
+            # More than one variation found. The most frequent one wins.
+            winner = counts.most_common(1)[0][0]
+            # Map the normalized form to the winner.
+            mapping[norm] = winner
+
+    if not mapping:
+        logging.info("No inconsistent casing found. Everything is already standardized.")
+        # If not in-place, we still proceed to Pass 3 to ensure output is written if requested.
+        # But if in-place, we can exit early.
+        if in_place is not None:
+            return
+
+    # Pass 3: Transformation
+    total_replacements = 0
+    accumulated_lines = []
+
+    for input_file in input_files:
+        if input_file == '-' and in_place is not None:
+            logging.warning("In-place modification requested for standard input; ignoring.")
+
+        file_lines = _read_file_lines_robust(input_file)
+        modified_lines = []
+        file_replacements = 0
+
+        for line in tqdm(file_lines, desc=f"Standardizing {input_file}", unit=" lines", disable=quiet):
+            modified_line, replacements = _scrub_line(
+                line, mapping, pattern, clean_items, smart_case=False, standardize=True
+            )
+            modified_lines.append(modified_line)
+            file_replacements += replacements
+
+        total_replacements += file_replacements
+
+        if in_place is not None and input_file != '-':
+            if file_replacements > 0:
+                if dry_run:
+                    logging.warning(f"[Dry Run] Would make {file_replacements} replacement(s) in '{input_file}'.")
+                else:
+                    if in_place:
+                        backup_path = input_file + in_place
+                        try:
+                            import shutil
+                            shutil.copy2(input_file, backup_path)
+                            logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
+                        except Exception as e:
+                            logging.error(f"Failed to create backup of '{input_file}': {e}")
+                            sys.exit(1)
+
+                    try:
+                        with open(input_file, 'w', encoding='utf-8') as f:
+                            for line in modified_lines:
+                                f.write(line)
+                                if not line.endswith('\n'):
+                                    f.write('\n')
+                        logging.info(f"Updated '{input_file}' in-place ({file_replacements} replacement(s)).")
+                    except Exception as e:
+                        logging.error(f"Failed to write to '{input_file}': {e}")
+                        sys.exit(1)
+            else:
+                logging.info(f"No changes needed for '{input_file}'.")
+        else:
+            accumulated_lines.extend(modified_lines)
+
+    if in_place is None:
+        if limit is not None:
+            accumulated_lines = accumulated_lines[:limit]
+
+        duration = time.perf_counter() - start_time
+        if dry_run:
+            logging.warning(f"[Dry Run] Total replacements that would be made: {total_replacements}. Processing time: {duration:.3f}s")
+        else:
+            with smart_open_output(output_file) as out:
+                for line in accumulated_lines:
+                    out.write(line)
+                    if not line.endswith('\n'):
+                        out.write('\n')
+
+            logging.info(
+                f"[Standardize Mode] Completed standardizing {len(input_files)} file(s). "
+                f"Made {total_replacements} replacements. Output written to '{output_file}'. "
+                f"Processing time: {duration:.3f}s"
+            )
+    elif dry_run:
+        logging.warning(f"[Dry Run] Total replacements that would be made across all files: {total_replacements}")
+
+
 def scrub_mode(
     input_files: Sequence[str],
     mapping_file: str,
@@ -3414,44 +3604,11 @@ def scrub_mode(
         file_replacements = 0
 
         for line in tqdm(file_lines, desc=f"Scrubbing {input_file}", unit=" lines", disable=quiet):
-            # Split into words and non-words
-            parts = pattern.split(line)
-            new_parts = []
-            for part in parts:
-                if not part:
-                    continue
-
-                if pattern.match(part):
-                    # It's a word candidate.
-                    # If the whole word matches a typo (after optional cleaning)
-                    match_key = filter_to_letters(part) if clean_items else part
-
-                    if match_key in mapping:
-                        replacement = mapping[match_key]
-                        if smart_case:
-                            replacement = _apply_smart_case(part, replacement)
-                        new_parts.append(replacement)
-                        file_replacements += 1
-                    else:
-                        # Try subword replacement if the whole word didn't match.
-                        sub_parts = _smart_split(part)
-                        new_sub_parts = []
-                        for sp in sub_parts:
-                            sm_key = filter_to_letters(sp) if clean_items else sp
-                            if sm_key in mapping:
-                                replacement = mapping[sm_key]
-                                if smart_case:
-                                    replacement = _apply_smart_case(sp, replacement)
-                                new_sub_parts.append(replacement)
-                                file_replacements += 1
-                            else:
-                                new_sub_parts.append(sp)
-                        new_parts.append("".join(new_sub_parts))
-                else:
-                    # It's a delimiter (punctuation, whitespace)
-                    new_parts.append(part)
-
-            modified_lines.append("".join(new_parts))
+            modified_line, replacements = _scrub_line(
+                line, mapping, pattern, clean_items, smart_case
+            )
+            modified_lines.append(modified_line)
+            file_replacements += replacements
 
         total_replacements += file_replacements
 
@@ -4166,6 +4323,12 @@ MODE_DETAILS = {
         "example": "python multitool.py repeated report.txt --smart --output-format arrow",
         "flags": "[-d DELIMITER] [--smart]",
     },
+    "standardize": {
+        "summary": "Fixes inconsistent casing by using the most frequent form.",
+        "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures naming consistency without needing a manual mapping file.",
+        "example": "python multitool.py standardize . --in-place --min-length 4",
+        "flags": "[--in-place] [--dry-run]",
+    },
     "search": {
         "summary": "Searches for words or patterns in text files.",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting and line numbers.",
@@ -4209,7 +4372,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "Manipulation": ["combine", "unique", "diff", "highlight", "resolve", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub"],
+        "Manipulation": ["combine", "unique", "diff", "highlight", "resolve", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
     }
 
@@ -5072,6 +5235,28 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(scrub_parser, include_process_output=False, include_limit=False)
 
+    standardize_parser = subparsers.add_parser(
+        'standardize',
+        help=MODE_DETAILS['standardize']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['standardize']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['standardize']['example']}{RESET}",
+    )
+    standardize_options = standardize_parser.add_argument_group(f"{BLUE}STANDARDIZE OPTIONS{RESET}")
+    standardize_options.add_argument(
+        '--in-place',
+        nargs='?',
+        const='',
+        metavar='EXT',
+        help="Modify files in place. If an extension is provided (for example, '.bak'), a backup is created.",
+    )
+    standardize_options.add_argument(
+        '--dry-run',
+        action='store_true',
+        help="Show what would be changed without modifying any files.",
+    )
+    _add_common_mode_arguments(standardize_parser, include_process_output=False, include_limit=True)
+
     diff_parser = subparsers.add_parser(
         'diff',
         help=MODE_DETAILS['diff']['summary'],
@@ -5569,6 +5754,21 @@ def main() -> None:
                 'output_format': output_format,
                 'pairs': getattr(args, 'pairs', False),
                 'smart_case': getattr(args, 'smart_case', False),
+            }
+        ),
+        'standardize': (
+            standardize_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'min_length': args.min_length,
+                'max_length': args.max_length,
+                'process_output': False,
+                'quiet': args.quiet,
+                'clean_items': clean_items,
+                'limit': limit,
+                'in_place': getattr(args, 'in_place', None),
+                'dry_run': getattr(args, 'dry_run', False),
             }
         ),
         'scrub': (

@@ -201,6 +201,7 @@ def _compare_word_lists(
     # are added or removed within the same diff block.
     matcher = difflib.SequenceMatcher(None, before_words, after_words)
     typos: List[str] = []
+    actual_max = max_dist if max_dist is not None else 2
 
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == 'replace':
@@ -217,26 +218,29 @@ def _compare_word_lists(
                     if before_word == after_word:
                         continue
 
-                    # Context check (Safety): To avoid false positives in complex changes,
-                    # we only accept a substitution if its immediate neighbors are identical.
-                    # Since we are inside a 'replace' block, neighbors inside the block
-                    # must be checked explicitly. Neighbors outside the block are
-                    # identical by definition (Equal blocks).
-                    if k > 0 and removals[k-1] != additions[k-1]:
-                        continue
-                    if k < len(removals) - 1 and removals[k+1] != additions[k+1]:
-                        continue
-
                     before_clean = filter_to_letters(before_word)
                     after_clean = filter_to_letters(after_word)
 
                     if (
                         len(before_clean) >= min_length
                         and len(after_clean) >= min_length
-                        and before_clean
-                        and after_clean
+                        and levenshtein_distance(before_clean, after_clean) <= actual_max
                     ):
-                        if max_dist is None or levenshtein_distance(before_clean, after_clean) <= max_dist:
+                        # Context check (Safety): To avoid false positives in complex changes,
+                        # we only accept a substitution if its immediate neighbors are identical
+                        # or are themselves likely typos.
+                        context_ok = True
+                        for neighbor_idx in [k - 1, k + 1]:
+                            if 0 <= neighbor_idx < len(removals):
+                                nb, na = removals[neighbor_idx], additions[neighbor_idx]
+                                if nb != na:
+                                    nbc = filter_to_letters(nb)
+                                    nac = filter_to_letters(na)
+                                    if not (len(nbc) >= min_length and len(nac) >= min_length and
+                                            levenshtein_distance(nbc, nac) <= actual_max):
+                                        context_ok = False
+                                        break
+                        if context_ok:
                             typos.append(f"{before_clean} -> {after_clean}")
             else:
                 # If block sizes differ (e.g., "teh house" -> "the big house"),
@@ -257,7 +261,7 @@ def _compare_word_lists(
                         dist = levenshtein_distance(b_clean, a_clean)
                         # We only consider it a typo if the distance is low relative to the word length
                         # and fits within the global max_dist constraint.
-                        if dist < best_dist and dist <= (max_dist if max_dist is not None else 2):
+                        if dist < best_dist and dist <= actual_max:
                             best_match = a_clean
                             best_dist = dist
 

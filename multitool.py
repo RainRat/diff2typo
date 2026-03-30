@@ -4134,7 +4134,7 @@ MODE_DETAILS = {
     },
     "classify": {
         "summary": "Categorizes typo corrections based on their error type.",
-        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, and [M] Multiple letters. Use --show-dist to include the number of character changes.",
+        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, and [M] Multiple letters. Use --show-dist to include the number of character changes.",
         "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
         "flags": "[--show-dist]",
     },

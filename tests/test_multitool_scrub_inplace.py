@@ -13,7 +13,7 @@ def test_scrub_inplace(tmp_path):
     test_file.write_text("teh quick brown fox")
 
     # Run scrub with --in-place
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--in-place"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--in-place"]
     with patch.object(sys, 'argv', test_args):
         main()
 
@@ -31,7 +31,7 @@ def test_scrub_inplace_backup(tmp_path):
     test_file.write_text("teh quick brown fox")
 
     # Run scrub with --in-place .bak
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--in-place", ".bak"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--in-place", ".bak"]
     with patch.object(sys, 'argv', test_args):
         main()
 
@@ -52,7 +52,7 @@ def test_scrub_inplace_dry_run(tmp_path, caplog):
     test_file.write_text(original_content)
 
     # Run scrub with --in-place and --dry-run
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--in-place", "--dry-run"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--in-place", "--dry-run"]
     with patch.object(sys, 'argv', test_args):
         main()
 
@@ -70,7 +70,7 @@ def test_scrub_dry_run_accumulated(tmp_path, caplog):
     test_file.write_text("teh quick brown fox")
 
     # Run scrub with --dry-run (no in-place)
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--dry-run"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--dry-run"]
     with patch.object(sys, 'argv', test_args):
         main()
 
@@ -89,7 +89,7 @@ def test_scrub_multiple_inplace(tmp_path):
     file2.write_text("teh two")
 
     # Run scrub with --in-place on multiple files
-    test_args = ["multitool.py", "scrub", str(file1), str(file2), str(mapping_file), "--in-place"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(file1), str(file2), "--in-place"]
     with patch.object(sys, 'argv', test_args):
         main()
 

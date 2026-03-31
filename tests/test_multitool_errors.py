@@ -90,7 +90,7 @@ def test_main_zip_fallback(monkeypatch):
     assert kwargs['file2'] == 'file2.txt'
 
 def test_main_map_fallback(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["multitool.py", "map", "file1.txt", "mapping.txt"])
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "map", "mapping.txt", "file1.txt"])
 
     with patch("multitool.map_mode") as mock_map:
         multitool.main()

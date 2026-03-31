@@ -12,7 +12,7 @@ def test_scrub_smart_case(tmp_path):
     test_file.write_text("teh Teh TEH")
 
     # Run scrub with --smart-case and --in-place
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--smart-case", "--in-place"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--smart-case", "--in-place"]
     with patch.object(sys, 'argv', test_args):
         main()
 
@@ -30,7 +30,7 @@ def test_scrub_smart_case_subwords(tmp_path):
     test_file.write_text("MyTehWord PascalTeh")
 
     # Run scrub with --smart-case and --in-place
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--smart-case", "--in-place"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--smart-case", "--in-place"]
     with patch.object(sys, 'argv', test_args):
         main()
 
@@ -47,7 +47,7 @@ def test_scrub_no_smart_case(tmp_path):
     test_file.write_text("Teh TEH")
 
     # Run scrub WITHOUT --smart-case but with --in-place
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--in-place"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--in-place"]
     with patch.object(sys, 'argv', test_args):
         main()
 
@@ -65,7 +65,7 @@ def test_scrub_smart_case_raw_mode(tmp_path):
     test_file.write_text("Teh TEH")
 
     # Run scrub with --raw, --smart-case and --in-place
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--raw", "--smart-case", "--in-place"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--raw", "--smart-case", "--in-place"]
     with patch.object(sys, 'argv', test_args):
         main()
 
@@ -82,7 +82,7 @@ def test_scrub_smart_case_empty_replacement(tmp_path):
     test_file.write_text("Teh TEH")
 
     # Run scrub with --smart-case and --in-place
-    test_args = ["multitool.py", "scrub", str(test_file), str(mapping_file), "--smart-case", "--in-place"]
+    test_args = ["multitool.py", "scrub", str(mapping_file), str(test_file), "--smart-case", "--in-place"]
     with patch.object(sys, 'argv', test_args):
         main()
 

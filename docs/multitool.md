@@ -130,6 +130,13 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt`
   - **In-Place Example:** `python multitool.py scrub file1.txt file2.txt --mapping corrections.csv --in-place`
 
+- **`standardize`**
+  - **What it does:** Fixes inconsistent casing by using the most frequent form. It analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures naming consistency without needing a manual mapping file.
+  - **Options:**
+    - Supports `--in-place` editing and `--dry-run` preview.
+    - Works with standard filters like `--min-length` and `--max-length`.
+  - **Example:** `python multitool.py standardize . --in-place --min-length 4`
+
 - **`highlight`**
   - **What it does:** Searches for words from a list or mapping and highlights them with color in the output. This is useful as a non-destructive preview before using the `scrub` mode to make permanent changes.
   - **Options:** Use the `--mapping` flag to provide a file with typos or words to find. The `--smart` flag allows for highlighting subwords within larger compound words (like variable names).

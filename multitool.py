@@ -635,6 +635,9 @@ def _write_paired_output(
     elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery", "Map", "Resolve"):
         left_header = "Typo"
         right_header = "Correction"
+    elif mode_label == "Rename":
+        left_header = "Original"
+        right_header = "New Name"
     elif mode_label == "NearDuplicates":
         left_header = "Word 1"
         right_header = "Word 2"
@@ -3667,6 +3670,93 @@ def scrub_mode(
         logging.warning(f"[Dry Run] Total replacements that would be made across all files: {total_replacements}")
 
 
+def rename_mode(
+    input_files: Sequence[str],
+    mapping_file: str,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    in_place: bool = False,
+    dry_run: bool = False,
+    smart_case: bool = False,
+) -> None:
+    """
+    Renames files and directories using a mapping file.
+    """
+    start_time = time.perf_counter()
+    # Load mapping
+    raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
+
+    # Clean the mapping keys for matching if clean_items is True
+    if clean_items:
+        mapping = {filter_to_letters(k): v for k, v in raw_mapping.items() if filter_to_letters(k)}
+    else:
+        mapping = raw_mapping
+
+    total_renames = 0
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    # To handle nested renames safely, we must rename from bottom to top.
+    # Deduplicate and normalize paths first.
+    normalized_paths = [os.path.normpath(p) for p in input_files if p != '-']
+    unique_paths = list(dict.fromkeys(normalized_paths))
+    # Sort by depth descending.
+    sorted_paths = sorted(unique_paths, key=lambda p: (len(p.split(os.sep)), len(p)), reverse=True)
+
+    rename_results = []
+
+    for path in tqdm(sorted_paths, desc="Processing renames", disable=quiet):
+        if not os.path.exists(path):
+            continue
+
+        dirname, basename = os.path.split(path)
+
+        # Apply _scrub_line logic to the basename only
+        new_basename, replacements = _scrub_line(
+            basename, mapping, pattern, clean_items, smart_case
+        )
+
+        if replacements > 0 and new_basename != basename:
+            new_path = os.path.join(dirname, new_basename)
+            rename_results.append((path, new_path))
+            total_renames += 1
+
+            if in_place and not dry_run:
+                try:
+                    os.rename(path, new_path)
+                    logging.info(f"Renamed '{path}' to '{new_path}'")
+                except Exception as e:
+                    logging.error(f"Failed to rename '{path}' to '{new_path}': {e}")
+                    sys.exit(1)
+            elif dry_run:
+                logging.warning(f"[Dry Run] Would rename '{path}' to '{new_path}'")
+
+    if in_place:
+        if dry_run:
+            logging.warning(f"[Dry Run] Total renames that would be made: {total_renames}")
+        else:
+            logging.info(f"[Rename Mode] Successfully made {total_renames} rename(s).")
+    else:
+        _write_paired_output(
+            rename_results,
+            output_file,
+            'arrow',
+            'Rename',
+            quiet,
+            limit=limit
+        )
+
+    # For stats, use the new paths as the items
+    stats_items = [r[1] for r in rename_results]
+    print_processing_stats(
+        len(unique_paths), stats_items, item_label="rename", start_time=start_time
+    )
+
+
 def highlight_mode(
     input_files: Sequence[str],
     mapping_file: str,
@@ -4347,6 +4437,12 @@ MODE_DETAILS = {
         "example": "python multitool.py scrub corrections.csv input.txt --output fixed.txt",
         "flags": "MAPPING [FILES...]",
     },
+    "rename": {
+        "summary": "Renames files and directories using a mapping file.",
+        "description": "Renames files or directories based on a typo mapping. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
+        "example": "python multitool.py rename src/**/* --mapping typos.csv --in-place",
+        "flags": "[MAPPING] [--in-place] [--dry-run] [--smart-case]",
+    },
     "diff": {
         "summary": "Finds added, removed, or changed items between files.",
         "description": "Identifies differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what's new (+), what's gone (-), and what changed (~).",
@@ -4372,7 +4468,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "Manipulation": ["combine", "unique", "diff", "highlight", "resolve", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "Manipulation": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
     }
 
@@ -5240,6 +5336,37 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(scrub_parser, include_process_output=False, include_limit=False)
 
+    rename_parser = subparsers.add_parser(
+        'rename',
+        help=MODE_DETAILS['rename']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['rename']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['rename']['example']}{RESET}",
+    )
+    rename_options = rename_parser.add_argument_group(f"{BLUE}RENAME OPTIONS{RESET}")
+    rename_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file.',
+    )
+    rename_options.add_argument(
+        '--in-place',
+        action='store_true',
+        help="Perform the actual renaming of files and directories.",
+    )
+    rename_options.add_argument(
+        '--dry-run',
+        action='store_true',
+        help="Show what would be renamed without making any changes.",
+    )
+    rename_options.add_argument(
+        '--smart-case',
+        action='store_true',
+        help="Automatically match the casing of the original word.",
+    )
+    _add_common_mode_arguments(rename_parser, include_process_output=False, include_limit=True)
+
     standardize_parser = subparsers.add_parser(
         'standardize',
         help=MODE_DETAILS['standardize']['summary'],
@@ -5480,7 +5607,7 @@ def main() -> None:
                 # Use the only positional argument as the secondary file and read input from stdin.
                 args.file2 = input_paths[0]
                 args.input = ['-']
-    elif args.mode in {'map', 'scrub', 'highlight', 'scan'}:
+    elif args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'}:
         if getattr(args, 'mapping', None) is None:
             if len(input_paths) >= 2:
                 # For pattern/mapping modes, use the first positional argument as the mapping.
@@ -5506,7 +5633,7 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode in {'map', 'scrub', 'highlight', 'scan'} and getattr(args, 'mapping', None) is None:
+    if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'} and getattr(args, 'mapping', None) is None:
         logging.error(f"{args.mode.capitalize()} mode requires a mapping file (provide MAPPING positionally or use --mapping).")
         sys.exit(1)
     if args.mode == 'search' and getattr(args, 'query', None) is None:
@@ -5762,6 +5889,23 @@ def main() -> None:
                 'drop_missing': getattr(args, 'drop_missing', False),
                 'output_format': output_format,
                 'pairs': getattr(args, 'pairs', False),
+                'smart_case': getattr(args, 'smart_case', False),
+            }
+        ),
+        'rename': (
+            rename_mode,
+            {
+                'input_files': args.input,
+                'mapping_file': getattr(args, 'mapping', ''),
+                'output_file': args.output,
+                'min_length': args.min_length,
+                'max_length': args.max_length,
+                'process_output': False,
+                'quiet': args.quiet,
+                'clean_items': clean_items,
+                'limit': limit,
+                'in_place': getattr(args, 'in_place', False),
+                'dry_run': getattr(args, 'dry_run', False),
                 'smart_case': getattr(args, 'smart_case', False),
             }
         ),

@@ -3406,7 +3406,10 @@ def _scrub_line(
                 sub_parts = _smart_split(part)
                 new_sub_parts = []
                 for sp in sub_parts:
-                    sm_key = filter_to_letters(sp) if clean_items else sp
+                    if standardize:
+                        sm_key = filter_to_letters(sp) if clean_items else sp.lower()
+                    else:
+                        sm_key = filter_to_letters(sp) if clean_items else sp
                     if sm_key in mapping:
                         replacement = mapping[sm_key]
                         if smart_case:

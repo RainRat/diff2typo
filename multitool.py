@@ -817,7 +817,7 @@ def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
     # If we are at the end of the path, yield the string representation of the data
     if not path_parts:
         if isinstance(data, dict):
-            # For a dictionary root, yield the keys (common for typo mappings)
+            # For a top level dictionary, yield the keys (common for typo mappings)
             yield from (str(k) for k in data.keys())
         else:
             yield str(data)
@@ -2249,7 +2249,7 @@ def fuzzymatch_mode(
 
     results = []
 
-    for word_i in tqdm(list1_unique, desc="Fuzzy matching", disable=quiet):
+    for word_i in tqdm(list1_unique, desc="Finding similar words", disable=quiet):
         len_i = len(word_i)
 
         for word_j in list2_unique:
@@ -2288,7 +2288,7 @@ def fuzzymatch_mode(
         stats_items.append((left, base_right))
 
     print_processing_stats(
-        raw_item_count, stats_items, item_label="fuzzy-match", start_time=start_time
+        raw_item_count, stats_items, item_label="similar-word-match", start_time=start_time
     )
 
 
@@ -2717,7 +2717,7 @@ def search_mode(
     with_filename: bool | None = None,
 ) -> None:
     """
-    Searches for words or patterns in text files, supporting fuzzy matching and smart subword detection.
+    Searches for words or patterns in text files, supporting similar word matching and smart subword detection.
     """
     start_time = time.perf_counter()
     total_matches = 0
@@ -2769,7 +2769,7 @@ def search_mode(
                 for m in lit_pattern.finditer(line_content):
                     spans.append(m.span())
 
-            # 2. Word-by-word logic for filtering/fuzzy/smart matching.
+            # 2. Word-by-word logic for filtering/similar word/smart matching.
             for m_word in word_pattern.finditer(line_content):
                 word = m_word.group(0)
                 word_start, word_end = m_word.span()
@@ -4178,13 +4178,13 @@ MODE_DETAILS = {
     },
     "json": {
         "summary": "Extracts values from a JSON file using an optional key.",
-        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it extracts items from the root. It automatically handles lists of objects.",
+        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it extracts items from the top level. It automatically handles lists of objects.",
         "example": "python multitool.py json list.json -o items.txt",
         "flags": "[-k KEY]",
     },
     "yaml": {
         "summary": "Extracts values from a YAML file using an optional key.",
-        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it extracts items from the root. It automatically handles lists.",
+        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it extracts items from the top level. It automatically handles lists.",
         "example": "python multitool.py yaml list.yaml -o items.txt",
         "flags": "[-k KEY]",
     },
@@ -4428,7 +4428,7 @@ class MinimalFormatter(logging.Formatter):
 
         levelname = record.levelname
         # Determine if color should be used for this log record
-        # We respect the global constants (YELLOW, RESET, etc.) which already account for
+        # We respect the global constants (YELLOW, RESET, and others) which already account for
         # TTY, FORCE_COLOR, and NO_COLOR.
         use_color = bool(YELLOW)
 
@@ -4691,7 +4691,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-k', '--key',
         type=str,
         default='',
-        help="The key path to extract (for example 'items.name'). If omitted, extracts from the root.",
+        help="The key path to extract (for example 'items.name'). If omitted, extracts from the top level.",
     )
     _add_common_mode_arguments(json_parser)
 
@@ -4707,7 +4707,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-k', '--key',
         type=str,
         default='',
-        help="The key path to extract (for example 'config.items'). If omitted, extracts from the root.",
+        help="The key path to extract (for example 'config.items'). If omitted, extracts from the top level.",
     )
     _add_common_mode_arguments(yaml_parser)
 
@@ -4877,7 +4877,7 @@ def _build_parser() -> argparse.ArgumentParser:
         description=MODE_DETAILS['fuzzymatch']['description'],
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['fuzzymatch']['example']}{RESET}",
     )
-    fm_options = fuzzymatch_parser.add_argument_group(f"{BLUE}FUZZY MATCH OPTIONS{RESET}")
+    fm_options = fuzzymatch_parser.add_argument_group(f"{BLUE}SIMILAR WORD MATCH OPTIONS{RESET}")
     fm_options.add_argument(
         '--file2',
         type=str,
@@ -5038,7 +5038,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '--max-dist',
         type=int,
         default=0,
-        help="Maximum character changes for fuzzy matching (default: 0).",
+        help="Maximum character changes for similar word matching (default: 0).",
     )
     search_options.add_argument(
         '-S', '--smart',
@@ -5143,7 +5143,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-n', '--n',
         type=int,
         default=2,
-        help='The number of words in each n-gram (default: 2).',
+        help='The number of words in each sequence (default: 2).',
     )
     ngrams_options.add_argument(
         '-d', '--delimiter',

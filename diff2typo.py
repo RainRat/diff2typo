@@ -438,10 +438,10 @@ def filter_known_typos(candidates, typos_tool_path):
         command = [typos_executable, '--format', 'brief', temp_file]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=False)
-            already_known = [s for s in re.findall(r'`([^`]+)`', result.stdout) if len(s) > 1]
+            already_known = {s.lower() for s in re.findall(r'`([^`]+)`', result.stdout) if len(s) > 1}
             filtered = [
                 line for line in candidates
-                if line.split(' -> ')[0].lower() not in [word.lower() for word in already_known]
+                if line.split(' -> ')[0].lower() not in already_known
             ]
             logging.info(f"Filtered out {len(candidates) - len(filtered)} already-known typo(s).")
             return filtered

@@ -1,4 +1,5 @@
 import os
+import shutil
 import argparse
 import csv
 import glob
@@ -3454,8 +3455,6 @@ def standardize_mode(
         for line in tqdm(file_lines, desc=f"Analyzing {input_file}", unit=" lines", disable=quiet):
             parts = pattern.findall(line)
             for part in parts:
-                if not part:
-                    continue
                 # Full word analysis
                 norm = filter_to_letters(part) if clean_items else part.lower()
                 if norm:
@@ -3516,7 +3515,6 @@ def standardize_mode(
                     if in_place:
                         backup_path = input_file + in_place
                         try:
-                            import shutil
                             shutil.copy2(input_file, backup_path)
                             logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
                         except Exception as e:
@@ -3624,7 +3622,6 @@ def scrub_mode(
                     if in_place:
                         backup_path = input_file + in_place
                         try:
-                            import shutil
                             shutil.copy2(input_file, backup_path)
                             logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
                         except Exception as e:

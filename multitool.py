@@ -4245,8 +4245,8 @@ MODE_DETAILS = {
     "map": {
         "summary": "Replaces items using a mapping file.",
         "description": "Replaces items in your list with new values from a mapping file. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
-        "example": "python multitool.py map input.txt mapping.csv --smart-case --pairs",
-        "flags": "[MAPPING] [--smart-case] [--pairs]",
+        "example": "python multitool.py map mapping.csv input.txt --smart-case --pairs",
+        "flags": "MAPPING [FILES...] [--smart-case] [--pairs]",
     },
     "zip": {
         "summary": "Pairs lines from two files together.",
@@ -4335,20 +4335,20 @@ MODE_DETAILS = {
     "search": {
         "summary": "Searches for words or patterns in text files.",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting and line numbers.",
-        "example": "python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers",
-        "flags": "[-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
+        "example": "python multitool.py search 'teh' report.txt --max-dist 1 --line-numbers",
+        "flags": "QUERY [FILES...] [-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
     },
     "scan": {
         "summary": "Scans for multiple words or typos with context.",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or list and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
-        "example": "python multitool.py scan . --mapping typos.csv --smart",
-        "flags": "[MAPPING] [--smart]",
+        "example": "python multitool.py scan typos.csv . --smart",
+        "flags": "MAPPING [FILES...] [--smart]",
     },
     "scrub": {
         "summary": "Replaces typos in text files based on a mapping.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
-        "example": "python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt",
-        "flags": "[MAPPING]",
+        "example": "python multitool.py scrub corrections.csv input.txt --output fixed.txt",
+        "flags": "MAPPING [FILES...]",
     },
     "diff": {
         "summary": "Finds added, removed, or changed items between files.",
@@ -4359,8 +4359,8 @@ MODE_DETAILS = {
     "highlight": {
         "summary": "Highlights specific words or typos within text files.",
         "description": "Searches for words from a list or mapping and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
-        "example": "python multitool.py highlight input.txt --mapping corrections.csv",
-        "flags": "[MAPPING] [--smart]",
+        "example": "python multitool.py highlight corrections.csv input.txt",
+        "flags": "MAPPING [FILES...] [--smart]",
     },
     "resolve": {
         "summary": "Flattens chains of typo corrections.",
@@ -4473,7 +4473,13 @@ class ModeHelpAction(argparse.Action):
                 desc = details['description']
                 block.append(f"{BOLD}DESCRIPTION:{RESET} {desc}")
 
-            block.append(f"\n{BOLD}USAGE:{RESET}       python multitool.py {values} [FILES...] [FLAGS]")
+            flags_str = details.get("flags", "[FILES...]")
+            first_word = flags_str.split()[0] if flags_str else ""
+            # If the flags string starts with a positional label (uppercase, no brackets), show it as part of USAGE
+            if first_word.isupper() and not first_word.startswith('[') and not first_word.startswith('-'):
+                block.append(f"\n{BOLD}USAGE:{RESET}       python multitool.py {values} {first_word} [FILES...] [FLAGS]")
+            else:
+                block.append(f"\n{BOLD}USAGE:{RESET}       python multitool.py {values} [FILES...] [FLAGS]")
 
             if details.get("flags"):
                 block.append(f"{BOLD}FLAGS:{RESET}       {YELLOW}{details['flags']}{RESET}")
@@ -5470,29 +5476,33 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'}:
         if getattr(args, 'file2', None) is None:
             if len(input_paths) >= 2:
-                # Use the last positional argument as the secondary file
+                # For comparison/joining modes, use the last positional argument as the secondary file.
                 args.file2 = input_paths.pop()
                 args.input = input_paths
             elif len(input_paths) == 1 and input_paths[0] != '-':
-                # Use the only positional argument as the secondary file and read input from stdin
+                # Use the only positional argument as the secondary file and read input from stdin.
                 args.file2 = input_paths[0]
                 args.input = ['-']
     elif args.mode in {'map', 'scrub', 'highlight', 'scan'}:
         if getattr(args, 'mapping', None) is None:
             if len(input_paths) >= 2:
-                # Use the last positional argument as the mapping file
-                args.mapping = input_paths.pop()
+                # For pattern/mapping modes, use the first positional argument as the mapping.
+                args.mapping = input_paths.pop(0)
                 args.input = input_paths
             elif len(input_paths) == 1 and input_paths[0] != '-':
-                # Use the only positional argument as the mapping file and read input from stdin
+                # Use the only positional argument as the mapping and read input from stdin.
                 args.mapping = input_paths[0]
                 args.input = ['-']
     elif args.mode == 'search':
         if getattr(args, 'query', None) is None:
-            if len(input_paths) >= 1:
-                # Use the only/last positional argument as the query
-                args.query = input_paths.pop()
-                args.input = input_paths if input_paths else ['-']
+            if len(input_paths) >= 2:
+                # Use the first positional argument as the query.
+                args.query = input_paths.pop(0)
+                args.input = input_paths
+            elif len(input_paths) == 1 and input_paths[0] != '-':
+                # Use the only positional argument as the query and read input from stdin.
+                args.query = input_paths[0]
+                args.input = ['-']
 
     file2 = getattr(args, 'file2', None)
     # Check for missing secondary files after fallback attempt

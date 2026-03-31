@@ -3776,7 +3776,7 @@ def _add_common_mode_arguments(
         '-f', '--output-format', '--format',
         dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
-        metavar='FMT',
+        metavar='FORMAT',
         default=argparse.SUPPRESS,
         help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml.",
     )
@@ -4002,7 +4002,7 @@ MODE_DETAILS = {
         "summary": "Extracts specific columns from a CSV file.",
         "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
         "example": "python multitool.py csv typos.csv --column 2 -o corrections.txt",
-        "flags": "[--first-column] [--column IDX]",
+        "flags": "[--first-column] [--column NUMBER]",
     },
     "markdown": {
         "summary": "Extracts items from Markdown bulleted lists.",
@@ -4014,7 +4014,7 @@ MODE_DETAILS = {
         "summary": "Extracts text from Markdown tables.",
         "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers. It automatically skips header and divider rows.",
         "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
-        "flags": "[--right] [--column IDX]",
+        "flags": "[--right] [--column NUMBER]",
     },
     "json": {
         "summary": "Extracts values from a JSON file using an optional key.",
@@ -4333,7 +4333,6 @@ def _build_parser() -> argparse.ArgumentParser:
               {GREEN}python multitool.py --mode-help{RESET}             # Show a summary of every mode
               {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV extraction mode
               {GREEN}python multitool.py arrow file.txt{RESET}          # Run a specific mode
-              {GREEN}python multitool.py --mode csv --input file.txt{RESET}  # Old way to run the tool
             """
         ).strip() + "\n\n" + mode_summary,
         formatter_class=argparse.RawTextHelpFormatter,
@@ -4360,7 +4359,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-f', '--output-format', '--format',
         dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
-        metavar='FMT',
+        metavar='FORMAT',
         default='line',
         help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml.",
     )
@@ -4471,7 +4470,7 @@ def _build_parser() -> argparse.ArgumentParser:
         dest='columns',
         type=int,
         nargs='+',
-        metavar='IDX',
+        metavar='NUMBER',
         help='One or more 0-based column numbers to extract.',
     )
     _add_common_mode_arguments(csv_parser)
@@ -4509,7 +4508,7 @@ def _build_parser() -> argparse.ArgumentParser:
         dest='columns',
         type=int,
         nargs='+',
-        metavar='IDX',
+        metavar='NUMBER',
         help='One or more 0-based column numbers to extract.',
     )
     _add_common_mode_arguments(md_table_parser)

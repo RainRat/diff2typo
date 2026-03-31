@@ -225,7 +225,7 @@ def _compare_word_lists(
                             typos.append(f"{before_clean} -> {after_clean}")
             else:
                 # If block sizes differ (for example, "teh house" -> "the big house"),
-                # we perform a local fuzzy matching to find the best candidate pair.
+                # we perform a local similar word matching to find the best candidate pair.
                 for b_word in removals:
                     b_clean = filter_to_letters(b_word)
                     if len(b_clean) < min_length:

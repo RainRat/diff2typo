@@ -4485,11 +4485,12 @@ def get_mode_summary_text() -> str:
     lines.append(f"\n    {BOLD}{header_mode} {header_summary} {header_flags}{RESET}")
     # Separator matches combined column widths + spacing
     total_header_width = width + 55 + len(header_flags) + 2
-    lines.append(f"    {'-' * total_header_width}")
+    header_separator = f"    {BOLD}{'─' * total_header_width}{RESET}"
+    lines.append(header_separator)
 
     for category, modes in categories.items():
-        lines.append(f"\n  {BLUE}{category.upper()}{RESET}")
-        lines.append(f"  {BLUE}{'─' * 55}{RESET}")
+        lines.append(f"\n  {BOLD}{BLUE}{category.upper()}{RESET}")
+        lines.append(f"  {BLUE}{'─' * (total_header_width + 2)}{RESET}")
         for mode in modes:
             if mode in MODE_DETAILS:
                 details = MODE_DETAILS[mode]

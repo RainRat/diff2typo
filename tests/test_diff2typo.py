@@ -87,6 +87,10 @@ def test_compare_word_lists():
     after_mismatch = ['a', 'error', 'change']
     assert diff2typo._compare_word_lists(before, after_mismatch, 2) == ['eror -> error', 'line -> change']
 
+    # Check identical words (after cleaning) are skipped
+    assert diff2typo._compare_word_lists(['Word'], ['word'], 2) == []
+    assert diff2typo._compare_word_lists(['Word'], ['word', 'extra'], 2) == []
+
 
 def test_format_typos():
     typos = ['teh -> the']

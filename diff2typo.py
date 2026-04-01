@@ -220,6 +220,9 @@ def _compare_word_lists(
                     before_clean = filter_to_letters(before_word)
                     after_clean = filter_to_letters(after_word)
 
+                    if before_clean == after_clean:
+                        continue
+
                     if len(before_clean) >= min_length and len(after_clean) >= min_length:
                         if max_dist is None or levenshtein_distance(before_clean, after_clean) <= max_dist:
                             typos.append(f"{before_clean} -> {after_clean}")
@@ -236,7 +239,7 @@ def _compare_word_lists(
 
                     for a_word in additions:
                         a_clean = filter_to_letters(a_word)
-                        if len(a_clean) < min_length:
+                        if len(a_clean) < min_length or a_clean == b_clean:
                             continue
 
                         dist = levenshtein_distance(b_clean, a_clean)

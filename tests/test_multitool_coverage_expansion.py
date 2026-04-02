@@ -154,7 +154,7 @@ def test_standardize_no_changes_inplace(tmp_path, caplog):
             in_place="",
         )
 
-    assert "No inconsistent casing found" in caplog.text
+    assert "No inconsistencies found" in caplog.text
     assert test_file.read_text() == content
 
 def test_standardize_stdin_inplace_warning(caplog):

@@ -3284,9 +3284,64 @@ def _load_mapping_file(path: str, quiet: bool = False) -> dict[str, str]:
     return dict(_extract_pairs([path], quiet=quiet))
 
 
+def _resolve_full_mapping(
+    mapping_file: str | None,
+    ad_hoc_pairs: List[str] | None,
+    clean_items: bool,
+    quiet: bool = False,
+) -> dict[str, str]:
+    """
+    Merge a mapping file with ad-hoc pairs from the command line.
+    """
+    full_mapping = {}
+
+    # 1. Load from file if provided
+    if mapping_file:
+        # Load mapping or list
+        if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml')):
+            full_mapping.update(_load_mapping_file(mapping_file, quiet=quiet))
+        else:
+            # Treat as a simple list of words if not a common mapping format
+            lines = _read_file_lines_robust(mapping_file)
+            for line in lines:
+                content = line.strip()
+                if not content or content.startswith('#'):
+                    continue
+
+                if " -> " in content:
+                    parts = content.split(" -> ", 1)
+                    full_mapping[parts[0].strip()] = parts[1].strip()
+                elif ": " in content:
+                    parts = content.split(": ", 1)
+                    full_mapping[parts[0].strip()] = parts[1].strip()
+                else:
+                    full_mapping[content] = ""
+
+    # 2. Add ad-hoc pairs (e.g., "teh:the" or "old:new")
+    if ad_hoc_pairs:
+        for pair in ad_hoc_pairs:
+            if ":" in pair:
+                k, v = pair.split(":", 1)
+                full_mapping[k.strip()] = v.strip()
+            else:
+                # If no colon, treat as a word to be highlighted or matched (empty value)
+                full_mapping[pair.strip()] = ""
+
+    # 3. Clean mapping keys if requested
+    if clean_items:
+        cleaned_mapping = {}
+        for k, v in full_mapping.items():
+            cleaned_k = filter_to_letters(k)
+            if cleaned_k:
+                cleaned_mapping[cleaned_k] = v
+        return cleaned_mapping
+
+    return full_mapping
+
+
 def map_mode(
     input_files: Sequence[str],
-    mapping_file: str,
+    mapping_file: str | None,
     output_file: str,
     min_length: int,
     max_length: int,
@@ -3298,32 +3353,14 @@ def map_mode(
     limit: int | None = None,
     pairs: bool = False,
     smart_case: bool = False,
+    ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Transforms items based on a mapping file.
+    Transforms items based on a mapping file or ad-hoc pairs.
     """
     start_time = time.perf_counter()
-    # Load mapping
-    raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
-
-    # If clean_items is True, we should also clean the mapping keys to match input
-    if clean_items:
-        cleaned_mapping = {}
-        for k, v in raw_mapping.items():
-            cleaned_k = filter_to_letters(k)
-            # We assume value is the replacement and should be used as is?
-            # Or should value also be cleaned?
-            # If I map "TeH" -> "The", and input is "teh".
-            # Cleaned input: "teh". Cleaned key: "teh". Value: "The".
-            # Output: "The".
-            # If output is also cleaned later (for example by process_output)?
-            # But here we are producing the item.
-            # Let's keep value as is, but clean key.
-            if cleaned_k:
-                cleaned_mapping[cleaned_k] = v
-        mapping = cleaned_mapping
-    else:
-        mapping = raw_mapping
+    # Load and merge mappings
+    mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
 
     raw_item_count = 0
     results = []
@@ -3564,7 +3601,7 @@ def standardize_mode(
 
 def scrub_mode(
     input_files: Sequence[str],
-    mapping_file: str,
+    mapping_file: str | None,
     output_file: str,
     min_length: int,
     max_length: int,
@@ -3575,20 +3612,15 @@ def scrub_mode(
     in_place: str | None = None,
     dry_run: bool = False,
     smart_case: bool = False,
+    ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Performs replacements of typos in text files based on a mapping file.
+    Performs replacements of typos in text files based on a mapping file or ad-hoc pairs.
     Supports in-place modification and dry-run preview.
     """
     start_time = time.perf_counter()
-    # Load mapping
-    raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
-
-    # Clean the mapping keys for matching if clean_items is True
-    if clean_items:
-        mapping = {filter_to_letters(k): v for k, v in raw_mapping.items() if filter_to_letters(k)}
-    else:
-        mapping = raw_mapping
+    # Load and merge mappings
+    mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
 
     total_replacements = 0
     # Pattern for splitting lines into words and non-words (delimiters)
@@ -3672,7 +3704,7 @@ def scrub_mode(
 
 def rename_mode(
     input_files: Sequence[str],
-    mapping_file: str,
+    mapping_file: str | None,
     output_file: str,
     min_length: int,
     max_length: int,
@@ -3683,19 +3715,14 @@ def rename_mode(
     in_place: bool = False,
     dry_run: bool = False,
     smart_case: bool = False,
+    ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Renames files and directories using a mapping file.
+    Renames files and directories using a mapping file or ad-hoc pairs.
     """
     start_time = time.perf_counter()
-    # Load mapping
-    raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
-
-    # Clean the mapping keys for matching if clean_items is True
-    if clean_items:
-        mapping = {filter_to_letters(k): v for k, v in raw_mapping.items() if filter_to_letters(k)}
-    else:
-        mapping = raw_mapping
+    # Load and merge mappings
+    mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
 
     total_renames = 0
     pattern = re.compile(r'([a-zA-Z0-9]+)')
@@ -3759,7 +3786,7 @@ def rename_mode(
 
 def highlight_mode(
     input_files: Sequence[str],
-    mapping_file: str,
+    mapping_file: str | None,
     output_file: str,
     min_length: int,
     max_length: int,
@@ -3768,24 +3795,14 @@ def highlight_mode(
     clean_items: bool = True,
     limit: int | None = None,
     smart: bool = False,
+    ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Highlights words from a mapping file or list within the input text files.
+    Highlights words from a mapping file or ad-hoc pairs within the input text files.
     """
     start_time = time.perf_counter()
-    # Load mapping or list
-    if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml')):
-        raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
-    else:
-        # Treat as a simple list of words if not a common mapping format
-        lines = _read_file_lines_robust(mapping_file)
-        raw_mapping = {line.strip(): "" for line in lines if line.strip()}
-
-    # Clean the mapping keys for matching if clean_items is True
-    if clean_items:
-        mapping = {filter_to_letters(k): True for k in raw_mapping.keys() if filter_to_letters(k)}
-    else:
-        mapping = {k: True for k in raw_mapping.keys() if k}
+    # Load and merge mappings
+    mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
 
     total_highlights = 0
     pattern = re.compile(r'([a-zA-Z0-9]+)')
@@ -3852,7 +3869,7 @@ def highlight_mode(
 
 def scan_mode(
     input_files: Sequence[str],
-    mapping_file: str,
+    mapping_file: str | None,
     output_file: str,
     min_length: int,
     max_length: int,
@@ -3863,24 +3880,14 @@ def scan_mode(
     smart: bool = False,
     line_numbers: bool = False,
     with_filename: bool | None = None,
+    ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Scans files for occurrences of words from a mapping/list, providing context.
+    Scans files for occurrences of words from a mapping file or ad-hoc pairs, providing context.
     """
     start_time = time.perf_counter()
-    # Load mapping or list
-    if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml')):
-        raw_mapping = _load_mapping_file(mapping_file, quiet=quiet)
-    else:
-        # Treat as a simple list of words if not a common mapping format
-        lines = _read_file_lines_robust(mapping_file)
-        raw_mapping = {line.strip(): "" for line in lines if line.strip()}
-
-    # Clean the mapping keys for matching if clean_items is True
-    if clean_items:
-        mapping = {filter_to_letters(k): True for k in raw_mapping.keys() if filter_to_letters(k)}
-    else:
-        mapping = {k: True for k in raw_mapping.keys() if k}
+    # Load and merge mappings
+    mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
 
     total_matches = 0
     pattern = re.compile(r'([a-zA-Z0-9]+)')
@@ -4330,10 +4337,10 @@ MODE_DETAILS = {
         "flags": "[-r PATTERN]",
     },
     "map": {
-        "summary": "Replaces items using a mapping file.",
-        "description": "Replaces items in your list with new values from a mapping file. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
-        "example": "python multitool.py map mapping.csv input.txt --smart-case --pairs",
-        "flags": "MAPPING [FILES...] [--smart-case] [--pairs]",
+        "summary": "Replaces items using a mapping file or ad-hoc pairs.",
+        "description": "Replaces items in your list with new values from a mapping file or ad-hoc pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
+        "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
+        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart-case] [--pairs]",
     },
     "zip": {
         "summary": "Pairs lines from two files together.",
@@ -4426,22 +4433,22 @@ MODE_DETAILS = {
         "flags": "QUERY [FILES...] [-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
     },
     "scan": {
-        "summary": "Scans for multiple words or typos with context.",
-        "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or list and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
-        "example": "python multitool.py scan typos.csv . --smart",
-        "flags": "MAPPING [FILES...] [--smart]",
+        "summary": "Scans for words or typos from a file or ad-hoc pairs.",
+        "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
+        "example": "python multitool.py scan . --add teh:the --smart",
+        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
     "scrub": {
-        "summary": "Replaces typos in text files based on a mapping.",
-        "description": "Performs in-place replacements of typos in your text files using a mapping file. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
-        "example": "python multitool.py scrub corrections.csv input.txt --output fixed.txt",
-        "flags": "MAPPING [FILES...]",
+        "summary": "Replaces typos in text files based on a mapping or ad-hoc pairs.",
+        "description": "Performs in-place replacements of typos in your text files using a mapping file or ad-hoc pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
+        "example": "python multitool.py scrub input.txt --add teh:the --output fixed.txt",
+        "flags": "MAPPING [FILES...] [--add KEY:VALUE]",
     },
     "rename": {
-        "summary": "Renames files and directories using a mapping file.",
-        "description": "Renames files or directories based on a typo mapping. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
-        "example": "python multitool.py rename src/**/* --mapping typos.csv --in-place",
-        "flags": "[MAPPING] [--in-place] [--dry-run] [--smart-case]",
+        "summary": "Renames files and directories using a mapping file or ad-hoc pairs.",
+        "description": "Renames files or directories based on a typo mapping or ad-hoc pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
+        "example": "python multitool.py rename src/**/* --add teh:the --in-place",
+        "flags": "[MAPPING] [FILES...] [--add KEY:VALUE] [--in-place] [--dry-run] [--smart-case]",
     },
     "diff": {
         "summary": "Finds added, removed, or changed items between files.",
@@ -4450,10 +4457,10 @@ MODE_DETAILS = {
         "flags": "[FILE2] [--pairs]",
     },
     "highlight": {
-        "summary": "Highlights specific words or typos within text files.",
-        "description": "Searches for words from a list or mapping and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
-        "example": "python multitool.py highlight corrections.csv input.txt",
-        "flags": "MAPPING [FILES...] [--smart]",
+        "summary": "Highlights words from a file or ad-hoc pairs.",
+        "description": "Searches for words from a mapping file or ad-hoc pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
+        "example": "python multitool.py highlight input.txt --add teh:the",
+        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
     "resolve": {
         "summary": "Flattens chains of typo corrections.",
@@ -5288,6 +5295,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Path to the mapping file (CSV or Arrow format).',
     )
     map_options.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+    )
+    map_options.add_argument(
         '--drop-missing',
         action='store_true',
         help='If set, items not found in the mapping are dropped. Default is to keep them.',
@@ -5317,6 +5332,14 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         required=False,
         help='Path to the mapping file.',
+    )
+    scrub_options.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
     )
     scrub_options.add_argument(
         '--in-place',
@@ -5350,6 +5373,14 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         required=False,
         help='Path to the mapping file.',
+    )
+    rename_options.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
     )
     rename_options.add_argument(
         '--in-place',
@@ -5460,6 +5491,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Path to the mapping file or word list.',
     )
     highlight_options.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+    )
+    highlight_options.add_argument(
         '-S', '--smart',
         action='store_true',
         help='Highlight subword matches (for example, highlighting "teh" inside "tehWord").',
@@ -5479,6 +5518,14 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         required=False,
         help='Path to the mapping file or word list.',
+    )
+    scan_options.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
     )
     scan_options.add_argument(
         '-S', '--smart',
@@ -5513,6 +5560,7 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['resolve']['example']}{RESET}",
     )
     _add_common_mode_arguments(resolve_parser)
+
 
     return parser
 
@@ -5609,7 +5657,7 @@ def main() -> None:
                 args.file2 = input_paths[0]
                 args.input = ['-']
     elif args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'}:
-        if getattr(args, 'mapping', None) is None:
+        if getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
             if len(input_paths) >= 2:
                 # For pattern/mapping modes, use the first positional argument as the mapping.
                 args.mapping = input_paths.pop(0)
@@ -5634,8 +5682,9 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'} and getattr(args, 'mapping', None) is None:
-        logging.error(f"{args.mode.capitalize()} mode requires a mapping file (provide MAPPING positionally or use --mapping).")
+    if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'} and \
+       getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
+        logging.error(f"{args.mode.capitalize()} mode requires a mapping file or ad-hoc pairs (use --mapping or --add).")
         sys.exit(1)
     if args.mode == 'search' and getattr(args, 'query', None) is None:
         logging.error("Search mode requires a search query (provide QUERY positionally or use --query).")
@@ -5886,7 +5935,8 @@ def main() -> None:
             map_mode,
             {
                 **common_kwargs,
-                'mapping_file': getattr(args, 'mapping', ''),
+                'mapping_file': getattr(args, 'mapping', None),
+                'ad_hoc': getattr(args, 'ad_hoc', None),
                 'drop_missing': getattr(args, 'drop_missing', False),
                 'output_format': output_format,
                 'pairs': getattr(args, 'pairs', False),
@@ -5897,7 +5947,8 @@ def main() -> None:
             rename_mode,
             {
                 'input_files': args.input,
-                'mapping_file': getattr(args, 'mapping', ''),
+                'mapping_file': getattr(args, 'mapping', None),
+                'ad_hoc': getattr(args, 'ad_hoc', None),
                 'output_file': args.output,
                 'min_length': args.min_length,
                 'max_length': args.max_length,
@@ -5929,7 +5980,8 @@ def main() -> None:
             scrub_mode,
             {
                 'input_files': args.input,
-                'mapping_file': getattr(args, 'mapping', ''),
+                'mapping_file': getattr(args, 'mapping', None),
+                'ad_hoc': getattr(args, 'ad_hoc', None),
                 'output_file': args.output,
                 'min_length': args.min_length,
                 'max_length': args.max_length,
@@ -6029,7 +6081,8 @@ def main() -> None:
             highlight_mode,
             {
                 **common_kwargs,
-                'mapping_file': getattr(args, 'mapping', ''),
+                'mapping_file': getattr(args, 'mapping', None),
+                'ad_hoc': getattr(args, 'ad_hoc', None),
                 'smart': getattr(args, 'smart', False),
             }
         ),
@@ -6037,7 +6090,8 @@ def main() -> None:
             scan_mode,
             {
                 **common_kwargs,
-                'mapping_file': getattr(args, 'mapping', ''),
+                'mapping_file': getattr(args, 'mapping', None),
+                'ad_hoc': getattr(args, 'ad_hoc', None),
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
                 'with_filename': getattr(args, 'with_filename', None),

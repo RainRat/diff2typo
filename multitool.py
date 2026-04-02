@@ -3479,10 +3479,13 @@ def standardize_mode(
     limit: int | None = None,
     in_place: str | None = None,
     dry_run: bool = False,
+    fuzzy: int = 0,
+    threshold: float = 10.0,
 ) -> None:
     """
-    Standardizes inconsistent casing of words within files by replacing less frequent
-    variations with the most frequent one found across all input files.
+    Standardizes inconsistent casing and optionally spelling of words within files
+    by replacing less frequent variations with the most frequent one found
+    across all input files.
     """
     start_time = time.perf_counter()
     pattern = re.compile(r'([a-zA-Z0-9]+)')
@@ -3512,15 +3515,59 @@ def standardize_mode(
 
     # Pass 2: Identify "winners" and build mapping
     mapping = {}
+
+    # 2a: Determine the best casing variation for each normalized word
+    norm_winners = {}
+    norm_totals = Counter()
     for norm, counts in variation_counts.items():
-        if len(counts) > 1:
-            # More than one variation found. The most frequent one wins.
-            winner = counts.most_common(1)[0][0]
-            # Map the normalized form to the winner.
-            mapping[norm] = winner
+        norm_winners[norm] = counts.most_common(1)[0][0]
+        norm_totals[norm] = sum(counts.values())
+
+    # 2b: If fuzzy matching is enabled, group similar normalized words
+    if fuzzy > 0:
+        # Sort normalized words by total frequency descending to find "anchors"
+        sorted_norms = sorted(norm_totals.keys(), key=lambda n: norm_totals[n], reverse=True)
+        fuzzy_groups = {}  # rare_norm -> frequent_norm
+
+        for i, frequent in enumerate(sorted_norms):
+            f_count = norm_totals[frequent]
+            if f_count == 0:
+                continue
+
+            for j in range(i + 1, len(sorted_norms)):
+                rare = sorted_norms[j]
+                if rare in fuzzy_groups:
+                    continue
+
+                r_count = norm_totals[rare]
+                if r_count == 0:
+                    continue
+
+                # Only consider if the frequent word is significantly more common
+                if f_count >= r_count * threshold:
+                    if levenshtein_distance(frequent, rare) <= fuzzy:
+                        fuzzy_groups[rare] = frequent
+                        logging.info(f"[Fuzzy] Identified likely typo: '{rare}' ({r_count}) -> '{frequent}' ({f_count})")
+
+        # Build the final mapping using both casing and fuzzy logic
+        for norm in norm_totals:
+            target_norm = fuzzy_groups.get(norm, norm)
+            winner = norm_winners[target_norm]
+
+            # If norm was a rare word that was fuzzy-mapped, or it has casing variations
+            if norm in fuzzy_groups or len(variation_counts[norm]) > 1:
+                # Double check that we aren't mapping a word to itself identically
+                # (Can happen if casing winner matches common variation of rare word by chance)
+                if norm not in variation_counts[norm] or variation_counts[norm][norm] < norm_totals[norm] or norm != winner:
+                    mapping[norm] = winner
+    else:
+        # Original logic for casing-only standardization
+        for norm, counts in variation_counts.items():
+            if len(counts) > 1:
+                mapping[norm] = norm_winners[norm]
 
     if not mapping:
-        logging.info("No inconsistent casing found. Everything is already standardized.")
+        logging.info("No inconsistencies found. Everything is already standardized.")
         # If not in-place, we still proceed to Pass 3 to ensure output is written if requested.
         # But if in-place, we can exit early.
         if in_place is not None:
@@ -4421,10 +4468,10 @@ MODE_DETAILS = {
         "flags": "[-d DELIMITER] [--smart]",
     },
     "standardize": {
-        "summary": "Fixes inconsistent casing by using the most frequent form.",
-        "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures naming consistency without needing a manual mapping file.",
-        "example": "python multitool.py standardize . --in-place --min-length 4",
-        "flags": "[--in-place] [--dry-run]",
+        "summary": "Fixes inconsistent casing and spelling using the most frequent form.",
+        "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable spell-checking based on your project's dominant patterns.",
+        "example": "python multitool.py standardize . --in-place --min-length 4 --fuzzy 1",
+        "flags": "[--in-place] [--dry-run] [--fuzzy N] [--threshold R]",
     },
     "search": {
         "summary": "Searches for words or patterns in text files.",
@@ -5419,6 +5466,18 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help="Show what would be changed without modifying any files.",
     )
+    standardize_options.add_argument(
+        '--fuzzy',
+        type=int,
+        default=0,
+        help="Maximum distance for fuzzy word matching (for example, --fuzzy 1 to fix 'teh' -> 'the'). Set to 0 to only fix casing (default: 0).",
+    )
+    standardize_options.add_argument(
+        '--threshold',
+        type=float,
+        default=10.0,
+        help="The minimum frequency ratio to consider a rare word a typo (default: 10.0).",
+    )
     _add_common_mode_arguments(standardize_parser, include_process_output=False, include_limit=True)
 
     diff_parser = subparsers.add_parser(
@@ -5974,6 +6033,8 @@ def main() -> None:
                 'limit': limit,
                 'in_place': getattr(args, 'in_place', None),
                 'dry_run': getattr(args, 'dry_run', False),
+                'fuzzy': getattr(args, 'fuzzy', 0),
+                'threshold': getattr(args, 'threshold', 10.0),
             }
         ),
         'scrub': (

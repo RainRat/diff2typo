@@ -76,7 +76,8 @@ def test_rename_smart_case(temp_dir):
     file1 = os.path.join(temp_dir, "TehFile.txt")
     file2 = os.path.join(temp_dir, "teh_file.txt")
     for f in [file1, file2]:
-        with open(f, "w") as fh: fh.write("c")
+        with open(f, "w") as fh:
+            fh.write("c")
 
     mapping_path = os.path.join(temp_dir, "mapping.csv")
     with open(mapping_path, "w") as f:

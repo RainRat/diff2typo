@@ -1,5 +1,3 @@
-import pytest
-import os
 import sys
 from io import StringIO
 import multitool
@@ -120,7 +118,6 @@ def test_rename_adhoc(tmp_path):
     # We use --in-place to actually rename
     sys.argv = ['multitool.py', 'rename', str(f), '--add', 'teh:the', '--in-place']
 
-    captured_output = StringIO()
     # rename_mode logs to logging.info, which we usually see on stderr in main()
     # but here it might depend on how logging is configured in the test environment.
 

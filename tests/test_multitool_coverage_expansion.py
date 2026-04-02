@@ -1,4 +1,5 @@
 import sys
+import io
 import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -273,7 +274,6 @@ def test_standardize_dry_run_no_inplace(tmp_path, caplog):
     assert not output_file.exists()
 
 # CLI Fallback Tests
-import io
 def test_zip_fallback_single_arg(tmp_path):
     # zip requires file2. If only one arg given, it should be used as file2, and input from stdin.
     file2 = tmp_path / "file2.txt"

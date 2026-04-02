@@ -1,5 +1,3 @@
-import os
-import pytest
 import logging
 from multitool import standardize_mode
 

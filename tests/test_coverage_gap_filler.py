@@ -1,8 +1,5 @@
-import sys
-import os
 import pytest
 import runpy
-import yaml
 from unittest.mock import patch
 import cmdrunner
 from diff2typo import _compare_word_lists

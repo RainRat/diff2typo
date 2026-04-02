@@ -287,6 +287,9 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
             with open(path, 'r', encoding='utf-8', newline=newline) as handle:
                 lines = handle.readlines()
                 used_encoding = 'utf-8'
+        except FileNotFoundError:
+            logging.error("Input file '%s' not found. Exiting.", path)
+            sys.exit(1)
         except UnicodeDecodeError:
             logging.warning("UTF-8 decoding failed for '%s'. Attempting detection...", path)
             detected_encoding = detect_encoding(path)
@@ -3523,9 +3526,6 @@ def standardize_mode(
     if not mapping:
         logging.info("No inconsistent casing found. Everything is already standardized.")
         # If not in-place, we still proceed to Pass 3 to ensure output is written if requested.
-        # But if in-place, we can exit early.
-        if in_place is not None:
-            return
 
     # Pass 3: Transformation
     total_replacements = 0

@@ -5692,7 +5692,13 @@ def main() -> None:
 
     operation = getattr(args, 'operation', None)
     first_column = getattr(args, 'first_column', False)
-    delimiter = getattr(args, 'delimiter', ',')
+
+    # Normalize delimiter to avoid crashes on empty string
+    raw_delimiter = getattr(args, 'delimiter', None)
+    delimiter = ',' if raw_delimiter == "" else (raw_delimiter or ',')
+    # For word-splitting modes, we want None to split by whitespace.
+    word_delimiter = None if raw_delimiter == "" else raw_delimiter
+
     right_side = getattr(args, 'right', False)
     sample_count = getattr(args, 'sample_count', None)
     sample_percent = getattr(args, 'sample_percent', None)
@@ -5734,7 +5740,7 @@ def main() -> None:
             {
                 **common_kwargs,
                 'n': getattr(args, 'n', 2),
-                'delimiter': getattr(args, 'delimiter', None),
+                'delimiter': word_delimiter,
                 'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
@@ -5751,7 +5757,7 @@ def main() -> None:
             repeated_mode,
             {
                 **common_kwargs,
-                'delimiter': getattr(args, 'delimiter', None),
+                'delimiter': word_delimiter,
                 'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
@@ -5760,7 +5766,7 @@ def main() -> None:
             casing_mode,
             {
                 **common_kwargs,
-                'delimiter': getattr(args, 'delimiter', None),
+                'delimiter': word_delimiter,
                 'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
@@ -5825,7 +5831,7 @@ def main() -> None:
             words_mode,
             {
                 **common_kwargs,
-                'delimiter': getattr(args, 'delimiter', None),
+                'delimiter': word_delimiter,
                 'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
@@ -5837,7 +5843,7 @@ def main() -> None:
                 'min_count': getattr(args, 'min_count', 1),
                 'max_count': getattr(args, 'max_count', None),
                 'output_format': output_format,
-                'delimiter': getattr(args, 'delimiter', None),
+                'delimiter': word_delimiter,
                 'smart': getattr(args, 'smart', False),
                 'pairs': getattr(args, 'pairs', False),
             },
@@ -6073,7 +6079,7 @@ def main() -> None:
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
-                'delimiter': getattr(args, 'delimiter', None),
+                'delimiter': word_delimiter,
                 'smart': getattr(args, 'smart', False),
             },
         ),

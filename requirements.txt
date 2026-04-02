@@ -2,3 +2,4 @@ pyahocorasick
 PyYAML
 pytest
 tqdm
+chardet

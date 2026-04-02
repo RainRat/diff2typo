@@ -691,11 +691,12 @@ def _write_paired_output(
             c_bold = BOLD if out_file.isatty() else ""
             c_blue = BLUE if out_file.isatty() else ""
             c_green = GREEN if out_file.isatty() else ""
+            c_yellow = YELLOW if out_file.isatty() else ""
             c_reset = RESET if out_file.isatty() else ""
 
             # Header and divider
             padding = "  "
-            header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} │ {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
+            header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} {c_bold}│{c_reset} {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
             # 3 chars for the separator " │ "
             visible_width = max_left + max_right + 3
             divider = f"{padding}{c_bold}{'─' * visible_width}{c_reset}"
@@ -703,7 +704,7 @@ def _write_paired_output(
             out_file.write(f"\n{header}\n")
             out_file.write(f"{divider}\n")
             for left, right in pairs_list:
-                out_file.write(f"{padding}{c_green}{left:<{max_left}}{c_reset} │ {right}\n")
+                out_file.write(f"{padding}{c_green}{left:<{max_left}}{c_reset} {c_bold}│{c_reset} {c_yellow}{right}{c_reset}\n")
             out_file.write("\n")
         else:  # 'line' or fallback
             for left, right in pairs_list:
@@ -4340,7 +4341,7 @@ MODE_DETAILS = {
         "summary": "Replaces items using a mapping file or ad-hoc pairs.",
         "description": "Replaces items in your list with new values from a mapping file or ad-hoc pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart-case] [--pairs]",
+        "flags": "MAPPING [FILES...] [--add KEY:VAL] [--pairs]",
     },
     "zip": {
         "summary": "Pairs lines from two files together.",
@@ -4400,7 +4401,7 @@ MODE_DETAILS = {
         "summary": "Finds typos by comparing rare and frequent words.",
         "description": "Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
         "example": "python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1",
-        "flags": "[--rare-max N] [--freq-min N] [--max-dist N] [-d DELIM] [--smart]",
+        "flags": "[FILES...] [--rare-max N] [--freq-min N] [--smart]",
     },
     "casing": {
         "summary": "Identifies words with inconsistent capitalization.",
@@ -4421,7 +4422,7 @@ MODE_DETAILS = {
         "flags": "[-d DELIMITER] [--smart]",
     },
     "standardize": {
-        "summary": "Fixes inconsistent casing by using the most frequent form.",
+        "summary": "Fix casing using the most frequent variation.",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures naming consistency without needing a manual mapping file.",
         "example": "python multitool.py standardize . --in-place --min-length 4",
         "flags": "[--in-place] [--dry-run]",
@@ -4430,25 +4431,25 @@ MODE_DETAILS = {
         "summary": "Searches for words or patterns in text files.",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting and line numbers.",
         "example": "python multitool.py search 'teh' report.txt --max-dist 1 --line-numbers",
-        "flags": "QUERY [FILES...] [-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
+        "flags": "QUERY [FILES...] [--max-dist N] [--smart]",
     },
     "scan": {
         "summary": "Scans for words or typos from a file or ad-hoc pairs.",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
         "example": "python multitool.py scan . --add teh:the --smart",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
+        "flags": "MAPPING [FILES...] [--add KEY:VAL] [--smart]",
     },
     "scrub": {
-        "summary": "Replaces typos in text files based on a mapping or ad-hoc pairs.",
+        "summary": "Replace typos in text files using a mapping or --add.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or ad-hoc pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --output fixed.txt",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE]",
+        "flags": "MAPPING [FILES...] [--in-place] [--add KEY:VAL]",
     },
     "rename": {
-        "summary": "Renames files and directories using a mapping file or ad-hoc pairs.",
+        "summary": "Rename files/folders using a mapping or --add.",
         "description": "Renames files or directories based on a typo mapping or ad-hoc pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
         "example": "python multitool.py rename src/**/* --add teh:the --in-place",
-        "flags": "[MAPPING] [FILES...] [--add KEY:VALUE] [--in-place] [--dry-run] [--smart-case]",
+        "flags": "[MAPPING] [FILES...] [--in-place] [--add KEY:VAL]",
     },
     "diff": {
         "summary": "Finds added, removed, or changed items between files.",
@@ -4460,7 +4461,7 @@ MODE_DETAILS = {
         "summary": "Highlights words from a file or ad-hoc pairs.",
         "description": "Searches for words from a mapping file or ad-hoc pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
         "example": "python multitool.py highlight input.txt --add teh:the",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
+        "flags": "MAPPING [FILES...] [--add KEY:VAL] [--smart]",
     },
     "resolve": {
         "summary": "Flattens chains of typo corrections.",

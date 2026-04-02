@@ -5990,8 +5990,6 @@ def main() -> None:
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
-                'delimiter': getattr(args, 'delimiter', None),
-                'smart': getattr(args, 'smart', False),
             },
         ),
         'fuzzymatch': (

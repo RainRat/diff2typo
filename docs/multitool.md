@@ -86,6 +86,13 @@ These modes help you transform or combine your data.
   - **What it does:** Identifies and flattens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`. This ensures that your mappings always point directly to the final correct word, making them more efficient for scrubbing and analysis.
   - **Example:** `python multitool.py resolve mappings.csv`
 
+- **`rename`**
+  - **What it does:** Renames files and directories using a mapping file. It is useful for fixing typos in filenames across your entire project. It handles nested renames by processing files before their parent directories.
+  - **Options:**
+    - Supports `--in-place` renaming and `--dry-run` preview.
+    - Use the `--smart-case` flag to automatically match the casing of the original filename.
+  - **Example:** `python multitool.py rename src/**/* --mapping corrections.csv --in-place`
+
 - **`diff`**
   - **What it does:** Identifies added, removed, and changed items between two files. It can compare simple lists of words or (with the `--pairs` flag) identify changes in typo-correction mappings.
   - **Supported Formats:** Color-coded terminal output (default) and structured JSON output.

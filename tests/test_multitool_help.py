@@ -18,13 +18,13 @@ def test_mode_help_all_implicit(monkeypatch, capsys):
 
     # Check for presence of summary table header and content
     assert "Available Modes:" in output
-    assert "EXTRACTION" in output
-    assert "MANIPULATION" in output
-    assert "ANALYSIS" in output
+    assert "GETTING DATA" in output
+    assert "CHANGING DATA" in output
+    assert "CHECKING DATA" in output
     assert "arrow" in output
     assert "csv" in output
     # In table view, we print "Summary: ..." as just the text column
-    assert "Extracts text from lines with arrows (->)." in output
+    assert "Gets text from lines with arrows (->)." in output
     assert "Merges multiple files into one clean list." in output
 
 def test_mode_help_all_explicit(monkeypatch, capsys):
@@ -52,7 +52,7 @@ def test_mode_help_specific(monkeypatch, capsys):
     output = captured.err + captured.out
 
     assert "MODE: ARROW" in output
-    assert "SUMMARY:     Extracts text from lines with arrows (->)." in output
+    assert "SUMMARY:     Gets text from lines with arrows (->)." in output
 
     # Should not contain other modes
     assert "MODE: CSV" not in output

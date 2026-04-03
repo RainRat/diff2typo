@@ -4044,6 +4044,123 @@ def scan_mode(
     )
 
 
+def verify_mode(
+    input_files: Sequence[str],
+    mapping_file: str | None,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    smart: bool = False,
+    prune: bool = False,
+    ad_hoc: List[str] | None = None,
+) -> None:
+    """
+    Identifies which entries in a typo mapping are actually present in the provided input files.
+    """
+    start_time = time.perf_counter()
+    # Load and merge mappings
+    mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
+
+    if not mapping:
+        logging.error("No mappings found to verify.")
+        sys.exit(1)
+
+    # Patterns for splitting lines into words
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    # Track which typos (keys) are found
+    found_typos = Counter()
+    total_matches = 0
+
+    for input_file in input_files:
+        file_lines = _read_file_lines_robust(input_file)
+        for line in tqdm(file_lines, desc=f"Verifying {input_file}", unit=" lines", disable=quiet):
+            parts = pattern.findall(line)
+            for part in parts:
+                match_key = filter_to_letters(part) if clean_items else part
+
+                if match_key in mapping:
+                    found_typos[match_key] += 1
+                    total_matches += 1
+                elif smart:
+                    # Try subword matching
+                    sub_parts = _smart_split(part)
+                    for sp in sub_parts:
+                        sm_key = filter_to_letters(sp) if clean_items else sp
+                        if sm_key in mapping:
+                            found_typos[sm_key] += 1
+                            total_matches += 1
+
+    # Prepare results
+    all_typos = sorted(mapping.keys())
+    active_pairs = []
+    stale_count = 0
+
+    for typo in all_typos:
+        count = found_typos[typo]
+        if count > 0:
+            active_pairs.append((typo, mapping[typo]))
+        else:
+            stale_count += 1
+
+    if prune:
+        # If pruning, our "filtered_items" for stats are the active pairs
+        stats_items = active_pairs
+        _write_paired_output(
+            active_pairs,
+            output_file,
+            'arrow',
+            'Verify',
+            quiet,
+            limit=limit
+        )
+    else:
+        # If not pruning, we show the status of all typos in the report
+        report_pairs = []
+        for typo in all_typos:
+            count = found_typos[typo]
+            status = f"FOUND ({count})" if count > 0 else "NOT FOUND"
+            report_pairs.append((typo, status))
+
+        stats_items = active_pairs
+        _write_paired_output(
+            report_pairs,
+            output_file,
+            'arrow',
+            'Verify',
+            quiet,
+            limit=limit
+        )
+
+    duration = time.perf_counter() - start_time
+
+    # Custom report for verify mode
+    c_bold = BOLD if sys.stderr.isatty() else ""
+    c_green = GREEN if sys.stderr.isatty() else ""
+    c_red = RED if sys.stderr.isatty() else ""
+    c_reset = RESET if sys.stderr.isatty() else ""
+
+    padding = "  "
+    label_width = 35
+
+    logging.info(f"\n{padding}{c_bold}VERIFICATION REPORT{c_reset}")
+    logging.info(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
+    logging.info(f"  {c_bold}{'Total mappings checked:':<{label_width}}{c_reset} {len(mapping)}")
+    logging.info(f"  {c_bold}{'Active mappings found:':<{label_width}}{c_reset} {c_green}{len(active_pairs)}{c_reset}")
+    logging.info(f"  {c_bold}{'Stale mappings (not found):':<{label_width}}{c_reset} {c_red}{stale_count}{c_reset}")
+    logging.info(f"  {c_bold}{'Total occurrences found:':<{label_width}}{c_reset} {total_matches}")
+    logging.info(f"  {c_bold}{'Processing time:':<{label_width}}{c_reset} {duration:.3f}s\n")
+
+    if prune:
+        logging.info(f"[Verify Mode] Pruned mapping with {len(active_pairs)} active entries written to '{output_file}'.")
+    else:
+        logging.info(f"[Verify Mode] Verification complete. Full report written to '{output_file}'.")
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True, include_limit: bool = True
 ) -> None:
@@ -4058,7 +4175,7 @@ def _add_common_mode_arguments(
     )
 
     # Input/Output Group
-    io_group = subparser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
+    io_group = subparser.add_argument_group(f"{BLUE}INPUT AND OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         '-i', '--input',
         dest='input_files_flag',
@@ -4089,7 +4206,7 @@ def _add_common_mode_arguments(
     )
 
     # Processing Configuration Group
-    proc_group = subparser.add_argument_group(f"{BLUE}PROCESSING OPTIONS{RESET}")
+    proc_group = subparser.add_argument_group(f"{BLUE}OPTIONS FOR PROCESSING DATA{RESET}")
     proc_group.add_argument(
         '-m', '--min-length',
         type=int,
@@ -4270,7 +4387,7 @@ def set_operation_mode(
 
 MODE_DETAILS = {
     "arrow": {
-        "summary": "Extracts text from lines with arrows (->).",
+        "summary": "Gets text from lines with arrows (->).",
         "description": "Finds text in lines that use arrows (like 'typo -> correction'). It saves the left side by default. Use --right to save the right side instead.",
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
         "flags": "[--right]",
@@ -4485,6 +4602,12 @@ MODE_DETAILS = {
         "example": "python multitool.py scan . --add teh:the --smart",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
+    "verify": {
+        "summary": "Checks which typos from a mapping are present in your files.",
+        "description": "Scans your project to identify which typos from a mapping file or ad-hoc pairs actually exist in your code. Use --prune to create a new mapping file containing only the typos that were found.",
+        "example": "python multitool.py verify . --mapping typos.csv --prune --output active_typos.csv",
+        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--prune] [--smart]",
+    },
     "scrub": {
         "summary": "Replaces typos in text files based on a mapping or ad-hoc pairs.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or ad-hoc pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
@@ -4521,9 +4644,9 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "Manipulation": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
-        "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
+        "GETTING DATA": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
+        "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
     lines = []
@@ -4613,7 +4736,7 @@ class ModeHelpAction(argparse.Action):
                 divider,
                 f"{BOLD}MODE:{RESET} {GREEN}{values.upper()}{RESET}",
                 divider,
-                f"{BOLD}SUMMARY:{RESET}     {details['summary']}",
+                f"{BOLD}SUMMARY:    {RESET} {details['summary']}",
             ]
 
             if details.get("description"):
@@ -4646,7 +4769,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
-        description="A versatile tool for cleaning, extracting, and analyzing text files.",
+        description="A multipurpose tool for cleaning, getting, and checking text files.",
         epilog=dedent(
             f"""
             {BLUE}Examples:{RESET}
@@ -4668,7 +4791,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     # Input/Output Group
-    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
+    io_group = parser.add_argument_group(f"{BLUE}INPUT AND OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         '-o', '--output',
         type=str,
@@ -4690,7 +4813,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     # Processing Options Group
-    proc_group = parser.add_argument_group(f"{BLUE}PROCESSING OPTIONS{RESET}")
+    proc_group = parser.add_argument_group(f"{BLUE}OPTIONS FOR PROCESSING DATA{RESET}")
     proc_group.add_argument(
         '-m', '--min-length',
         type=int,
@@ -5620,6 +5743,39 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(resolve_parser)
 
+    verify_parser = subparsers.add_parser(
+        'verify',
+        help=MODE_DETAILS['verify']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['verify']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['verify']['example']}{RESET}",
+    )
+    verify_options = verify_parser.add_argument_group(f"{BLUE}VERIFY OPTIONS{RESET}")
+    verify_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file or word list.',
+    )
+    verify_options.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+    )
+    verify_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Scan for subword matches (for example, finding "teh" inside "tehWord").',
+    )
+    verify_options.add_argument(
+        '--prune',
+        action='store_true',
+        help='Output only the active mappings that were found in the files.',
+    )
+    _add_common_mode_arguments(verify_parser)
 
     return parser
 
@@ -5715,7 +5871,7 @@ def main() -> None:
                 # Use the only positional argument as the secondary file and read input from stdin.
                 args.file2 = input_paths[0]
                 args.input = ['-']
-    elif args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'}:
+    elif args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan', 'verify'}:
         if getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
             if len(input_paths) >= 2:
                 # For pattern/mapping modes, use the first positional argument as the mapping.
@@ -5741,7 +5897,7 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'} and \
+    if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan', 'verify'} and \
        getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
         logging.error(f"{args.mode.capitalize()} mode requires a mapping file or ad-hoc pairs (use --mapping or --add).")
         sys.exit(1)
@@ -6156,6 +6312,16 @@ def main() -> None:
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
                 'with_filename': getattr(args, 'with_filename', None),
+            }
+        ),
+        'verify': (
+            verify_mode,
+            {
+                **common_kwargs,
+                'mapping_file': getattr(args, 'mapping', None),
+                'ad_hoc': getattr(args, 'ad_hoc', None),
+                'smart': getattr(args, 'smart', False),
+                'prune': getattr(args, 'prune', False),
             }
         ),
     }

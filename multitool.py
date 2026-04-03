@@ -101,7 +101,7 @@ def _apply_smart_case(original: str, replacement: str) -> str:
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
-    """Calculate the number of character changes needed to turn one string into another."""
+    """Shows the number of character changes needed to turn one string into another."""
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)
     if not s2:
@@ -158,7 +158,7 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
 
 def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> str:
     """
-    Categorizes a typo based on its relationship to the correction.
+    Groups a typo based on its relationship to the correction.
     Returns a code: [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, [M] Multiple letters.
     """
     if not typo or not correction or typo == correction:
@@ -656,7 +656,7 @@ def _write_paired_output(
         elif output_format == 'yaml':
             try:
                 import yaml
-                # Using a dictionary preserves pairs but deduplicates keys.
+                # Using a dictionary keeps pairs but deduplicates keys.
                 # Since pairs_list is already deduplicated if process_output is True,
                 # this is generally safe.
                 yaml_data = dict(pairs_list)
@@ -728,7 +728,7 @@ def _process_items(
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Generic processing for modes that extract raw string items from one or more files."""
+    """Generic processing for modes that get raw string items from one or more files."""
     start_time = time.perf_counter()
 
     raw_items = [
@@ -768,7 +768,7 @@ def _extract_table_items(input_file: str, right_side: bool = False, quiet: bool 
         if ' = "' in line:
             parts = line.split(' = "', 1)
             if right_side:
-                # Value is after ' = "' and ends with a quote. We extract everything up to the last quote.
+                # Value is after ' = "' and ends with a quote. We get everything up to the last quote.
                 if '"' in parts[1]:
                     yield parts[1].rsplit('"', 1)[0]
                 else:
@@ -811,7 +811,7 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
 
 
 def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
-    """Recursively traverse a nested data structure (list/dict) to extract values."""
+    """Recursively traverse a nested data structure (list/dict) to get values."""
     # If it's a list, apply the current path traversal to every item
     if isinstance(data, list):
         for item in data:
@@ -956,7 +956,7 @@ def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bo
                 continue
 
             # Check for common separators if we want to support --right
-            # This allows extracting from pairs like "- typo: correction"
+            # This allows getting from pairs like "- typo: correction"
             separator = None
             if " -> " in content:
                 separator = " -> "
@@ -1095,12 +1095,12 @@ def ngrams_mode(
     limit: int | None = None,
     smart: bool = False,
 ) -> None:
-    """Wrapper for extracting N-grams from file(s)."""
+    """Wrapper for getting word sequences from file(s)."""
     def extractor(f, quiet=False):
         return _extract_ngram_items(
             f, n=n, delimiter=delimiter, quiet=quiet, smart=smart, clean_items=clean_items
         )
-    # Pass clean_items=False to _process_items to preserve spaces in sequences of words.
+    # Pass clean_items=False to _process_items to keep spaces in sequences of words.
     _process_items(
         extractor,
         input_files,
@@ -1109,7 +1109,7 @@ def ngrams_mode(
         max_length,
         process_output,
         'Ngrams',
-        f'{n}-grams extracted successfully.',
+        f'{n}-grams gotten successfully.',
         output_format,
         quiet,
         clean_items=False,
@@ -1171,7 +1171,7 @@ def table_mode(
         max_length,
         process_output,
         'Table',
-        'Table fields extracted successfully.',
+        'Table fields gotten successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1202,7 +1202,7 @@ def markdown_mode(
         max_length,
         process_output,
         'Markdown',
-        'Markdown list items extracted successfully.',
+        'Markdown list items gotten successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1236,7 +1236,7 @@ def md_table_mode(
         max_length,
         process_output,
         'MDTable',
-        'Markdown table items extracted successfully.',
+        'Markdown table items gotten successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1255,7 +1255,7 @@ def backtick_mode(
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Wrapper for extracting text between backticks."""
+    """Wrapper for getting text between backticks."""
     _process_items(
         _extract_backtick_items,
         input_files,
@@ -1264,7 +1264,7 @@ def backtick_mode(
         max_length,
         process_output,
         'Backtick',
-        'Strings extracted successfully.',
+        'Strings gotten successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1284,7 +1284,7 @@ def json_mode(
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Wrapper for extracting fields from JSON files."""
+    """Wrapper for getting fields from JSON files."""
     def extractor(f, quiet=False):
         return _extract_json_items(f, key, quiet=quiet)
     _process_items(
@@ -1295,7 +1295,7 @@ def json_mode(
         max_length,
         process_output,
         'JSON',
-        'JSON values extracted successfully.',
+        'JSON values gotten successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1315,7 +1315,7 @@ def yaml_mode(
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Wrapper for extracting fields from YAML files."""
+    """Wrapper for getting fields from YAML files."""
     def extractor(f, quiet=False):
         return _extract_yaml_items(f, key, quiet=quiet)
     _process_items(
@@ -1326,7 +1326,7 @@ def yaml_mode(
         max_length,
         process_output,
         'YAML',
-        'YAML values extracted successfully.',
+        'YAML values gotten successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1377,7 +1377,7 @@ def count_mode(
     else:
         # Default mode for counting individual words
         for input_file in input_files:
-            # Use the shared extraction logic to support custom delimiters and smart splitting
+            # Use the shared logic for getting data to support custom delimiters and smart splitting
             words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
             for word in words_gen:
                 raw_count += 1
@@ -1611,7 +1611,7 @@ def classify_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Categorizes typo corrections based on their error type.
+    Groups typo corrections based on their error type.
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
@@ -1679,7 +1679,7 @@ def stats_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Calculates and displays statistics for items or paired data.
+    Shows statistics for items or paired data.
     """
     start_time = time.perf_counter()
     # 1. Collect Items
@@ -1924,7 +1924,7 @@ def conflict_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies typos that are associated with more than one unique correction.
+    Finds typos that are associated with more than one unique correction.
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
@@ -1975,7 +1975,7 @@ def cycles_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies repeated loops in typo-correction pairs.
+    Finds repeated loops in typo-correction pairs.
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
@@ -2001,7 +2001,7 @@ def cycles_mode(
 
             def walk(node):
                 if node in path_set:
-                    # Found a cycle! Extract it from the current path.
+                    # Found a cycle! Get it from the current path.
                     idx = path_list.index(node)
                     cycle_nodes = path_list[idx:]
                     
@@ -2310,7 +2310,7 @@ def casing_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies words that appear with inconsistent capitalization.
+    Finds words that appear with inconsistent capitalization.
     """
     start_time = time.perf_counter()
     raw_item_count = 0
@@ -2369,7 +2369,7 @@ def diff_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies added, removed, and changed items between two files or lists.
+    Finds added, removed, and changed items between two files or lists.
     """
     start_time = time.perf_counter()
     if pairs:
@@ -2500,7 +2500,7 @@ def repeated_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies consecutive identical words.
+    Finds consecutive identical words.
     """
     start_time = time.perf_counter()
     results = list(_extract_repeated_items(
@@ -2549,14 +2549,14 @@ def discovery_mode(
     smart: bool = False,
 ) -> None:
     """
-    Identifies potential typos by comparing rare words to frequent words.
+    Finds potential typos by comparing rare words to frequent words.
     """
     start_time = time.perf_counter()
     word_counts = Counter()
     raw_item_count = 0
 
     for input_file in input_files:
-        # Use the shared extraction logic to support custom delimiters and smart splitting
+        # Use the shared logic for getting data to support custom delimiters and smart splitting
         words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
         for word in words_gen:
             raw_item_count += 1
@@ -2565,7 +2565,7 @@ def discovery_mode(
             if filtered:
                 word_counts.update(filtered)
 
-    # Identify rare and frequent words
+    # Find rare and frequent words
     rare_words = sorted([word for word, count in word_counts.items() if count <= rare_max])
     frequent_words = sorted([word for word, count in word_counts.items() if count >= freq_min], key=len)
 
@@ -2624,7 +2624,7 @@ def csv_mode(
     limit: int | None = None,
     columns: List[int] | None = None,
 ) -> None:
-    """Wrapper for extracting fields from CSV files."""
+    """Wrapper for getting fields from CSV files."""
     def extractor(f, quiet=False):
         return _extract_csv_items(
             f, first_column, delimiter, quiet=quiet, columns=columns
@@ -2637,7 +2637,7 @@ def csv_mode(
         max_length,
         process_output,
         'CSV',
-        'CSV fields extracted successfully.',
+        'CSV fields gotten successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -2686,7 +2686,7 @@ def words_mode(
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Wrapper for extracting individual words from file(s)."""
+    """Wrapper for getting individual words from file(s)."""
     def extractor(f, quiet=False):
         return _extract_words_items(f, delimiter=delimiter, quiet=quiet, smart=smart)
     _process_items(
@@ -2697,7 +2697,7 @@ def words_mode(
         max_length,
         process_output,
         'Words',
-        'Words extracted successfully.',
+        'Words gotten successfully.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -3141,7 +3141,7 @@ def resolve_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies and flattens chains of typo corrections to their terminal values.
+    Finds and flattens chains of typo corrections to their terminal values.
     """
     start_time = time.perf_counter()
     raw_pairs = list(_extract_pairs(input_files, quiet=quiet))
@@ -3207,7 +3207,7 @@ def sample_mode(
     """Randomly sample lines from the input file(s)."""
     start_time = time.perf_counter()
 
-    # Extract raw items first
+    # Get raw items first
     raw_items = [
         item for input_file in input_files
         for item in _extract_line_items(input_file, quiet=quiet)
@@ -3256,7 +3256,7 @@ def regex_mode(
     quiet: bool = False,
     limit: int | None = None,
 ) -> None:
-    """Wrapper for extracting text matching a regex pattern."""
+    """Wrapper for getting text matching a regex pattern."""
     # Regex mode skips the default 'clean_and_filter' (to lower, letters only)
     # because users often want exact matches (for example Emails, URLs, IDs).
     # Users can still use --process-output to sort/dedup, but we don't force lowercase/clean.
@@ -3270,7 +3270,7 @@ def regex_mode(
         max_length,
         process_output,
         'Regex',
-        'Regex matches extracted successfully.',
+        'Regex matches gotten successfully.',
         output_format,
         quiet,
         clean_items=False,
@@ -3291,7 +3291,7 @@ def _resolve_full_mapping(
     quiet: bool = False,
 ) -> dict[str, str]:
     """
-    Merge a mapping file with ad-hoc pairs from the command line.
+    Merge a mapping file with extra pairs from the command line.
     """
     full_mapping = {}
 
@@ -3317,7 +3317,7 @@ def _resolve_full_mapping(
                 else:
                     full_mapping[content] = ""
 
-    # 2. Add ad-hoc pairs (e.g., "teh:the" or "old:new")
+    # 2. Add extra pairs (for example, "teh:the" or "old:new")
     if ad_hoc_pairs:
         for pair in ad_hoc_pairs:
             if ":" in pair:
@@ -3356,7 +3356,7 @@ def map_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Transforms items based on a mapping file or ad-hoc pairs.
+    Transforms items based on a mapping file or extra pairs.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -3513,7 +3513,7 @@ def standardize_mode(
                             if min_length <= len(sp_norm) <= max_length:
                                 variation_counts[sp_norm][sp] += 1
 
-    # Pass 2: Identify "winners" and build mapping
+    # Pass 2: Find "winners" and build mapping
     mapping = {}
 
     # 2a: Determine the best casing variation for each normalized word
@@ -3662,7 +3662,7 @@ def scrub_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Performs replacements of typos in text files based on a mapping file or ad-hoc pairs.
+    Runs replacements of typos in text files based on a mapping file or extra pairs.
     Supports in-place modification and dry-run preview.
     """
     start_time = time.perf_counter()
@@ -3671,7 +3671,7 @@ def scrub_mode(
 
     total_replacements = 0
     # Pattern for splitting lines into words and non-words (delimiters)
-    # This ensures we preserve whitespace and punctuation exactly.
+    # This ensures we keep whitespace and punctuation exactly.
     pattern = re.compile(r'([a-zA-Z0-9]+)')
 
     # If in_place, we process each file individually.
@@ -3765,7 +3765,7 @@ def rename_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Renames files and directories using a mapping file or ad-hoc pairs.
+    Renames files and directories using a mapping file or extra pairs.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -3845,7 +3845,7 @@ def highlight_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Highlights words from a mapping file or ad-hoc pairs within the input text files.
+    Highlights words from a mapping file or extra pairs within the input text files.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -3930,7 +3930,7 @@ def scan_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Scans files for occurrences of words from a mapping file or ad-hoc pairs, providing context.
+    Scans files for occurrences of words from a mapping file or extra pairs, providing context.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -4058,7 +4058,7 @@ def _add_common_mode_arguments(
     )
 
     # Input/Output Group
-    io_group = subparser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
+    io_group = subparser.add_argument_group(f"{BLUE}INPUT AND OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         '-i', '--input',
         dest='input_files_flag',
@@ -4089,7 +4089,7 @@ def _add_common_mode_arguments(
     )
 
     # Processing Configuration Group
-    proc_group = subparser.add_argument_group(f"{BLUE}PROCESSING OPTIONS{RESET}")
+    proc_group = subparser.add_argument_group(f"{BLUE}OPTIONS FOR PROCESSING DATA{RESET}")
     proc_group.add_argument(
         '-m', '--min-length',
         type=int,
@@ -4221,7 +4221,7 @@ def set_operation_mode(
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Perform set operations (intersection, union, difference) between input files (merged) and a second file."""
+    """Run set operations (intersection, union, difference) between input files (merged) and a second file."""
     start_time = time.perf_counter()
     allowed_operations = {'intersection', 'union', 'difference'}
     if operation not in allowed_operations:
@@ -4270,13 +4270,13 @@ def set_operation_mode(
 
 MODE_DETAILS = {
     "arrow": {
-        "summary": "Extracts text from lines with arrows (->).",
+        "summary": "Gets text from lines with arrows (->).",
         "description": "Finds text in lines that use arrows (like 'typo -> correction'). It saves the left side by default. Use --right to save the right side instead.",
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
         "flags": "[--right]",
     },
     "table": {
-        "summary": "Extracts text from table-style entries (key = \"value\").",
+        "summary": "Gets text from table-style entries (key = \"value\").",
         "description": "Gets keys or values from entries like 'key = \"value\"'. It saves the key by default. Use --right to save the quoted value instead.",
         "example": "python multitool.py table typos.toml --right -o corrections.txt",
         "flags": "[--right]",
@@ -4289,43 +4289,43 @@ MODE_DETAILS = {
     },
     "unique": {
         "summary": "Removes duplicates while keeping the original order.",
-        "description": "Removes duplicate items from your list. Unlike 'combine', it preserves the order in which items first appeared in your files.",
+        "description": "Removes duplicate items from your list. Unlike 'combine', it keeps the order in which items first appeared in your files.",
         "example": "python multitool.py unique raw_typos.txt --output clean_typos.txt",
         "flags": "",
     },
     "backtick": {
-        "summary": "Extracts text found inside backticks.",
+        "summary": "Gets text found inside backticks.",
         "description": "Finds text inside backticks (like `code`). It prioritizes items near words like 'error' or 'warning' to find the most relevant data.",
         "example": "python multitool.py backtick build.log --output suspects.txt",
         "flags": "",
     },
     "csv": {
-        "summary": "Extracts specific columns from a CSV file.",
-        "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
+        "summary": "Gets specific columns from a CSV file.",
+        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
         "example": "python multitool.py csv typos.csv --column 2 -o corrections.txt",
         "flags": "[--first-column] [--column NUMBER]",
     },
     "markdown": {
-        "summary": "Extracts items from Markdown bulleted lists.",
-        "description": "Finds text in lines starting with -, *, or +. It can also split items by ':' or '->' to extract one side of a pair (use --right for the second part).",
+        "summary": "Gets items from Markdown bulleted lists.",
+        "description": "Finds text in lines starting with -, *, or +. It can also split items by ':' or '->' to get one side of a pair (use --right for the second part).",
         "example": "python multitool.py markdown notes.md --output items.txt",
         "flags": "[--right]",
     },
     "md-table": {
-        "summary": "Extracts text from Markdown tables.",
+        "summary": "Gets text from Markdown tables.",
         "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers. It automatically skips header and divider rows.",
         "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
         "flags": "[--right] [--column NUMBER]",
     },
     "json": {
-        "summary": "Extracts values from a JSON file using an optional key.",
-        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it extracts items from the top level. It automatically handles lists of objects.",
+        "summary": "Gets values from a JSON file using an optional key.",
+        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it gets items from the top level. It automatically handles lists of objects.",
         "example": "python multitool.py json list.json -o items.txt",
         "flags": "[-k KEY]",
     },
     "yaml": {
-        "summary": "Extracts values from a YAML file using an optional key.",
-        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it extracts items from the top level. It automatically handles lists.",
+        "summary": "Gets values from a YAML file using an optional key.",
+        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it gets items from the top level. It automatically handles lists.",
         "example": "python multitool.py yaml list.yaml -o items.txt",
         "flags": "[-k KEY]",
     },
@@ -4336,15 +4336,15 @@ MODE_DETAILS = {
         "flags": "",
     },
     "words": {
-        "summary": "Extracts individual words from a file.",
+        "summary": "Gets individual words from a file.",
         "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use --smart to split by capital letters and symbols.",
         "example": "python multitool.py words report.txt --smart --output wordlist.txt",
         "flags": "[-d DELIMITER] [--smart]",
     },
     "ngrams": {
-        "summary": "Extracts sequences of N words.",
-        "description": "Extracts sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
-        "example": "python multitool.py ngrams report.txt -n 2 --smart --output phrases.txt",
+        "summary": "Gets sequences of N words.",
+        "description": "Gets sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
+        "example": "python multitool.py ngrams report.txt -n i -n 2 --smart --output phrases.txt",
         "flags": "[-n N] [-d DELIMITER] [--smart]",
     },
     "count": {
@@ -4379,13 +4379,13 @@ MODE_DETAILS = {
     },
     "regex": {
         "summary": "Finds text that matches a pattern (regular expression).",
-        "description": "Finds and extracts all text that matches a Python regular expression pattern.",
+        "description": "Finds and gets all text that matches a Python regular expression pattern.",
         "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
         "flags": "[-r PATTERN]",
     },
     "map": {
-        "summary": "Replaces items using a mapping file or ad-hoc pairs.",
-        "description": "Replaces items in your list with new values from a mapping file or ad-hoc pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
+        "summary": "Replaces items using a mapping file or extra pairs.",
+        "description": "Replaces items in your list with new values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart-case] [--pairs]",
     },
@@ -4409,7 +4409,7 @@ MODE_DETAILS = {
     },
     "conflict": {
         "summary": "Finds typos that have multiple different corrections.",
-        "description": "Identifies typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.",
+        "description": "Finds typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.",
         "example": "python multitool.py conflict typos.csv --output-format arrow --output conflicts.txt",
         "flags": "",
     },
@@ -4421,24 +4421,24 @@ MODE_DETAILS = {
     },
     "near_duplicates": {
         "summary": "Finds similar words in a single list.",
-        "description": "Identifies pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
+        "description": "Finds pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
         "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
         "flags": "[--max-dist N --show-dist]",
     },
     "fuzzymatch": {
         "summary": "Finds similar words between two lists.",
-        "description": "Identifies words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
+        "description": "Finds words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
         "example": "python multitool.py fuzzymatch typos.txt dictionary.txt --max-dist 1 --show-dist",
         "flags": "[FILE2] [--max-dist N --show-dist]",
     },
     "stats": {
-        "summary": "Calculates detailed statistics for a typo list.",
+        "summary": "Shows detailed statistics for a typo list.",
         "description": "Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[--pairs]",
     },
     "classify": {
-        "summary": "Categorizes typo corrections based on their error type.",
+        "summary": "Groups typo corrections based on their error type.",
         "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, and [M] Multiple letters. Use --show-dist to include the number of character changes.",
         "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
         "flags": "[--show-dist]",
@@ -4450,20 +4450,20 @@ MODE_DETAILS = {
         "flags": "[--rare-max N] [--freq-min N] [--max-dist N] [-d DELIM] [--smart]",
     },
     "casing": {
-        "summary": "Identifies words with inconsistent capitalization.",
-        "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.",
+        "summary": "Finds words with inconsistent capitalization.",
+        "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for finding inconsistent naming or typos that differ only by case.",
         "example": "python multitool.py casing report.txt --smart --output-format arrow",
         "flags": "[-d DELIMITER] [--smart]",
     },
     "cycles": {
-        "summary": "Identifies loops in typo-correction pairs.",
+        "summary": "Finds loops in typo-correction pairs.",
         "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues during automated scrubbing and represent logic errors in your data.",
         "example": "python multitool.py cycles typos.csv --output-format arrow",
         "flags": "",
     },
     "repeated": {
         "summary": "Finds consecutive identical words.",
-        "description": "Identifies doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
+        "description": "Finds doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
         "example": "python multitool.py repeated report.txt --smart --output-format arrow",
         "flags": "[-d DELIMITER] [--smart]",
     },
@@ -4480,38 +4480,38 @@ MODE_DETAILS = {
         "flags": "QUERY [FILES...] [-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
     },
     "scan": {
-        "summary": "Scans for words or typos from a file or ad-hoc pairs.",
+        "summary": "Scans for words or typos from a file or extra pairs.",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
         "example": "python multitool.py scan . --add teh:the --smart",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
     "scrub": {
-        "summary": "Replaces typos in text files based on a mapping or ad-hoc pairs.",
-        "description": "Performs in-place replacements of typos in your text files using a mapping file or ad-hoc pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
+        "summary": "Replaces typos in text files based on a mapping or extra pairs.",
+        "description": "Runs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to keep the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --output fixed.txt",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE]",
     },
     "rename": {
-        "summary": "Renames files and directories using a mapping file or ad-hoc pairs.",
-        "description": "Renames files or directories based on a typo mapping or ad-hoc pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
+        "summary": "Renames files and directories using a mapping file or extra pairs.",
+        "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It keeps the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
         "example": "python multitool.py rename src/**/* --add teh:the --in-place",
         "flags": "[MAPPING] [FILES...] [--add KEY:VALUE] [--in-place] [--dry-run] [--smart-case]",
     },
     "diff": {
         "summary": "Finds added, removed, or changed items between files.",
-        "description": "Identifies differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what's new (+), what's gone (-), and what changed (~).",
+        "description": "Finds differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what's new (+), what's gone (-), and what changed (~).",
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
         "flags": "[FILE2] [--pairs]",
     },
     "highlight": {
-        "summary": "Highlights words from a file or ad-hoc pairs.",
-        "description": "Searches for words from a mapping file or ad-hoc pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
+        "summary": "Highlights words from a file or extra pairs.",
+        "description": "Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
         "example": "python multitool.py highlight input.txt --add teh:the",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
     "resolve": {
         "summary": "Flattens chains of typo corrections.",
-        "description": "Identifies and flattens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of scrubbing and analysis.",
+        "description": "Finds and flattens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of scrubbing and analysis.",
         "example": "python multitool.py resolve mappings.csv --output resolved.csv",
         "flags": "",
     },
@@ -4521,9 +4521,9 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "Manipulation": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
-        "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
+        "Getting Data": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
+        "Changing Data": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "Checking Data": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
     }
 
     lines = []
@@ -4642,16 +4642,16 @@ class ModeHelpAction(argparse.Action):
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    # Build a categorized mode summary for the epilog
+    # Build a grouped mode summary for the epilog
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
-        description="A versatile tool for cleaning, extracting, and analyzing text files.",
+        description="A multipurpose tool for cleaning, getting, and checking text files.",
         epilog=dedent(
             f"""
             {BLUE}Examples:{RESET}
               {GREEN}python multitool.py --mode-help{RESET}             # Show a summary of every mode
-              {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV extraction mode
+              {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV mode
               {GREEN}python multitool.py arrow file.txt{RESET}          # Run a specific mode
             """
         ).strip() + "\n\n" + mode_summary,
@@ -4668,7 +4668,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     # Input/Output Group
-    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
+    io_group = parser.add_argument_group(f"{BLUE}INPUT AND OUTPUT OPTIONS{RESET}")
     io_group.add_argument(
         '-o', '--output',
         type=str,
@@ -4690,7 +4690,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     # Processing Options Group
-    proc_group = parser.add_argument_group(f"{BLUE}PROCESSING OPTIONS{RESET}")
+    proc_group = parser.add_argument_group(f"{BLUE}OPTIONS FOR PROCESSING DATA{RESET}")
     proc_group.add_argument(
         '-m', '--min-length',
         type=int,
@@ -4738,7 +4738,7 @@ def _build_parser() -> argparse.ArgumentParser:
     arrow_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the right side (correction) instead of the left side (typo).",
+        help="Get the right side (correction) instead of the left side (typo).",
     )
     _add_common_mode_arguments(arrow_parser)
 
@@ -4753,7 +4753,7 @@ def _build_parser() -> argparse.ArgumentParser:
     table_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the value (right side) instead of the key (left side).",
+        help="Get the value (right side) instead of the key (left side).",
     )
     _add_common_mode_arguments(table_parser)
 
@@ -4777,7 +4777,7 @@ def _build_parser() -> argparse.ArgumentParser:
     csv_options.add_argument(
         '--first-column',
         action='store_true',
-        help='Extract the first column instead of subsequent columns.',
+        help='Get the first column instead of subsequent columns.',
     )
     csv_options.add_argument(
         '-d', '--delimiter',
@@ -4791,7 +4791,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         nargs='+',
         metavar='NUMBER',
-        help='One or more 0-based column numbers to extract.',
+        help='One or more 0-based column numbers to get.',
     )
     _add_common_mode_arguments(csv_parser)
 
@@ -4806,7 +4806,7 @@ def _build_parser() -> argparse.ArgumentParser:
     markdown_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the right side of a pair (split by ':' or '->') instead of the left side.",
+        help="Get the right side of a pair (split by ':' or '->') instead of the left side.",
     )
     _add_common_mode_arguments(markdown_parser)
 
@@ -4821,7 +4821,7 @@ def _build_parser() -> argparse.ArgumentParser:
     md_table_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the second column instead of the first.",
+        help="Get the second column instead of the first.",
     )
     md_table_options.add_argument(
         '-c', '--column',
@@ -4829,7 +4829,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         nargs='+',
         metavar='NUMBER',
-        help='One or more 0-based column numbers to extract.',
+        help='One or more 0-based column numbers to get.',
     )
     _add_common_mode_arguments(md_table_parser)
 
@@ -4845,7 +4845,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-k', '--key',
         type=str,
         default='',
-        help="The key path to extract (for example 'items.name'). If omitted, extracts from the top level.",
+        help="The key path to get (for example 'items.name'). If not provided, it gets items from the top level.",
     )
     _add_common_mode_arguments(json_parser)
 
@@ -4861,7 +4861,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-k', '--key',
         type=str,
         default='',
-        help="The key path to extract (for example 'config.items'). If omitted, extracts from the top level.",
+        help="The key path to get (for example 'config.items'). If not provided, it gets items from the top level.",
     )
     _add_common_mode_arguments(yaml_parser)
 
@@ -5068,7 +5068,7 @@ def _build_parser() -> argparse.ArgumentParser:
     stats_options.add_argument(
         '-p', '--pairs',
         action='store_true',
-        help="Perform pair-level analysis (typos vs corrections) in addition to item-level stats.",
+        help="Run pair-level analysis (typos vs corrections) in addition to item-level stats.",
     )
     _add_common_mode_arguments(stats_parser, include_process_output=False)
 
@@ -5238,7 +5238,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         choices=['intersection', 'union', 'difference'],
         required=True,
-        help='Set operation to perform between the two files.',
+        help='Set operation to run between the two files.',
     )
     _add_common_mode_arguments(set_parser)
 
@@ -5347,7 +5347,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     map_options.add_argument(
         '--drop-missing',
@@ -5386,7 +5386,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     scrub_options.add_argument(
         '--in-place',
@@ -5427,12 +5427,12 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     rename_options.add_argument(
         '--in-place',
         action='store_true',
-        help="Perform the actual renaming of files and directories.",
+        help="Run the actual renaming of files and directories.",
     )
     rename_options.add_argument(
         '--dry-run',
@@ -5555,7 +5555,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     highlight_options.add_argument(
         '-S', '--smart',
@@ -5584,7 +5584,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     scan_options.add_argument(
         '-S', '--smart',
@@ -5743,7 +5743,7 @@ def main() -> None:
         sys.exit(1)
     if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'} and \
        getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
-        logging.error(f"{args.mode.capitalize()} mode requires a mapping file or ad-hoc pairs (use --mapping or --add).")
+        logging.error(f"{args.mode.capitalize()} mode requires a mapping file or extra pairs (use --mapping or --add).")
         sys.exit(1)
     if args.mode == 'search' and getattr(args, 'query', None) is None:
         logging.error("Search mode requires a search query (provide QUERY positionally or use --query).")

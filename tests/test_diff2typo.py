@@ -495,3 +495,14 @@ def test_main_default_values_preserved(monkeypatch):
     assert args.dictionary_file == 'words.csv'
     assert args.allowed_file == 'allowed.csv'
     assert args.typos_tool_path == 'typos'
+
+
+def test_process_new_corrections_with_empty_set():
+    """
+    Test that process_new_corrections identifies new corrections
+    even if the typo is mapped to an empty set of corrections.
+    """
+    words_mapping = {'teh': set()}
+    candidates = ['teh -> the']
+    result = diff2typo.process_new_corrections(candidates, words_mapping, quiet=True)
+    assert result == ['teh -> the']

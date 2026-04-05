@@ -148,6 +148,15 @@ def test_process_new_corrections_dedup_and_sort():
     assert result == ['teh -> thea', 'teh -> thee']
 
 
+def test_process_new_corrections_with_empty_set():
+    # If before is in mapping but has an empty set of corrections
+    words_mapping = {'teh': set()}
+    candidates = ['teh -> the']
+    result = diff2typo.process_new_corrections(candidates, words_mapping, quiet=True)
+    # It should still be identified as a new correction
+    assert result == ['teh -> the']
+
+
 def test_read_words_mapping_file_not_found(tmp_path, caplog):
     with caplog.at_level(logging.WARNING):
         result = diff2typo.read_words_mapping(str(tmp_path / 'missing.csv'), required=False)

@@ -537,7 +537,7 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
         if '->' in candidate:
             before, after = [s.strip().lower() for s in candidate.split('->')]
             # Only consider cases where the "before" word is already known in the mapping as a typo.
-            if words_mapping.get(before):
+            if before in words_mapping:
                 if after not in words_mapping[before]:
                     new_corrections.append(f"{before} -> {after}")
     if progress:

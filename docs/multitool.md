@@ -16,7 +16,7 @@ Most modes default to reading from **standard input** if you do not specify an i
 
 Multitool operates in different "modes," each designed for a specific task.
 
-### 1. Getting Data
+### 1. GETTING DATA
 
 These modes help you pull specific data out of a messy file.
 
@@ -69,7 +69,7 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Finds text matching a Python regular expression pattern. Unlike other modes, it **keeps the original text** (it does not convert to lowercase or remove punctuation) by default.
   - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`
 
-### 2. Changing Data
+### 2. CHANGING DATA
 
 These modes help you transform or combine your data.
 
@@ -142,7 +142,7 @@ These modes help you transform or combine your data.
   - **Options:**
     - Supports `--in-place` editing and `--dry-run` preview.
     - Works with standard filters like `--min-length` and `--max-length`.
-  - **Example:** `python multitool.py standardize . --in-place --min-length 4`
+  - **Example:** `python multitool.py standardize "**/*" --in-place --min-length 4`
 
 - **`highlight`**
   - **What it does:** Searches for words from a list or mapping and colors them in the output. This is useful as a preview before using the `scrub` mode to make permanent changes.
@@ -154,7 +154,7 @@ These modes help you transform or combine your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
   - **Example:** `python multitool.py pairs typos.json --output-format csv`
 
-### 3. Checking Data
+### 3. CHECKING DATA
 
 These modes help you analyze your data.
 

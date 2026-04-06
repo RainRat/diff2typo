@@ -112,7 +112,7 @@ def test_main_entry_point():
         text=True,
         check=True
     )
-    assert "A multipurpose tool" in result.stdout
+    assert "A multipurpose tool for cleaning, getting, and checking text files." in result.stdout
 
 def test_count_mode_arrow_to_file_header_coverage(tmp_path):
     """Cover lines 1471-1472: header colors when outputting to a file in count_mode arrow."""

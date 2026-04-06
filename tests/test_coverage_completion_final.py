@@ -3,6 +3,7 @@ import sys
 import shutil
 import logging
 import io
+import re
 from unittest.mock import patch, MagicMock
 import pytest
 from pathlib import Path
@@ -79,25 +80,20 @@ def test_scrub_mode_backup_fail(tmp_path, caplog):
                 assert "Failed to create backup" in caplog.text
 
 def test_standardize_mode_no_changes(tmp_path, caplog):
-    """Cover multitool.py line 3575: no changes needed in standardize mode with --in-place."""
+    """Cover multitool.py line 3622: no changes needed in standardize mode with --in-place."""
     input_file = tmp_path / "input.txt"
-    input_file.write_text("apple apple")
 
-    # We need to force it to pass the 'if winner_map:' check at line 3522
-    # but still have 0 replacements at line 3551.
-    # Standardize mode works by finding the most frequent variation.
-    # If all variations are the same, winner_map will be empty and it returns early at 3522.
-    # So we need at least TWO variations, but maybe in DIFFERENT files,
-    # so that one file has no changes needed.
+    # We need to find inconsistencies overall so mapping is not empty,
+    # but one file should already be standardized.
+    file1 = tmp_path / "file1.txt"
+    file1.write_text("Apple Apple Apple apple") # apple (1) vs Apple (3) -> Apple wins
 
-    file2 = tmp_path / "other.txt"
-    file2.write_text("Apple Apple Apple") # Apple is winner overall
-
-    input_file.write_text("Apple Apple") # This file already uses the winner
+    file2 = tmp_path / "file2.txt"
+    file2.write_text("Apple Apple") # This file already uses the winner
 
     with caplog.at_level(logging.INFO):
         multitool.standardize_mode(
-            input_files=[str(input_file), str(file2)],
+            input_files=[str(file1), str(file2)],
             output_file='-',
             min_length=1,
             max_length=100,
@@ -105,7 +101,8 @@ def test_standardize_mode_no_changes(tmp_path, caplog):
             in_place=".bak",
             quiet=False
         )
-        assert f"No changes needed for '{input_file}'." in caplog.text
+        # file2 should trigger the "No changes needed" log
+        assert f"No changes needed for '{file2}'." in caplog.text
 
 def test_standardize_mode_backup_fail(tmp_path, caplog):
     """Cover multitool.py lines 3560-3562: backup failure in standardize mode."""
@@ -188,7 +185,7 @@ def test_rename_mode_dry_run_logging(tmp_path, caplog):
         assert "Total renames that would be made: 1" in caplog.text
 
 def test_mode_help_action_usage_formatting(capsys):
-    """Cover multitool.py line 4581: USAGE formatting for modes with positional labels."""
+    """Cover multitool.py line 4628: USAGE formatting for modes with positional labels."""
     # We trigger the ModeHelpAction by calling the parser
     with patch("sys.argv", ["multitool.py", "--mode-help", "search"]):
         with pytest.raises(SystemExit):
@@ -196,7 +193,9 @@ def test_mode_help_action_usage_formatting(capsys):
 
     captured = capsys.readouterr()
     output = captured.err + captured.out
-    assert "USAGE:       python multitool.py search QUERY [FILES...] [FLAGS]" in output
+    # Strip ANSI codes for comparison
+    clean_output = re.sub(r'\x1b\[[0-9;]*m', '', output)
+    assert "USAGE:       python multitool.py search QUERY [FILES...] [FLAGS]" in clean_output
 
 def test_main_search_fallback(tmp_path):
     """Cover multitool.py lines 5673-5674: main() search mode fallbacks."""
@@ -231,7 +230,7 @@ def test_diff2typo_compare_identical_words():
         assert len(result) == 1
 
 def test_resolve_full_mapping_non_existent_file(caplog):
-    """Cover multitool.py line 557: _read_file_lines_robust error handling."""
+    """Cover multitool.py line 265: _read_file_lines_robust error handling."""
     with caplog.at_level(logging.ERROR):
         # We need to call something that uses _read_file_lines_robust via _resolve_full_mapping
         # but with a file that doesn't exist.
@@ -239,4 +238,4 @@ def test_resolve_full_mapping_non_existent_file(caplog):
         with pytest.raises(SystemExit) as excinfo:
             multitool._resolve_full_mapping("non_existent_file.txt", None, False)
         assert excinfo.value.code == 1
-        assert "Input file 'non_existent_file.txt' not found" in caplog.text
+        assert "Input file 'non_existent_file.txt' not found." in caplog.text

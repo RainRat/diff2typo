@@ -261,6 +261,10 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     lines = []
     used_encoding = 'utf-8'
 
+    if not path == '-' and not os.path.exists(path):
+        logging.error(f"Input file '{path}' not found.")
+        sys.exit(1)
+
     if path == '-':
         if _STDIN_CACHE is not None:
             logging.info("Using cached standard input...")
@@ -3531,8 +3535,6 @@ def standardize_mode(
 
         for i, frequent in enumerate(sorted_norms):
             f_count = norm_totals[frequent]
-            if f_count == 0:
-                continue
 
             for j in range(i + 1, len(sorted_norms)):
                 rare = sorted_norms[j]
@@ -3540,8 +3542,6 @@ def standardize_mode(
                     continue
 
                 r_count = norm_totals[rare]
-                if r_count == 0:
-                    continue
 
                 # Only consider if the frequent word is significantly more common
                 if f_count >= r_count * threshold:
@@ -4270,13 +4270,13 @@ def set_operation_mode(
 
 MODE_DETAILS = {
     "arrow": {
-        "summary": "Extracts text from lines with arrows (->).",
+        "summary": "Gets text from lines with arrows (->).",
         "description": "Finds text in lines that use arrows (like 'typo -> correction'). It saves the left side by default. Use --right to save the right side instead.",
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
         "flags": "[--right]",
     },
     "table": {
-        "summary": "Extracts text from table-style entries (key = \"value\").",
+        "summary": "Gets text from table-style entries (key = \"value\").",
         "description": "Gets keys or values from entries like 'key = \"value\"'. It saves the key by default. Use --right to save the quoted value instead.",
         "example": "python multitool.py table typos.toml --right -o corrections.txt",
         "flags": "[--right]",
@@ -4294,37 +4294,37 @@ MODE_DETAILS = {
         "flags": "",
     },
     "backtick": {
-        "summary": "Extracts text found inside backticks.",
+        "summary": "Gets text found inside backticks.",
         "description": "Finds text inside backticks (like `code`). It prioritizes items near words like 'error' or 'warning' to find the most relevant data.",
         "example": "python multitool.py backtick build.log --output suspects.txt",
         "flags": "",
     },
     "csv": {
-        "summary": "Extracts specific columns from a CSV file.",
+        "summary": "Gets specific columns from a CSV file.",
         "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
         "example": "python multitool.py csv typos.csv --column 2 -o corrections.txt",
         "flags": "[--first-column] [--column NUMBER]",
     },
     "markdown": {
-        "summary": "Extracts items from Markdown bulleted lists.",
+        "summary": "Gets items from Markdown bulleted lists.",
         "description": "Finds text in lines starting with -, *, or +. It can also split items by ':' or '->' to extract one side of a pair (use --right for the second part).",
         "example": "python multitool.py markdown notes.md --output items.txt",
         "flags": "[--right]",
     },
     "md-table": {
-        "summary": "Extracts text from Markdown tables.",
+        "summary": "Gets text from Markdown tables.",
         "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers. It automatically skips header and divider rows.",
         "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
         "flags": "[--right] [--column NUMBER]",
     },
     "json": {
-        "summary": "Extracts values from a JSON file using an optional key.",
+        "summary": "Gets values from a JSON file using an optional key.",
         "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it extracts items from the top level. It automatically handles lists of objects.",
         "example": "python multitool.py json list.json -o items.txt",
         "flags": "[-k KEY]",
     },
     "yaml": {
-        "summary": "Extracts values from a YAML file using an optional key.",
+        "summary": "Gets values from a YAML file using an optional key.",
         "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it extracts items from the top level. It automatically handles lists.",
         "example": "python multitool.py yaml list.yaml -o items.txt",
         "flags": "[-k KEY]",
@@ -4336,13 +4336,13 @@ MODE_DETAILS = {
         "flags": "",
     },
     "words": {
-        "summary": "Extracts individual words from a file.",
+        "summary": "Gets individual words from a file.",
         "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use --smart to split by capital letters and symbols.",
         "example": "python multitool.py words report.txt --smart --output wordlist.txt",
         "flags": "[-d DELIMITER] [--smart]",
     },
     "ngrams": {
-        "summary": "Extracts sequences of N words.",
+        "summary": "Gets sequences of N words.",
         "description": "Extracts sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
         "example": "python multitool.py ngrams report.txt -n 2 --smart --output phrases.txt",
         "flags": "[-n N] [-d DELIMITER] [--smart]",
@@ -4521,9 +4521,9 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "Extraction": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "Manipulation": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
-        "Analysis": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
+        "GETTING DATA": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
+        "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
     }
 
     lines = []
@@ -4646,7 +4646,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
-        description="A versatile tool for cleaning, extracting, and analyzing text files.",
+        description="A multipurpose tool for cleaning, getting, and checking text files.",
         epilog=dedent(
             f"""
             {BLUE}Examples:{RESET}

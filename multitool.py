@@ -4044,6 +4044,125 @@ def scan_mode(
     )
 
 
+def verify_mode(
+    input_files: Sequence[str],
+    mapping_file: str | None,
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    smart: bool = False,
+    prune: bool = False,
+    ad_hoc: List[str] | None = None,
+) -> None:
+    """
+    Identifies which entries in a mapping file are present in the provided input files.
+    """
+    start_time = time.perf_counter()
+    # Load and merge mappings
+    mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
+
+    if not mapping:
+        logging.error("No mapping provided to verify. Use --mapping or --add.")
+        sys.exit(1)
+
+    found_keys = set()
+    pattern = re.compile(r'([a-zA-Z0-9]+)')
+    total_keys = len(mapping)
+
+    for input_file in input_files:
+        if len(found_keys) == total_keys:
+            break
+
+        file_lines = _read_file_lines_robust(input_file)
+        for line in tqdm(file_lines, desc=f"Verifying {input_file}", unit=" lines", disable=quiet):
+            parts = pattern.findall(line)
+            for part in parts:
+                match_key = filter_to_letters(part) if clean_items else part
+                if match_key in mapping:
+                    found_keys.add(match_key)
+                    if len(found_keys) == total_keys:
+                        break
+
+                if smart:
+                    sub_parts = _smart_split(part)
+                    for sp in sub_parts:
+                        sm_key = filter_to_letters(sp) if clean_items else sp
+                        if sm_key in mapping:
+                            found_keys.add(sm_key)
+                            if len(found_keys) == total_keys:
+                                break
+                    if len(found_keys) == total_keys:
+                        break
+            if len(found_keys) == total_keys:
+                break
+
+    duration = time.perf_counter() - start_time
+    found_count = len(found_keys)
+    missing_count = total_keys - found_count
+
+    if prune:
+        # Output a filtered mapping containing only the found keys
+        results = []
+        for key in sorted(found_keys) if process_output else mapping.keys():
+            if key in found_keys:
+                results.append((key, mapping[key]))
+
+        if limit is not None:
+            results = results[:limit]
+
+        _write_paired_output(
+            results,
+            output_file,
+            'arrow', # Default to arrow for mapping format
+            "Verify (Pruned)",
+            quiet,
+            limit=limit
+        )
+        logging.info(
+            f"[Verify Mode] Pruned mapping saved to '{output_file}'. "
+            f"Kept {found_count} of {total_keys} entries. "
+            f"Processing time: {duration:.3f}s"
+        )
+    else:
+        # Human-readable report
+        report = [
+            f"{BOLD}VERIFICATION REPORT{RESET}",
+            f"{BOLD}───────────────────{RESET}",
+            f"Total entries in mapping: {total_keys}",
+            f"Entries found in files:   {GREEN}{found_count}{RESET}",
+            f"Entries missing:          {RED}{missing_count}{RESET}",
+            "",
+            f"{BOLD}STATUS:{RESET} " + (f"{GREEN}All entries verified.{RESET}" if missing_count == 0 else f"{YELLOW}{found_count}/{total_keys} entries verified.{RESET}"),
+            ""
+        ]
+
+        if missing_count > 0:
+            report.append(f"{BOLD}MISSING ENTRIES:{RESET}")
+            missing_keys = [k for k in mapping.keys() if k not in found_keys]
+            if process_output:
+                missing_keys.sort()
+
+            for i, key in enumerate(missing_keys):
+                if limit is not None and i >= limit:
+                    report.append(f"... and {len(missing_keys) - limit} more.")
+                    break
+                report.append(f"  - {key}")
+
+        with smart_open_output(output_file) as out:
+            for line in report:
+                out.write(line + '\n')
+
+        logging.info(
+            f"[Verify Mode] Verification complete. Found {found_count}/{total_keys} entries. "
+            f"Report written to '{output_file}'. "
+            f"Processing time: {duration:.3f}s"
+        )
+
+
 def _add_common_mode_arguments(
     subparser: argparse.ArgumentParser, include_process_output: bool = True, include_limit: bool = True
 ) -> None:
@@ -4485,6 +4604,12 @@ MODE_DETAILS = {
         "example": "python multitool.py scan . --add teh:the --smart",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
+    "verify": {
+        "summary": "Verifies which entries in a typo mapping exist in your project.",
+        "description": "Checks a mapping file or ad-hoc pairs against your files to see which ones are actually present. Use --prune to output a new mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
+        "example": "python multitool.py verify . --mapping typos.csv --prune",
+        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart] [--prune]",
+    },
     "scrub": {
         "summary": "Replaces typos in text files based on a mapping or ad-hoc pairs.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or ad-hoc pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
@@ -4523,7 +4648,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GETTING DATA": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
         "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan"],
+        "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
     lines = []
@@ -5611,6 +5736,40 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(scan_parser)
 
+    verify_parser = subparsers.add_parser(
+        'verify',
+        help=MODE_DETAILS['verify']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['verify']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['verify']['example']}{RESET}",
+    )
+    verify_options = verify_parser.add_argument_group(f"{BLUE}VERIFY OPTIONS{RESET}")
+    verify_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file or word list.',
+    )
+    verify_options.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Ad-hoc mapping pairs (for example "teh:the") or words to verify.',
+    )
+    verify_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Search for subword matches in larger compound words.',
+    )
+    verify_options.add_argument(
+        '--prune',
+        action='store_true',
+        help='Output a new mapping containing only the found typos.',
+    )
+    _add_common_mode_arguments(verify_parser)
+
     resolve_parser = subparsers.add_parser(
         'resolve',
         help=MODE_DETAILS['resolve']['summary'],
@@ -5715,7 +5874,7 @@ def main() -> None:
                 # Use the only positional argument as the secondary file and read input from stdin.
                 args.file2 = input_paths[0]
                 args.input = ['-']
-    elif args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'}:
+    elif args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan', 'verify'}:
         if getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
             if len(input_paths) >= 2:
                 # For pattern/mapping modes, use the first positional argument as the mapping.
@@ -5741,7 +5900,7 @@ def main() -> None:
     if args.mode in {'zip', 'filterfragments', 'set_operation', 'fuzzymatch', 'diff'} and file2 is None:
         logging.error(f"{args.mode.capitalize()} mode requires a secondary file (provide FILE2 positionally or use --file2).")
         sys.exit(1)
-    if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan'} and \
+    if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan', 'verify'} and \
        getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
         logging.error(f"{args.mode.capitalize()} mode requires a mapping file or ad-hoc pairs (use --mapping or --add).")
         sys.exit(1)
@@ -6156,6 +6315,16 @@ def main() -> None:
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
                 'with_filename': getattr(args, 'with_filename', None),
+            }
+        ),
+        'verify': (
+            verify_mode,
+            {
+                **common_kwargs,
+                'mapping_file': getattr(args, 'mapping', None),
+                'ad_hoc': getattr(args, 'ad_hoc', None),
+                'smart': getattr(args, 'smart', False),
+                'prune': getattr(args, 'prune', False),
             }
         ),
     }

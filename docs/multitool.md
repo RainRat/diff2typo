@@ -255,6 +255,14 @@ These modes help you analyze your data.
   - **Options:** Use the `--mapping` flag to provide a file with typos or words to find. The `--smart` flag allows for finding subwords within larger compound words.
   - **Example:** `python multitool.py scan . --mapping typos.csv --smart`
 
+- **`verify`**
+  - **What it does:** Identifies which entries in a mapping file are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
+  - **Options:**
+    - Use the `--mapping` flag to provide the file containing typos to check.
+    - Use the `--prune` flag to output a new mapping file containing only the typos that were actually found in your project.
+    - Use the `--smart` flag to also find subword matches (for example, finding "teh" inside "tehWord").
+  - **Example:** `python multitool.py verify . --mapping typos.csv --prune`
+
 ## Common Options
 
 These options work with most modes:

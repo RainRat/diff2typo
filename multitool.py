@@ -692,14 +692,18 @@ def _write_paired_output(
             max_right = max(max_right, len(right_header))
 
             # Colors for table
-            c_bold = BOLD if out_file.isatty() else ""
-            c_blue = BLUE if out_file.isatty() else ""
-            c_green = GREEN if out_file.isatty() else ""
-            c_reset = RESET if out_file.isatty() else ""
+            show_color = (out_file.isatty() or os.environ.get('FORCE_COLOR')) and not os.environ.get('NO_COLOR')
+            c_bold = BOLD if show_color else ""
+            c_blue = BLUE if show_color else ""
+            c_green = GREEN if show_color else ""
+            c_yellow = YELLOW if show_color else ""
+            c_reset = RESET if show_color else ""
 
             # Header and divider
             padding = "  "
-            header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} │ {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
+            # Bold the vertical separator
+            sep = f"{c_bold}│{c_reset}"
+            header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} {sep} {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
             # 3 chars for the separator " │ "
             visible_width = max_left + max_right + 3
             divider = f"{padding}{c_bold}{'─' * visible_width}{c_reset}"
@@ -707,7 +711,8 @@ def _write_paired_output(
             out_file.write(f"\n{header}\n")
             out_file.write(f"{divider}\n")
             for left, right in pairs_list:
-                out_file.write(f"{padding}{c_green}{left:<{max_left}}{c_reset} │ {right}\n")
+                # Use green for original items and yellow for target items
+                out_file.write(f"{padding}{c_green}{left:<{max_left}}{c_reset} {sep} {c_yellow}{right}{c_reset}\n")
             out_file.write("\n")
         else:  # 'line' or fallback
             for left, right in pairs_list:

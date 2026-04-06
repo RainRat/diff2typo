@@ -4343,7 +4343,7 @@ MODE_DETAILS = {
     },
     "ngrams": {
         "summary": "Gets sequences of N words.",
-        "description": "Extracts sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
+        "description": "Gets sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
         "example": "python multitool.py ngrams report.txt -n 2 --smart --output phrases.txt",
         "flags": "[-n N] [-d DELIMITER] [--smart]",
     },
@@ -4470,7 +4470,7 @@ MODE_DETAILS = {
     "standardize": {
         "summary": "Fixes inconsistent casing and spelling using the most frequent form.",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable spell-checking based on your project's dominant patterns.",
-        "example": "python multitool.py standardize . --in-place --min-length 4 --fuzzy 1",
+        "example": "python multitool.py standardize \"**/*\" --in-place --min-length 4 --fuzzy 1",
         "flags": "[--in-place] [--dry-run] [--fuzzy N] [--threshold R]",
     },
     "search": {
@@ -4543,7 +4543,7 @@ def get_mode_summary_text() -> str:
     lines.append(header_separator)
 
     for category, modes in categories.items():
-        lines.append(f"\n  {BOLD}{BLUE}{category.upper()}{RESET}")
+        lines.append(f"\n  {BOLD}{BLUE}{category}{RESET}")
         lines.append(f"  {BLUE}{'─' * (total_header_width + 2)}{RESET}")
         for mode in modes:
             if mode in MODE_DETAILS:
@@ -4646,7 +4646,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
-        description="A multipurpose tool for cleaning, getting, and checking text files.",
+        description="A multipurpose tool for cleaning, extracting, and analyzing text files.",
         epilog=dedent(
             f"""
             {BLUE}Examples:{RESET}

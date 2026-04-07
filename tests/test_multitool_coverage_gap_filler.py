@@ -103,7 +103,7 @@ def test_scrub_mode_stdin_inplace_warning(caplog, monkeypatch):
 
     with caplog.at_level(logging.WARNING):
         # We need to provide a mapping file that exists
-        with patch("multitool._load_mapping_file", return_value={}):
+        with patch("multitool._extract_pairs", return_value=[]):
             multitool.scrub_mode(["-"], "map.csv", "out.txt", 1, 100, False, in_place=".bak")
             assert "In-place modification requested for standard input; ignoring." in caplog.text
 

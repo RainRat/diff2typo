@@ -8,14 +8,14 @@ def disable_tqdm(monkeypatch):
     """Replace tqdm with identity to avoid progress output during tests."""
     monkeypatch.setattr(multitool, "tqdm", lambda iterable, *_, **__: iterable)
 
-def test_load_mapping_file_json_flat(tmp_path):
+def test_extract_pairs_json_flat(tmp_path):
     mapping_file = tmp_path / "mapping.json"
     data = {"teh": "the", "recieve": "receive"}
     mapping_file.write_text(json.dumps(data))
-    mapping = multitool._load_mapping_file(str(mapping_file))
+    mapping = dict(multitool._extract_pairs([str(mapping_file)]))
     assert mapping == {"teh": "the", "recieve": "receive"}
 
-def test_load_mapping_file_json_replacements(tmp_path):
+def test_extract_pairs_json_replacements(tmp_path):
     mapping_file = tmp_path / "mapping.json"
     data = {
         "replacements": [
@@ -24,33 +24,33 @@ def test_load_mapping_file_json_replacements(tmp_path):
         ]
     }
     mapping_file.write_text(json.dumps(data))
-    mapping = multitool._load_mapping_file(str(mapping_file))
+    mapping = dict(multitool._extract_pairs([str(mapping_file)]))
     assert mapping == {"teh": "the", "recieve": "receive"}
 
-def test_load_mapping_file_json_list(tmp_path):
+def test_extract_pairs_json_list(tmp_path):
     mapping_file = tmp_path / "mapping.json"
     data = [
         {"typo": "teh", "correct": "the"},
         {"typo": "recieve", "correct": "receive"}
     ]
     mapping_file.write_text(json.dumps(data))
-    mapping = multitool._load_mapping_file(str(mapping_file))
+    mapping = dict(multitool._extract_pairs([str(mapping_file)]))
     assert mapping == {"teh": "the", "recieve": "receive"}
 
-def test_load_mapping_file_yaml(tmp_path):
+def test_extract_pairs_yaml(tmp_path):
     mapping_file = tmp_path / "mapping.yaml"
     mapping_file.write_text("teh: the\nrecieve: receive\n")
-    mapping = multitool._load_mapping_file(str(mapping_file))
+    mapping = dict(multitool._extract_pairs([str(mapping_file)]))
     assert mapping == {"teh": "the", "recieve": "receive"}
 
-def test_load_mapping_file_table(tmp_path):
+def test_extract_pairs_table(tmp_path):
     mapping_file = tmp_path / "mapping.txt"
     # Table format: typo = "correction"
     mapping_file.write_text('teh = "the"\nrecieve = "receive"\n')
-    mapping = multitool._load_mapping_file(str(mapping_file))
+    mapping = dict(multitool._extract_pairs([str(mapping_file)]))
     assert mapping == {"teh": "the", "recieve": "receive"}
 
-def test_load_mapping_file_comments_and_empty(tmp_path):
+def test_extract_pairs_comments_and_empty(tmp_path):
     mapping_file = tmp_path / "mapping.txt"
     mapping_file.write_text(
         "# This is a comment\n"
@@ -60,15 +60,15 @@ def test_load_mapping_file_comments_and_empty(tmp_path):
         "# Another comment\n"
         "recieve -> receive\n"
     )
-    mapping = multitool._load_mapping_file(str(mapping_file))
+    mapping = dict(multitool._extract_pairs([str(mapping_file)]))
     assert mapping == {"teh": "the", "recieve": "receive"}
 
-def test_load_mapping_file_json_error(tmp_path, caplog):
+def test_extract_pairs_json_error(tmp_path, caplog):
     mapping_file = tmp_path / "mapping.json"
     mapping_file.write_text("{invalid json")
     with caplog.at_level(logging.ERROR):
-        mapping = multitool._load_mapping_file(str(mapping_file))
-    # Note: Refactored _load_mapping_file uses _extract_pairs which logs "Failed to parse JSON"
+        mapping = dict(multitool._extract_pairs([str(mapping_file)]))
+    # Note: Refactored logic uses _extract_pairs which logs "Failed to parse JSON"
     assert "Failed to parse JSON" in caplog.text
     assert mapping == {}
 

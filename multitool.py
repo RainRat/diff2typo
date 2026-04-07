@@ -265,6 +265,10 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
         logging.error(f"Input file '{path}' not found.")
         sys.exit(1)
 
+    if not path == '-' and os.path.isdir(path):
+        logging.warning(f"Input path '{path}' is a directory. Skipping.")
+        return []
+
     if path == '-':
         if _STDIN_CACHE is not None:
             logging.info("Using cached standard input...")
@@ -5842,18 +5846,35 @@ def main() -> None:
     flag_inputs = getattr(args, 'input_files_flag', []) or []
     input_paths = pos_inputs + flag_inputs
 
-    # Expand glob patterns for input paths
+    # Expand glob patterns and directories for input paths
     expanded_paths = []
     for path in input_paths:
         if path == '-':
             expanded_paths.append(path)
-        else:
-            matches = glob.glob(path)
-            if matches:
-                expanded_paths.extend(sorted(matches))
+            continue
+
+        matches = glob.glob(path)
+        if not matches:
+            matches = [path]
+
+        for match in sorted(matches):
+            if os.path.isdir(match):
+                # Recursively expand directory. For 'rename' mode, use bottom-up traversal
+                # to ensure contents are processed before their parent directories.
+                for root, dirs, files in os.walk(match, topdown=(args.mode != 'rename')):
+                    if args.mode == 'rename':
+                        for d in sorted(dirs):
+                            expanded_paths.append(os.path.join(root, d))
+                    for f in sorted(files):
+                        expanded_paths.append(os.path.join(root, f))
+
+                if args.mode == 'rename':
+                    expanded_paths.append(match)
             else:
-                expanded_paths.append(path)
-    input_paths = expanded_paths
+                expanded_paths.append(match)
+
+    # Deduplicate while preserving order
+    input_paths = list(dict.fromkeys(expanded_paths))
 
     # Default to standard input ('-') if neither is provided
     if not input_paths:

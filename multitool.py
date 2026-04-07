@@ -3282,12 +3282,6 @@ def regex_mode(
     )
 
 
-def _load_mapping_file(path: str, quiet: bool = False) -> dict[str, str]:
-    """Load a mapping file into a dictionary, supporting Arrow, CSV, Table, JSON, and YAML."""
-    # Use the shared _extract_pairs helper to handle all supported formats consistently
-    return dict(_extract_pairs([path], quiet=quiet))
-
-
 def _resolve_full_mapping(
     mapping_file: str | None,
     ad_hoc_pairs: List[str] | None,
@@ -3303,7 +3297,7 @@ def _resolve_full_mapping(
     if mapping_file:
         # Load mapping or list
         if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml')):
-            full_mapping.update(_load_mapping_file(mapping_file, quiet=quiet))
+            full_mapping.update(dict(_extract_pairs([mapping_file], quiet=quiet)))
         else:
             # Treat as a simple list of words if not a common mapping format
             lines = _read_file_lines_robust(mapping_file)

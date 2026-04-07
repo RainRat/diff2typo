@@ -6,16 +6,16 @@ def disable_tqdm(monkeypatch):
     """Replace tqdm with identity to avoid progress output during tests."""
     monkeypatch.setattr(multitool, "tqdm", lambda iterable, *_, **__: iterable)
 
-def test_load_mapping_file_csv(tmp_path):
+def test_extract_pairs_csv(tmp_path):
     mapping_file = tmp_path / "mapping.csv"
     mapping_file.write_text("teh,the\nrecieve,receive\n")
-    mapping = multitool._load_mapping_file(str(mapping_file))
+    mapping = dict(multitool._extract_pairs([str(mapping_file)]))
     assert mapping == {"teh": "the", "recieve": "receive"}
 
-def test_load_mapping_file_arrow(tmp_path):
+def test_extract_pairs_arrow(tmp_path):
     mapping_file = tmp_path / "mapping.txt"
     mapping_file.write_text("teh -> the\nrecieve -> receive\n")
-    mapping = multitool._load_mapping_file(str(mapping_file))
+    mapping = dict(multitool._extract_pairs([str(mapping_file)]))
     assert mapping == {"teh": "the", "recieve": "receive"}
 
 def test_map_mode_basic(tmp_path):

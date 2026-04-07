@@ -3295,7 +3295,7 @@ def _resolve_full_mapping(
     quiet: bool = False,
 ) -> dict[str, str]:
     """
-    Merge a mapping file with ad-hoc pairs from the command line.
+    Merge a mapping file with extra pairs from the command line.
     """
     full_mapping = {}
 
@@ -3360,7 +3360,7 @@ def map_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Transforms items based on a mapping file or ad-hoc pairs.
+    Transforms items based on a mapping file or extra pairs.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -3662,7 +3662,7 @@ def scrub_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Performs replacements of typos in text files based on a mapping file or ad-hoc pairs.
+    Performs replacements of typos in text files based on a mapping file or extra pairs.
     Supports in-place modification and dry-run preview.
     """
     start_time = time.perf_counter()
@@ -3765,7 +3765,7 @@ def rename_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Renames files and directories using a mapping file or ad-hoc pairs.
+    Renames files and directories using a mapping file or extra pairs.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -3845,7 +3845,7 @@ def highlight_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Highlights words from a mapping file or ad-hoc pairs within the input text files.
+    Highlights words from a mapping file or extra pairs within the input text files.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -3930,7 +3930,7 @@ def scan_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Scans files for occurrences of words from a mapping file or ad-hoc pairs, providing context.
+    Scans files for occurrences of words from a mapping file or extra pairs, providing context.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -4420,8 +4420,8 @@ MODE_DETAILS = {
     },
     "csv": {
         "summary": "Gets specific columns from a CSV file.",
-        "description": "Gets data from CSV files. By default, it extracts every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
-        "example": "python multitool.py csv typos.csv --column 2 -o corrections.txt",
+        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
+        "example": "python multitool.py csv data.csv --column 2 -o corrections.txt",
         "flags": "[--first-column] [--column NUMBER]",
     },
     "markdown": {
@@ -4438,13 +4438,13 @@ MODE_DETAILS = {
     },
     "json": {
         "summary": "Gets values from a JSON file using an optional key.",
-        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it extracts items from the top level. It automatically handles lists of objects.",
+        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it gets items from the top level. It automatically handles lists of objects.",
         "example": "python multitool.py json list.json -o items.txt",
         "flags": "[-k KEY]",
     },
     "yaml": {
         "summary": "Gets values from a YAML file using an optional key.",
-        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it extracts items from the top level. It automatically handles lists.",
+        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it gets items from the top level. It automatically handles lists.",
         "example": "python multitool.py yaml list.yaml -o items.txt",
         "flags": "[-k KEY]",
     },
@@ -4498,13 +4498,13 @@ MODE_DETAILS = {
     },
     "regex": {
         "summary": "Finds text that matches a pattern (regular expression).",
-        "description": "Finds and extracts all text that matches a Python regular expression pattern.",
+        "description": "Finds and gets all text that matches a Python regular expression pattern.",
         "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
         "flags": "[-r PATTERN]",
     },
     "map": {
-        "summary": "Replaces items using a mapping file or ad-hoc pairs.",
-        "description": "Replaces items in your list with new values from a mapping file or ad-hoc pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
+        "summary": "Replaces items using a mapping file or extra pairs.",
+        "description": "Replaces items in your list with new values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart-case] [--pairs]",
     },
@@ -4588,7 +4588,7 @@ MODE_DETAILS = {
     },
     "standardize": {
         "summary": "Fixes inconsistent casing and spelling using the most frequent form.",
-        "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable spell-checking based on your project's dominant patterns.",
+        "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching based on your project's dominant patterns.",
         "example": "python multitool.py standardize \"**/*\" --in-place --min-length 4 --fuzzy 1",
         "flags": "[--in-place] [--dry-run] [--fuzzy N] [--threshold R]",
     },
@@ -4599,26 +4599,26 @@ MODE_DETAILS = {
         "flags": "QUERY [FILES...] [-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
     },
     "scan": {
-        "summary": "Scans for words or typos from a file or ad-hoc pairs.",
+        "summary": "Scans for words or typos from a file or extra pairs.",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
         "example": "python multitool.py scan . --add teh:the --smart",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
     "verify": {
         "summary": "Verifies which entries in a typo mapping exist in your project.",
-        "description": "Checks a mapping file or ad-hoc pairs against your files to see which ones are actually present. Use --prune to output a new mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
+        "description": "Checks a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a new mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
         "example": "python multitool.py verify . --mapping typos.csv --prune",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart] [--prune]",
     },
     "scrub": {
-        "summary": "Replaces typos in text files based on a mapping or ad-hoc pairs.",
-        "description": "Performs in-place replacements of typos in your text files using a mapping file or ad-hoc pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
+        "summary": "Replaces typos in text files based on a mapping or extra pairs.",
+        "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --output fixed.txt",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE]",
     },
     "rename": {
-        "summary": "Renames files and directories using a mapping file or ad-hoc pairs.",
-        "description": "Renames files or directories based on a typo mapping or ad-hoc pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
+        "summary": "Renames files and directories using a mapping file or extra pairs.",
+        "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
         "example": "python multitool.py rename src/**/* --add teh:the --in-place",
         "flags": "[MAPPING] [FILES...] [--add KEY:VALUE] [--in-place] [--dry-run] [--smart-case]",
     },
@@ -4629,8 +4629,8 @@ MODE_DETAILS = {
         "flags": "[FILE2] [--pairs]",
     },
     "highlight": {
-        "summary": "Highlights words from a file or ad-hoc pairs.",
-        "description": "Searches for words from a mapping file or ad-hoc pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
+        "summary": "Highlights words from a file or extra pairs.",
+        "description": "Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
         "example": "python multitool.py highlight input.txt --add teh:the",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
@@ -4771,12 +4771,12 @@ def _build_parser() -> argparse.ArgumentParser:
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
-        description="A multipurpose tool for cleaning, extracting, and analyzing text files.",
+        description="A multipurpose tool for cleaning, getting, and analyzing text files.",
         epilog=dedent(
             f"""
             {BLUE}Examples:{RESET}
               {GREEN}python multitool.py --mode-help{RESET}             # Show a summary of every mode
-              {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV extraction mode
+              {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV getting mode
               {GREEN}python multitool.py arrow file.txt{RESET}          # Run a specific mode
             """
         ).strip() + "\n\n" + mode_summary,
@@ -4863,7 +4863,7 @@ def _build_parser() -> argparse.ArgumentParser:
     arrow_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the right side (correction) instead of the left side (typo).",
+        help="Get the right side (correction) instead of the left side (typo).",
     )
     _add_common_mode_arguments(arrow_parser)
 
@@ -4878,7 +4878,7 @@ def _build_parser() -> argparse.ArgumentParser:
     table_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the value (right side) instead of the key (left side).",
+        help="Get the value (right side) instead of the key (left side).",
     )
     _add_common_mode_arguments(table_parser)
 
@@ -4902,7 +4902,7 @@ def _build_parser() -> argparse.ArgumentParser:
     csv_options.add_argument(
         '--first-column',
         action='store_true',
-        help='Extract the first column instead of subsequent columns.',
+        help='Get the first column instead of subsequent columns.',
     )
     csv_options.add_argument(
         '-d', '--delimiter',
@@ -4916,7 +4916,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         nargs='+',
         metavar='NUMBER',
-        help='One or more 0-based column numbers to extract.',
+        help='One or more 0-based column numbers to get.',
     )
     _add_common_mode_arguments(csv_parser)
 
@@ -4931,7 +4931,7 @@ def _build_parser() -> argparse.ArgumentParser:
     markdown_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the right side of a pair (split by ':' or '->') instead of the left side.",
+        help="Get the right side of a pair (split by ':' or '->') instead of the left side.",
     )
     _add_common_mode_arguments(markdown_parser)
 
@@ -4946,7 +4946,7 @@ def _build_parser() -> argparse.ArgumentParser:
     md_table_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the second column instead of the first.",
+        help="Get the second column instead of the first.",
     )
     md_table_options.add_argument(
         '-c', '--column',
@@ -4954,7 +4954,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         nargs='+',
         metavar='NUMBER',
-        help='One or more 0-based column numbers to extract.',
+        help='One or more 0-based column numbers to get.',
     )
     _add_common_mode_arguments(md_table_parser)
 
@@ -4970,7 +4970,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-k', '--key',
         type=str,
         default='',
-        help="The key path to extract (for example 'items.name'). If omitted, extracts from the top level.",
+        help="The key path to get (for example 'items.name'). If not provided, gets from the top level.",
     )
     _add_common_mode_arguments(json_parser)
 
@@ -4986,7 +4986,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-k', '--key',
         type=str,
         default='',
-        help="The key path to extract (for example 'config.items'). If omitted, extracts from the top level.",
+        help="The key path to get (for example 'config.items'). If not provided, gets from the top level.",
     )
     _add_common_mode_arguments(yaml_parser)
 
@@ -5472,7 +5472,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     map_options.add_argument(
         '--drop-missing',
@@ -5511,7 +5511,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     scrub_options.add_argument(
         '--in-place',
@@ -5552,7 +5552,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     rename_options.add_argument(
         '--in-place',
@@ -5595,7 +5595,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '--fuzzy',
         type=int,
         default=0,
-        help="Maximum distance for fuzzy word matching (for example, --fuzzy 1 to fix 'teh' -> 'the'). Set to 0 to only fix casing (default: 0).",
+        help="Maximum distance for similar word matching (for example, --fuzzy 1 to fix 'teh' -> 'the'). Set to 0 to only fix casing (default: 0).",
     )
     standardize_options.add_argument(
         '--threshold',
@@ -5680,7 +5680,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     highlight_options.add_argument(
         '-S', '--smart',
@@ -5709,7 +5709,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     scan_options.add_argument(
         '-S', '--smart',
@@ -5756,7 +5756,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to verify.',
+        help='Extra mapping pairs (for example "teh:the") or words to verify.',
     )
     verify_options.add_argument(
         '-S', '--smart',
@@ -5902,7 +5902,7 @@ def main() -> None:
         sys.exit(1)
     if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan', 'verify'} and \
        getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
-        logging.error(f"{args.mode.capitalize()} mode requires a mapping file or ad-hoc pairs (use --mapping or --add).")
+        logging.error(f"{args.mode.capitalize()} mode requires a mapping file or extra pairs (use --mapping or --add).")
         sys.exit(1)
     if args.mode == 'search' and getattr(args, 'query', None) is None:
         logging.error("Search mode requires a search query (provide QUERY positionally or use --query).")

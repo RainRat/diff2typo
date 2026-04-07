@@ -893,13 +893,13 @@ def main() -> None:
     # Apply CLI overrides
     if is_cli_mode:
         config['input_file'] = None # Will use CLI words
-        # Default to the screen and arrow format for ad-hoc usage unless explicit flags are provided.
+        # Default to the screen and arrow format for extra usage unless explicit flags are provided.
         # This overrides any persistent settings in the configuration file.
         if not args.output:
             config['output_file'] = '-'
         if not args.format:
             config['output_format'] = 'arrow'
-        # Ensure ad-hoc words aren't filtered out by default project-wide min_length settings.
+        # Ensure extra words aren't filtered out by default project-wide min_length settings.
         if args.min_length is None:
             if 'word_length' not in config:
                 config['word_length'] = {}

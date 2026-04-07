@@ -1,6 +1,6 @@
 # Multitool
 
-**Multitool** is a versatile tool for processing text files. It can extract specific data (like columns from a CSV or text inside backticks), compare files, and clean up lists.
+**Multitool** is a multipurpose tool for processing text files. It can get specific data (like columns from a CSV or text inside backticks), compare files, and clean up lists.
 
 ## Quick Start
 
@@ -66,7 +66,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py ngrams report.txt -n 2 --smart`
 
 - **`regex`**
-  - **What it does:** Finds text matching a Python regular expression pattern. Unlike other modes, it **keeps the original text** (it does not convert to lowercase or remove punctuation) by default.
+  - **What it does:** Finds and gets text that matches a Python regular expression pattern. Unlike other modes, it **keeps the original text** (it does not convert to lowercase or remove punctuation) by default.
   - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`
 
 ### 2. CHANGING DATA
@@ -87,9 +87,10 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py resolve mappings.csv`
 
 - **`rename`**
-  - **What it does:** Changes file and folder names using a mapping file. It is useful for fixing typos in filenames across your entire project. It handles nested renames by processing files before their parent folders.
+  - **What it does:** Changes file and folder names using a mapping file or extra pairs. It is useful for fixing typos in filenames across your entire project. It handles nested renames by processing files before their parent folders.
   - **Options:**
     - Supports `--in-place` renaming and `--dry-run` preview.
+    - Use the `--add` flag to provide extra mapping pairs (for example, `--add old_name:new_name`) directly on the command line.
     - Use the `--smart-case` flag to automatically match the casing of the original filename.
   - **Example:** `python multitool.py rename src/**/* --mapping corrections.csv --in-place`
 
@@ -104,8 +105,10 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py filterfragments candidates.txt --file2 dictionary.txt`
 
 - **`map`**
-  - **What it does:** Changes items in your list using values from a mapping file. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, and YAML formats. By default, it keeps items that are not in the mapping. The `--min-length` and `--max-length` filters are **re-applied** to items after they are changed. Use `--drop-missing` to remove unmatched items.
-  - **Example:** `python multitool.py map input.txt --mapping corrections.csv`
+  - **What it does:** Changes items in your list using values from a mapping file or extra pairs. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, and YAML formats. By default, it keeps items that are not in the mapping. The `--min-length` and `--max-length` filters are **re-applied** to items after they are changed. Use `--drop-missing` to remove unmatched items.
+  - **Options:**
+    - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
+  - **Example:** `python multitool.py map input.txt --add teh:the`
 
 - **`sample`**
   - **What it does:** Picks a random set of lines from a file. You can pick a specific number (`--n 100`) or a percentage (`--percent 10`).
@@ -129,12 +132,14 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
 
 - **`scrub`**
-  - **What it does:** Fixes typos in your text files using a mapping file. It tries to keep the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like `CamelCase` and `snake_case` variables.
+  - **What it does:** Fixes typos in your text files using a mapping file or extra pairs. It tries to keep the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like `CamelCase` and `snake_case` variables.
   - **Supported Formats:** Supports CSV, Arrow, Table, JSON, and YAML mapping formats.
+  - **Options:**
+    - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
   - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (for example, `--in-place .bak`), the tool will create a backup of each file before modifying it.
   - **Dry Run:** Use the `--dry-run` flag to see how many fixes would be made without actually changing any files.
   - **Smart Casing:** Use the `--smart-case` flag to automatically match the casing of the original word. For example, if the mapping is `teh -> the`, then `Teh` will be replaced with `The`, and `TEH` with `THE`.
-  - **Example:** `python multitool.py scrub input.txt --mapping corrections.csv --output fixed.txt`
+  - **Example:** `python multitool.py scrub input.txt --add teh:the --output fixed.txt`
   - **In-Place Example:** `python multitool.py scrub file1.txt file2.txt --mapping corrections.csv --in-place`
 
 - **`standardize`**
@@ -145,9 +150,12 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py standardize "**/*" --in-place --min-length 4`
 
 - **`highlight`**
-  - **What it does:** Searches for words from a list or mapping and colors them in the output. This is useful as a preview before using the `scrub` mode to make permanent changes.
-  - **Options:** Use the `--mapping` flag to provide a file with typos or words to find. The `--smart` flag allows for coloring subwords within larger compound words (like variable names).
-  - **Example:** `python multitool.py highlight input.txt --mapping corrections.csv`
+  - **What it does:** Searches for words from a list, mapping, or extra pairs and colors them in the output. This is useful as a preview before using the `scrub` mode to make permanent changes.
+  - **Options:**
+    - Use the `--mapping` flag to provide a file with typos or words to find.
+    - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.
+    - The `--smart` flag allows for coloring subwords within larger compound words (like variable names).
+  - **Example:** `python multitool.py highlight input.txt --add teh:the`
 
 - **`pairs`**
   - **What it does:** Works with and converts paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (for example, from JSON to CSV) while applying cleaning and length filters.
@@ -251,17 +259,21 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers`
 
 - **`scan`**
-  - **What it does:** Like a batch version of the `search` mode. It searches for every word in a mapping file or list and reports all matches with filename, line number, and highlighting. This is the recommended way to check your project for a set of known typos before performing replacements.
-  - **Options:** Use the `--mapping` flag to provide a file with typos or words to find. The `--smart` flag allows for finding subwords within larger compound words.
-  - **Example:** `python multitool.py scan . --mapping typos.csv --smart`
+  - **What it does:** Like a batch version of the `search` mode. It searches for every word in a mapping file, list, or extra pairs and reports all matches with filename, line number, and highlighting. This is the recommended way to check your project for a set of known typos before performing replacements.
+  - **Options:**
+    - Use the `--mapping` flag to provide a file with typos or words to find.
+    - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.
+    - The `--smart` flag allows for finding subwords within larger compound words.
+  - **Example:** `python multitool.py scan "**/*" --add teh:the --smart`
 
 - **`verify`**
-  - **What it does:** Identifies which entries in a mapping file are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
+  - **What it does:** Identifies which entries in a mapping file or extra pairs are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
   - **Options:**
     - Use the `--mapping` flag to provide the file containing typos to check.
+    - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.
     - Use the `--prune` flag to output a new mapping file containing only the typos that were actually found in your project.
     - Use the `--smart` flag to also find subword matches (for example, finding "teh" inside "tehWord").
-  - **Example:** `python multitool.py verify . --mapping typos.csv --prune`
+  - **Example:** `python multitool.py verify "**/*" --add teh:the --prune`
 
 ## Common Options
 

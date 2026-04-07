@@ -5475,7 +5475,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     map_options.add_argument(
         '--drop-missing',
@@ -5514,7 +5514,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     scrub_options.add_argument(
         '--in-place',
@@ -5555,7 +5555,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     rename_options.add_argument(
         '--in-place',
@@ -5683,7 +5683,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     highlight_options.add_argument(
         '-S', '--smart',
@@ -5712,7 +5712,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to match.',
+        help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     scan_options.add_argument(
         '-S', '--smart',
@@ -5759,7 +5759,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         nargs='+',
         metavar='KEY:VALUE',
-        help='Ad-hoc mapping pairs (for example "teh:the") or words to verify.',
+        help='Extra mapping pairs (for example "teh:the") or words to verify.',
     )
     verify_options.add_argument(
         '-S', '--smart',
@@ -5860,10 +5860,22 @@ def main() -> None:
             if os.path.isdir(match):
                 # Recursively expand directory. For 'rename' mode, use bottom-up traversal
                 # to ensure contents are processed before their parent directories.
+                # Skip common noise folders for performance and to reduce clutter.
+                exclude = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.vscode', '.idea', 'dist', 'build'}
                 for root, dirs, files in os.walk(match, topdown=(args.mode != 'rename')):
+                    # If we encounter an excluded folder in the path, skip it and its contents
+                    if any(part in exclude for part in root.split(os.sep)):
+                        dirs[:] = []  # Don't recurse further if topdown=True
+                        continue
+                    
+                    if args.mode != 'rename':
+                        # Prune directories in-place for efficiency when topdown=True
+                        dirs[:] = [d for d in dirs if d not in exclude]
+
                     if args.mode == 'rename':
                         for d in sorted(dirs):
-                            expanded_paths.append(os.path.join(root, d))
+                            if d not in exclude:
+                                expanded_paths.append(os.path.join(root, d))
                     for f in sorted(files):
                         expanded_paths.append(os.path.join(root, f))
 

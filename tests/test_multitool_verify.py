@@ -76,12 +76,12 @@ def test_verify_prune(tmp_path):
     assert "teh -> the" in result.stdout
     assert "wrld -> world" not in result.stdout
 
-def test_verify_adhoc(tmp_path):
+def test_verify_extra(tmp_path):
     # Create an input file
     input_file = tmp_path / "input.txt"
     input_file.write_text("This is teh world.", encoding="utf-8")
 
-    # Run verify mode with ad-hoc pairs
+    # Run verify mode with extra pairs
     result = run_multitool(["verify", str(input_file), "--add", "teh:the", "wrld:world"])
 
     assert result.returncode == 0

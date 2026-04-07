@@ -26,8 +26,8 @@ def test_resolve_full_mapping_complex_text(tmp_path):
         "word3": ""
     }
 
-def test_resolve_full_mapping_adhoc_no_colon():
-    """Cover multitool.py line 3328: ad-hoc pairs without colon."""
+def test_resolve_full_mapping_extra_no_colon():
+    """Cover multitool.py line 3328: extra pairs without colon."""
     mapping = multitool._resolve_full_mapping(None, ad_hoc_pairs=["word1", "word2:corr"], clean_items=False)
     assert mapping == {
         "word1": "",

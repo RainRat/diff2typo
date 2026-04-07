@@ -2,13 +2,13 @@ import sys
 from io import StringIO
 import multitool
 
-def test_map_adhoc(tmp_path):
+def test_map_extra(tmp_path):
     input_file = tmp_path / "input.txt"
     # map mode works line-by-line (whole line must match)
     # Default min-length is 3, so 'on' (length 2) is filtered out
     input_file.write_text("teh\ncat\nsat\nthe\nmat")
 
-    # Test map mode with ad-hoc pairs
+    # Test map mode with extra pairs
     sys.argv = ['multitool.py', 'map', str(input_file), '--add', 'teh:the']
 
     captured_output = StringIO()
@@ -23,11 +23,11 @@ def test_map_adhoc(tmp_path):
     output = captured_output.getvalue()
     assert "the\ncat\nsat\nthe\nmat" in output
 
-def test_scrub_adhoc(tmp_path):
+def test_scrub_extra(tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("teh cat sat on teh mat.")
 
-    # Test scrub mode with ad-hoc pairs
+    # Test scrub mode with extra pairs
     sys.argv = ['multitool.py', 'scrub', str(input_file), '--add', 'teh:the']
 
     captured_output = StringIO()
@@ -41,7 +41,7 @@ def test_scrub_adhoc(tmp_path):
     # scrub mode outputs fixed lines
     assert "the cat sat on the mat." in captured_output.getvalue()
 
-def test_highlight_adhoc(tmp_path, monkeypatch):
+def test_highlight_extra(tmp_path, monkeypatch):
     input_file = tmp_path / "input.txt"
     input_file.write_text("teh cat")
 
@@ -61,7 +61,7 @@ def test_highlight_adhoc(tmp_path, monkeypatch):
 
     assert "[Y]teh[R] cat" in captured_output.getvalue()
 
-def test_scan_adhoc(tmp_path, monkeypatch):
+def test_scan_extra(tmp_path, monkeypatch):
     input_file = tmp_path / "input.txt"
     input_file.write_text("teh cat")
 
@@ -71,7 +71,7 @@ def test_scan_adhoc(tmp_path, monkeypatch):
     monkeypatch.setattr(multitool, "BOLD", "[B]")
     monkeypatch.setattr(multitool, "BLUE", "[C]")
 
-    # Scan with line numbers and ad-hoc
+    # Scan with line numbers and extra
     sys.argv = ['multitool.py', 'scan', str(input_file), '--add', 'teh:the', '--line-numbers']
 
     captured_output = StringIO()
@@ -86,14 +86,14 @@ def test_scan_adhoc(tmp_path, monkeypatch):
     # Since only 1 file, filename might not be shown by default unless forced or multiple files
     assert "[B][C]1:[R] [Y]teh[R] cat" in captured_output.getvalue()
 
-def test_map_file_and_adhoc(tmp_path):
+def test_map_file_and_extra(tmp_path):
     mapping_file = tmp_path / "map.csv"
     mapping_file.write_text("cat,feline")
 
     input_file = tmp_path / "input.txt"
     input_file.write_text("teh\ncat")
 
-    # Combine file and ad-hoc
+    # Combine file and extra
     sys.argv = ['multitool.py', 'map', str(input_file), '--mapping', str(mapping_file), '--add', 'teh:the']
 
     captured_output = StringIO()
@@ -107,14 +107,14 @@ def test_map_file_and_adhoc(tmp_path):
     output = captured_output.getvalue()
     assert "the\nfeline" in output
 
-def test_rename_adhoc(tmp_path):
+def test_rename_extra(tmp_path):
     # Create a file to rename
     d = tmp_path / "subdir"
     d.mkdir()
     f = d / "teh_file.txt"
     f.write_text("content")
 
-    # Test rename mode with ad-hoc pairs (dry-run first to avoid side effects if not needed)
+    # Test rename mode with extra pairs (dry-run first to avoid side effects if not needed)
     # We use --in-place to actually rename
     sys.argv = ['multitool.py', 'rename', str(f), '--add', 'teh:the', '--in-place']
 

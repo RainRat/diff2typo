@@ -3324,7 +3324,7 @@ def _resolve_full_mapping(
                 else:
                     full_mapping[content] = ""
 
-    # 2. Add extra pairs (e.g., "teh:the" or "old:new")
+    # 2. Add extra pairs (for example, "teh:the" or "old:new")
     if ad_hoc_pairs:
         for pair in ad_hoc_pairs:
             if ":" in pair:
@@ -4592,7 +4592,7 @@ MODE_DETAILS = {
     "standardize": {
         "summary": "Fixes inconsistent casing and spelling using the most frequent form.",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching based on your project's dominant patterns.",
-        "example": "python multitool.py standardize \"**/*\" --in-place --min-length 4 --fuzzy 1",
+        "example": "python multitool.py standardize . --in-place --min-length 4 --fuzzy 1",
         "flags": "[--in-place] [--dry-run] [--fuzzy N] [--threshold R]",
     },
     "search": {
@@ -4604,13 +4604,13 @@ MODE_DETAILS = {
     "scan": {
         "summary": "Scans for words or typos from a file or extra pairs.",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
-        "example": "python multitool.py scan \"**/*\" --add teh:the --smart",
+        "example": "python multitool.py scan . --add teh:the --smart",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
     },
     "verify": {
         "summary": "Verifies which entries in a typo mapping exist in your project.",
         "description": "Checks a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a new mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
-        "example": "python multitool.py verify \"**/*\" --mapping typos.csv --prune",
+        "example": "python multitool.py verify . --mapping typos.csv --prune",
         "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart] [--prune]",
     },
     "scrub": {
@@ -4622,7 +4622,7 @@ MODE_DETAILS = {
     "rename": {
         "summary": "Renames files and directories using a mapping file or extra pairs.",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
-        "example": "python multitool.py rename src/**/* --add teh:the --in-place",
+        "example": "python multitool.py rename src/ --add teh:the --in-place",
         "flags": "[MAPPING] [FILES...] [--add KEY:VALUE] [--in-place] [--dry-run] [--smart-case]",
     },
     "diff": {

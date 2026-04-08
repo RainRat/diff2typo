@@ -4392,25 +4392,25 @@ def set_operation_mode(
 
 MODE_DETAILS = {
     "arrow": {
-        "summary": "Gets text from lines with arrows (->).",
+        "summary": "Gets text from lines with arrows.",
         "description": "Finds text in lines that use arrows (like 'typo -> correction'). It saves the left side by default. Use --right to save the right side instead.",
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
         "flags": "[--right]",
     },
     "table": {
-        "summary": "Gets text from table-style entries (key = \"value\").",
+        "summary": "Gets text from key=value entries.",
         "description": "Gets keys or values from entries like 'key = \"value\"'. It saves the key by default. Use --right to save the quoted value instead.",
         "example": "python multitool.py table typos.toml --right -o corrections.txt",
         "flags": "[--right]",
     },
     "combine": {
-        "summary": "Merges multiple files into one clean list.",
+        "summary": "Merges multiple files into one.",
         "description": "Combines several files into one list. It removes duplicates and sorts the results alphabetically.",
         "example": "python multitool.py combine typos1.txt typos2.txt --output all_typos.txt",
         "flags": "",
     },
     "unique": {
-        "summary": "Removes duplicates while keeping the original order.",
+        "summary": "Removes duplicates, keeps order.",
         "description": "Removes duplicate items from your list. Unlike 'combine', it preserves the order in which items first appeared in your files.",
         "example": "python multitool.py unique raw_typos.txt --output clean_typos.txt",
         "flags": "",
@@ -4422,13 +4422,13 @@ MODE_DETAILS = {
         "flags": "",
     },
     "csv": {
-        "summary": "Gets specific columns from a CSV file.",
+        "summary": "Gets specific columns from CSV.",
         "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
         "example": "python multitool.py csv typos.csv --column 2 -o corrections.txt",
-        "flags": "[--first-column] [--column NUMBER]",
+        "flags": "[--first-column] [-c N]",
     },
     "markdown": {
-        "summary": "Gets items from Markdown bulleted lists.",
+        "summary": "Gets items from Markdown lists.",
         "description": "Finds text in lines starting with -, *, or +. It can also split items by ':' or '->' to get one side of a pair (use --right for the second part).",
         "example": "python multitool.py markdown notes.md --output items.txt",
         "flags": "[--right]",
@@ -4437,16 +4437,16 @@ MODE_DETAILS = {
         "summary": "Gets text from Markdown tables.",
         "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers. It automatically skips header and divider rows.",
         "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
-        "flags": "[--right] [--column NUMBER]",
+        "flags": "[--right] [-c N]",
     },
     "json": {
-        "summary": "Gets values from a JSON file using an optional key.",
+        "summary": "Gets JSON values by key.",
         "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it gets items from the top level. It automatically handles lists of objects.",
         "example": "python multitool.py json list.json -o items.txt",
         "flags": "[-k KEY]",
     },
     "yaml": {
-        "summary": "Gets values from a YAML file using an optional key.",
+        "summary": "Gets YAML values by key.",
         "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it gets items from the top level. It automatically handles lists.",
         "example": "python multitool.py yaml list.yaml -o items.txt",
         "flags": "[-k KEY]",
@@ -4458,187 +4458,187 @@ MODE_DETAILS = {
         "flags": "",
     },
     "words": {
-        "summary": "Gets individual words from a file.",
+        "summary": "Gets words from a file.",
         "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use --smart to split by capital letters and symbols.",
         "example": "python multitool.py words report.txt --smart --output wordlist.txt",
-        "flags": "[-d DELIMITER] [--smart]",
+        "flags": "[-d DELIM] [-S]",
     },
     "ngrams": {
         "summary": "Gets sequences of N words.",
         "description": "Gets sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
         "example": "python multitool.py ngrams report.txt -n 2 --smart --output phrases.txt",
-        "flags": "[-n N] [-d DELIMITER] [--smart]",
+        "flags": "[-n N] [-d DELIM] [-S]",
     },
     "count": {
-        "summary": "Counts how many times each word or pair appears.",
+        "summary": "Counts word or pair frequencies.",
         "description": "Counts frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs (for example, typo -> correction) instead of single words.",
         "example": "python multitool.py count typos.log -f arrow --smart --pairs",
-        "flags": "[--min-count N] [-d DELIM] [--smart] [--pairs]",
+        "flags": "[--min-count N] [-d DELIM] [-S] [-p]",
     },
     "filterfragments": {
-        "summary": "Removes words found inside words in another file.",
+        "summary": "Removes words found inside others.",
         "description": "Removes words from your list if they appear anywhere (even as a fragment) inside words in a second file.",
         "example": "python multitool.py filterfragments list.txt reference.txt --output unique.txt",
         "flags": "[FILE2]",
     },
     "check": {
-        "summary": "Finds words that are both typos and corrections.",
+        "summary": "Finds words that are typos & fixes.",
         "description": "Checks for words that appear in both the typo and correction columns of a file. Use this to find errors in your typo lists.",
         "example": "python multitool.py check typos.csv --output duplicates.txt",
         "flags": "",
     },
     "set_operation": {
-        "summary": "Compares two files using set logic.",
+        "summary": "Compares files using set logic.",
         "description": "Compares two files to find shared lines (intersection), all lines (union), or lines unique to the first file (difference).",
         "example": "python multitool.py set_operation fileA.txt fileB.txt --operation intersection --output shared.txt",
         "flags": "[FILE2] --operation OP",
     },
     "sample": {
-        "summary": "Picks a random set of lines from a file.",
+        "summary": "Picks a random set of lines.",
         "description": "Selects a random subset of lines. You can choose a specific number of lines (-n) or a percentage (--percent).",
         "example": "python multitool.py sample big_log.txt -n 100 -o sample.txt",
         "flags": "[-n N|--percent P]",
     },
     "regex": {
-        "summary": "Finds text that matches a pattern (regular expression).",
+        "summary": "Finds text matching a pattern.",
         "description": "Finds and gets all text that matches a Python regular expression pattern.",
         "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
         "flags": "[-r PATTERN]",
     },
     "map": {
-        "summary": "Replaces items using a mapping file or extra pairs.",
+        "summary": "Replaces items using a mapping.",
         "description": "Replaces items in your list with new values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart-case] [--pairs]",
+        "flags": "MAPPING [FILES...] [-a K:V] [-p]",
     },
     "zip": {
-        "summary": "Pairs lines from two files together.",
+        "summary": "Pairs lines from two files.",
         "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists.",
         "example": "python multitool.py zip typos.txt corrections.txt --output-format table --output typos.toml",
         "flags": "[FILE2]",
     },
     "swap": {
-        "summary": "Reverses the order of elements in paired data.",
+        "summary": "Reverses the order of pairs.",
         "description": "Flips the left and right elements of pairs (for example, 'typo -> correction' becomes 'correction -> typo'). Supports Arrow, Table, CSV, and Markdown formats.",
         "example": "python multitool.py swap typos.csv --output-format arrow --output flipped.txt",
         "flags": "",
     },
     "pairs": {
-        "summary": "Processes and converts paired data.",
+        "summary": "Converts paired data formats.",
         "description": "Reads pairs (like 'typo -> correction') from any supported format and writes them to the specified output format. Useful for cleaning, filtering, and format conversion.",
         "example": "python multitool.py pairs typos.json --output-format csv --output typos.csv",
         "flags": "",
     },
     "conflict": {
-        "summary": "Finds typos that have multiple different corrections.",
+        "summary": "Finds typos with multiple fixes.",
         "description": "Identifies typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.",
         "example": "python multitool.py conflict typos.csv --output-format arrow --output conflicts.txt",
         "flags": "",
     },
     "similarity": {
-        "summary": "Filters paired data by the number of changes.",
+        "summary": "Filters pairs by changes.",
         "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.",
         "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
-        "flags": "[--max-dist N --show-dist]",
+        "flags": "[--max-dist N] [--show-dist]",
     },
     "near_duplicates": {
-        "summary": "Finds similar words in a single list.",
+        "summary": "Finds similar words in one list.",
         "description": "Identifies pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
         "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
-        "flags": "[--max-dist N --show-dist]",
+        "flags": "[--max-dist N] [--show-dist]",
     },
     "fuzzymatch": {
-        "summary": "Finds similar words between two lists.",
+        "summary": "Finds similar words in two lists.",
         "description": "Identifies words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
         "example": "python multitool.py fuzzymatch typos.txt dictionary.txt --max-dist 1 --show-dist",
-        "flags": "[FILE2] [--max-dist N --show-dist]",
+        "flags": "[FILE2] [--max-dist N] [--show-dist]",
     },
     "stats": {
-        "summary": "Calculates detailed statistics for a typo list.",
+        "summary": "Calculates stats for a list.",
         "description": "Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
-        "flags": "[--pairs]",
+        "flags": "[-p]",
     },
     "classify": {
-        "summary": "Categorizes typo corrections based on their error type.",
+        "summary": "Categorizes typos by error type.",
         "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, and [M] Multiple letters. Use --show-dist to include the number of character changes.",
         "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
         "flags": "[--show-dist]",
     },
     "discovery": {
-        "summary": "Finds typos by comparing rare and frequent words.",
+        "summary": "Finds typos in rare words.",
         "description": "Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
         "example": "python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1",
-        "flags": "[--rare-max N] [--freq-min N] [--max-dist N] [-d DELIM] [--smart]",
+        "flags": "[--rare-max N] [-S]",
     },
     "casing": {
-        "summary": "Identifies words with inconsistent capitalization.",
+        "summary": "Finds inconsistent casing.",
         "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.",
         "example": "python multitool.py casing report.txt --smart --output-format arrow",
-        "flags": "[-d DELIMITER] [--smart]",
+        "flags": "[-d DELIM] [-S]",
     },
     "cycles": {
-        "summary": "Identifies loops in typo-correction pairs.",
+        "summary": "Identifies loops in typo pairs.",
         "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues during automated scrubbing and represent logic errors in your data.",
         "example": "python multitool.py cycles typos.csv --output-format arrow",
         "flags": "",
     },
     "repeated": {
-        "summary": "Finds consecutive identical words.",
+        "summary": "Finds doubled words.",
         "description": "Identifies doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
         "example": "python multitool.py repeated report.txt --smart --output-format arrow",
-        "flags": "[-d DELIMITER] [--smart]",
+        "flags": "[-d DELIM] [-S]",
     },
     "standardize": {
-        "summary": "Fixes inconsistent casing and spelling using the most frequent form.",
+        "summary": "Fixes casing/spelling project-wide.",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching based on your project's dominant patterns.",
-        "example": "python multitool.py standardize \"**/*\" --in-place --min-length 4 --fuzzy 1",
-        "flags": "[--in-place] [--dry-run] [--fuzzy N] [--threshold R]",
+        "example": "python multitool.py standardize . --in-place --min-length 4 --fuzzy 1",
+        "flags": "[--in-place] [--dry-run] [--fuzzy N]",
     },
     "search": {
-        "summary": "Searches for words or patterns in text files.",
+        "summary": "Search for words or patterns.",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting and line numbers.",
         "example": "python multitool.py search 'teh' report.txt --max-dist 1 --line-numbers",
-        "flags": "QUERY [FILES...] [-Q QUERY] [--max-dist N] [--smart] [--line-numbers]",
+        "flags": "QUERY [FILES...] [-S] [-n]",
     },
     "scan": {
-        "summary": "Scans for words or typos from a file or extra pairs.",
+        "summary": "Audit project for known typos.",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
-        "example": "python multitool.py scan \"**/*\" --add teh:the --smart",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
+        "example": "python multitool.py scan . --add teh:the --smart",
+        "flags": "MAPPING [FILES...] [-a K:V] [-S]",
     },
     "verify": {
-        "summary": "Verifies which entries in a typo mapping exist in your project.",
+        "summary": "Check if typos exist in project.",
         "description": "Checks a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a new mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
-        "example": "python multitool.py verify \"**/*\" --mapping typos.csv --prune",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart] [--prune]",
+        "example": "python multitool.py verify . --mapping typos.csv --prune",
+        "flags": "MAPPING [FILES...] [-a K:V] [-S] [--prune]",
     },
     "scrub": {
-        "summary": "Replaces typos in text files based on a mapping or extra pairs.",
+        "summary": "Fix typos in text files.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --output fixed.txt",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE]",
+        "flags": "MAPPING [FILES...] [-a K:V]",
     },
     "rename": {
-        "summary": "Renames files and directories using a mapping file or extra pairs.",
+        "summary": "Batch rename files and folders.",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
-        "example": "python multitool.py rename src/**/* --add teh:the --in-place",
-        "flags": "[MAPPING] [FILES...] [--add KEY:VALUE] [--in-place] [--dry-run] [--smart-case]",
+        "example": "python multitool.py rename src/ --add teh:the --in-place",
+        "flags": "[MAPPING] [FILES...] [-a] [-i]",
     },
     "diff": {
-        "summary": "Finds added, removed, or changed items between files.",
+        "summary": "Finds differences between files.",
         "description": "Identifies differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what's new (+), what's gone (-), and what changed (~).",
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
-        "flags": "[FILE2] [--pairs]",
+        "flags": "[FILE2] [-p]",
     },
     "highlight": {
-        "summary": "Highlights words from a file or extra pairs.",
+        "summary": "Color-code words from a list.",
         "description": "Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
         "example": "python multitool.py highlight input.txt --add teh:the",
-        "flags": "MAPPING [FILES...] [--add KEY:VALUE] [--smart]",
+        "flags": "MAPPING [FILES...] [-a K:V] [-S]",
     },
     "resolve": {
-        "summary": "Flattens chains of typo corrections.",
+        "summary": "Flatten typo correction chains.",
         "description": "Identifies and flattens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of scrubbing and analysis.",
         "example": "python multitool.py resolve mappings.csv --output resolved.csv",
         "flags": "",
@@ -4657,28 +4657,30 @@ def get_mode_summary_text() -> str:
     lines = []
     lines.append(f"{BOLD}Available Modes:{RESET}")
 
-    max_mode_len = max(len(m) for m in MODE_DETAILS.keys())
-    width = max_mode_len + 4
+    width_mode = 15
+    width_summary = 35
 
     # Table Header
-    header_mode = f"{'Mode':<{width}}"
-    header_summary = f"{'Summary':<55}"
+    header_mode = f"{'Mode':<{width_mode}}"
+    header_summary = f"{'Summary':<{width_summary}}"
     header_flags = "Quick Start / Primary Flags"
     lines.append(f"\n    {BOLD}{header_mode} {header_summary} {header_flags}{RESET}")
-    # Separator matches combined column widths + spacing
-    total_header_width = width + 55 + len(header_flags) + 2
-    header_separator = f"    {BOLD}{'─' * total_header_width}{RESET}"
+    # Separator line adjusted for 80-character terminal fit
+    header_separator = f"    {BOLD}{'─' * 78}{RESET}"
     lines.append(header_separator)
 
     for category, modes in categories.items():
         lines.append(f"\n  {BOLD}{BLUE}{category}{RESET}")
-        lines.append(f"  {BLUE}{'─' * (total_header_width + 2)}{RESET}")
+        lines.append(f"  {BLUE}{'─' * 80}{RESET}")
         for mode in modes:
             if mode in MODE_DETAILS:
                 details = MODE_DETAILS[mode]
                 summary = details['summary']
                 flags = details.get('flags', '')
-                lines.append(f"    {GREEN}{mode:<{width}}{RESET} {summary:<55} {YELLOW}{flags}{RESET}")
+                # Ensure summary stays within its column to maintain table alignment
+                if len(summary) > width_summary:
+                    summary = summary[:width_summary-3] + "..."
+                lines.append(f"    {GREEN}{mode:<{width_mode}}{RESET} {summary:<{width_summary}} {YELLOW}{flags}{RESET}")
 
     lines.append(f"\nRun '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
     return "\n".join(lines)

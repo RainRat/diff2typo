@@ -138,16 +138,18 @@ These modes help you transform or combine your data.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
   - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (for example, `--in-place .bak`), the tool will create a backup of each file before modifying it.
   - **Dry Run:** Use the `--dry-run` flag to see how many fixes would be made without actually changing any files.
+  - **Diff Preview:** Use the `--diff` flag to see a unified diff of the changes that would be made. This is useful for reviewing fixes before applying them in-place.
   - **Smart Casing:** Use the `--smart-case` flag to automatically match the casing of the original word. For example, if the mapping is `teh -> the`, then `Teh` will be replaced with `The`, and `TEH` with `THE`.
-  - **Example:** `python multitool.py scrub input.txt --add teh:the --output fixed.txt`
+  - **Example:** `python multitool.py scrub input.txt --add teh:the --diff`
   - **In-Place Example:** `python multitool.py scrub file1.txt file2.txt --mapping corrections.csv --in-place`
 
 - **`standardize`**
   - **What it does:** Fixes inconsistent casing by using the most frequent form. It analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures naming consistency without needing a manual mapping file.
   - **Options:**
     - Supports `--in-place` editing and `--dry-run` preview.
+    - **Diff Preview:** Use the `--diff` flag to see a unified diff of the changes that would be made.
     - Works with standard filters like `--min-length` and `--max-length`.
-  - **Example:** `python multitool.py standardize "**/*" --in-place --min-length 4`
+  - **Example:** `python multitool.py standardize "." --diff --min-length 4`
 
 - **`highlight`**
   - **What it does:** Searches for words from a list, mapping, or extra pairs and colors them in the output. This is useful as a preview before using the `scrub` mode to make permanent changes.

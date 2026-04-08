@@ -3,6 +3,7 @@ import shutil
 import argparse
 import csv
 import glob
+import difflib
 from collections import Counter, defaultdict, deque
 import random
 import contextlib
@@ -3488,6 +3489,7 @@ def standardize_mode(
     dry_run: bool = False,
     fuzzy: int = 0,
     threshold: float = 10.0,
+    diff: bool = False,
 ) -> None:
     """
     Standardizes inconsistent casing and optionally spelling of words within files
@@ -3585,6 +3587,8 @@ def standardize_mode(
             logging.warning("In-place modification requested for standard input; ignoring.")
 
         file_lines = _read_file_lines_robust(input_file)
+        # Store original lines without newlines for diffing
+        original_lines = [line.rstrip('\n') for line in file_lines]
         modified_lines = []
         file_replacements = 0
 
@@ -3596,6 +3600,35 @@ def standardize_mode(
             file_replacements += replacements
 
         total_replacements += file_replacements
+
+        if diff and file_replacements > 0:
+            # Generate and write diff
+            # Strip newlines from modified lines for difflib
+            mod_stripped = [line.rstrip('\n') for line in modified_lines]
+            diff_gen = difflib.unified_diff(
+                original_lines,
+                mod_stripped,
+                fromfile=f"a/{input_file}",
+                tofile=f"b/{input_file}",
+                lineterm=""
+            )
+
+            # Check if color is enabled
+            use_color = bool(YELLOW)
+
+            with smart_open_output(output_file) as out:
+                for line in diff_gen:
+                    if use_color:
+                        if line.startswith('+') and not line.startswith('+++'):
+                            out.write(f"{GREEN}{line}{RESET}\n")
+                        elif line.startswith('-') and not line.startswith('---'):
+                            out.write(f"{RED}{line}{RESET}\n")
+                        elif line.startswith('@@'):
+                            out.write(f"{BLUE}{line}{RESET}\n")
+                        else:
+                            out.write(f"{line}\n")
+                    else:
+                        out.write(f"{line}\n")
 
         if in_place is not None and input_file != '-':
             if file_replacements > 0:
@@ -3663,6 +3696,7 @@ def scrub_mode(
     dry_run: bool = False,
     smart_case: bool = False,
     ad_hoc: List[str] | None = None,
+    diff: bool = False,
 ) -> None:
     """
     Performs replacements of typos in text files based on a mapping file or extra pairs.
@@ -3686,6 +3720,8 @@ def scrub_mode(
             logging.warning("In-place modification requested for standard input; ignoring.")
 
         file_lines = _read_file_lines_robust(input_file)
+        # Store original lines without newlines for diffing
+        original_lines = [line.rstrip('\n') for line in file_lines]
         modified_lines = []
         file_replacements = 0
 
@@ -3697,6 +3733,35 @@ def scrub_mode(
             file_replacements += replacements
 
         total_replacements += file_replacements
+
+        if diff and file_replacements > 0:
+            # Generate and write diff
+            # Strip newlines from modified lines for difflib
+            mod_stripped = [line.rstrip('\n') for line in modified_lines]
+            diff_gen = difflib.unified_diff(
+                original_lines,
+                mod_stripped,
+                fromfile=f"a/{input_file}",
+                tofile=f"b/{input_file}",
+                lineterm=""
+            )
+
+            # Check if color is enabled
+            use_color = bool(YELLOW)
+
+            with smart_open_output(output_file) as out:
+                for line in diff_gen:
+                    if use_color:
+                        if line.startswith('+') and not line.startswith('+++'):
+                            out.write(f"{GREEN}{line}{RESET}\n")
+                        elif line.startswith('-') and not line.startswith('---'):
+                            out.write(f"{RED}{line}{RESET}\n")
+                        elif line.startswith('@@'):
+                            out.write(f"{BLUE}{line}{RESET}\n")
+                        else:
+                            out.write(f"{line}\n")
+                    else:
+                        out.write(f"{line}\n")
 
         if in_place is not None and input_file != '-':
             if file_replacements > 0:
@@ -4592,8 +4657,8 @@ MODE_DETAILS = {
     "standardize": {
         "summary": "Fixes casing/spelling project-wide.",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching based on your project's dominant patterns.",
-        "example": "python multitool.py standardize . --in-place --min-length 4 --fuzzy 1",
-        "flags": "[--in-place] [--dry-run] [--fuzzy N] [--threshold R]",
+        "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1",
+        "flags": "[--in-place] [--dry-run] [--diff] [--fuzzy N] [--threshold R]",
     },
     "search": {
         "summary": "Search for words or patterns.",
@@ -4616,8 +4681,8 @@ MODE_DETAILS = {
     "scrub": {
         "summary": "Fix typos in text files.",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
-        "example": "python multitool.py scrub input.txt --add teh:the --output fixed.txt",
-        "flags": "MAPPING [FILES...] [-a K:V]",
+        "example": "python multitool.py scrub input.txt --add teh:the --diff",
+        "flags": "MAPPING [FILES...] [-a K:V] [--diff]",
     },
     "rename": {
         "summary": "Batch rename files and folders.",
@@ -5530,6 +5595,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help="Automatically match the casing of the original word (for example, 'Teh' -> 'The').",
     )
+    scrub_options.add_argument(
+        '--diff',
+        action='store_true',
+        help="Show a unified diff of the changes that would be made.",
+    )
     _add_common_mode_arguments(scrub_parser, include_process_output=False, include_limit=False)
 
     rename_parser = subparsers.add_parser(
@@ -5602,6 +5672,11 @@ def _build_parser() -> argparse.ArgumentParser:
         type=float,
         default=10.0,
         help="The minimum frequency ratio to consider a rare word a typo (default: 10.0).",
+    )
+    standardize_options.add_argument(
+        '--diff',
+        action='store_true',
+        help="Show a unified diff of the changes that would be made.",
     )
     _add_common_mode_arguments(standardize_parser, include_process_output=False, include_limit=True)
 
@@ -6226,6 +6301,7 @@ def main() -> None:
                 'dry_run': getattr(args, 'dry_run', False),
                 'fuzzy': getattr(args, 'fuzzy', 0),
                 'threshold': getattr(args, 'threshold', 10.0),
+                'diff': getattr(args, 'diff', False),
             }
         ),
         'scrub': (
@@ -6244,6 +6320,7 @@ def main() -> None:
                 'in_place': getattr(args, 'in_place', None),
                 'dry_run': getattr(args, 'dry_run', False),
                 'smart_case': getattr(args, 'smart_case', False),
+                'diff': getattr(args, 'diff', False),
             }
         ),
         'zip': (

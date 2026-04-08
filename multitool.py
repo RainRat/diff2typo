@@ -3324,7 +3324,7 @@ def _resolve_full_mapping(
                 else:
                     full_mapping[content] = ""
 
-    # 2. Add extra pairs (e.g., "teh:the" or "old:new")
+    # 2. Add extra pairs (for example, "teh:the" or "old:new")
     if ad_hoc_pairs:
         for pair in ad_hoc_pairs:
             if ":" in pair:
@@ -4593,7 +4593,7 @@ MODE_DETAILS = {
         "summary": "Fixes casing/spelling project-wide.",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching based on your project's dominant patterns.",
         "example": "python multitool.py standardize . --in-place --min-length 4 --fuzzy 1",
-        "flags": "[--in-place] [--dry-run] [--fuzzy N]",
+        "flags": "[--in-place] [--dry-run] [--fuzzy N] [--threshold R]",
     },
     "search": {
         "summary": "Search for words or patterns.",
@@ -4623,7 +4623,7 @@ MODE_DETAILS = {
         "summary": "Batch rename files and folders.",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
         "example": "python multitool.py rename src/ --add teh:the --in-place",
-        "flags": "[MAPPING] [FILES...] [-a] [-i]",
+        "flags": "[MAPPING] [FILES...] [-a K:V] [--in-place] [--dry-run] [--smart-case]",
     },
     "diff": {
         "summary": "Finds differences between files.",

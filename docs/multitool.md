@@ -92,7 +92,7 @@ These modes help you transform or combine your data.
     - Supports `--in-place` renaming and `--dry-run` preview.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add old_name:new_name`) directly on the command line.
     - Use the `--smart-case` flag to automatically match the casing of the original filename.
-  - **Example:** `python multitool.py rename src/**/* --mapping corrections.csv --in-place`
+  - **Example:** `python multitool.py rename src/ --mapping corrections.csv --in-place`
 
 - **`diff`**
   - **What it does:** Finds added, removed, and changed items between two files. It can compare simple lists of words or (with the `--pairs` flag) find changes in typo-correction mappings.
@@ -147,7 +147,7 @@ These modes help you transform or combine your data.
   - **Options:**
     - Supports `--in-place` editing and `--dry-run` preview.
     - Works with standard filters like `--min-length` and `--max-length`.
-  - **Example:** `python multitool.py standardize "**/*" --in-place --min-length 4`
+  - **Example:** `python multitool.py standardize . --in-place --min-length 4`
 
 - **`highlight`**
   - **What it does:** Searches for words from a list, mapping, or extra pairs and colors them in the output. This is useful as a preview before using the `scrub` mode to make permanent changes.
@@ -264,7 +264,7 @@ These modes help you analyze your data.
     - Use the `--mapping` flag to provide a file with typos or words to find.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.
     - The `--smart` flag allows for finding subwords within larger compound words.
-  - **Example:** `python multitool.py scan "**/*" --add teh:the --smart`
+  - **Example:** `python multitool.py scan . --add teh:the --smart`
 
 - **`verify`**
   - **What it does:** Identifies which entries in a mapping file or extra pairs are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
@@ -273,7 +273,7 @@ These modes help you analyze your data.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.
     - Use the `--prune` flag to output a new mapping file containing only the typos that were actually found in your project.
     - Use the `--smart` flag to also find subword matches (for example, finding "teh" inside "tehWord").
-  - **Example:** `python multitool.py verify "**/*" --add teh:the --prune`
+  - **Example:** `python multitool.py verify . --add teh:the --prune`
 
 ## Common Options
 

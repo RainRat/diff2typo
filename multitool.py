@@ -4684,11 +4684,6 @@ def get_mode_summary_text() -> str:
     return "\n".join(lines)
 
 
-def print_mode_summary() -> None:
-    """Print a summary table of all available modes, grouped by category."""
-    print("\n" + get_mode_summary_text())
-
-
 class MinimalFormatter(logging.Formatter):
     """A logging formatter that removes prefixes for INFO level messages."""
 
@@ -4728,7 +4723,7 @@ class ModeHelpAction(argparse.Action):
     ) -> None:
         if values in (None, "all"):
             # Show a summary table of all modes
-            print_mode_summary()
+            print("\n" + get_mode_summary_text())
             parser.exit()
         else:
             # Show detailed help for a single mode
@@ -5819,7 +5814,7 @@ def _normalize_mode_args(
 
 def main() -> None:
     if len(sys.argv) == 1:
-        print_mode_summary()
+        print("\n" + get_mode_summary_text())
         sys.exit(0)
 
     parser = _build_parser()

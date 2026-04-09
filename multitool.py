@@ -1471,105 +1471,101 @@ def count_mode(
             max_bar = 20
 
             # Colors for output
-            # main output colors (used for the report data)
-            # These are suppressed if writing to a file or if the main output is not a terminal (piping)
-            use_color_stdout = out_file.isatty()
-            c_out_green = GREEN if use_color_stdout else ""
-            c_out_red = RED if use_color_stdout else ""
-            c_out_yellow = YELLOW if use_color_stdout else ""
-            c_out_bold = BOLD if use_color_stdout else ""
-            c_out_reset = RESET if use_color_stdout else ""
+            # We determine color availability independently for stdout and stderr to preserve correct behavior when piping.
+            use_color_out = (out_file.isatty() or os.environ.get('FORCE_COLOR')) and not os.environ.get('NO_COLOR')
+            use_color_err = (sys.stderr.isatty() or os.environ.get('FORCE_COLOR')) and not os.environ.get('NO_COLOR')
 
-            # standard error colors (used for human-readable headers)
-            # If output_file is set to a real file, we avoid colors in headers that might be written to the file
-            use_color_err = (output_file == '-') and sys.stderr.isatty()
+            c_out_bold = BOLD if use_color_out else ""
+            c_out_blue = BLUE if use_color_out else ""
+            c_out_green = GREEN if use_color_out else ""
+            c_out_yellow = YELLOW if use_color_out else ""
+            c_out_reset = RESET if use_color_out else ""
+
             c_err_bold = BOLD if use_color_err else ""
-            c_err_yellow = YELLOW if use_color_err else ""
             c_err_green = GREEN if use_color_err else ""
+            c_err_yellow = YELLOW if use_color_err else ""
             c_err_reset = RESET if use_color_err else ""
 
             # Header and divider
             padding = "  "
+            sep = f"{c_out_bold}│{c_out_reset}"
 
-            # Dashboard Summary (Consolidated)
-            label_width = 35
-            summary_buffer = []
-            summary_buffer.append(f"\n{padding}{c_err_bold}ANALYSIS SUMMARY{c_err_reset}")
-            summary_buffer.append(f"{padding}{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}")
-
-            item_label = "pair" if pairs else "word"
-            item_label_plural = f"{item_label}s"
-
-            summary_buffer.append(f"  {c_err_bold}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_err_reset} {c_err_yellow}{raw_count}{c_err_reset}")
-            summary_buffer.append(f"  {c_err_bold}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_err_reset} {c_err_green}{len(filtered_items)}{c_err_reset}")
-
-            if raw_count > 0:
-                retention = (len(filtered_items) / raw_count) * 100
-                summary_buffer.append(f"  {c_err_bold}{'Retention rate:':<{label_width}}{c_err_reset} {c_err_green}{retention:.1f}%{c_err_reset}")
-
-            unique_count = len(item_counts)
-            summary_buffer.append(f"  {c_err_bold}{'Unique ' + item_label_plural + ':':<{label_width}}{c_err_reset} {c_err_green}{unique_count}{c_err_reset}")
-
-            if pairs and filtered_items:
-                distances = [levenshtein_distance(p[0], p[1]) for p in filtered_items]
-                if distances:
-                    min_dist = min(distances)
-                    max_dist = max(distances)
-                    avg_dist = sum(distances) / len(distances)
-                    summary_buffer.append(f"  {c_err_bold}{'Min/Max/Avg changes:':<{label_width}}{c_err_reset} {min_dist} / {max_dist} / {avg_dist:.1f}")
-
-            if filtered_items:
-                def format_item_local(it: Any) -> str:
-                    if isinstance(it, tuple) and len(it) == 2:
-                        return f"{it[0]} -> {it[1]}"
-                    return str(it)
-
-                shortest = min(filtered_items, key=lambda x: len(format_item_local(x)))
-                longest = max(filtered_items, key=lambda x: len(format_item_local(x)))
-
-                s_display = format_item_local(shortest)
-                l_display = format_item_local(longest)
-
-                summary_buffer.append(f"  {c_err_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_err_reset} '{s_display}' (length: {len(s_display)})")
-                summary_buffer.append(f"  {c_err_bold}{'Longest ' + item_label + ':':<{label_width}}{c_err_reset} '{l_display}' (length: {len(l_display)})")
-
-            duration = time.perf_counter() - start_time
-            summary_buffer.append(
-                f"  {c_err_bold}{'Processing time:':<{label_width}}{c_err_reset} {c_err_green}{duration:.3f}s{c_err_reset}"
-            )
-
-            # Determine colors for headers (might go to stdout or stderr)
-            if output_file == '-' and not quiet:
-                # Headers go to stderr
-                c_head_bold = c_err_bold
-                c_head_reset = c_err_reset
-            else:
-                # Headers go to out_file (stdout or real file)
-                c_head_bold = c_out_bold
-                c_head_reset = c_out_reset
-
+            # Define table header and divider
+            # We use c_out_* for the visual components of the table
             header = (
-                f"{padding}{c_head_bold}{item_header:<{max_item}}{c_head_reset} │ "
-                f"{c_head_bold}{'COUNT':>{max_count_len}}{c_head_reset} │ "
-                f"{c_head_bold}{'%':>{max_pct}}{c_head_reset} │ "
-                f"{c_head_bold}{'VISUAL':<{max_bar}}{c_head_reset}"
+                f"{padding}{c_out_bold}{c_out_blue}{item_header:<{max_item}}{c_out_reset} {sep} "
+                f"{c_out_bold}{c_out_blue}{'COUNT':>{max_count_len}}{c_out_reset} {sep} "
+                f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
+                f"{c_out_bold}{c_out_blue}{'VISUAL':<{max_bar}}{c_out_reset}"
             )
-            # sum(column_widths) + 3 * len(' │ ') = sum + 9
             visible_header_len = max_item + max_count_len + max_pct + max_bar + 9
-            divider = f"{padding}{c_head_bold}{'─' * visible_header_len}{c_head_reset}"
+            divider = f"{padding}{c_out_bold}{'─' * visible_header_len}{c_out_reset}"
+            header_block = f"\n{header}\n{divider}\n"
 
-            # Write summary and headers to either stderr (if piping) or the output stream
-            output_summary = "\n".join(summary_buffer) + "\n"
-            output_header_block = f"\n{header}\n{divider}\n"
+            # If not quiet, prepare and write the summary and header block.
+            if not quiet:
+                label_width = 35
+                summary_buffer = []
+                summary_buffer.append(f"\n{padding}{c_err_bold}ANALYSIS SUMMARY{c_err_reset}")
+                summary_buffer.append(f"{padding}{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}")
 
-            if output_file == '-':
-                if not quiet:
-                    sys.stderr.write(output_summary)
-                    sys.stderr.write(output_header_block)
+                item_label = "pair" if pairs else "word"
+                item_label_plural = f"{item_label}s"
+
+                summary_buffer.append(f"  {c_err_bold}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_err_reset} {c_err_yellow}{raw_count}{c_err_reset}")
+                summary_buffer.append(f"  {c_err_bold}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_err_reset} {c_err_green}{len(filtered_items)}{c_err_reset}")
+
+                if raw_count > 0:
+                    retention = (len(filtered_items) / raw_count) * 100
+                    summary_buffer.append(f"  {c_err_bold}{'Retention rate:':<{label_width}}{c_err_reset} {c_err_green}{retention:.1f}%{c_err_reset}")
+
+                unique_count = len(item_counts)
+                summary_buffer.append(f"  {c_err_bold}{'Unique ' + item_label_plural + ':':<{label_width}}{c_err_reset} {c_err_green}{unique_count}{c_err_reset}")
+
+                if pairs and filtered_items:
+                    distances = [levenshtein_distance(p[0], p[1]) for p in filtered_items]
+                    if distances:
+                        min_dist = min(distances)
+                        max_dist = max(distances)
+                        avg_dist = sum(distances) / len(distances)
+                        summary_buffer.append(f"  {c_err_bold}{'Min/Max/Avg changes:':<{label_width}}{c_err_reset} {min_dist} / {max_dist} / {avg_dist:.1f}")
+
+                if filtered_items:
+                    def format_item_local(it: Any) -> str:
+                        if isinstance(it, tuple) and len(it) == 2:
+                            return f"{it[0]} -> {it[1]}"
+                        return str(it)
+
+                    shortest = min(filtered_items, key=lambda x: len(format_item_local(x)))
+                    longest = max(filtered_items, key=lambda x: len(format_item_local(x)))
+
+                    s_display = format_item_local(shortest)
+                    l_display = format_item_local(longest)
+
+                    summary_buffer.append(f"  {c_err_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_err_reset} '{s_display}' (length: {len(s_display)})")
+                    summary_buffer.append(f"  {c_err_bold}{'Longest ' + item_label + ':':<{label_width}}{c_err_reset} '{l_display}' (length: {len(l_display)})")
+
+                duration = time.perf_counter() - start_time
+                summary_buffer.append(
+                    f"  {c_err_bold}{'Processing time:':<{label_width}}{c_err_reset} {c_err_green}{duration:.3f}s{c_err_reset}"
+                )
+
+                summary_text = "\n".join(summary_buffer) + "\n"
+
+                # When the output is the console ('-'), we write the analysis summary and table
+                # header to stderr. This keeps stdout clean for piped data.
+                if output_file == '-':
+                    sys.stderr.write(summary_text)
+                    sys.stderr.write(header_block)
                     sys.stderr.flush()
+                else:
+                    # When writing to a file, we include everything in the file.
+                    out_file.write(summary_text)
+                    out_file.write(header_block)
             else:
-                out_file.write(output_summary)
-                out_file.write(output_header_block)
+                # If quiet, we still write the header to the output file if it's not the console.
+                if output_file != '-':
+                    out_file.write(header_block)
 
             for i, (item, count) in enumerate(final_results):
                 percent = (count / total_count * 100) if total_count > 0 else 0
@@ -1588,10 +1584,10 @@ def count_mode(
                     bar += " " * (max_bar - full_blocks - 1)
 
                 row = (
-                    f"{padding}{c_out_green}{label:<{max_item}}{c_out_reset} │ "
-                    f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} │ "
-                    f"{c_out_green}{percent:>5.1f}%{c_out_reset} │ "
-                    f"{c_out_red}{bar}{c_out_reset}"
+                    f"{padding}{c_out_green}{label:<{max_item}}{c_out_reset} {sep} "
+                    f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
+                    f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
+                    f"{c_out_blue}{bar}{c_out_reset}"
                 )
                 out_file.write(f"{row}\n")
             out_file.write("\n")

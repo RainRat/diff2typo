@@ -5368,8 +5368,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     search_parser = subparsers.add_parser(
         'search',
-        help="Searches for words or patterns in text files.",
+        help=MODE_DETAILS['search']['summary'],
         formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['search']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['search']['example']}{RESET}",
     )
     search_options = search_parser.add_argument_group(f"{BLUE}SEARCH OPTIONS{RESET}")
     search_options.add_argument(

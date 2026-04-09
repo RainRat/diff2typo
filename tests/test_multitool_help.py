@@ -70,3 +70,34 @@ def test_mode_help_invalid(monkeypatch, capsys):
     output = captured.err + captured.out
 
     assert "invalid choice" in output or "argument --mode-help: invalid choice" in output
+
+def test_mode_help_search_detailed(monkeypatch, capsys):
+    """Test 'multitool.py --mode-help search' displays detailed help for search mode."""
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', '--mode-help', 'search'])
+
+    with pytest.raises(SystemExit):
+        multitool.main()
+
+    captured = capsys.readouterr()
+    output = captured.err + captured.out
+
+    assert "MODE: SEARCH" in output
+    assert "SUMMARY:     Search for words or patterns." in output
+    assert "DESCRIPTION: A typo-aware search tool." in output
+    assert "EXAMPLE:" in output
+    assert "multitool.py search 'teh' report.txt" in output
+
+def test_search_standard_help(monkeypatch, capsys):
+    """Test 'python multitool.py search --help' displays correct description and example."""
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'search', '--help'])
+
+    with pytest.raises(SystemExit):
+        multitool.main()
+
+    captured = capsys.readouterr()
+    output = captured.err + captured.out
+
+    # argparse uses Example: (not BOLD) in epilog by default in our setup
+    assert "A typo-aware search tool." in output
+    assert "Example:" in output
+    assert "python multitool.py search 'teh' report.txt" in output

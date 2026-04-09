@@ -609,6 +609,43 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                     continue
 
 
+def _write_diff_report(
+    input_file: str,
+    original_lines: List[str],
+    modified_lines: List[str],
+    output_file: str,
+) -> None:
+    """Generate and write a colorized unified diff report."""
+    # Strip newlines from lines for difflib compatibility
+    orig_stripped = [line.rstrip('\n') for line in original_lines]
+    mod_stripped = [line.rstrip('\n') for line in modified_lines]
+
+    diff_gen = difflib.unified_diff(
+        orig_stripped,
+        mod_stripped,
+        fromfile=f"a/{input_file}",
+        tofile=f"b/{input_file}",
+        lineterm=""
+    )
+
+    # Check if color is enabled (using global YELLOW as proxy for overall color support)
+    use_color = bool(YELLOW)
+
+    with smart_open_output(output_file) as out:
+        for line in diff_gen:
+            if use_color:
+                if line.startswith('+') and not line.startswith('+++'):
+                    out.write(f"{GREEN}{line}{RESET}\n")
+                elif line.startswith('-') and not line.startswith('---'):
+                    out.write(f"{RED}{line}{RESET}\n")
+                elif line.startswith('@@'):
+                    out.write(f"{BLUE}{line}{RESET}\n")
+                else:
+                    out.write(f"{line}\n")
+            else:
+                out.write(f"{line}\n")
+
+
 def _write_paired_output(
     pairs: Iterable[Tuple[str, str]],
     output_file: str,
@@ -3602,33 +3639,7 @@ def standardize_mode(
         total_replacements += file_replacements
 
         if diff and file_replacements > 0:
-            # Generate and write diff
-            # Strip newlines from modified lines for difflib
-            mod_stripped = [line.rstrip('\n') for line in modified_lines]
-            diff_gen = difflib.unified_diff(
-                original_lines,
-                mod_stripped,
-                fromfile=f"a/{input_file}",
-                tofile=f"b/{input_file}",
-                lineterm=""
-            )
-
-            # Check if color is enabled
-            use_color = bool(YELLOW)
-
-            with smart_open_output(output_file) as out:
-                for line in diff_gen:
-                    if use_color:
-                        if line.startswith('+') and not line.startswith('+++'):
-                            out.write(f"{GREEN}{line}{RESET}\n")
-                        elif line.startswith('-') and not line.startswith('---'):
-                            out.write(f"{RED}{line}{RESET}\n")
-                        elif line.startswith('@@'):
-                            out.write(f"{BLUE}{line}{RESET}\n")
-                        else:
-                            out.write(f"{line}\n")
-                    else:
-                        out.write(f"{line}\n")
+            _write_diff_report(input_file, original_lines, modified_lines, output_file)
 
         if in_place is not None and input_file != '-':
             if file_replacements > 0:
@@ -3735,33 +3746,7 @@ def scrub_mode(
         total_replacements += file_replacements
 
         if diff and file_replacements > 0:
-            # Generate and write diff
-            # Strip newlines from modified lines for difflib
-            mod_stripped = [line.rstrip('\n') for line in modified_lines]
-            diff_gen = difflib.unified_diff(
-                original_lines,
-                mod_stripped,
-                fromfile=f"a/{input_file}",
-                tofile=f"b/{input_file}",
-                lineterm=""
-            )
-
-            # Check if color is enabled
-            use_color = bool(YELLOW)
-
-            with smart_open_output(output_file) as out:
-                for line in diff_gen:
-                    if use_color:
-                        if line.startswith('+') and not line.startswith('+++'):
-                            out.write(f"{GREEN}{line}{RESET}\n")
-                        elif line.startswith('-') and not line.startswith('---'):
-                            out.write(f"{RED}{line}{RESET}\n")
-                        elif line.startswith('@@'):
-                            out.write(f"{BLUE}{line}{RESET}\n")
-                        else:
-                            out.write(f"{line}\n")
-                    else:
-                        out.write(f"{line}\n")
+            _write_diff_report(input_file, original_lines, modified_lines, output_file)
 
         if in_place is not None and input_file != '-':
             if file_replacements > 0:

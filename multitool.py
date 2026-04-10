@@ -262,14 +262,6 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     lines = []
     used_encoding = 'utf-8'
 
-    if not path == '-' and not os.path.exists(path):
-        logging.error(f"Input file '{path}' not found.")
-        sys.exit(1)
-
-    if not path == '-' and os.path.isdir(path):
-        logging.warning(f"Input path '{path}' is a directory. Skipping.")
-        return []
-
     if path == '-':
         if _STDIN_CACHE is not None:
             logging.info("Using cached standard input...")
@@ -292,6 +284,14 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
 
         _STDIN_CACHE = lines
     else:
+        if not os.path.exists(path):
+            logging.error(f"Input file '{path}' not found.")
+            sys.exit(1)
+
+        if os.path.isdir(path):
+            logging.warning(f"Input path '{path}' is a directory. Skipping.")
+            return []
+
         try:
             with open(path, 'r', encoding='utf-8', newline=newline) as handle:
                 lines = handle.readlines()

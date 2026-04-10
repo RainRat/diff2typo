@@ -1400,6 +1400,8 @@ def count_mode(
     delimiter: str | None = None,
     smart: bool = False,
     pairs: bool = False,
+    mapping_file: str | None = None,
+    ad_hoc: List[str] | None = None,
 ) -> None:
     """
     Counts the frequency of each word or pair in the input file(s) and writes the
@@ -1413,8 +1415,27 @@ def count_mode(
     item_counts = Counter()
 
     start_time = time.perf_counter()
-    if pairs:
-        # Mode for counting typo -> correction pairs
+
+    # Mapping-based auditing
+    mapping = None
+    if mapping_file or ad_hoc:
+        mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
+        pairs = True  # Automatically enable pairs for mapping audit
+
+    if mapping:
+        # Audit mode: Count occurrences of mapped typos in input files
+        for input_file in input_files:
+            words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
+            for word in words_gen:
+                raw_count += 1
+                match_key = filter_to_letters(word) if clean_items else word
+                if match_key in mapping:
+                    correction = mapping[match_key]
+                    if min_length <= len(match_key) <= max_length:
+                        filtered_items.append((match_key, correction))
+                        item_counts.update([(match_key, correction)])
+    elif pairs:
+        # Mode for counting typo -> correction pairs from existing mapping files
         for left, right in _extract_pairs(input_files, quiet=quiet):
             raw_count += 1
             if clean_items:
@@ -4518,9 +4539,9 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts word or pair frequencies.",
-        "description": "Counts frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs (for example, typo -> correction) instead of single words.",
-        "example": "python multitool.py count typos.log -f arrow --smart --pairs",
-        "flags": "[--min-count N] [-d DELIM] [-S] [-p]",
+        "description": "Counts frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs (for example, typo -> correction) instead of single words. You can also provide a mapping (via --mapping or --add) to count occurrences of specific typos across your files.",
+        "example": "python multitool.py count . --add teh:the --min-count 5 -f arrow",
+        "flags": "[-s S] [-a K:V] [-d D] [-S] [-p]",
     },
     "filterfragments": {
         "summary": "Removes words found inside others.",
@@ -5097,6 +5118,20 @@ def _build_parser() -> argparse.ArgumentParser:
         '-p', '--pairs',
         action='store_true',
         help='Count frequencies of word pairs (for example, typo -> correction) instead of single words.',
+    )
+    count_options.add_argument(
+        '-s', '--mapping',
+        type=str,
+        required=False,
+        help='Path to the mapping file for auditing.',
+    )
+    count_options.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Extra mapping pairs (for example "teh:the") for auditing.',
     )
     _add_common_mode_arguments(count_parser, include_process_output=False)
 
@@ -6149,6 +6184,8 @@ def main() -> None:
                 'delimiter': delimiter,
                 'smart': getattr(args, 'smart', False),
                 'pairs': getattr(args, 'pairs', False),
+                'mapping_file': getattr(args, 'mapping', None),
+                'ad_hoc': getattr(args, 'ad_hoc', None),
             },
         ),
         'filterfragments': (

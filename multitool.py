@@ -1539,8 +1539,8 @@ def count_mode(
             divider = f"{padding}{c_out_bold}{'─' * visible_header_len}{c_out_reset}"
             header_block = f"\n{header}\n{divider}\n"
 
-            # If not quiet, prepare and write the summary and header block.
-            if not quiet:
+            # If not quiet OR writing to a file, prepare and write the summary and header block.
+            if not quiet or output_file != '-':
                 label_width = 35
                 summary_buffer = []
                 summary_buffer.append(f"\n{padding}{c_err_bold}ANALYSIS SUMMARY{c_err_reset}")
@@ -1592,17 +1592,18 @@ def count_mode(
                 # When the output is the console ('-'), we write the analysis summary and table
                 # header to stderr. This keeps stdout clean for piped data.
                 if output_file == '-':
-                    sys.stderr.write(summary_text)
-                    sys.stderr.write(header_block)
-                    sys.stderr.flush()
+                    if not quiet:
+                        sys.stderr.write(summary_text)
+                        sys.stderr.write(header_block)
+                        sys.stderr.flush()
                 else:
                     # When writing to a file, we include everything in the file.
                     out_file.write(summary_text)
                     out_file.write(header_block)
             else:
-                # If quiet, we still write the header to the output file if it's not the console.
-                if output_file != '-':
-                    out_file.write(header_block)
+                # This branch is reached if quiet is True and output_file is '-'.
+                # In this case, we write nothing to stderr.
+                pass
 
             for i, (item, count) in enumerate(final_results):
                 percent = (count / total_count * 100) if total_count > 0 else 0

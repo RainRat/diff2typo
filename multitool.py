@@ -4782,31 +4782,33 @@ class ModeHelpAction(argparse.Action):
                 parser.error(f"Unknown mode: {values}")
 
             divider = f"{BLUE}{'─' * 80}{RESET}"
+            label_color = f"{BLUE}{BOLD}"
             block = [
                 divider,
-                f"{BOLD}MODE:{RESET} {GREEN}{values.upper()}{RESET}",
+                f"{label_color}{'MODE:':<13}{RESET}{GREEN}{values.upper()}{RESET}",
                 divider,
-                f"{BOLD}SUMMARY:{RESET}     {details['summary']}",
+                f"{label_color}{'SUMMARY:':<13}{RESET}{details['summary']}",
             ]
 
             if details.get("description"):
-                # Simple indentation for description
                 desc = details['description']
-                block.append(f"{BOLD}DESCRIPTION:{RESET} {desc}")
+                block.append(f"{label_color}{'DESCRIPTION:':<13}{RESET}{desc}")
 
             flags_str = details.get("flags", "[FILES...]")
             first_word = flags_str.split()[0] if flags_str else ""
             # If the flags string starts with a positional label (uppercase, no brackets), show it as part of USAGE
             if first_word.isupper() and not first_word.startswith('[') and not first_word.startswith('-'):
-                block.append(f"\n{BOLD}USAGE:{RESET}       python multitool.py {values} {first_word} [FILES...] [FLAGS]")
+                usage_line = f"python multitool.py {values} {first_word} [FILES...] [FLAGS]"
             else:
-                block.append(f"\n{BOLD}USAGE:{RESET}       python multitool.py {values} [FILES...] [FLAGS]")
+                usage_line = f"python multitool.py {values} [FILES...] [FLAGS]"
+
+            block.append(f"\n{label_color}{'USAGE:':<13}{RESET}{usage_line}")
 
             if details.get("flags"):
-                block.append(f"{BOLD}FLAGS:{RESET}       {YELLOW}{details['flags']}{RESET}")
+                block.append(f"{label_color}{'FLAGS:':<13}{RESET}{YELLOW}{details['flags']}{RESET}")
 
             if details.get("example"):
-                block.append(f"\n{BOLD}EXAMPLE:{RESET}")
+                block.append(f"\n{label_color}EXAMPLE:{RESET}")
                 block.append(f"  {BLUE}{details['example']}{RESET}")
 
             block.append(divider)

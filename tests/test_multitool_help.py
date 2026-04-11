@@ -51,8 +51,10 @@ def test_mode_help_specific(monkeypatch, capsys):
     captured = capsys.readouterr()
     output = captured.err + captured.out
 
-    assert "MODE: ARROW" in output
-    assert "SUMMARY:     Gets text from lines with arrows." in output
+    assert "MODE:" in output
+    assert "ARROW" in output
+    assert "SUMMARY:" in output
+    assert "Gets text from lines with arrows." in output
 
     # Should not contain other modes
     assert "MODE: CSV" not in output
@@ -81,9 +83,12 @@ def test_mode_help_search_detailed(monkeypatch, capsys):
     captured = capsys.readouterr()
     output = captured.err + captured.out
 
-    assert "MODE: SEARCH" in output
-    assert "SUMMARY:     Search for words or patterns." in output
-    assert "DESCRIPTION: A typo-aware search tool." in output
+    assert "MODE:" in output
+    assert "SEARCH" in output
+    assert "SUMMARY:" in output
+    assert "Search for words or patterns." in output
+    assert "DESCRIPTION:" in output
+    assert "A typo-aware search tool." in output
     assert "EXAMPLE:" in output
     assert "multitool.py search 'teh' report.txt" in output
 

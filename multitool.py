@@ -2929,6 +2929,29 @@ def search_mode(
     )
 
 
+def _collect_unique_items(
+    input_files: Sequence[str],
+    min_length: int,
+    max_length: int,
+    clean_items: bool,
+) -> Tuple[int, List[str]]:
+    """Helper to collect and deduplicate items from multiple files while preserving order."""
+    raw_item_count = 0
+    combined_items = []
+    for file_path in input_files:
+        raw, _, unique = _load_and_clean_file(
+            file_path,
+            min_length,
+            max_length,
+            clean_items=clean_items,
+        )
+        raw_item_count += len(raw)
+        combined_items.extend(unique)
+
+    # Deduplicate while preserving order of first appearance
+    return raw_item_count, list(dict.fromkeys(combined_items))
+
+
 def combine_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -2942,24 +2965,15 @@ def combine_mode(
 ) -> None:
     """Merge cleaned contents from multiple files into one deduplicated list."""
     start_time = time.perf_counter()
-    raw_item_count = 0
-    combined_unique: list[str] = []
+    raw_count, unique_items = _collect_unique_items(
+        input_files, min_length, max_length, clean_items
+    )
 
-    for file_path in input_files:
-        raw_items, cleaned_items, unique_items = _load_and_clean_file(
-            file_path,
-            min_length,
-            max_length,
-            clean_items=clean_items,
-        )
-        raw_item_count += len(raw_items)
-        combined_unique.extend(unique_items)
+    # Combine mode always sorts results alphabetically
+    final_items = sorted(unique_items)
 
-    combined_unique = sorted(dict.fromkeys(combined_unique))
-
-    write_output(combined_unique, output_file, output_format, quiet, limit=limit)
-
-    print_processing_stats(raw_item_count, combined_unique, start_time=start_time)
+    write_output(final_items, output_file, output_format, quiet, limit=limit)
+    print_processing_stats(raw_count, final_items, start_time=start_time)
     logging.info(
         "[Combine Mode] Combined %d file(s). Output written to '%s'.",
         len(input_files),
@@ -2980,30 +2994,17 @@ def unique_mode(
 ) -> None:
     """Deduplicate items while preserving their first appearance in the input files."""
     start_time = time.perf_counter()
-    raw_item_count = 0
-    combined_unique: list[str] = []
-
-    for file_path in input_files:
-        raw_items, cleaned_items, unique_items = _load_and_clean_file(
-            file_path,
-            min_length,
-            max_length,
-            clean_items=clean_items,
-        )
-        raw_item_count += len(raw_items)
-        combined_unique.extend(unique_items)
-
-    # Use dict.fromkeys() to deduplicate while preserving order of first occurrence
-    final_items = list(dict.fromkeys(combined_unique))
+    raw_count, final_items = _collect_unique_items(
+        input_files, min_length, max_length, clean_items
+    )
 
     if process_output:
-        # If the user explicitly requested -P, we still sort alphabetically.
+        # If the user explicitly requested -P, we sort alphabetically.
         # But by default unique mode is order-preserving.
         final_items.sort()
 
     write_output(final_items, output_file, output_format, quiet, limit=limit)
-
-    print_processing_stats(raw_item_count, final_items, start_time=start_time)
+    print_processing_stats(raw_count, final_items, start_time=start_time)
     logging.info(
         "[Unique Mode] Deduplicated %d file(s). Output written to '%s'.",
         len(input_files),

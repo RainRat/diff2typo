@@ -13,10 +13,12 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 - **Python 3.10 or newer:** The suite uses modern Python features.
 - **Git:** Required to use `diff2typo.py` with your repository history.
 - **Dependencies:** The following Python packages are required and will be installed in step 2:
-  - `PyYAML`: Used for configuration files.
-  - `pyahocorasick`: Used for fast string matching in `multitool.py`.
-  - `tqdm`: Used for progress bars.
-- **(Optional) The `typos` tool:** We recommend installing the [typos](https://github.com/crate-ci/typos) command-line tool. `diff2typo.py` uses it to automatically filter out typos that are already known, keeping your lists clean.
+  - `PyYAML`: Handles configuration files.
+  - `pyahocorasick`: Performs fast string matching.
+  - `tqdm`: Displays progress bars for long tasks.
+  - `chardet`: Automatically detects file text encodings.
+  - `pytest`: Runs the project's test suite.
+- **(Optional) The `typos` tool:** We recommend installing the [typos](https://github.com/crate-ci/typos) command-line tool. The suite uses it to automatically filter out known typos.
 
 ## 📦 Installation
 
@@ -29,12 +31,6 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 2. **Install the dependencies:**
    ```bash
    pip install -r requirements.txt
-   ```
-
-3. **(Optional) Better file support:**
-   Install `chardet` to help the tools automatically handle files with different text encodings (like UTF-8 or Latin-1).
-   ```bash
-   pip install chardet
    ```
 
 ## 🛠️ Tools Overview

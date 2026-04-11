@@ -1,8 +1,8 @@
 # Configuration for Fake Typo Generator
 
 # File Paths
-input_file: "wordlist_small.txt"       # Path to the source words (one per line)
-dictionary_file: "wordlist_large.txt"     # Path to the valid words (used to filter out real words)
+input_file: "wordlist_small.txt"       # Path to the small dictionary (one per line)
+dictionary_file: "wordlist_large.txt"     # Path to the large dictionary (used to filter out real words)
 output_file: "typos_mega.toml"     # Path to the output file
 
 # Output_format options: arrow, csv, table, list

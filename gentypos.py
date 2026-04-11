@@ -10,7 +10,7 @@ Features:
     - Generates typos based on common typing patterns (skipping letters, swapping neighbors, and so on).
     - Uses keyboard adjacency to predict likely finger-slips on a QWERTY layout.
     - Supports custom substitution rules for specific character patterns (for example, 'ph' -> 'f').
-    - Checks generated typos against a list of valid words and removes any that are correct words.
+    - Checks generated typos against the large dictionary and removes any that are correct words.
     - Can process words directly from the command line or from a text file.
     - Integrates with results from 'typostats.py' to use your own personal typo history.
 
@@ -740,14 +740,14 @@ def _run_typo_generation(
     filtered_typos_count = 0
 
     if all_words:
-        logging.info("Filtering typos against the list of valid words...")
+        logging.info("Filtering typos against the large dictionary...")
         filter_start_time = time.perf_counter()
 
         for typo, correct_words in typo_to_correct_word.items():
             if typo in all_words:
                 filtered_typos_count += 1
                 logging.debug(
-                    "Filtered out typo '%s' as it exists in the list of valid words.", typo
+                    "Filtered out typo '%s' as it exists in the large dictionary.", typo
                 )
                 continue
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
@@ -761,8 +761,8 @@ def _run_typo_generation(
             filter_duration,
         )
     else:
-        # No valid word filtering
-        logging.info("Skipping valid word filtering (list of valid words empty or disabled).")
+        # No large dictionary filtering
+        logging.info("Skipping large dictionary filtering (large dictionary empty or disabled).")
         for typo, correct_words in typo_to_correct_word.items():
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
@@ -836,7 +836,7 @@ def main() -> None:
     gen_group.add_argument(
         '--no-filter',
         action='store_true',
-        help="Do not check typos against the list of valid words (this is faster).",
+        help="Do not check typos against the large dictionary (this is faster).",
     )
     gen_group.add_argument(
         '-v', '--verbose',
@@ -932,11 +932,11 @@ def main() -> None:
         word_list = [w.lower() for w in cli_words]
         logging.info(f"Processing {len(word_list)} words from CLI arguments.")
     else:
-        logging.info("Loading wordlist (source words)...")
+        logging.info("Loading wordlist (small dictionary)...")
         word_set = load_file(settings.input_file)
         word_list = list(word_set)
         logging.info(
-            "Loaded %d words from the source words ('%s').",
+            "Loaded %d words from the small dictionary ('%s').",
             len(word_list),
             settings.input_file,
         )
@@ -952,10 +952,10 @@ def main() -> None:
                 settings.dictionary_file,
             )
         else:
-            logging.info("Loading valid words (list of valid words)...")
+            logging.info("Loading large dictionary...")
             all_words = load_file(settings.dictionary_file)
             logging.info(
-                "Loaded %d words from the list of valid words ('%s').",
+                "Loaded %d words from the large dictionary ('%s').",
                 len(all_words),
                 settings.dictionary_file,
             )

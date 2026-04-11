@@ -32,8 +32,8 @@ The tool uses a YAML file to control how typos are generated.
 
 ```yaml
 # File Paths
-input_file: "words.txt"           # Source words to process
-dictionary_file: "dictionary.txt"  # Valid words (to filter out real words)
+input_file: "words.txt"           # Small dictionary to process
+dictionary_file: "dictionary.txt"  # Large dictionary (to filter out real words)
 output_file: "typos.txt"          # Where to save the results
 
 # Output Format: arrow (a -> b), csv (a,b), table (a = "b"), or list (a)
@@ -93,5 +93,5 @@ Supported formats:
 ## How it Works
 
 1.  **Generation:** The tool applies the selected mistake types to every word in your input.
-2.  **Filtering:** It checks the new "typos" against your `dictionary_file`. If a generated typo is actually a real word (like "form" instead of "from"), it is removed. This prevents the tool from flagging correct words as typos.
+2.  **Filtering:** It checks the new "typos" against your `dictionary_file` (the large dictionary). If a generated typo is actually a real word (like "form" instead of "from"), it is removed. This prevents the tool from flagging correct words as typos.
 3.  **Saving:** The final list is formatted and saved to your output file or printed to the screen.

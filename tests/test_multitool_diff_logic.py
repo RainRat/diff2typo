@@ -16,10 +16,9 @@ def test_write_diff_report_plain(tmp_path, capsys):
     input_file = "test.txt"
     original = ["Line 1", "Line 2"]
     modified = ["Line 1 modified", "Line 2"]
-    output_file = "-" # stdout
 
     with patch("multitool.YELLOW", ""): # Disable color
-        multitool._write_diff_report(input_file, original, modified, output_file)
+        multitool._write_diff_report(input_file, original, modified, sys.stdout)
 
     captured = capsys.readouterr()
     assert "--- a/test.txt" in captured.out
@@ -34,7 +33,6 @@ def test_write_diff_report_color(tmp_path, capsys):
     input_file = "test.txt"
     original = ["Line 1", "Line 2"]
     modified = ["Line 1 modified", "Line 2"]
-    output_file = "-" # stdout
 
     # Mock colors
     with patch("multitool.YELLOW", "\033[1;33m"), \
@@ -42,7 +40,7 @@ def test_write_diff_report_color(tmp_path, capsys):
          patch("multitool.RED", "\033[1;31m"), \
          patch("multitool.BLUE", "\033[1;34m"), \
          patch("multitool.RESET", "\033[0m"):
-        multitool._write_diff_report(input_file, original, modified, output_file)
+        multitool._write_diff_report(input_file, original, modified, sys.stdout)
 
     captured = capsys.readouterr()
     # Check for colorized lines
@@ -60,8 +58,8 @@ def test_write_diff_report_to_file(tmp_path):
     modified = ["Line 1 modified"]
     output_path = tmp_path / "diff.patch"
 
-    with patch("multitool.YELLOW", ""):
-        multitool._write_diff_report(input_file, original, modified, str(output_path))
+    with patch("multitool.YELLOW", ""), open(output_path, "w") as f:
+        multitool._write_diff_report(input_file, original, modified, f)
 
     content = output_path.read_text()
     assert "--- a/test.txt" in content

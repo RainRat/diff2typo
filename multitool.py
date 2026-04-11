@@ -613,7 +613,7 @@ def _write_diff_report(
     input_file: str,
     original_lines: List[str],
     modified_lines: List[str],
-    output_file: str,
+    out: TextIO,
 ) -> None:
     """Generate and write a colorized unified diff report."""
     # Strip newlines from lines for difflib compatibility
@@ -631,19 +631,18 @@ def _write_diff_report(
     # Check if color is enabled (using global YELLOW as proxy for overall color support)
     use_color = bool(YELLOW)
 
-    with smart_open_output(output_file) as out:
-        for line in diff_gen:
-            if use_color:
-                if line.startswith('+') and not line.startswith('+++'):
-                    out.write(f"{GREEN}{line}{RESET}\n")
-                elif line.startswith('-') and not line.startswith('---'):
-                    out.write(f"{RED}{line}{RESET}\n")
-                elif line.startswith('@@'):
-                    out.write(f"{BLUE}{line}{RESET}\n")
-                else:
-                    out.write(f"{line}\n")
+    for line in diff_gen:
+        if use_color:
+            if line.startswith('+') and not line.startswith('+++'):
+                out.write(f"{GREEN}{line}{RESET}\n")
+            elif line.startswith('-') and not line.startswith('---'):
+                out.write(f"{RED}{line}{RESET}\n")
+            elif line.startswith('@@'):
+                out.write(f"{BLUE}{line}{RESET}\n")
             else:
                 out.write(f"{line}\n")
+        else:
+            out.write(f"{line}\n")
 
 
 def _write_paired_output(
@@ -3638,56 +3637,57 @@ def standardize_mode(
     total_replacements = 0
     accumulated_lines = []
 
-    for input_file in input_files:
-        if input_file == '-' and in_place is not None:
-            logging.warning("In-place modification requested for standard input; ignoring.")
+    with (smart_open_output(output_file) if diff else contextlib.nullcontext()) as diff_out:
+        for input_file in input_files:
+            if input_file == '-' and in_place is not None:
+                logging.warning("In-place modification requested for standard input; ignoring.")
 
-        file_lines = _read_file_lines_robust(input_file)
-        # Store original lines without newlines for diffing
-        original_lines = [line.rstrip('\n') for line in file_lines]
-        modified_lines = []
-        file_replacements = 0
+            file_lines = _read_file_lines_robust(input_file)
+            # Store original lines without newlines for diffing
+            original_lines = [line.rstrip('\n') for line in file_lines]
+            modified_lines = []
+            file_replacements = 0
 
-        for line in tqdm(file_lines, desc=f"Standardizing {input_file}", unit=" lines", disable=quiet):
-            modified_line, replacements = _scrub_line(
-                line, mapping, pattern, clean_items, smart_case=False, standardize=True
-            )
-            modified_lines.append(modified_line)
-            file_replacements += replacements
+            for line in tqdm(file_lines, desc=f"Standardizing {input_file}", unit=" lines", disable=quiet):
+                modified_line, replacements = _scrub_line(
+                    line, mapping, pattern, clean_items, smart_case=False, standardize=True
+                )
+                modified_lines.append(modified_line)
+                file_replacements += replacements
 
-        total_replacements += file_replacements
+            total_replacements += file_replacements
 
-        if diff and file_replacements > 0:
-            _write_diff_report(input_file, original_lines, modified_lines, output_file)
+            if diff and file_replacements > 0:
+                _write_diff_report(input_file, original_lines, modified_lines, diff_out)
 
-        if in_place is not None and input_file != '-':
-            if file_replacements > 0:
-                if dry_run:
-                    logging.warning(f"[Dry Run] Would make {file_replacements} replacement(s) in '{input_file}'.")
-                else:
-                    if in_place:
-                        backup_path = input_file + in_place
+            if in_place is not None and input_file != '-':
+                if file_replacements > 0:
+                    if dry_run:
+                        logging.warning(f"[Dry Run] Would make {file_replacements} replacement(s) in '{input_file}'.")
+                    else:
+                        if in_place:
+                            backup_path = input_file + in_place
+                            try:
+                                shutil.copy2(input_file, backup_path)
+                                logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
+                            except Exception as e:
+                                logging.error(f"Failed to create backup of '{input_file}': {e}")
+                                sys.exit(1)
+
                         try:
-                            shutil.copy2(input_file, backup_path)
-                            logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
+                            with open(input_file, 'w', encoding='utf-8') as f:
+                                for line in modified_lines:
+                                    f.write(line)
+                                    if not line.endswith('\n'):
+                                        f.write('\n')
+                            logging.info(f"Updated '{input_file}' in-place ({file_replacements} replacement(s)).")
                         except Exception as e:
-                            logging.error(f"Failed to create backup of '{input_file}': {e}")
+                            logging.error(f"Failed to write to '{input_file}': {e}")
                             sys.exit(1)
-
-                    try:
-                        with open(input_file, 'w', encoding='utf-8') as f:
-                            for line in modified_lines:
-                                f.write(line)
-                                if not line.endswith('\n'):
-                                    f.write('\n')
-                        logging.info(f"Updated '{input_file}' in-place ({file_replacements} replacement(s)).")
-                    except Exception as e:
-                        logging.error(f"Failed to write to '{input_file}': {e}")
-                        sys.exit(1)
+                else:
+                    logging.info(f"No changes needed for '{input_file}'.")
             else:
-                logging.info(f"No changes needed for '{input_file}'.")
-        else:
-            accumulated_lines.extend(modified_lines)
+                accumulated_lines.extend(modified_lines)
 
     if in_place is None:
         if limit is not None:
@@ -3696,7 +3696,7 @@ def standardize_mode(
         duration = time.perf_counter() - start_time
         if dry_run:
             logging.warning(f"[Dry Run] Total replacements that would be made: {total_replacements}. Processing time: {duration:.3f}s")
-        else:
+        elif not diff:
             with smart_open_output(output_file) as out:
                 for line in accumulated_lines:
                     out.write(line)
@@ -3706,6 +3706,12 @@ def standardize_mode(
             logging.info(
                 f"[Standardize Mode] Completed standardizing {len(input_files)} file(s). "
                 f"Made {total_replacements} replacements. Output written to '{output_file}'. "
+                f"Processing time: {duration:.3f}s"
+            )
+        else:
+            logging.info(
+                f"[Standardize Mode] Completed standardizing {len(input_files)} file(s). "
+                f"Made {total_replacements} replacements. Diff report written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
     elif dry_run:
@@ -3745,58 +3751,59 @@ def scrub_mode(
     # Otherwise, we accumulate and write to output_file.
     accumulated_lines = []
 
-    for input_file in input_files:
-        if input_file == '-' and in_place is not None:
-            logging.warning("In-place modification requested for standard input; ignoring.")
+    with (smart_open_output(output_file) if diff else contextlib.nullcontext()) as diff_out:
+        for input_file in input_files:
+            if input_file == '-' and in_place is not None:
+                logging.warning("In-place modification requested for standard input; ignoring.")
 
-        file_lines = _read_file_lines_robust(input_file)
-        # Store original lines without newlines for diffing
-        original_lines = [line.rstrip('\n') for line in file_lines]
-        modified_lines = []
-        file_replacements = 0
+            file_lines = _read_file_lines_robust(input_file)
+            # Store original lines without newlines for diffing
+            original_lines = [line.rstrip('\n') for line in file_lines]
+            modified_lines = []
+            file_replacements = 0
 
-        for line in tqdm(file_lines, desc=f"Scrubbing {input_file}", unit=" lines", disable=quiet):
-            modified_line, replacements = _scrub_line(
-                line, mapping, pattern, clean_items, smart_case
-            )
-            modified_lines.append(modified_line)
-            file_replacements += replacements
+            for line in tqdm(file_lines, desc=f"Scrubbing {input_file}", unit=" lines", disable=quiet):
+                modified_line, replacements = _scrub_line(
+                    line, mapping, pattern, clean_items, smart_case
+                )
+                modified_lines.append(modified_line)
+                file_replacements += replacements
 
-        total_replacements += file_replacements
+            total_replacements += file_replacements
 
-        if diff and file_replacements > 0:
-            _write_diff_report(input_file, original_lines, modified_lines, output_file)
+            if diff and file_replacements > 0:
+                _write_diff_report(input_file, original_lines, modified_lines, diff_out)
 
-        if in_place is not None and input_file != '-':
-            if file_replacements > 0:
-                if dry_run:
-                    logging.warning(f"[Dry Run] Would make {file_replacements} replacement(s) in '{input_file}'.")
-                else:
-                    # Backup if extension is provided
-                    if in_place:
-                        backup_path = input_file + in_place
+            if in_place is not None and input_file != '-':
+                if file_replacements > 0:
+                    if dry_run:
+                        logging.warning(f"[Dry Run] Would make {file_replacements} replacement(s) in '{input_file}'.")
+                    else:
+                        # Backup if extension is provided
+                        if in_place:
+                            backup_path = input_file + in_place
+                            try:
+                                shutil.copy2(input_file, backup_path)
+                                logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
+                            except Exception as e:
+                                logging.error(f"Failed to create backup of '{input_file}': {e}")
+                                sys.exit(1)
+
+                        # Write in-place
                         try:
-                            shutil.copy2(input_file, backup_path)
-                            logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
+                            with open(input_file, 'w', encoding='utf-8') as f:
+                                for line in modified_lines:
+                                    f.write(line)
+                                    if not line.endswith('\n'):
+                                        f.write('\n')
+                            logging.info(f"Updated '{input_file}' in-place ({file_replacements} replacement(s)).")
                         except Exception as e:
-                            logging.error(f"Failed to create backup of '{input_file}': {e}")
+                            logging.error(f"Failed to write to '{input_file}': {e}")
                             sys.exit(1)
-
-                    # Write in-place
-                    try:
-                        with open(input_file, 'w', encoding='utf-8') as f:
-                            for line in modified_lines:
-                                f.write(line)
-                                if not line.endswith('\n'):
-                                    f.write('\n')
-                        logging.info(f"Updated '{input_file}' in-place ({file_replacements} replacement(s)).")
-                    except Exception as e:
-                        logging.error(f"Failed to write to '{input_file}': {e}")
-                        sys.exit(1)
+                else:
+                    logging.info(f"No changes needed for '{input_file}'.")
             else:
-                logging.info(f"No changes needed for '{input_file}'.")
-        else:
-            accumulated_lines.extend(modified_lines)
+                accumulated_lines.extend(modified_lines)
 
     if in_place is None:
         if limit is not None:
@@ -3805,7 +3812,7 @@ def scrub_mode(
         duration = time.perf_counter() - start_time
         if dry_run:
             logging.warning(f"[Dry Run] Total replacements that would be made: {total_replacements}. Processing time: {duration:.3f}s")
-        else:
+        elif not diff:
             with smart_open_output(output_file) as out:
                 for line in accumulated_lines:
                     out.write(line)
@@ -3815,6 +3822,12 @@ def scrub_mode(
             logging.info(
                 f"[Scrub Mode] Completed scrubbing {len(input_files)} file(s) using '{mapping_file}'. "
                 f"Made {total_replacements} replacements. Output written to '{output_file}'. "
+                f"Processing time: {duration:.3f}s"
+            )
+        else:
+            logging.info(
+                f"[Scrub Mode] Completed scrubbing {len(input_files)} file(s) using '{mapping_file}'. "
+                f"Made {total_replacements} replacements. Diff report written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
     elif dry_run:

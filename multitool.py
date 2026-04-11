@@ -367,61 +367,73 @@ def _load_and_clean_file(
     return raw_items, cleaned_items, unique_items
 
 
-def print_processing_stats(
-    raw_item_count: int,
+def _format_analysis_summary(
+    raw_count: int,
     filtered_items: Sequence[Any],
     item_label: str = "item",
     start_time: float | None = None,
-) -> None:
-    """Print summary statistics for processed text items with visual hierarchy."""
+    use_color: bool = False,
+    extra_metrics: Mapping[str, Any] | None = None,
+    title: str = "ANALYSIS SUMMARY",
+) -> List[str]:
+    """
+    Standardizes the "ANALYSIS SUMMARY" block with consistent colors and a visual retention bar.
+    Returns a list of formatted lines.
+    """
     item_label_plural = f"{item_label}s"
-
-    # Colors for stderr logging
-    c_bold = BOLD if sys.stderr.isatty() else ""
-    c_yellow = YELLOW if sys.stderr.isatty() else ""
-    c_green = GREEN if sys.stderr.isatty() else ""
-    c_reset = RESET if sys.stderr.isatty() else ""
+    c_bold = BOLD if use_color else ""
+    c_blue = BLUE if use_color else ""
+    c_green = GREEN if use_color else ""
+    c_yellow = YELLOW if use_color else ""
+    c_reset = RESET if use_color else ""
 
     padding = "  "
     label_width = 35
-
     report = []
-    report.append(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}")
-    report.append(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
+
+    report.append(f"\n{padding}{c_bold}{c_blue}{title}{c_reset}")
+    report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
+
     report.append(
-        f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_item_count}{c_reset}"
-    )
-    report.append(
-        f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{len(filtered_items)}{c_reset}"
+        f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
     )
 
-    if raw_item_count > 0:
-        retention = (len(filtered_items) / raw_item_count) * 100
+    filtered_count = len(filtered_items)
+    report.append(
+        f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
+    )
+
+    if raw_count > 0:
+        retention = (filtered_count / raw_count) * 100
+        # High-res visual bar for retention
+        max_bar = 20
+        total_blocks = (retention * max_bar) / 100
+        full_blocks = int(total_blocks)
+        fraction = total_blocks - full_blocks
+        blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+        frac_idx = int(fraction * 8)
+
+        bar = "█" * full_blocks
+        if full_blocks < max_bar:
+            bar += blocks[frac_idx]
+            bar += " " * (max_bar - full_blocks - 1)
+
         report.append(
-            f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:.1f}%{c_reset}"
+            f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_blue}{bar}{c_reset}"
         )
 
     # Unique Items
-    unique_count = len(set(filtered_items))
+    try:
+        # Check if items are hashable (like strings or tuples of strings)
+        unique_count = len(set(filtered_items))
+    except (TypeError, ValueError):
+        unique_count = len(filtered_items)
+
     report.append(
         f"  {c_bold}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
     )
 
-    # character changes for paired data
-    if (
-        filtered_items
-        and isinstance(filtered_items[0], tuple)
-        and len(filtered_items[0]) == 2
-    ):
-        distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
-        if distances:
-            min_dist = min(distances)
-            max_dist = max(distances)
-            avg_dist = sum(distances) / len(distances)
-            report.append(
-                f"  {c_bold}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
-            )
-
+    # Shortest/Longest and stats
     if filtered_items:
 
         def format_item(it: Any) -> str:
@@ -429,19 +441,55 @@ def print_processing_stats(
                 return f"{it[0]} -> {it[1]}"
             return str(it)
 
-        shortest = min(filtered_items, key=lambda x: len(format_item(x)))
-        longest = max(filtered_items, key=lambda x: len(format_item(x)))
+        try:
+            lengths = [len(format_item(it)) for it in filtered_items]
+            if lengths:
+                min_len = min(lengths)
+                max_len = max(lengths)
+                avg_len = sum(lengths) / len(lengths)
+                report.append(
+                    f"  {c_bold}{'Min/Max/Avg length:':<{label_width}}{c_reset} {min_len} / {max_len} / {avg_len:.1f}"
+                )
 
-        s_display = format_item(shortest)
-        l_display = format_item(longest)
+            shortest = min(filtered_items, key=lambda x: len(format_item(x)))
+            longest = max(filtered_items, key=lambda x: len(format_item(x)))
 
-        report.append(
-            f"  {c_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
-        )
-        report.append(
-            f"  {c_bold}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
-        )
-    else:
+            s_display = format_item(shortest)
+            l_display = format_item(longest)
+
+            report.append(
+                f"  {c_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
+            )
+            report.append(
+                f"  {c_bold}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
+            )
+        except (ValueError, TypeError):
+            pass
+
+    # Paired data distances
+    if (
+        filtered_items
+        and isinstance(filtered_items[0], tuple)
+        and len(filtered_items[0]) == 2
+    ):
+        try:
+            distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
+            if distances:
+                min_dist = min(distances)
+                max_dist = max(distances)
+                avg_dist = sum(distances) / len(distances)
+                report.append(
+                    f"  {c_bold}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
+                )
+        except Exception:
+            pass
+
+    # Extra metrics
+    if extra_metrics:
+        for label, value in extra_metrics.items():
+            report.append(f"  {c_bold}{label + ':':<{label_width}}{c_reset} {value}")
+
+    if not filtered_items:
         report.append(
             f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}"
         )
@@ -454,6 +502,23 @@ def print_processing_stats(
         )
 
     report.append("")
+    return report
+
+
+def print_processing_stats(
+    raw_item_count: int,
+    filtered_items: Sequence[Any],
+    item_label: str = "item",
+    start_time: float | None = None,
+) -> None:
+    """Print summary statistics for processed text items with visual hierarchy."""
+    use_color = sys.stderr.isatty() or bool(os.environ.get('FORCE_COLOR'))
+    if os.environ.get('NO_COLOR'):
+        use_color = False
+
+    report = _format_analysis_summary(
+        raw_item_count, filtered_items, item_label, start_time, use_color
+    )
     logging.info("\n".join(report))
 
 
@@ -1562,53 +1627,11 @@ def count_mode(
 
             # If not quiet OR writing to a file, prepare and write the summary and header block.
             if not quiet or output_file != '-':
-                label_width = 35
-                summary_buffer = []
-                summary_buffer.append(f"\n{padding}{c_err_bold}ANALYSIS SUMMARY{c_err_reset}")
-                summary_buffer.append(f"{padding}{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}")
-
                 item_label = "pair" if pairs else "word"
-                item_label_plural = f"{item_label}s"
-
-                summary_buffer.append(f"  {c_err_bold}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_err_reset} {c_err_yellow}{raw_count}{c_err_reset}")
-                summary_buffer.append(f"  {c_err_bold}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_err_reset} {c_err_green}{len(filtered_items)}{c_err_reset}")
-
-                if raw_count > 0:
-                    retention = (len(filtered_items) / raw_count) * 100
-                    summary_buffer.append(f"  {c_err_bold}{'Retention rate:':<{label_width}}{c_err_reset} {c_err_green}{retention:.1f}%{c_err_reset}")
-
-                unique_count = len(item_counts)
-                summary_buffer.append(f"  {c_err_bold}{'Unique ' + item_label_plural + ':':<{label_width}}{c_err_reset} {c_err_green}{unique_count}{c_err_reset}")
-
-                if pairs and filtered_items:
-                    distances = [levenshtein_distance(p[0], p[1]) for p in filtered_items]
-                    if distances:
-                        min_dist = min(distances)
-                        max_dist = max(distances)
-                        avg_dist = sum(distances) / len(distances)
-                        summary_buffer.append(f"  {c_err_bold}{'Min/Max/Avg changes:':<{label_width}}{c_err_reset} {min_dist} / {max_dist} / {avg_dist:.1f}")
-
-                if filtered_items:
-                    def format_item_local(it: Any) -> str:
-                        if isinstance(it, tuple) and len(it) == 2:
-                            return f"{it[0]} -> {it[1]}"
-                        return str(it)
-
-                    shortest = min(filtered_items, key=lambda x: len(format_item_local(x)))
-                    longest = max(filtered_items, key=lambda x: len(format_item_local(x)))
-
-                    s_display = format_item_local(shortest)
-                    l_display = format_item_local(longest)
-
-                    summary_buffer.append(f"  {c_err_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_err_reset} '{s_display}' (length: {len(s_display)})")
-                    summary_buffer.append(f"  {c_err_bold}{'Longest ' + item_label + ':':<{label_width}}{c_err_reset} '{l_display}' (length: {len(l_display)})")
-
-                duration = time.perf_counter() - start_time
-                summary_buffer.append(
-                    f"  {c_err_bold}{'Processing time:':<{label_width}}{c_err_reset} {c_err_green}{duration:.3f}s{c_err_reset}"
+                summary_lines = _format_analysis_summary(
+                    raw_count, filtered_items, item_label, start_time, use_color_err
                 )
-
-                summary_text = "\n".join(summary_buffer) + "\n"
+                summary_text = "\n".join(summary_lines) + "\n"
 
                 # When the output is the console ('-'), we write the analysis summary and table
                 # header to stderr. This keeps stdout clean for piped data.
@@ -1879,58 +1902,37 @@ def stats_mode(
     else:
         # Human readable text
         with smart_open_output(output_file) as f:
-            # Colors for output stream
-            c_bold = BOLD if f.isatty() else ""
-            c_green = GREEN if f.isatty() else ""
-            c_yellow = YELLOW if f.isatty() else ""
-            c_reset = RESET if f.isatty() else ""
+            use_color = f.isatty() or bool(os.environ.get('FORCE_COLOR'))
+            if os.environ.get('NO_COLOR'):
+                use_color = False
 
-            report = []
-            padding = "  "
-            report.append(f"\n{padding}{c_bold}ANALYSIS SUMMARY{c_reset}")
-            report.append(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
-
-            label_width = 35
-            report.append(f"  {c_bold}{'Total items encountered:':<{label_width}}{c_reset} {c_yellow}{stats['items']['total_encountered']}{c_reset}")
-            report.append(f"  {c_bold}{'Total items after filtering:':<{label_width}}{c_reset} {c_green}{stats['items']['total_filtered']}{c_reset}")
-
-            if stats['items']['total_encountered'] > 0:
-                retention = (stats['items']['total_filtered'] / stats['items']['total_encountered']) * 100
-                report.append(f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:.1f}%{c_reset}")
-
-            report.append(f"  {c_bold}{'Unique items:':<{label_width}}{c_reset} {stats['items']['unique_count']}")
-
-            if "min_length" in stats["items"]:
-                report.append(f"  {c_bold}{'Min/Max/Avg length:':<{label_width}}{c_reset} {stats['items']['min_length']} / {stats['items']['max_length']} / {stats['items']['avg_length']:.1f}")
-                shortest = stats["items"]["shortest"]
-                longest = stats["items"]["longest"]
-                report.append(f"  {c_bold}{'Shortest item:':<{label_width}}{c_reset} '{shortest}' (length: {len(shortest)})")
-                report.append(f"  {c_bold}{'Longest item:':<{label_width}}{c_reset} '{longest}' (length: {len(longest)})")
-
-            duration = time.perf_counter() - start_time
-            report.append(
-                f"  {c_bold}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+            # In stats_mode, filtered_items is the primary list of items collected
+            report = _format_analysis_summary(
+                stats['items']['total_encountered'],
+                filtered_items,
+                "item",
+                start_time,
+                use_color
             )
+            f.write("\n".join(report))
 
             if "pairs" in stats:
-                report.append(f"\n{padding}{c_bold}PAIRED DATA STATISTICS{c_reset}")
-                report.append(f"{padding}{c_bold}───────────────────────────────────────────────────────{c_reset}")
-                report.append(f"  {c_bold}{'Total pairs extracted:':<{label_width}}{c_reset} {c_yellow}{stats['pairs']['total_extracted']}{c_reset}")
-                report.append(f"  {c_bold}{'Total pairs after filtering:':<{label_width}}{c_reset} {c_green}{stats['pairs']['total_filtered']}{c_reset}")
-
-                if stats['pairs']['total_extracted'] > 0:
-                    retention = (stats['pairs']['total_filtered'] / stats['pairs']['total_extracted']) * 100
-                    report.append(f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:.1f}%{c_reset}")
-
-                report.append(f"  {c_bold}{'Unique pairs:':<{label_width}}{c_reset} {stats['pairs']['unique_pairs']}")
-                report.append(f"  {c_bold}{'Unique typos / corrections:':<{label_width}}{c_reset} {stats['pairs']['unique_typos']} / {stats['pairs']['unique_corrections']}")
-                report.append(f"  {c_bold}{'Conflicts (1 typo -> N corr):':<{label_width}}{c_reset} {stats['pairs']['conflicts']}")
-                report.append(f"  {c_bold}{'Overlaps (typo == correction):':<{label_width}}{c_reset} {stats['pairs']['overlaps']}")
-                if "min_dist" in stats["pairs"]:
-                    report.append(f"  {c_bold}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {stats['pairs']['min_dist']} / {stats['pairs']['max_dist']} / {stats['pairs']['avg_dist']:.1f}")
-
-            report.append("")
-            f.write("\n".join(report))
+                pair_metrics = {
+                    "Unique typos / corrections": f"{stats['pairs']['unique_typos']} / {stats['pairs']['unique_corrections']}",
+                    "Conflicts (1 typo -> N corr)": stats['pairs']['conflicts'],
+                    "Overlaps (typo == correction)": stats['pairs']['overlaps']
+                }
+                # filtered_pairs is already filtered by length and cleaning
+                pair_report = _format_analysis_summary(
+                    stats['pairs']['total_extracted'],
+                    filtered_pairs,
+                    "pair",
+                    None,
+                    use_color,
+                    pair_metrics,
+                    title="PAIRED DATA STATISTICS"
+                )
+                f.write("\n".join(pair_report))
 
     logging.info(f"[Stats Mode] Analysis complete. Summary written to '{output_file}'.")
 

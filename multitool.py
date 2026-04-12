@@ -1603,11 +1603,6 @@ def count_mode(
             c_out_yellow = YELLOW if use_color_out else ""
             c_out_reset = RESET if use_color_out else ""
 
-            c_err_bold = BOLD if use_color_err else ""
-            c_err_green = GREEN if use_color_err else ""
-            c_err_yellow = YELLOW if use_color_err else ""
-            c_err_reset = RESET if use_color_err else ""
-
             # Header and divider
             padding = "  "
             # Bold blue for table visual elements

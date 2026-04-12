@@ -1,6 +1,5 @@
 import os
 import subprocess
-import pytest
 from pathlib import Path
 
 def test_scrub_diff(tmp_path):

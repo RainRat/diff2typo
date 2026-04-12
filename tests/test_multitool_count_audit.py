@@ -1,7 +1,4 @@
-import pytest
 import multitool
-import io
-from contextlib import redirect_stdout, redirect_stderr
 
 def test_count_mode_mapping_audit(tmp_path):
     # Create an input file with some text

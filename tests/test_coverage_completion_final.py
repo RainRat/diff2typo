@@ -1,12 +1,9 @@
 import os
 import sys
-import shutil
 import logging
-import io
 import re
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import pytest
-from pathlib import Path
 
 # Ensure the repository root is in the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -81,8 +78,6 @@ def test_scrub_mode_backup_fail(tmp_path, caplog):
 
 def test_standardize_mode_no_changes(tmp_path, caplog):
     """Cover multitool.py line 3622: no changes needed in standardize mode with --in-place."""
-    input_file = tmp_path / "input.txt"
-
     # We need to find inconsistencies overall so mapping is not empty,
     # but one file should already be standardized.
     file1 = tmp_path / "file1.txt"

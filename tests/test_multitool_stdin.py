@@ -80,4 +80,4 @@ def test_stdin_multi_pass(monkeypatch, capsys):
     # Actually multitool.stats_mode writes the report to output_file, which defaults to '-' (stdout)
 
     assert "Total items encountered:            3" in captured.out
-    assert "Total pairs extracted:              1" in captured.out
+    assert "Total pairs encountered:            1" in captured.out

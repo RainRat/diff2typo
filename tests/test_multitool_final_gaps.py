@@ -62,7 +62,7 @@ def test_count_mode_arrow_stderr_coverage(tmp_path):
 
                 stderr_output = mock_stderr.getvalue()
                 assert "ANALYSIS SUMMARY" in stderr_output
-                assert "ITEM" in stderr_output # Header
+                assert "Item" in stderr_output # Header
 
 def test_highlight_mode_limit(tmp_path):
     """Cover line 3091: limit in highlight_mode."""
@@ -133,4 +133,4 @@ def test_count_mode_arrow_to_file_header_coverage(tmp_path):
 
     content = output_file.read_text()
     assert "ANALYSIS SUMMARY" in content
-    assert "ITEM" in content
+    assert "Item" in content

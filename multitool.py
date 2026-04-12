@@ -807,12 +807,12 @@ def _write_paired_output(
 
             # Header and divider
             padding = "  "
-            # Bold the vertical separator
-            sep = f"{c_bold}│{c_reset}"
+            # Bold blue for table visual elements
+            sep = f"{c_bold}{c_blue}│{c_reset}"
             header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} {sep} {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
             # 3 chars for the separator " │ "
             visible_width = max_left + max_right + 3
-            divider = f"{padding}{c_bold}{'─' * visible_width}{c_reset}"
+            divider = f"{padding}{c_bold}{c_blue}{'─' * visible_width}{c_reset}"
 
             out_file.write(f"\n{header}\n")
             out_file.write(f"{divider}\n")
@@ -1579,16 +1579,16 @@ def count_mode(
             # Format item labels for visualization
             if pairs:
                 labels = [f"{item[0]} -> {item[1]}" for item, _ in final_results]
-                item_header = "TYPO -> CORRECTION"
+                item_header = "Typo -> Correction"
             else:
                 labels = [str(item) for item, _ in final_results]
-                item_header = "ITEM"
+                item_header = "Item"
 
             # Find max width for columns
             max_item = max((len(label) for label in labels), default=len(item_header))
             max_item = max(max_item, len(item_header))
             max_count_len = max((len(str(count)) for item, count in final_results), default=5)
-            max_count_len = max(max_count_len, 5)  # 'COUNT'
+            max_count_len = max(max_count_len, 5)  # 'Count'
             max_pct = 6  # "100.0%"
             max_bar = 20
 
@@ -1610,18 +1610,19 @@ def count_mode(
 
             # Header and divider
             padding = "  "
-            sep = f"{c_out_bold}│{c_out_reset}"
+            # Bold blue for table visual elements
+            sep = f"{c_out_bold}{c_out_blue}│{c_out_reset}"
 
             # Define table header and divider
             # We use c_out_* for the visual components of the table
             header = (
                 f"{padding}{c_out_bold}{c_out_blue}{item_header:<{max_item}}{c_out_reset} {sep} "
-                f"{c_out_bold}{c_out_blue}{'COUNT':>{max_count_len}}{c_out_reset} {sep} "
+                f"{c_out_bold}{c_out_blue}{'Count':>{max_count_len}}{c_out_reset} {sep} "
                 f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
-                f"{c_out_bold}{c_out_blue}{'VISUAL':<{max_bar}}{c_out_reset}"
+                f"{c_out_bold}{c_out_blue}{'Visual':<{max_bar}}{c_out_reset}"
             )
             visible_header_len = max_item + max_count_len + max_pct + max_bar + 9
-            divider = f"{padding}{c_out_bold}{'─' * visible_header_len}{c_out_reset}"
+            divider = f"{padding}{c_out_bold}{c_out_blue}{'─' * visible_header_len}{c_out_reset}"
             header_block = f"\n{header}\n{divider}\n"
 
             # If not quiet OR writing to a file, prepare and write the summary and header block.

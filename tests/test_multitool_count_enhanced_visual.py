@@ -50,9 +50,9 @@ def test_count_mode_visual_report_content(tmp_path, monkeypatch):
     assert "ANALYSIS SUMMARY" in content
     assert "Total words encountered" in content
     assert "Retention rate" in content
-    assert "ITEM" in content
-    assert "COUNT" in content
-    assert "VISUAL" in content
+    assert "Item" in content
+    assert "Count" in content
+    assert "Visual" in content
     assert "apple" in content
     assert "banana" in content
     assert "66.7%" in content

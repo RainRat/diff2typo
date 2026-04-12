@@ -3214,7 +3214,8 @@ def resolve_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies and flattens chains of typo corrections to their terminal values.
+    Identifies and flattens chains of typo corrections. For example, if a list
+    contains A -> B and B -> C, this mode will update it to A -> C and B -> C.
     """
     start_time = time.perf_counter()
     raw_pairs = list(_extract_pairs(input_files, quiet=quiet))
@@ -4556,8 +4557,8 @@ MODE_DETAILS = {
         "flags": "[-n N] [-d DELIM] [-S]",
     },
     "count": {
-        "summary": "Counts word or pair frequencies.",
-        "description": "Counts frequency and sorts the list from most frequent to least frequent. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs (for example, typo -> correction) instead of single words. You can also provide a mapping (via --mapping or --add) to count occurrences of specific typos across your files.",
+        "summary": "Counts how often items appear.",
+        "description": "Counts how often each word or pair appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs (for example, typo -> correction) instead of single words. You can also provide a mapping (via --mapping or --add) to count occurrences of specific typos across your files.",
         "example": "python multitool.py count . --add teh:the --min-count 5 -f arrow",
         "flags": "[-s S] [-a K:V] [-d D] [-S] [-p]",
     },
@@ -4593,13 +4594,13 @@ MODE_DETAILS = {
     },
     "map": {
         "summary": "Replaces items using a mapping.",
-        "description": "Replaces items in your list with new values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words.",
+        "description": "Replaces items in your list with new values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
         "flags": "MAPPING [FILES...] [-a K:V] [-p]",
     },
     "zip": {
         "summary": "Pairs lines from two files.",
-        "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists.",
+        "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists. Length filters are applied to both items in each pair.",
         "example": "python multitool.py zip typos.txt corrections.txt --output-format table --output typos.toml",
         "flags": "[FILE2]",
     },

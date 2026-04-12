@@ -1775,18 +1775,19 @@ def stats_mode(
     start_time = time.perf_counter()
     # 1. Collect Items
     raw_item_count = 0
-    all_items = []
-    for input_file in input_files:
-        lines = _read_file_lines_robust(input_file)
-        for line in lines:
-            line_content = line.strip()
-            if not line_content:
-                continue
-            parts = line_content.split()
-            raw_item_count += len(parts)
-            all_items.extend(parts)
+    filtered_items = []
 
-    filtered_items = clean_and_filter(all_items, min_length, max_length, clean=clean_items)
+    for input_file in input_files:
+        raw, cleaned, _ = _load_and_clean_file(
+            input_file,
+            min_length,
+            max_length,
+            split_whitespace=True,
+            clean_items=clean_items,
+        )
+        raw_item_count += len(raw)
+        filtered_items.extend(cleaned)
+
     unique_items = list(dict.fromkeys(filtered_items))
     unique_count = len(unique_items)
 

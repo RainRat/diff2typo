@@ -395,12 +395,12 @@ def _format_analysis_summary(
     report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
 
     report.append(
-        f"  {c_bold}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
     )
 
     filtered_count = len(filtered_items)
     report.append(
-        f"  {c_bold}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
     )
 
     if raw_count > 0:
@@ -419,7 +419,7 @@ def _format_analysis_summary(
             bar += " " * (max_bar - full_blocks - 1)
 
         report.append(
-            f"  {c_bold}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_blue}{bar}{c_reset}"
+            f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_blue}{bar}{c_reset}"
         )
 
     # Unique Items
@@ -430,7 +430,7 @@ def _format_analysis_summary(
         unique_count = len(filtered_items)
 
     report.append(
-        f"  {c_bold}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
+        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
     )
 
     # Shortest/Longest and stats
@@ -448,7 +448,7 @@ def _format_analysis_summary(
                 max_len = max(lengths)
                 avg_len = sum(lengths) / len(lengths)
                 report.append(
-                    f"  {c_bold}{'Min/Max/Avg length:':<{label_width}}{c_reset} {min_len} / {max_len} / {avg_len:.1f}"
+                    f"  {c_bold}{c_blue}{'Min/Max/Avg length:':<{label_width}}{c_reset} {min_len} / {max_len} / {avg_len:.1f}"
                 )
 
             shortest = min(filtered_items, key=lambda x: len(format_item(x)))
@@ -458,10 +458,10 @@ def _format_analysis_summary(
             l_display = format_item(longest)
 
             report.append(
-                f"  {c_bold}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
+                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
             )
             report.append(
-                f"  {c_bold}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
+                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
             )
         except (ValueError, TypeError):
             pass
@@ -479,7 +479,7 @@ def _format_analysis_summary(
                 max_dist = max(distances)
                 avg_dist = sum(distances) / len(distances)
                 report.append(
-                    f"  {c_bold}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
+                    f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
                 )
         except Exception:
             pass
@@ -487,7 +487,7 @@ def _format_analysis_summary(
     # Extra metrics
     if extra_metrics:
         for label, value in extra_metrics.items():
-            report.append(f"  {c_bold}{label + ':':<{label_width}}{c_reset} {value}")
+            report.append(f"  {c_bold}{c_blue}{label + ':':<{label_width}}{c_reset} {value}")
 
     if not filtered_items:
         report.append(
@@ -498,7 +498,7 @@ def _format_analysis_summary(
     if start_time is not None:
         duration = time.perf_counter() - start_time
         report.append(
-            f"  {c_bold}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+            f"  {c_bold}{c_blue}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
         )
 
     report.append("")
@@ -4746,7 +4746,7 @@ def get_mode_summary_text() -> str:
     header_mode = f"{'Mode':<{width_mode}}"
     header_summary = f"{'Summary':<{width_summary}}"
     header_flags = "Quick Start / Primary Flags"
-    lines.append(f"\n    {BOLD}{header_mode} {header_summary} {header_flags}{RESET}")
+    lines.append(f"\n    {BOLD}{BLUE}{header_mode} {header_summary} {header_flags}{RESET}")
     # Separator line adjusted for 80-character terminal fit
     header_separator = f"    {BOLD}{'─' * 78}{RESET}"
     lines.append(header_separator)
@@ -4842,7 +4842,7 @@ class ModeHelpAction(argparse.Action):
                 block.append(f"{label_color}{'FLAGS:':<13}{RESET}{YELLOW}{details['flags']}{RESET}")
 
             if details.get("example"):
-                block.append(f"\n{label_color}EXAMPLE:{RESET}")
+                block.append(f"\n{label_color}{'EXAMPLE:':<13}{RESET}")
                 block.append(f"  {BLUE}{details['example']}{RESET}")
 
             block.append(divider)

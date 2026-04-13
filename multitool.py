@@ -209,20 +209,9 @@ def _smart_split(text: str) -> List[str]:
     Splits text into subwords based on non-alphanumeric characters
     and casing boundaries (CamelCase).
     """
-    # Split by non-alphanumeric characters
-    parts = re.split(r'[^a-zA-Z0-9]+', text)
-    subwords = []
-    for part in parts:
-        if not part:
-            continue
-        # Split based on casing (camelCase, PascalCase) and numbers.
-        # re.findall with this pattern matches:
-        # 1. An optional uppercase letter followed by one or more lowercase letters.
-        # 2. One or more uppercase letters (not followed by a lowercase letter).
-        # 3. One or more digits.
-        split_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', part)
-        subwords.extend(split_parts)
-    return subwords
+    # Use re.findall with a pattern that matches subwords directly,
+    # implicitly skipping any non-alphanumeric delimiters.
+    return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', text)
 
 
 def clean_and_filter(items: Iterable[str], min_length: int, max_length: int, clean: bool = True) -> List[str]:

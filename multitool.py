@@ -1213,7 +1213,7 @@ def ngrams_mode(
         max_length,
         process_output,
         'Ngrams',
-        f'{n}-grams extracted successfully.',
+        f'Successfully got {n}-word sequences.',
         output_format,
         quiet,
         clean_items=False,
@@ -1275,7 +1275,7 @@ def table_mode(
         max_length,
         process_output,
         'Table',
-        'Table fields extracted successfully.',
+        'Successfully got table fields.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1306,7 +1306,7 @@ def markdown_mode(
         max_length,
         process_output,
         'Markdown',
-        'Markdown list items extracted successfully.',
+        'Successfully got Markdown list items.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1340,7 +1340,7 @@ def md_table_mode(
         max_length,
         process_output,
         'MDTable',
-        'Markdown table items extracted successfully.',
+        'Successfully got Markdown table items.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1368,7 +1368,7 @@ def backtick_mode(
         max_length,
         process_output,
         'Backtick',
-        'Strings extracted successfully.',
+        'Successfully got strings.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1399,7 +1399,7 @@ def json_mode(
         max_length,
         process_output,
         'JSON',
-        'JSON values extracted successfully.',
+        'Successfully got JSON values.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1430,7 +1430,7 @@ def yaml_mode(
         max_length,
         process_output,
         'YAML',
-        'YAML values extracted successfully.',
+        'Successfully got YAML values.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -1502,7 +1502,7 @@ def count_mode(
     else:
         # Default mode for counting individual words
         for input_file in input_files:
-            # Use the shared extraction logic to support custom delimiters and smart splitting
+            # Use the shared getting logic to support custom delimiters and smart splitting
             words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
             for word in words_gen:
                 raw_count += 1
@@ -2612,7 +2612,7 @@ def discovery_mode(
     raw_item_count = 0
 
     for input_file in input_files:
-        # Use the shared extraction logic to support custom delimiters and smart splitting
+        # Use the shared getting logic to support custom delimiters and smart splitting
         words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
         for word in words_gen:
             raw_item_count += 1
@@ -2693,7 +2693,7 @@ def csv_mode(
         max_length,
         process_output,
         'CSV',
-        'CSV fields extracted successfully.',
+        'Successfully got CSV fields.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -2753,7 +2753,7 @@ def words_mode(
         max_length,
         process_output,
         'Words',
-        'Words extracted successfully.',
+        'Successfully got words.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -3328,7 +3328,7 @@ def regex_mode(
         max_length,
         process_output,
         'Regex',
-        'Regex matches extracted successfully.',
+        'Successfully got regex matches.',
         output_format,
         quiet,
         clean_items=False,
@@ -4849,7 +4849,7 @@ def _build_parser() -> argparse.ArgumentParser:
             f"""
             {BLUE}Examples:{RESET}
               {GREEN}python multitool.py --mode-help{RESET}             # Show a summary of every mode
-              {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV extraction mode
+              {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV getting mode
               {GREEN}python multitool.py arrow file.txt{RESET}          # Run a specific mode
             """
         ).strip() + "\n\n" + mode_summary,
@@ -4936,7 +4936,7 @@ def _build_parser() -> argparse.ArgumentParser:
     arrow_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the right side (correction) instead of the left side (typo).",
+        help="Get the right side (correction) instead of the left side (typo).",
     )
     _add_common_mode_arguments(arrow_parser)
 
@@ -4951,7 +4951,7 @@ def _build_parser() -> argparse.ArgumentParser:
     table_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the value (right side) instead of the key (left side).",
+        help="Get the value (right side) instead of the key (left side).",
     )
     _add_common_mode_arguments(table_parser)
 
@@ -4975,7 +4975,7 @@ def _build_parser() -> argparse.ArgumentParser:
     csv_options.add_argument(
         '--first-column',
         action='store_true',
-        help='Extract the first column instead of subsequent columns.',
+        help='Get the first column instead of subsequent columns.',
     )
     csv_options.add_argument(
         '-d', '--delimiter',
@@ -5004,7 +5004,7 @@ def _build_parser() -> argparse.ArgumentParser:
     markdown_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the right side of a pair (split by ':' or '->') instead of the left side.",
+        help="Get the right side of a pair (split by ':' or '->') instead of the left side.",
     )
     _add_common_mode_arguments(markdown_parser)
 
@@ -5019,7 +5019,7 @@ def _build_parser() -> argparse.ArgumentParser:
     md_table_options.add_argument(
         '--right',
         action='store_true',
-        help="Extract the second column instead of the first.",
+        help="Get the second column instead of the first.",
     )
     md_table_options.add_argument(
         '-c', '--column',
@@ -5689,7 +5689,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '--fuzzy',
         type=int,
         default=0,
-        help="Maximum distance for fuzzy word matching (for example, --fuzzy 1 to fix 'teh' -> 'the'). Set to 0 to only fix casing (default: 0).",
+        help="Maximum distance for similar word matching (for example, --fuzzy 1 to fix 'teh' -> 'the'). Set to 0 to only fix casing (default: 0).",
     )
     standardize_options.add_argument(
         '--threshold',

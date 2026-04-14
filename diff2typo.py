@@ -699,7 +699,7 @@ def main():
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
     logging.basicConfig(level=log_level, handlers=[handler])
 
-    logging.info("Starting typo extraction process...")
+    logging.info("Starting typo search...")
 
     # Combine positional and flag inputs
     pos_inputs = getattr(args, 'input_files', []) or []

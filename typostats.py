@@ -61,11 +61,12 @@ class MinimalFormatter(logging.Formatter):
 
 def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:
     """
-    Check if 'typo' is formed by swapping two adjacent characters in 'correction'.
+    Checks if a mistake was caused by swapping two letters next to each other.
+
+    For example, it identifies 'teh' instead of 'the' as a swapped letter mistake.
 
     Returns:
-      A list containing a single (correction_chars, typo_chars) tuple if a
-      transposition is found, otherwise an empty list.
+      A list with the swapped characters if found, otherwise an empty list.
     """
     if len(typo) != len(correction):
         return []
@@ -86,14 +87,15 @@ def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:
 
 def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
-    Returns a dictionary of adjacent keys on a QWERTY keyboard.
-    Can include diagonally adjacent keys based on the 'include_diagonals' flag.
+    Creates a map of keys that are next to each other on a QWERTY keyboard.
+
+    This is used to identify typos caused by a finger slipping to a nearby key.
 
     Args:
-        include_diagonals (bool): Whether to include diagonally adjacent keys.
+        include_diagonals: Whether to count keys that are diagonal to each other.
 
     Returns:
-        dict: A mapping from each character to its adjacent characters.
+        A dictionary where each key points to a set of its neighbors.
     """
     keyboard = [
         'qwertyuiop',
@@ -140,18 +142,14 @@ def is_one_letter_replacement(
     include_deletions: bool = False,
 ) -> list[tuple[str, str]]:
     """
-    Check if 'typo' differs from 'correction' by one or more "letter replacements".
+    Checks if a mistake was caused by changing, adding, or removing letters.
 
-    If allow_1to2 is True, check if 'typo' can be formed by replacing a single
-    character in 'correction' with two characters in 'typo'.
-    If allow_2to1 is True, check if 'typo' can be formed by replacing two characters
-    in 'correction' with a single character in 'typo'.
+    It can identify when one letter was swapped for another, or more complex
+    cases like replacing 'm' with 'rn'.
 
     Returns:
-      A list of (correction_char, typo_char_or_chars) tuples for each found replacement.
-      The first value comes from the expected spelling (``correction``) and the second
-      value comes from the observed typo. Returns an empty list if no replacements are
-      found.
+      A list of the found changes. Each change is a pair showing what was
+      expected and what was actually typed.
     """
 
     # Same length scenario: one-to-one replacement
@@ -216,6 +214,26 @@ def process_typos(
     include_deletions: bool = False,
     allow_transposition: bool = False,
 ) -> tuple[dict[tuple[str, str], int], int, int]:
+    """
+    Finds common mistake patterns in a list of typo corrections.
+
+    This function reads through your typo list and identifies how letters were replaced.
+    It can find simple one-letter mistakes, swapped letters, or cases where multiple
+    letters were changed at once.
+
+    Args:
+        lines: The lines of text containing your typo corrections.
+        allow_1to2: If True, look for one letter replaced by two (like 'm' to 'rn').
+        allow_2to1: If True, look for two letters replaced by one (like 'ph' to 'f').
+        include_deletions: If True, also count when letters were added or missed.
+        allow_transposition: If True, find swapped letters (like 'teh' to 'the').
+
+    Returns:
+        A tuple containing:
+        - A dictionary of how often each character replacement happened.
+        - The total number of lines processed.
+        - The total number of typo-correction pairs found.
+    """
 
     replacement_counts = defaultdict(int)
     total_lines = 0
@@ -289,28 +307,23 @@ def generate_report(
     **kwargs,
 ) -> None:
     """
-    Generate a report.
+    Creates a summary report of the found typo patterns.
 
-    If output_format='yaml', print in specified YAML-like format:
-    <correct_char>:
-      - <typo_char_or_chars>
-      - ...
-
-    If output_format='json', emit a machine-readable document with the schema:
-    {
-        "replacements": [
-            {"correct": "<correct>", "typo": "<typo>", "count": <count>},
-            ...
-        ]
-    }
+    This function takes the gathered statistics and presents them in a way
+    that is easy to read. It can show a visual dashboard with bar charts
+    or export the data to formats like JSON and CSV for other tools to use.
 
     Args:
-        replacement_counts: Dictionary mapping (correct, typo) to frequency.
-        output_file: Path to write the report to (optional).
-        min_occurrences: Minimum count to include in the report.
-        sort_by: Criterion to sort results by ('count', 'typo', 'correct').
-        output_format: Format of the report ('arrow', 'yaml', 'json', 'csv').
-        limit: Maximum number of results to include in the report.
+        replacement_counts: A dictionary of character replacements and their counts.
+        output_file: Where to save the report. If not set, it prints to the screen.
+        min_occurrences: Only include patterns that happen at least this many times.
+        sort_by: How to order the results ('count', 'typo', or 'correct').
+        output_format: The style of the report ('arrow', 'yaml', 'json', or 'csv').
+        limit: The maximum number of results to show.
+        quiet: If True, hide progress bars and status messages.
+        keyboard: If True, highlight mistakes caused by hitting nearby keys.
+        total_pairs: Total number of corrections analyzed.
+        total_lines: Total number of lines read.
     """
     # Filter
     filtered = {k: v for k, v in replacement_counts.items() if v >= min_occurrences}
@@ -615,7 +628,7 @@ def generate_report(
 
 def detect_encoding(file_path: str) -> str | None:
     """
-    Attempts to detect the encoding of the given file using chardet.
+    Tries to figure out the text encoding of a file.
     """
     if not _CHARDET_AVAILABLE:
         logging.warning("chardet not installed. Install via 'pip install chardet'.")
@@ -636,8 +649,10 @@ def detect_encoding(file_path: str) -> str | None:
 
 def load_lines_from_file(file_path: str) -> list[str] | None:
     """
-    Loads lines from a file, attempting to detect the encoding if UTF-8 fails.
-    Falls back to Latin-1 if detection fails or is unavailable.
+    Reads all lines from a file and handles different text encodings.
+
+    If the file is not in standard UTF-8 format, it tries to detect the
+    correct encoding or falls back to a simpler format to prevent crashes.
     """
     if file_path == '-':
         logging.info("Reading from standard input...")
@@ -680,10 +695,10 @@ def main() -> None:
         description=f"{BOLD}Find common patterns in your typos. This tool analyzes your list of corrections and tells you which keys you hit by mistake most often.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
-  {GREEN}python typostats.py typos.txt -t{RESET}
-  {GREEN}python typostats.py typos.txt --1to2 --2to1{RESET}
-  {GREEN}python typostats.py typos.txt -k -n 20{RESET}
-  {GREEN}python typostats.py typos.txt -a{RESET}
+  {GREEN}python typostats.py typos.txt -t{RESET}          # Find swapped letters (like 'teh' -> 'the')
+  {GREEN}python typostats.py typos.txt --1to2 --2to1{RESET}  # Find multi-letter mistakes (like 'rn' -> 'm')
+  {GREEN}python typostats.py typos.txt -k -n 20{RESET}       # Find top 20 keyboard slips
+  {GREEN}python typostats.py typos.txt -a{RESET}             # Run all analysis modes at once
 """,
     )
 
@@ -707,25 +722,25 @@ def main() -> None:
 
     # Analysis Options Group
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
-    analysis_group.add_argument('-m', '--min', type=int, default=1, help="Only show patterns that appear at least this many times.")
+    analysis_group.add_argument('-m', '--min', type=int, default=1, help="Only show patterns that happen at least this many times.")
     analysis_group.add_argument(
         '-s', '--sort',
         choices=['count', 'typo', 'correct'],
         default='count',
-        help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by typo), or 'correct' (alphabetical by fix)."
+        help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by the mistake), or 'correct' (alphabetical by the fix)."
     )
     analysis_group.add_argument(
         '-a',
         '--all',
         action='store_true',
-        help="Enable all analysis options: transposition, keyboard, 2-to-1, 1-to-2, and deletions.",
+        help="Use all analysis features (swapped letters, keys next to each other, and multi-letter changes). This is the default if no other options are picked.",
     )
     analysis_group.add_argument(
         '-2',
         '--allow-two-char',
         dest='allow_two_char',
         action='store_true',
-        help="Shortcut for --1to2 and --2to1. Allow multiple letters replacements.",
+        help="Allow cases where one letter is replaced by two (like 'm' to 'rn') or two letters are replaced by one (like 'ph' to 'f').",
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--allow_two_char', action='store_true', help=argparse.SUPPRESS)
@@ -734,38 +749,38 @@ def main() -> None:
         '--1to2',
         dest='allow_1to2',
         action='store_true',
-        help="Allow single-to-double character replacements (for example, 'm' to 'rn').",
+        help="Allow cases where one letter is replaced by two (like 'm' to 'rn').",
     )
     analysis_group.add_argument(
         '--2to1',
         dest='allow_2to1',
         action='store_true',
-        help="Allow double-to-single character replacements (for example, 'ph' to 'f').",
+        help="Allow cases where two letters are replaced by one (like 'ph' to 'f').",
     )
     analysis_group.add_argument(
         '--include-deletions',
         action='store_true',
-        help="Include 2-to-1 deletions (for example, 'or' to 'o') and 1-to-2 insertions (for example, 'a' to 'aa').",
+        help="Include cases where you added an extra letter or missed one (like 'aa' to 'a' or 'o' to 'or').",
     )
 
     analysis_group.add_argument(
         '-t',
         '--transposition',
         action='store_true',
-        help="Detect transpositions of adjacent characters (for example, 'teh' to 'the').",
+        help="Find cases where you swapped two letters next to each other (like 'teh' instead of 'the').",
     )
     analysis_group.add_argument(
         '-k',
         '--keyboard',
         action='store_true',
-        help="Identify typos caused by hitting keys next to each other on the keyboard.",
+        help="Find cases where you hit a key next to the correct one on your keyboard (like 'p' instead of 'o').",
     )
     analysis_group.add_argument(
         '-n',
         '-L',
         '--limit',
         type=int,
-        help="Limit the report to the top N most frequent replacements.",
+        help="Only show the top N results in the report.",
     )
     args = parser.parse_args()
 

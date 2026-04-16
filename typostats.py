@@ -5,7 +5,8 @@ import logging
 import csv
 import io
 import os
-from typing import Iterable
+import time
+from typing import Any, Iterable, List, Mapping, Sequence
 
 try:
     from tqdm import tqdm
@@ -57,6 +58,162 @@ class MinimalFormatter(logging.Formatter):
                 levelname = f"{color}{levelname}{RESET}"
 
         return f"{levelname}: {record.getMessage()}"
+
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    """Calculate the number of character changes needed to turn one string into another."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+    if not s2:
+        return len(s1)
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
+
+
+def _format_analysis_summary(
+    raw_count: int,
+    filtered_items: Sequence[Any],
+    item_label: str = "item",
+    start_time: float | None = None,
+    use_color: bool = False,
+    extra_metrics: Mapping[str, Any] | None = None,
+    title: str = "ANALYSIS SUMMARY",
+) -> List[str]:
+    """
+    Standardizes the "ANALYSIS SUMMARY" block with consistent colors and a visual retention bar.
+    Returns a list of formatted lines.
+    """
+    item_label_plural = f"{item_label}s"
+    c_bold = BOLD if use_color else ""
+    c_blue = BLUE if use_color else ""
+    c_green = GREEN if use_color else ""
+    c_yellow = YELLOW if use_color else ""
+    c_reset = RESET if use_color else ""
+
+    padding = "  "
+    label_width = 35
+    report = []
+
+    report.append(f"\n{padding}{c_bold}{c_blue}{title}{c_reset}")
+    report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
+    )
+
+    filtered_count = len(filtered_items)
+    report.append(
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
+    )
+
+    if raw_count > 0:
+        retention = (filtered_count / raw_count) * 100
+        # High-res visual bar for retention
+        max_bar = 20
+        total_blocks = (retention * max_bar) / 100
+        full_blocks = int(total_blocks)
+        fraction = total_blocks - full_blocks
+        blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+        frac_idx = int(fraction * 8)
+
+        bar = "█" * full_blocks
+        if full_blocks < max_bar:
+            bar += blocks[frac_idx]
+            bar += " " * (max_bar - full_blocks - 1)
+
+        report.append(
+            f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_blue}{bar}{c_reset}"
+        )
+
+    # Unique Items
+    try:
+        # Check if items are hashable (like strings or tuples of strings)
+        unique_count = len(set(filtered_items))
+    except (TypeError, ValueError):
+        unique_count = len(filtered_items)
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
+    )
+
+    # Shortest/Longest and stats
+    if filtered_items:
+
+        def format_item(it: Any) -> str:
+            if isinstance(it, tuple) and len(it) == 2:
+                return f"{it[0]} -> {it[1]}"
+            return str(it)
+
+        try:
+            lengths = [len(format_item(it)) for it in filtered_items]
+            if lengths:
+                min_len = min(lengths)
+                max_len = max(lengths)
+                avg_len = sum(lengths) / len(lengths)
+                report.append(
+                    f"  {c_bold}{c_blue}{'Min/Max/Avg length:':<{label_width}}{c_reset} {min_len} / {max_len} / {avg_len:.1f}"
+                )
+
+            shortest = min(filtered_items, key=lambda x: len(format_item(x)))
+            longest = max(filtered_items, key=lambda x: len(format_item(x)))
+
+            s_display = format_item(shortest)
+            l_display = format_item(longest)
+
+            report.append(
+                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
+            )
+            report.append(
+                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
+            )
+        except (ValueError, TypeError):
+            pass
+
+    # Paired data distances
+    if (
+        filtered_items
+        and isinstance(filtered_items[0], tuple)
+        and len(filtered_items[0]) == 2
+    ):
+        try:
+            distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
+            if distances:
+                min_dist = min(distances)
+                max_dist = max(distances)
+                avg_dist = sum(distances) / len(distances)
+                report.append(
+                    f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
+                )
+        except Exception:
+            pass
+
+    # Extra metrics
+    if extra_metrics:
+        for label, value in extra_metrics.items():
+            report.append(f"  {c_bold}{c_blue}{label + ':':<{label_width}}{c_reset} {value}")
+
+    if not filtered_items:
+        report.append(
+            f"  {c_yellow}No {item_label_plural} passed the filtering criteria.{c_reset}"
+        )
+
+    # Processing Time
+    if start_time is not None:
+        duration = time.perf_counter() - start_time
+        report.append(
+            f"  {c_bold}{c_blue}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+        )
+
+    report.append("")
+    return report
 
 
 def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:
@@ -304,6 +461,7 @@ def generate_report(
     keyboard: bool = False,
     total_pairs: int | None = None,
     total_lines: int | None = None,
+    start_time: float | None = None,
     **kwargs,
 ) -> None:
     """
@@ -349,25 +507,14 @@ def generate_report(
     # Color support detection
     # main output colors (used for the report data)
     # These are suppressed if writing to a file or if the main output is not a terminal (piping)
-    use_color_stdout = not output_file and sys.stdout.isatty()
-    c_out_green = GREEN if use_color_stdout else ""
-    c_out_red = RED if use_color_stdout else ""
-    c_out_yellow = YELLOW if use_color_stdout else ""
-    c_out_bold = BOLD if use_color_stdout else ""
-    c_out_reset = RESET if use_color_stdout else ""
-
+    show_color_out = not output_file and sys.stdout.isatty()
     # standard error colors (used for human-readable headers)
     # If output_file is set, we avoid colors in headers that might be written to the file
-    use_color_summary = not output_file and sys.stderr.isatty()
-    c_err_bold = BOLD if use_color_summary else ""
-    c_err_yellow = YELLOW if use_color_summary else ""
-    c_err_green = GREEN if use_color_summary else ""
-    c_err_reset = RESET if use_color_summary else ""
+    show_color_err = not output_file and sys.stderr.isatty()
 
     if output_format == 'arrow':
         # arrow
         padding = "  "
-        title = f"{padding}ANALYSIS SUMMARY"
         label_width = 35
 
         enabled_features = []
@@ -382,11 +529,12 @@ def generate_report(
         if kwargs.get('include_deletions'):
             enabled_features.append("deletions/insertions")
 
-        features_str = ""
+        extra_metrics = {}
+        if total_lines is not None:
+            extra_metrics["Total lines processed"] = total_lines
         if enabled_features:
-            features_str = f"  {c_err_bold}{'Enabled features:':<{label_width}}{c_err_reset} {', '.join(enabled_features)}"
+            extra_metrics["Enabled features"] = ", ".join(enabled_features)
 
-        keyboard_summary = ""
         adjacent_map = {}
         if keyboard:
             adjacent_map = get_adjacent_keys(include_diagonals=True)
@@ -400,9 +548,8 @@ def generate_report(
 
             if total_single_char > 0:
                 percent = (adjacent_count / total_single_char) * 100
-                keyboard_summary = f"  {c_err_bold}{'Keyboard Adjacency [K]:':<{label_width}}{c_err_reset} {c_err_yellow}{adjacent_count}{c_err_reset}/{total_single_char} ({c_err_green}{percent:.1f}%{c_err_reset})"
+                extra_metrics["Keyboard Adjacency [K]"] = f"{adjacent_count}/{total_single_char} ({percent:.1f}%)"
 
-        transposition_summary = ""
         if kwargs.get('allow_transposition'):
             trans_count = 0
             for (c, t), count in replacement_counts.items():
@@ -410,9 +557,8 @@ def generate_report(
                     trans_count += count
             if trans_count > 0:
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
-                transposition_summary = f"  {c_err_bold}{'Transpositions [T]:':<{label_width}}{c_err_reset} {c_err_yellow}{trans_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
+                extra_metrics["Transpositions [T]"] = f"{trans_count}/{total_typos} ({percent:.1f}%)"
 
-        multi_char_summary = ""
         if any([kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions')]):
             multi_count = 0
             for (c, t), count in replacement_counts.items():
@@ -420,29 +566,24 @@ def generate_report(
                     multi_count += count
             if multi_count > 0:
                 percent = (multi_count / total_typos) * 100 if total_typos > 0 else 0
-                multi_char_summary = f"  {c_err_bold}{'Multiple letters [M]:':<{label_width}}{c_err_reset} {c_err_yellow}{multi_count}{c_err_reset}/{total_typos} ({c_err_green}{percent:.1f}%{c_err_reset})"
+                extra_metrics["Multiple letters [M]"] = f"{multi_count}/{total_typos} ({percent:.1f}%)"
 
-        analysis_summary = ""
-        if total_lines is not None:
-            analysis_summary += f"  {c_err_bold}{'Total lines processed:':<{label_width}}{c_err_reset} {c_err_yellow}{total_lines}{c_err_reset}\n"
-        if total_pairs is not None:
-            analysis_summary += f"  {c_err_bold}{'Total pairs processed:':<{label_width}}{c_err_reset} {c_err_yellow}{total_pairs}{c_err_reset}\n"
-
-        analysis_summary += f"  {c_err_bold}{'Replacements identified:':<{label_width}}{c_err_reset} {c_err_green}{total_typos}{c_err_reset}"
-
-        if total_pairs is not None and total_pairs > 0:
-            retention = (total_typos / total_pairs) * 100
-            analysis_summary += f"\n  {c_err_bold}{'Retention rate:':<{label_width}}{c_err_reset} {c_err_green}{retention:.1f}%{c_err_reset}"
-
-        unique_patterns_summary = f"  {c_err_bold}{'Unique patterns identified:':<{label_width}}{c_err_reset} {unique_total}"
-
-        criteria_summary = ""
         if unique_filtered != unique_total:
-            criteria_summary = f"  {c_err_bold}{'Patterns matching criteria:':<{label_width}}{c_err_reset} {c_err_green}{unique_filtered}{c_err_reset}"
+            extra_metrics["Patterns matching criteria"] = unique_filtered
 
-        display_summary = ""
         if unique_filtered > len(sorted_replacements):
-            display_summary = f"  {c_err_bold}{'Showing patterns:':<{label_width}}{c_err_reset} {c_err_green}{len(sorted_replacements)}{c_err_reset} of {unique_filtered}"
+            extra_metrics["Showing patterns"] = f"{len(sorted_replacements)} of {unique_filtered}"
+
+        # Generate a list of all replacements to leverage summary statistics
+        all_replacements = [k for k, v in replacement_counts.items() for _ in range(v)]
+        summary_lines = _format_analysis_summary(
+            total_pairs if total_pairs is not None else total_typos,
+            all_replacements,
+            item_label="replacement",
+            use_color=show_color_err,
+            extra_metrics=extra_metrics,
+            start_time=start_time,
+        )
 
         # Calculate padding for alignment (default to header labels' lengths)
         max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
@@ -453,13 +594,22 @@ def generate_report(
         max_n = max(max_n, 5)  # 'COUNT' is 5
         max_p = 6  # Width for percentage (for example, "100.0%")
 
+        # Colors for table
+        c_bold = BOLD if show_color_out else ""
+        c_blue = BLUE if show_color_out else ""
+        c_green = GREEN if show_color_out else ""
+        c_yellow = YELLOW if show_color_out else ""
+        c_red = RED if show_color_out else ""
+        c_reset = RESET if show_color_out else ""
+
         # Header row and divider with consistent padding and vertical separators
-        padding = "  "
+        # Bold blue for table visual elements
+        sep = f"{c_bold}{c_blue}│{c_reset}"
         header_row = (
-            f"{padding}{c_out_bold}{'CORRECT':>{max_c}}{c_out_reset} │ "
-            f"{c_out_bold}{'TYPO':<{max_t}}{c_out_reset} │ "
-            f"{c_out_bold}{'COUNT':>{max_n}}{c_out_reset} │ "
-            f"{c_out_bold}{'%':>{max_p}}{c_out_reset}"
+            f"{padding}{c_bold}{c_blue}{'CORRECT':>{max_c}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'COUNT':>{max_n}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'%':>{max_p}}{c_reset}"
         )
         # 3 chars for each " │ " (total 3 * 3 = 9)
         visible_header_len = max_c + max_t + max_n + max_p + 9
@@ -467,66 +617,37 @@ def generate_report(
         show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1')])
 
         if show_attr:
-            header_row += f" │ {c_out_bold}{'ATTR':<4}{c_out_reset}"
+            header_row += f" {sep} {c_bold}{c_blue}{'ATTR':<4}{c_reset}"
             visible_header_len += 7
 
         # Add Visual column header
         max_bar = 15
-        header_row += f" │ {c_out_bold}{'VISUAL':<{max_bar}}{c_out_reset}"
+        header_row += f" {sep} {c_bold}{c_blue}{'VISUAL':<{max_bar}}{c_reset}"
         visible_header_len += 3 + max_bar
 
-        divider = f"{padding}{c_out_bold}{'─' * visible_header_len}{c_out_reset}"
+        divider = f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}"
 
         if not output_file:
             # Move the human-readable header to standard error to keep the main output clean for piping
             if not quiet:
-                sys.stderr.write(f"\n{c_err_bold}{title}{c_err_reset}\n")
-                sys.stderr.write(f"{padding}{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")
-                sys.stderr.write(f"{analysis_summary}\n")
-                sys.stderr.write(f"{unique_patterns_summary}\n")
-                if criteria_summary:
-                    sys.stderr.write(f"{criteria_summary}\n")
-                if features_str:
-                    sys.stderr.write(f"{features_str}\n")
-                if keyboard_summary:
-                    sys.stderr.write(f"{keyboard_summary}\n")
-                if transposition_summary:
-                    sys.stderr.write(f"{transposition_summary}\n")
-                if multi_char_summary:
-                    sys.stderr.write(f"{multi_char_summary}\n")
+                sys.stderr.write("\n".join(summary_lines) + "\n")
                 if sorted_replacements:
-                    if display_summary:
-                        sys.stderr.write(f"{display_summary}\n")
-
                     # Frequency table header
-                    table_title = f"{padding}LETTER REPLACEMENTS"
-                    sys.stderr.write(f"\n{c_err_bold}{table_title}{c_err_reset}\n")
-                    sys.stderr.write(f"{padding}{c_err_bold}───────────────────────────────────────────────────────{c_err_reset}\n")
+                    table_title = f"{padding}{c_bold}{c_blue}LETTER REPLACEMENTS{c_reset}"
+                    sys.stderr.write(f"\n{table_title}\n")
+                    sys.stderr.write(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}\n")
                     sys.stderr.write(f"{header_row}\n")
                     sys.stderr.write(f"{divider}\n")
                 sys.stderr.flush()
             report_lines = []
         else:
-            report_lines = [title, f"{padding}───────────────────────────────────────────────────────", analysis_summary, unique_patterns_summary]
-            if criteria_summary:
-                report_lines.append(criteria_summary)
-            if features_str:
-                report_lines.append(features_str)
-            if keyboard_summary:
-                report_lines.append(keyboard_summary)
-            if transposition_summary:
-                report_lines.append(transposition_summary)
-            if multi_char_summary:
-                report_lines.append(multi_char_summary)
+            report_lines = summary_lines[:]
             if sorted_replacements:
-                if display_summary:
-                    report_lines.append(display_summary)
-
                 table_title = f"{padding}LETTER REPLACEMENTS"
                 report_lines.extend(["", table_title, f"{padding}───────────────────────────────────────────────────────", header_row, divider])
 
         if not sorted_replacements:
-            no_results = f"{padding}No replacements found matching the criteria."
+            no_results = f"{padding}{c_yellow}No replacements found matching the criteria.{c_reset}"
             if not output_file:
                 if not quiet:
                     sys.stderr.write(f"{no_results}\n")
@@ -549,24 +670,24 @@ def generate_report(
                 bar += " " * (max_bar - full_blocks - 1)
 
             row = (
-                f"{padding}{c_out_green}{correct_char:>{max_c}}{c_out_reset} │ "
-                f"{c_out_red}{typo_char:<{max_t}}{c_out_reset} │ "
-                f"{c_out_yellow}{count:>{max_n}}{c_out_reset} │ "
-                f"{c_out_green}{percent:>5.1f}%{c_out_reset}"
+                f"{padding}{c_green}{correct_char:>{max_c}}{c_reset} {sep} "
+                f"{c_red}{typo_char:<{max_t}}{c_reset} {sep} "
+                f"{c_yellow}{count:>{max_n}}{c_reset} {sep} "
+                f"{c_green}{percent:>5.1f}%{c_reset}"
             )
 
             if show_attr:
                 marker = "    "
                 if len(correct_char) == 1 and len(typo_char) == 1:
                     if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                        marker = f"{c_out_bold}[K]{c_out_reset} "
+                        marker = f"{c_bold}[K]{c_reset} "
                 elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
-                    marker = f"{c_out_bold}[T]{c_out_reset} "
+                    marker = f"{c_bold}[T]{c_reset} "
                 elif len(correct_char) != len(typo_char):
-                    marker = f"{c_out_bold}[M]{c_out_reset} "
-                row += f" │ {marker}"
+                    marker = f"{c_bold}[M]{c_reset} "
+                row += f" {sep} {marker}"
 
-            row += f" │ {c_out_red}{bar}{c_out_reset}"
+            row += f" {sep} {c_red}{bar}{c_reset}"
             report_lines.append(row)
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
@@ -621,9 +742,11 @@ def generate_report(
         except Exception as e:
             logging.error(f"Failed to write report to '{output_file}'. Error: {e}")
     else:
-        sys.stdout.write(report_content)
-        if not report_content.endswith('\n'):
-            sys.stdout.write('\n')
+        # Standardize standard output writing to ensure no duplicate newlines
+        if report_content:
+            sys.stdout.write(report_content)
+            if not report_content.endswith('\n'):
+                sys.stdout.write('\n')
 
 
 def detect_encoding(file_path: str) -> str | None:
@@ -824,6 +947,7 @@ def main() -> None:
     if not input_files:
         input_files = ['-']
 
+    start_time = time.perf_counter()
     all_counts = defaultdict(int)
     total_lines_all = 0
     total_pairs_all = 0
@@ -862,6 +986,7 @@ def main() -> None:
         include_deletions=include_deletions,
         total_pairs=total_pairs_all,
         total_lines=total_lines_all,
+        start_time=start_time,
     )
 
 

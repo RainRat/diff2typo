@@ -2,13 +2,13 @@
 diff2typo.py
 
 Purpose:
-    Read a git diff to find typo corrections and prepare an update for the `typos` tool.
+    Read a Git diff to find typo corrections and prepare an update for the `typos` tool.
     This helps make sure that the typos you find are caught in future code changes.
 
 Features:
-    - Finds typo corrections in git diffs.
+    - Finds typo corrections in Git diffs.
     - Splits compound words based on spaces, underscores, and capital letters.
-    - Skips corrections where the "before" word is already a valid word.
+    - Skips corrections where the "before" word is already in the large dictionary.
     - Works with the `typos` tool to avoid duplicate entries.
     - Automatically detects the word list file format.
     - Allows customization through command-line options.
@@ -167,11 +167,11 @@ def read_words_mapping(file_path: str, required: bool = True) -> Dict[str, Set[s
     Each row should be in the form:
          incorrect_word, correction1, correction2, ...
 
-    We can also accept a list of valid words. They will
+    We can also accept a list of words for the large dictionary. They will
         not have any corrections.
     """
     mapping: Dict[str, Set[str]] = {}
-    rows = _read_csv_rows(file_path, "Dictionary file", required=required)
+    rows = _read_csv_rows(file_path, "Large dictionary file", required=required)
     for row in rows:
         if row:
             incorrect = row[0].strip().lower()
@@ -269,7 +269,7 @@ def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = No
     Parses the diff text to identify typo corrections.
 
     Args:
-        diff_text (str): The git diff text.
+        diff_text (str): The Git diff text.
         min_length (int): Minimum length of differing substrings to consider as typos.
         max_dist (int, optional): Maximum Levenshtein distance for typos.
 
@@ -377,7 +377,7 @@ def _read_diff_file(file_path: str) -> str:
 
 
 def _read_git_diff(git_args: Optional[str]) -> str:
-    """Fetch diff directly from git using the provided arguments."""
+    """Fetch diff directly from Git using the provided arguments."""
     command = ["git", "diff"]
     if git_args:
         command.extend(shlex.split(git_args))
@@ -492,11 +492,11 @@ def _filter_candidates_by_set(candidates, filter_set, desc, quiet=False):
     return filtered_list
 
 
-def process_new_typos(candidates, args, valid_words, allowed_words):
+def process_new_typos(candidates, args, large_dictionary, allowed_words):
     """
     Find new typos that are not already known.
-    Uses allowed words and a list of valid words to filter the results.
-    The list can be a simple word list (one word per line) or a
+    Uses allowed words and the large dictionary to filter the results.
+    The large dictionary can be a simple word list (one word per line) or a
     CSV file where the first word is a typo and the rest are corrections.
     Returns the formatted list of new typos.
     """
@@ -509,8 +509,8 @@ def process_new_typos(candidates, args, valid_words, allowed_words):
     )
     filtered_candidates = _filter_candidates_by_set(
         candidates,
-        filter_set=valid_words,
-        desc="Filtering dictionary words",
+        filter_set=large_dictionary,
+        desc="Filtering large dictionary words",
         quiet=args.quiet,
     )
 
@@ -538,7 +538,7 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
     new_corrections = []
 
     if not words_mapping:
-        logging.info("Dictionary mapping is empty; skipping new corrections search.")
+        logging.info("Large dictionary mapping is empty; skipping new corrections search.")
         return new_corrections
 
     progress = None
@@ -560,19 +560,19 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
     return new_corrections
 
 
-def process_audit_typos(candidates, args, valid_words, allowed_words):
+def process_audit_typos(candidates, args, large_dictionary, allowed_words):
     """
     Find cases where a correct word was changed into a typo.
     Identifies cases where a word that used to be valid
-    was changed to a word that is not in the dictionary.
+    was changed to a word that is not in the large dictionary.
     """
     audit_candidates = []
     for candidate in candidates:
         if ' -> ' in candidate:
             before, after = [s.strip().lower() for s in candidate.split(' -> ')]
             # Find cases where a valid word was changed to an invalid one
-            if before in valid_words:
-                if after not in valid_words and after not in allowed_words:
+            if before in large_dictionary:
+                if after not in large_dictionary and after not in allowed_words:
                     audit_candidates.append(candidate)
 
     audit_candidates = sorted(set(audit_candidates))
@@ -584,7 +584,7 @@ def main():
 
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Process a git diff to identify typos for the `typos` tool.{RESET}",
+        description=f"{BOLD}Process a Git diff to identify typos for the `typos` tool.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python diff2typo.py diff.txt --output typos.txt --mode typos{RESET}
@@ -598,7 +598,7 @@ def main():
         'input_files',
         nargs='*',
         metavar='FILE',
-        help="One or more input git diff files or patterns. Use '-' to read from standard input.",
+        help="One or more input Git diff files or patterns. Use '-' to read from standard input.",
     )
     io_group.add_argument(
         '--git',
@@ -650,8 +650,8 @@ def main():
         default='typos',
         help=(
             f"{YELLOW}Analysis mode:{RESET}\n"
-            f"  {GREEN}typos{RESET}:       Find new typos that are not in your dictionary (default).\n"
-            f"  {GREEN}corrections{RESET}: Find new corrections for typos already in your dictionary.\n"
+            f"  {GREEN}typos{RESET}:       Find new typos that are not in your large dictionary (default).\n"
+            f"  {GREEN}corrections{RESET}: Find new corrections for typos already in your large dictionary.\n"
             f"  {GREEN}both{RESET}:        Run both analyses and label the results.\n"
             f"  {GREEN}audit{RESET}:       Find cases where a correct word was changed into a typo."
         ),
@@ -680,7 +680,7 @@ def main():
         dest='dictionary_file',
         type=str,
         default='words.csv',
-        help='The file containing valid words (default: words.csv).',
+        help='The file containing the large dictionary (default: words.csv).',
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--dictionary_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
@@ -731,14 +731,14 @@ def main():
     else:
         diff_text = _read_diff_sources(input_files)
 
-    # Load the dictionary (words mapping) once.
+    # Load the large dictionary (words mapping) once.
     # If the file is missing, we don't exit. Instead we just warn and continue without filtering.
     if args.dictionary_file == 'words.csv' and not os.path.exists(args.dictionary_file):
-        logging.warning("Default dictionary file 'words.csv' not found. Skipping valid word filtering.")
-        dictionary_mapping = {}
+        logging.warning("Default large dictionary file 'words.csv' not found. Skipping filtering.")
+        large_dictionary_mapping = {}
     else:
         # If it's NOT the default words.csv, it will also warn and continue if missing.
-        dictionary_mapping = read_words_mapping(args.dictionary_file, required=False)
+        large_dictionary_mapping = read_words_mapping(args.dictionary_file, required=False)
 
     try:
         allowed_words = read_allowed_words(args.allowed_file)
@@ -747,15 +747,15 @@ def main():
             "Failed to read allowed words file '%s': %s", args.allowed_file, exc
         )
         sys.exit(1)
-    # Build a set of valid words. For simple word lists, every entry is treated as
-    # valid. For words.csv files, only the corrections (columns after the first)
-    # are considered valid words.
-    valid_words = set()
-    for typo, fixes in dictionary_mapping.items():
+    # Build a set of words for the large dictionary. For simple word lists, every
+    # entry is treated as correct. For words.csv files, only the corrections
+    # (columns after the first) are considered correct words.
+    large_dictionary = set()
+    for typo, fixes in large_dictionary_mapping.items():
         if fixes:
-            valid_words.update(fixes)
+            large_dictionary.update(fixes)
         else:
-            valid_words.add(typo)
+            large_dictionary.add(typo)
 
     # Find candidate typo corrections from the diff.
     logging.info("Finding potential typo corrections from the diff...")
@@ -771,20 +771,20 @@ def main():
     # Process new typos if requested.
     if args.mode in ['typos', 'both']:
         logging.info("Processing new typos (filtering out known typos)...")
-        new_typos_result = process_new_typos(candidates, args, valid_words, allowed_words)
+        new_typos_result = process_new_typos(candidates, args, large_dictionary, allowed_words)
         logging.info(f"Found {len(new_typos_result)} new typo(s).")
 
     # Process new corrections if requested.
     if args.mode in ['corrections', 'both']:
         logging.info("Processing new corrections to existing typos...")
-        new_corrections_raw = process_new_corrections(candidates, dictionary_mapping, quiet=args.quiet)
+        new_corrections_raw = process_new_corrections(candidates, large_dictionary_mapping, quiet=args.quiet)
         new_corrections_result = format_typos(new_corrections_raw, args.output_format)
         logging.info(f"Found {len(new_corrections_result)} new correction(s).")
 
     # Check for correct words changed into typos if requested.
     if args.mode == 'audit':
         logging.info("Finding cases where correct words were changed into typos...")
-        audit_result = process_audit_typos(candidates, args, valid_words, allowed_words)
+        audit_result = process_audit_typos(candidates, args, large_dictionary, allowed_words)
         logging.info(f"Found {len(audit_result)} case(s) where a correct word was changed to a typo.")
 
     # Combine results if needed.

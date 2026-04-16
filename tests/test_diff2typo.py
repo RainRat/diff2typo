@@ -130,7 +130,7 @@ def test_process_new_typos(tmp_path, monkeypatch):
     allowed.write_text('teh\n')
     args = SimpleNamespace(typos_tool_path='nonexistent', allowed_file=str(allowed), output_format='arrow', quiet=True)
     candidates = ['mispell -> misspell', 'teh -> the', 'recieve -> receive', 'recieve -> receive']
-    result = diff2typo.process_new_typos(candidates, args, {'mispell'}, {'teh'})
+    result = diff2typo.process_new_typos(candidates, args, large_dictionary={'mispell'}, allowed_words={'teh'})
     assert result == ['recieve -> receive']
 
 
@@ -161,7 +161,7 @@ def test_read_words_mapping_file_not_found(tmp_path, caplog):
     with caplog.at_level(logging.WARNING):
         result = diff2typo.read_words_mapping(str(tmp_path / 'missing.csv'), required=False)
     assert result == {}
-    assert any("Dictionary file" in message and "not found" in message for message in caplog.messages)
+    assert any("Large dictionary file" in message and "not found" in message for message in caplog.messages)
 
 
 def test_read_allowed_words_logs_warning(tmp_path, caplog):
@@ -282,7 +282,7 @@ def test_main_dictionary_file_missing_message(monkeypatch, tmp_path, caplog):
     with caplog.at_level(logging.WARNING):
         diff2typo.main()
 
-    assert any('Dictionary file' in message and 'not found' in message for message in caplog.messages)
+    assert any('Large dictionary file' in message and 'not found' in message for message in caplog.messages)
 
 
 def test_main_reads_stdin(monkeypatch, tmp_path):
@@ -423,7 +423,7 @@ def test_process_new_typos_quiet_suppresses_progress(monkeypatch):
     )
     candidates = ['mispell -> misspell', 'eror -> error']
 
-    result = diff2typo.process_new_typos(candidates, args, valid_words=set(), allowed_words=set())
+    result = diff2typo.process_new_typos(candidates, args, large_dictionary=set(), allowed_words=set())
     assert result == ['eror -> error', 'mispell -> misspell']
 
 

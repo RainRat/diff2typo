@@ -107,7 +107,7 @@ def test_process_new_corrections_empty_mapping(caplog):
     with caplog.at_level(logging.INFO):
         result = diff2typo.process_new_corrections(["a -> b"], {}, quiet=True)
         assert result == []
-        assert "Dictionary mapping is empty" in caplog.text
+        assert "Large dictionary mapping is empty" in caplog.text
 
 def test_process_new_corrections_quiet_false():
     diff2typo.process_new_corrections(["a -> b"], {"a": {"c"}}, quiet=False)

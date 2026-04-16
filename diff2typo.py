@@ -152,17 +152,10 @@ def split_into_subwords(word: str) -> List[str]:
     Returns:
         list: A list of subwords.
     """
-    # First, split by underscores, spaces, and hyphens
-    parts = re.split(r'[ _-]+', word)
+    pattern = r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+'
     subwords = []
-    for part in parts:
-        # Split based on casing (camelCase, PascalCase)
-        # This regex will split before uppercase letters that follow lowercase letters
-        split_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', part)
-        if split_parts:
-            subwords.extend(split_parts)
-        else:
-            subwords.append(part)
+    for part in re.split(r'[ _-]+', word):
+        subwords.extend(re.findall(pattern, part) or [part])
     return subwords
 
 def read_words_mapping(file_path: str, required: bool = True) -> Dict[str, Set[str]]:

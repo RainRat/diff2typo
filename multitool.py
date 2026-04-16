@@ -779,7 +779,7 @@ def _write_paired_output(
             out_file.write("| :--- | :--- |\n")
             for left, right in pairs_list:
                 out_file.write(f"| {left} | {right} |\n")
-        elif output_format == 'arrow' and (out_file.isatty() or os.environ.get('FORCE_COLOR')):
+        elif output_format == 'arrow':
             # Dynamic column width calculation for aligned table
             max_left = max((len(str(left)) for left, _ in pairs_list), default=len(left_header))
             max_left = max(max_left, len(left_header))

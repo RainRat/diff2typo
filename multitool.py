@@ -1013,6 +1013,15 @@ def _extract_line_items(input_file: str, quiet: bool = False) -> Iterable[str]:
         yield line.rstrip('\n')
 
 
+def _extract_char_items(input_file: str, quiet: bool = False) -> Iterable[str]:
+    """Yield each character from the file (excluding newlines)."""
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (chars)', unit=' lines', disable=quiet):
+        for char in line:
+            if char not in ('\n', '\r'):
+                yield char
+
+
 def _yield_words_from_lines(
     lines: Iterable[str],
     delimiter: str | None = None,
@@ -1453,12 +1462,14 @@ def count_mode(
     delimiter: str | None = None,
     smart: bool = False,
     pairs: bool = False,
+    lines: bool = False,
+    chars: bool = False,
     mapping_file: str | None = None,
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Counts the frequency of each word or pair in the input file(s) and writes the
-    sorted results to the output file. Only items with length between
+    Counts the frequency of each word, pair, line, or character in the input file(s)
+    and writes the sorted results to the output file. Only items with length between
     min_length and max_length are counted.
     The stats are based on the raw count of items versus the filtered items.
     Note: process_output is ignored in count mode.
@@ -1474,6 +1485,10 @@ def count_mode(
     if mapping_file or ad_hoc:
         mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
         pairs = True  # Automatically enable pairs for mapping audit
+
+    if chars and min_length == 3:
+        # Adjust default min_length for character counting
+        min_length = 1
 
     if mapping:
         # Audit mode: Count occurrences of mapped typos in input files
@@ -1500,14 +1515,19 @@ def count_mode(
                 filtered_items.append((left, right))
                 item_counts.update([(left, right)])
     else:
-        # Default mode for counting individual words
+        # Default mode for counting individual words, lines, or characters
         for input_file in input_files:
-            # Use the shared getting logic to support custom delimiters and smart splitting
-            words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
-            for word in words_gen:
+            if lines:
+                items_gen = _extract_line_items(input_file, quiet=quiet)
+            elif chars:
+                items_gen = _extract_char_items(input_file, quiet=quiet)
+            else:
+                items_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
+
+            for item in items_gen:
                 raw_count += 1
-                # Filter and clean the word
-                filtered = clean_and_filter([word], min_length, max_length, clean=clean_items)
+                # Filter and clean the item
+                filtered = clean_and_filter([item], min_length, max_length, clean=clean_items)
                 if filtered:
                     filtered_items.extend(filtered)
                     item_counts.update(filtered)
@@ -1569,9 +1589,15 @@ def count_mode(
             if pairs:
                 labels = [f"{item[0]} -> {item[1]}" for item, _ in final_results]
                 item_header = "Typo -> Correction"
+            elif lines:
+                labels = [str(item) for item, _ in final_results]
+                item_header = "Line"
+            elif chars:
+                labels = [str(item) for item, _ in final_results]
+                item_header = "Character"
             else:
                 labels = [str(item) for item, _ in final_results]
-                item_header = "Item"
+                item_header = "Word"
 
             # Find max width for columns
             max_item = max((len(label) for label in labels), default=len(item_header))
@@ -1611,7 +1637,15 @@ def count_mode(
 
             # If not quiet OR writing to a file, prepare and write the summary and header block.
             if not quiet or output_file != '-':
-                item_label = "pair" if pairs else "word"
+                if pairs:
+                    item_label = "pair"
+                elif lines:
+                    item_label = "line"
+                elif chars:
+                    item_label = "character"
+                else:
+                    item_label = "word"
+
                 summary_lines = _format_analysis_summary(
                     raw_count, filtered_items, item_label, start_time, use_color_err
                 )
@@ -1663,10 +1697,19 @@ def count_mode(
                 out_file.write(f"{label}: {count}\n")
 
     if output_format != 'arrow':
+        if pairs:
+            item_label = "pair"
+        elif lines:
+            item_label = "line"
+        elif chars:
+            item_label = "character"
+        else:
+            item_label = "word"
+
         print_processing_stats(
             raw_count,
             filtered_items,
-            item_label="pair" if pairs else "word",
+            item_label=item_label,
             start_time=start_time,
         )
         logging.info(
@@ -4542,9 +4585,9 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how often items appear.",
-        "description": "Counts how often each word or pair appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs (for example, typo -> correction) instead of single words. You can also provide a mapping (via --mapping or --add) to count occurrences of specific typos across your files.",
-        "example": "python multitool.py count . --add teh:the --min-count 5 -f arrow",
-        "flags": "[-s S] [-a K:V] [-d D] [-S] [-p]",
+        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. You can also provide a mapping (via --mapping or --add) to count occurrences of specific typos across your files.",
+        "example": "python multitool.py count . --lines --min-count 5 -f arrow",
+        "flags": "[-s S] [-a K:V] [-d D] [-S] [-p] [-l] [-c]",
     },
     "filterfragments": {
         "summary": "Removes words found inside others.",
@@ -5119,10 +5162,21 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
     )
-    count_options.add_argument(
+    unit_group = count_options.add_mutually_exclusive_group()
+    unit_group.add_argument(
         '-p', '--pairs',
         action='store_true',
         help='Count frequencies of word pairs (for example, typo -> correction) instead of single words.',
+    )
+    unit_group.add_argument(
+        '-l', '--lines',
+        action='store_true',
+        help='Count frequencies of raw lines instead of individual words.',
+    )
+    unit_group.add_argument(
+        '-c', '--chars',
+        action='store_true',
+        help='Count frequencies of individual characters instead of individual words.',
     )
     count_options.add_argument(
         '-s', '--mapping',
@@ -6189,6 +6243,8 @@ def main() -> None:
                 'delimiter': delimiter,
                 'smart': getattr(args, 'smart', False),
                 'pairs': getattr(args, 'pairs', False),
+                'lines': getattr(args, 'lines', False),
+                'chars': getattr(args, 'chars', False),
                 'mapping_file': getattr(args, 'mapping', None),
                 'ad_hoc': getattr(args, 'ad_hoc', None),
             },

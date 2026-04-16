@@ -71,8 +71,8 @@ def test_verify_prune(tmp_path):
     result = run_multitool(["verify", str(input_file), "--mapping", str(mapping_file), "--prune"])
 
     assert result.returncode == 0
-    assert "teh -> the" in result.stdout
-    assert "wrld -> world" not in result.stdout
+    assert "teh" in result.stdout and "the" in result.stdout
+    assert "wrld" not in result.stdout
 
 def test_verify_extra(tmp_path):
     # Create an input file

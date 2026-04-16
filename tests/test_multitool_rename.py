@@ -28,8 +28,8 @@ def test_rename_basic_file(temp_dir):
         with patch('sys.stdout', new_callable=pytest.importorskip('io').StringIO) as mock_stdout:
             main()
             output = mock_stdout.getvalue()
-            assert "teh_file.txt ->" in output
-            assert "the_file.txt" in output
+            assert "teh_file.txt" in output and "the_file.txt" in output
+            assert "Original" in output and "New Name" in output
 
     # Verify file not actually renamed
     assert os.path.exists(file_path)

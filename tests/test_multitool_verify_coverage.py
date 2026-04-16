@@ -130,7 +130,7 @@ def test_verify_mode_prune(tmp_path):
     )
 
     content = output_file.read_text()
-    assert "teh -> the" in content
+    assert "teh" in content and "the" in content
     assert "unused" not in content
 
 def test_verify_mode_prune_limit(tmp_path):
@@ -152,11 +152,11 @@ def test_verify_mode_prune_limit(tmp_path):
         limit=1
     )
 
-    content = output_file.read_text().strip().splitlines()
-    # Pruned output has extra info lines because it uses _write_paired_output which might log or add arrows
-    # But it should have exactly 1 pair because of limit=1
-    pairs = [line for line in content if " -> " in line]
-    assert len(pairs) == 1
+    content = output_file.read_text()
+    # Check that we have headers and exactly one data row
+    # Data rows in arrow format have " │ "
+    data_lines = [line for line in content.splitlines() if " │ " in line and "Left" not in line]
+    assert len(data_lines) == 1
 
 def test_verify_mode_early_break(tmp_path):
     # Tests early breaks in loops (lines 4077-4078, 4087-4088, 4096-4101)

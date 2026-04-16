@@ -198,7 +198,9 @@ def test_write_paired_output_formats(tmp_path):
     assert yaml.safe_load(output_file.read_text()) == dict(pairs)
 
     multitool._write_paired_output(pairs, str(output_file), 'arrow', 'Pairs')
-    assert "teh -> the\n" in output_file.read_text()
+    content = output_file.read_text()
+    assert "teh" in content and "the" in content
+    assert "Typo" in content and "Correction" in content
 
     multitool._write_paired_output(pairs, str(output_file), 'line', 'Pairs', limit=1)
     assert output_file.read_text() == "teh -> the\n"

@@ -775,40 +775,42 @@ def _write_paired_output(
             for left, right in pairs_list:
                 out_file.write(f"- {left}: {right}\n")
         elif output_format == 'md-table':
-            out_file.write(f"| {left_header} | {right_header} |\n")
-            out_file.write("| :--- | :--- |\n")
-            for left, right in pairs_list:
-                out_file.write(f"| {left} | {right} |\n")
+            if pairs_list:
+                out_file.write(f"| {left_header} | {right_header} |\n")
+                out_file.write("| :--- | :--- |\n")
+                for left, right in pairs_list:
+                    out_file.write(f"| {left} | {right} |\n")
         elif output_format == 'arrow':
-            # Dynamic column width calculation for aligned table
-            max_left = max((len(str(left)) for left, _ in pairs_list), default=len(left_header))
-            max_left = max(max_left, len(left_header))
-            max_right = max((len(str(right)) for _, right in pairs_list), default=len(right_header))
-            max_right = max(max_right, len(right_header))
+            if pairs_list:
+                # Dynamic column width calculation for aligned table
+                max_left = max((len(str(left)) for left, _ in pairs_list), default=len(left_header))
+                max_left = max(max_left, len(left_header))
+                max_right = max((len(str(right)) for _, right in pairs_list), default=len(right_header))
+                max_right = max(max_right, len(right_header))
 
-            # Colors for table
-            show_color = (out_file.isatty() or os.environ.get('FORCE_COLOR')) and not os.environ.get('NO_COLOR')
-            c_bold = BOLD if show_color else ""
-            c_blue = BLUE if show_color else ""
-            c_green = GREEN if show_color else ""
-            c_yellow = YELLOW if show_color else ""
-            c_reset = RESET if show_color else ""
+                # Colors for table
+                show_color = (out_file.isatty() or os.environ.get('FORCE_COLOR')) and not os.environ.get('NO_COLOR')
+                c_bold = BOLD if show_color else ""
+                c_blue = BLUE if show_color else ""
+                c_green = GREEN if show_color else ""
+                c_yellow = YELLOW if show_color else ""
+                c_reset = RESET if show_color else ""
 
-            # Header and divider
-            padding = "  "
-            # Bold blue for table visual elements
-            sep = f"{c_bold}{c_blue}│{c_reset}"
-            header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} {sep} {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
-            # 3 chars for the separator " │ "
-            visible_width = max_left + max_right + 3
-            divider = f"{padding}{c_bold}{c_blue}{'─' * visible_width}{c_reset}"
+                # Header and divider
+                padding = "  "
+                # Bold blue for table visual elements
+                sep = f"{c_bold}{c_blue}│{c_reset}"
+                header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} {sep} {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
+                # 3 chars for the separator " │ "
+                visible_width = max_left + max_right + 3
+                divider = f"{padding}{c_bold}{c_blue}{'─' * visible_width}{c_reset}"
 
-            out_file.write(f"\n{header}\n")
-            out_file.write(f"{divider}\n")
-            for left, right in pairs_list:
-                # Use green for original items and yellow for target items
-                out_file.write(f"{padding}{c_green}{left:<{max_left}}{c_reset} {sep} {c_yellow}{right}{c_reset}\n")
-            out_file.write("\n")
+                out_file.write(f"\n{header}\n")
+                out_file.write(f"{divider}\n")
+                for left, right in pairs_list:
+                    # Use green for original items and yellow for target items
+                    out_file.write(f"{padding}{c_green}{left:<{max_left}}{c_reset} {sep} {c_yellow}{right}{c_reset}\n")
+                out_file.write("\n")
         else:  # 'line' or fallback
             for left, right in pairs_list:
                 out_file.write(f"{left} -> {right}\n")

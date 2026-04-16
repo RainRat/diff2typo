@@ -53,5 +53,4 @@ def test_write_paired_output_arrow_rich_visual_empty(tmp_path):
         )
 
     content = output_file.read_text()
-    assert "Typo" in content
-    assert "Correction" in content
+    assert content == ""

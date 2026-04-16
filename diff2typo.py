@@ -37,6 +37,7 @@ import glob
 import logging
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -375,6 +376,26 @@ def _read_diff_file(file_path: str) -> str:
         sys.exit(1)
 
 
+def _read_git_diff(git_args: Optional[str]) -> str:
+    """Fetch diff directly from git using the provided arguments."""
+    command = ["git", "diff"]
+    if git_args:
+        command.extend(shlex.split(git_args))
+
+    try:
+        logging.info(f"Running git command: {' '.join(command)}")
+        result = subprocess.run(
+            command, capture_output=True, text=True, check=True
+        )
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Git command failed: {e.stderr}")
+        sys.exit(1)
+    except FileNotFoundError:
+        logging.error("Git executable not found.")
+        sys.exit(1)
+
+
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
     """Return concatenated diff text from standard input or the provided file patterns."""
 
@@ -580,6 +601,12 @@ def main():
         help="One or more input git diff files or patterns. Use '-' to read from standard input.",
     )
     io_group.add_argument(
+        '--git',
+        nargs='?',
+        const='',
+        help="Fetch diff directly from Git. Optional arguments are passed to 'git diff'.",
+    )
+    io_group.add_argument(
         '--input',
         '-i',
         dest='input_files_flag',
@@ -699,7 +726,10 @@ def main():
     flag_inputs = getattr(args, 'input_files_flag', []) or []
     input_files = pos_inputs + flag_inputs
 
-    diff_text = _read_diff_sources(input_files)
+    if args.git is not None:
+        diff_text = _read_git_diff(args.git)
+    else:
+        diff_text = _read_diff_sources(input_files)
 
     # Load the dictionary (words mapping) once.
     # If the file is missing, we don't exit. Instead we just warn and continue without filtering.

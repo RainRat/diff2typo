@@ -130,21 +130,21 @@ def test_process_new_typos(tmp_path, monkeypatch):
     allowed.write_text('teh\n')
     args = SimpleNamespace(typos_tool_path='nonexistent', allowed_file=str(allowed), output_format='arrow', quiet=True)
     candidates = ['mispell -> misspell', 'teh -> the', 'recieve -> receive', 'recieve -> receive']
-    result = diff2typo.process_new_typos(candidates, args, large_dictionary={'mispell'}, allowed_words={'teh'})
+    result = diff2typo.process_typos_mode(candidates, args, large_dictionary={'mispell'}, allowed_words={'teh'})
     assert result == ['recieve -> receive']
 
 
 def test_process_new_corrections():
     words_mapping = {'teh': {'the'}, 'mispell': {'misspell'}}
     candidates = ['teh -> the', 'teh -> thee', 'recieve -> receive']
-    result = diff2typo.process_new_corrections(candidates, words_mapping, quiet=True)
+    result = diff2typo.process_corrections_mode(candidates, words_mapping, quiet=True)
     assert result == ['teh -> thee']
 
 
 def test_process_new_corrections_dedup_and_sort():
     words_mapping = {'teh': {'the'}}
     candidates = ['teh -> thee', 'Teh -> THEE', 'teh -> thea']
-    result = diff2typo.process_new_corrections(candidates, words_mapping, quiet=True)
+    result = diff2typo.process_corrections_mode(candidates, words_mapping, quiet=True)
     assert result == ['teh -> thea', 'teh -> thee']
 
 
@@ -152,8 +152,8 @@ def test_process_new_corrections_with_empty_set():
     # If before is in mapping but has an empty set of corrections
     words_mapping = {'teh': set()}
     candidates = ['teh -> the']
-    result = diff2typo.process_new_corrections(candidates, words_mapping, quiet=True)
-    # It should still be identified as a new correction
+    result = diff2typo.process_corrections_mode(candidates, words_mapping, quiet=True)
+    # It should still be identified as a correction
     assert result == ['teh -> the']
 
 
@@ -423,7 +423,7 @@ def test_process_new_typos_quiet_suppresses_progress(monkeypatch):
     )
     candidates = ['mispell -> misspell', 'eror -> error']
 
-    result = diff2typo.process_new_typos(candidates, args, large_dictionary=set(), allowed_words=set())
+    result = diff2typo.process_typos_mode(candidates, args, large_dictionary=set(), allowed_words=set())
     assert result == ['eror -> error', 'mispell -> misspell']
 
 
@@ -436,7 +436,7 @@ def test_process_new_corrections_quiet_suppresses_progress(monkeypatch):
     words_mapping = {'teh': {'the'}}
     candidates = ['teh -> thee']
 
-    assert diff2typo.process_new_corrections(candidates, words_mapping, quiet=True) == ['teh -> thee']
+    assert diff2typo.process_corrections_mode(candidates, words_mapping, quiet=True) == ['teh -> thee']
 
 
 def test_filter_known_typos_cleans_temp_directory(monkeypatch, tmp_path):

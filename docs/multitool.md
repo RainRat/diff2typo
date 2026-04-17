@@ -10,6 +10,13 @@ Run the tool with a mode and your input files:
 python multitool.py <MODE> [INPUT_FILES...] [OPTIONS]
 ```
 
+Use the **`help`** subcommand to see all available modes or get detailed information about a specific one:
+
+```bash
+python multitool.py help        # Show summary of all modes
+python multitool.py help count  # Show details for 'count' mode
+```
+
 Most modes default to reading from **standard input** if you do not specify an input file. This makes it easy to send data from other commands into Multitool.
 
 ## Modes

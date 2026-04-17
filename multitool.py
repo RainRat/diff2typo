@@ -4829,6 +4829,53 @@ class MinimalFormatter(logging.Formatter):
         return f"{levelname}: {record.getMessage()}"
 
 
+def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> None:
+    """Prints detailed help for one or all modes and exits."""
+    if mode_name in (None, "all"):
+        # Show a summary table of all modes
+        print("\n" + get_mode_summary_text())
+        parser.exit()
+    else:
+        # Show detailed help for a single mode
+        details = MODE_DETAILS.get(mode_name)
+        if not details:
+            parser.error(f"Unknown mode: {mode_name}")
+
+        divider = f"{BLUE}{'─' * 80}{RESET}"
+        label_color = f"{BLUE}{BOLD}"
+        block = [
+            divider,
+            f"{label_color}{'MODE:':<13}{RESET}{GREEN}{mode_name.upper()}{RESET}",
+            divider,
+            f"{label_color}{'SUMMARY:':<13}{RESET}{details['summary']}",
+        ]
+
+        if details.get("description"):
+            desc = details['description']
+            block.append(f"{label_color}{'DESCRIPTION:':<13}{RESET}{desc}")
+
+        flags_str = details.get("flags", "[FILES...]")
+        first_word = flags_str.split()[0] if flags_str else ""
+        # If the flags string starts with a positional label (uppercase, no brackets), show it as part of USAGE
+        if first_word.isupper() and not first_word.startswith('[') and not first_word.startswith('-'):
+            usage_line = f"python {parser.prog} {mode_name} {first_word} [FILES...] [FLAGS]"
+        else:
+            usage_line = f"python {parser.prog} {mode_name} [FILES...] [FLAGS]"
+
+        block.append(f"\n{label_color}{'USAGE:':<13}{RESET}{usage_line}")
+
+        if details.get("flags"):
+            block.append(f"{label_color}{'FLAGS:':<13}{RESET}{YELLOW}{details['flags']}{RESET}")
+
+        if details.get("example"):
+            block.append(f"\n{label_color}{'EXAMPLE:':<13}{RESET}")
+            block.append(f"  {BLUE}{details['example']}{RESET}")
+
+        block.append(divider)
+
+        parser.exit(message="\n" + "\n".join(block) + "\n\n")
+
+
 class ModeHelpAction(argparse.Action):
     """Custom argparse action that prints detailed help for one or all modes."""
 
@@ -4839,49 +4886,7 @@ class ModeHelpAction(argparse.Action):
         values: str | None,
         option_string: str | None = None,
     ) -> None:
-        if values in (None, "all"):
-            # Show a summary table of all modes
-            print("\n" + get_mode_summary_text())
-            parser.exit()
-        else:
-            # Show detailed help for a single mode
-            details = MODE_DETAILS.get(values)
-            if not details:
-                parser.error(f"Unknown mode: {values}")
-
-            divider = f"{BLUE}{'─' * 80}{RESET}"
-            label_color = f"{BLUE}{BOLD}"
-            block = [
-                divider,
-                f"{label_color}{'MODE:':<13}{RESET}{GREEN}{values.upper()}{RESET}",
-                divider,
-                f"{label_color}{'SUMMARY:':<13}{RESET}{details['summary']}",
-            ]
-
-            if details.get("description"):
-                desc = details['description']
-                block.append(f"{label_color}{'DESCRIPTION:':<13}{RESET}{desc}")
-
-            flags_str = details.get("flags", "[FILES...]")
-            first_word = flags_str.split()[0] if flags_str else ""
-            # If the flags string starts with a positional label (uppercase, no brackets), show it as part of USAGE
-            if first_word.isupper() and not first_word.startswith('[') and not first_word.startswith('-'):
-                usage_line = f"python multitool.py {values} {first_word} [FILES...] [FLAGS]"
-            else:
-                usage_line = f"python multitool.py {values} [FILES...] [FLAGS]"
-
-            block.append(f"\n{label_color}{'USAGE:':<13}{RESET}{usage_line}")
-
-            if details.get("flags"):
-                block.append(f"{label_color}{'FLAGS:':<13}{RESET}{YELLOW}{details['flags']}{RESET}")
-
-            if details.get("example"):
-                block.append(f"\n{label_color}{'EXAMPLE:':<13}{RESET}")
-                block.append(f"  {BLUE}{details['example']}{RESET}")
-
-            block.append(divider)
-
-            parser.exit(message="\n" + "\n".join(block) + "\n\n")
+        show_mode_help(values, parser)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -4969,6 +4974,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     subparsers = parser.add_subparsers(dest='mode', required=True, help=argparse.SUPPRESS)
+
+    help_parser = subparsers.add_parser(
+        'help',
+        help="Show help for a specific mode or a summary of all modes.",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Displays extended documentation for the requested mode. If no mode is provided, shows a summary table of all available modes.",
+        epilog=f"{BLUE}Examples:{RESET}\n  {GREEN}python multitool.py help{RESET}          # Show summary of all modes\n  {GREEN}python multitool.py help count{RESET}    # Show detailed help for 'count' mode",
+    )
+    help_parser.add_argument(
+        'mode_to_help',
+        nargs='?',
+        choices=[*MODE_DETAILS.keys(), 'all'],
+        metavar='MODE',
+        help="The mode to show help for (e.g., 'count', 'scrub', 'standardize').",
+    )
 
     arrow_parser = subparsers.add_parser(
         'arrow',
@@ -6521,6 +6541,10 @@ def main() -> None:
             }
         ),
     }
+
+    if args.mode == 'help':
+        show_mode_help(args.mode_to_help, parser)
+        return
 
     handler, handler_args = handler_map[args.mode]
     try:

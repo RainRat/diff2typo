@@ -105,12 +105,12 @@ def test_filter_candidates_by_set_quiet_false(caplog):
 
 def test_process_new_corrections_empty_mapping(caplog):
     with caplog.at_level(logging.INFO):
-        result = diff2typo.process_new_corrections(["a -> b"], {}, quiet=True)
+        result = diff2typo.process_corrections_mode(["a -> b"], {}, quiet=True)
         assert result == []
         assert "Large dictionary mapping is empty" in caplog.text
 
 def test_process_new_corrections_quiet_false():
-    diff2typo.process_new_corrections(["a -> b"], {"a": {"c"}}, quiet=False)
+    diff2typo.process_corrections_mode(["a -> b"], {"a": {"c"}}, quiet=False)
 
 def test_main_both_modes(tmp_path, monkeypatch, caplog):
     monkeypatch.chdir(tmp_path)
@@ -139,9 +139,9 @@ def test_main_both_modes(tmp_path, monkeypatch, caplog):
         diff2typo.main()
 
     content = output_file.read_text()
-    assert "=== New Typos ===" in content
+    assert "=== Typos ===" in content
     assert "eror -> error" in content
-    assert "=== New Corrections ===" in content
+    assert "=== Corrections ===" in content
     assert "teh -> thee" in content
 
 def test_main_corrections_mode(tmp_path, monkeypatch):

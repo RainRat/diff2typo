@@ -1,6 +1,6 @@
 # diff2typo.py
 
-**Purpose:** Scans your Git history to find typos you have already fixed. This helps you build a list of common mistakes to avoid in the future.
+**Purpose:** Scans your Git history to find typos you have fixed. This helps you build a list of common mistakes to avoid in the future.
 
 ## Usage
 
@@ -17,7 +17,7 @@ git diff | python diff2typo.py [OPTIONS]
 1. **Find typos in diffs:** Reads Git diff files or data sent directly from other commands to find words you have corrected.
 2. **Variable Support:** Automatically splits compound words like `camelCase` and `snake_case` to find typos hidden inside variable names.
 3. **Smart Filtering:** Uses a large dictionary of correct words and a list of "allowed" words to prevent the tool from reporting correct words as typos.
-4. **Integration:** Can check your findings against the external `typos` tool to ensure your list only contains new mistakes.
+4. **Integration:** Can check your findings against the external `typos` tool to ensure your list only contains mistakes.
 
 ## Options
 
@@ -26,7 +26,7 @@ git diff | python diff2typo.py [OPTIONS]
 | `FILE` | standard input | One or more input Git diff files. Use `-` to read from standard input. |
 | `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
-| `--mode` | `typos` | **`typos`**: Find new typos that are not in your large dictionary (default).<br>**`corrections`**: Find new ways to fix typos that are already in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
+| `--mode` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
 | `--min-length`, `-m` | `2` | Ignore words shorter than this length. |
 | `--max-dist` | None | Only include typos with a number of character changes up to this value. Useful for filtering out intentional word changes. |
 | `--dictionary`, `-d` | `words.csv` | A file containing the large dictionary of correct words. The tool uses this to make sure the "fix" is a real word. |
@@ -36,7 +36,7 @@ git diff | python diff2typo.py [OPTIONS]
 
 ## Examples
 
-**Extract new typos from a specific diff file:**
+**Extract typos from a specific diff file:**
 
 ```bash
 python diff2typo.py feature.diff --mode typos --format list

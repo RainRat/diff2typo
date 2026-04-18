@@ -2,24 +2,24 @@
 diff2typo.py
 
 Purpose:
-    Read a Git diff to find typo corrections and prepare an update for the `typos` tool.
-    This helps make sure that the typos you find are caught in future code changes.
+    Find typo corrections in a Git diff and prepare an update for the `typos` tool.
+    This helps ensure that typos you find are caught in future changes.
 
 Features:
     - Finds typo corrections in Git diffs.
     - Splits compound words based on spaces, underscores, and capital letters.
-    - Skips corrections where the "before" word is already in the large dictionary.
+    - Skips corrections where the "before" word is in the large dictionary.
     - Works with the `typos` tool to avoid duplicate entries.
     - Automatically detects the word list file format.
     - Allows customization through command-line options.
-    - Uses the `--mode` option to find new typos, new corrections for existing typos, or cases where a correct word was changed into a typo.
+    - Uses the `--mode` option to find typos, corrections for existing typos, or cases where a correct word was changed into a typo.
 
 Usage:
     python diff2typo.py diff.txt --output=typos.txt --format=list
 
 Examples:
-    - Only new typos: python diff2typo.py diff.txt --output=typos.txt --mode typos
-    - Only corrections for existing typos: python diff2typo.py diff.txt --output=typos.txt --mode corrections
+    - Find typos: python diff2typo.py diff.txt --output=typos.txt --mode typos
+    - Corrections for existing typos: python diff2typo.py diff.txt --output=typos.txt --mode corrections
     - Both typos and corrections: python diff2typo.py diff.txt --output=typos.txt --mode both
     - Find correct words changed into typos: python diff2typo.py diff.txt --mode audit
 
@@ -190,8 +190,8 @@ def _compare_word_lists(
     """Return typo pairs discovered when comparing two word sequences."""
     import difflib
 
-    # Use sequence alignment to identify corresponding changes in words.
-    # This allows correctly identifying typo corrections even when words
+    # Use sequence alignment to find corresponding changes in words.
+    # This allows correctly finding typo corrections even when words
     # are added or removed within the same diff block.
     matcher = difflib.SequenceMatcher(None, before_words, after_words)
     typos: List[str] = []
@@ -266,7 +266,7 @@ def process_diff_block(
 
 def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = None) -> List[str]:
     """
-    Parses the diff text to identify typo corrections.
+    Parses the diff text to find typo corrections.
 
     Args:
         diff_text (str): The Git diff text.
@@ -424,7 +424,7 @@ def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
 
 def filter_known_typos(candidates, typos_tool_path):
     """
-    Filters out typos that are already known by the 'typos' tool.
+    Filters out typos that are known by the 'typos' tool.
 
     Args:
         candidates (list): A list of typo candidates in "before -> after" format.
@@ -455,12 +455,12 @@ def filter_known_typos(candidates, typos_tool_path):
         command = [typos_executable, '--format', 'brief', temp_file]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=False)
-            already_known = {s.lower() for s in re.findall(r'`([^`]+)`', result.stdout) if len(s) > 1}
+            known_typos = {s.lower() for s in re.findall(r'`([^`]+)`', result.stdout) if len(s) > 1}
             filtered = [
                 line for line in candidates
-                if line.split(' -> ')[0].lower() not in already_known
+                if line.split(' -> ')[0].lower() not in known_typos
             ]
-            logging.info(f"Filtered out {len(candidates) - len(filtered)} already-known typo(s).")
+            logging.info(f"Filtered out {len(candidates) - len(filtered)} known typo(s).")
             return filtered
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             logging.warning(f"Error running typos tool: {e}. Skipping known typo filtering.")
@@ -492,13 +492,13 @@ def _filter_candidates_by_set(candidates, filter_set, desc, quiet=False):
     return filtered_list
 
 
-def process_new_typos(candidates, args, large_dictionary, allowed_words):
+def process_typos_mode(candidates, args, large_dictionary, allowed_words):
     """
-    Find new typos that are not already known.
+    Find typos that are not known.
     Uses allowed words and the large dictionary to filter the results.
     The large dictionary can be a simple word list (one word per line) or a
     CSV file where the first word is a typo and the rest are corrections.
-    Returns the formatted list of new typos.
+    Returns the formatted list of typos.
     """
     candidates = filter_known_typos(candidates, typos_tool_path=args.typos_tool_path)
     candidates = _filter_candidates_by_set(
@@ -521,13 +521,13 @@ def process_new_typos(candidates, args, large_dictionary, allowed_words):
     return formatted
 
 
-def process_new_corrections(candidates, words_mapping, quiet=False):
+def process_corrections_mode(candidates, words_mapping, quiet=False):
     """
-    Find new corrections for typos that are already known.
+    Find corrections for typos that are known.
     It reads a word list and for each potential correction,
-    if the "before" word is already known but the "after" word is not,
+    if the "before" word is known but the "after" word is not,
     then it is saved.
-    Returns a sorted list of new corrections in "before -> after" form.
+    Returns a sorted list of corrections in "before -> after" form.
 
     Args:
         candidates (list): Candidate "before -> after" strings.
@@ -535,11 +535,11 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
         quiet (bool): When True, suppress progress display.
     """
 
-    new_corrections = []
+    corrections = []
 
     if not words_mapping:
-        logging.info("Large dictionary mapping is empty; skipping new corrections search.")
-        return new_corrections
+        logging.info("Large dictionary mapping is empty; skipping corrections search.")
+        return corrections
 
     progress = None
     iterator = candidates
@@ -550,14 +550,14 @@ def process_new_corrections(candidates, words_mapping, quiet=False):
     for candidate in iterator:
         if '->' in candidate:
             before, after = [s.strip().lower() for s in candidate.split('->')]
-            # Only consider cases where the "before" word is already known in the mapping as a typo.
+            # Only consider cases where the "before" word is known in the mapping as a typo.
             if before in words_mapping:
                 if after not in words_mapping[before]:
-                    new_corrections.append(f"{before} -> {after}")
+                    corrections.append(f"{before} -> {after}")
     if progress:
         progress.close()
-    new_corrections = sorted(set(new_corrections))
-    return new_corrections
+    corrections = sorted(set(corrections))
+    return corrections
 
 
 def process_audit_typos(candidates, args, large_dictionary, allowed_words):
@@ -584,7 +584,7 @@ def main():
 
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Process a Git diff to identify typos for the `typos` tool.{RESET}",
+        description=f"{BOLD}Process a Git diff to find typos for the `typos` tool.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python diff2typo.py diff.txt --output typos.txt --mode typos{RESET}
@@ -650,8 +650,8 @@ def main():
         default='typos',
         help=(
             f"{YELLOW}Analysis mode:{RESET}\n"
-            f"  {GREEN}typos{RESET}:       Find new typos that are not in your large dictionary (default).\n"
-            f"  {GREEN}corrections{RESET}: Find new corrections for typos already in your large dictionary.\n"
+            f"  {GREEN}typos{RESET}:       Find typos that are not in your large dictionary (default).\n"
+            f"  {GREEN}corrections{RESET}: Find corrections for typos in your large dictionary.\n"
             f"  {GREEN}both{RESET}:        Run both analyses and label the results.\n"
             f"  {GREEN}audit{RESET}:       Find cases where a correct word was changed into a typo."
         ),
@@ -758,49 +758,49 @@ def main():
             large_dictionary.add(typo)
 
     # Find candidate typo corrections from the diff.
-    logging.info("Finding potential typo corrections from the diff...")
+    logging.info("Finding typo corrections from the diff...")
     candidates = find_typos(diff_text, min_length=args.min_length, max_dist=args.max_dist)
     candidates = sorted(set(candidates))
-    logging.info(f"Identified {len(candidates)} candidate typo correction(s).")
+    logging.info(f"Found {len(candidates)} candidate typo correction(s).")
 
     # Prepare lists to hold results.
-    new_typos_result = []
-    new_corrections_result = []
+    typos_result = []
+    corrections_result = []
     audit_result = []
 
-    # Process new typos if requested.
+    # Process typos if requested.
     if args.mode in ['typos', 'both']:
-        logging.info("Processing new typos (filtering out known typos)...")
-        new_typos_result = process_new_typos(candidates, args, large_dictionary, allowed_words)
-        logging.info(f"Found {len(new_typos_result)} new typo(s).")
+        logging.info("Processing typos (filtering out known typos)...")
+        typos_result = process_typos_mode(candidates, args, large_dictionary, allowed_words)
+        logging.info(f"Found {len(typos_result)} typo(s).")
 
-    # Process new corrections if requested.
+    # Process corrections if requested.
     if args.mode in ['corrections', 'both']:
-        logging.info("Processing new corrections to existing typos...")
-        new_corrections_raw = process_new_corrections(candidates, large_dictionary_mapping, quiet=args.quiet)
-        new_corrections_result = format_typos(new_corrections_raw, args.output_format)
-        logging.info(f"Found {len(new_corrections_result)} new correction(s).")
+        logging.info("Processing corrections to existing typos...")
+        corrections_raw = process_corrections_mode(candidates, large_dictionary_mapping, quiet=args.quiet)
+        corrections_result = format_typos(corrections_raw, args.output_format)
+        logging.info(f"Found {len(corrections_result)} correction(s).")
 
     # Check for correct words changed into typos if requested.
     if args.mode == 'audit':
-        logging.info("Finding cases where correct words were changed into typos...")
+        logging.info("Checking for cases where correct words were changed into typos...")
         audit_result = process_audit_typos(candidates, args, large_dictionary, allowed_words)
         logging.info(f"Found {len(audit_result)} case(s) where a correct word was changed to a typo.")
 
     # Combine results if needed.
     final_output = []
     if args.mode == 'both':
-        if new_typos_result:
-            final_output.append("=== New Typos ===")
-            final_output.extend(new_typos_result)
+        if typos_result:
+            final_output.append("=== Typos ===")
+            final_output.extend(typos_result)
             final_output.append("")  # Blank line for separation.
-        if new_corrections_result:
-            final_output.append("=== New Corrections ===")
-            final_output.extend(new_corrections_result)
+        if corrections_result:
+            final_output.append("=== Corrections ===")
+            final_output.extend(corrections_result)
     elif args.mode == 'typos':
-        final_output = new_typos_result
+        final_output = typos_result
     elif args.mode == 'corrections':
-        final_output = new_corrections_result
+        final_output = corrections_result
     elif args.mode == 'audit':
         final_output = audit_result
 
@@ -810,7 +810,7 @@ def main():
             for line in final_output:
                 f.write(f"{line}\n")
         logging.info(
-            f"Successfully wrote {len(final_output)} line(s) to '{args.output_file}'."
+            f"Wrote {len(final_output)} line(s) to '{args.output_file}'."
         )
     except Exception as e:
         logging.error(f"Error writing to output file '{args.output_file}': {e}")

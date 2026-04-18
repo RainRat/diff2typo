@@ -214,6 +214,36 @@ def _smart_split(text: str) -> List[str]:
     return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', text)
 
 
+def _format_search_line(
+    filename: str,
+    line_num: int,
+    content: str,
+    separator: str,
+    show_filename: bool,
+    show_line_num: bool,
+    use_color: bool,
+) -> str:
+    """Format a single line for search/scan output with prefix and coloring."""
+    prefix_parts = []
+    if show_filename:
+        prefix_parts.append(filename)
+    if show_line_num:
+        prefix_parts.append(str(line_num))
+
+    if not prefix_parts:
+        return content
+
+    if separator == '-':
+        # Standard grep uses '-' instead of ':' for context lines
+        raw_prefix = "-".join(prefix_parts) + "-"
+    else:
+        raw_prefix = ":".join(prefix_parts) + ":"
+
+    if use_color:
+        return f"{BOLD}{BLUE}{raw_prefix}{RESET} {content}"
+    return f"{raw_prefix} {content}"
+
+
 def clean_and_filter(items: Iterable[str], min_length: int, max_length: int, clean: bool = True) -> List[str]:
     """Clean items to letters only (if clean=True) and apply length filtering."""
     if clean:
@@ -2820,6 +2850,9 @@ def search_mode(
     clean_items: bool = True,
     limit: int | None = None,
     with_filename: bool | None = None,
+    before_context: int = 0,
+    after_context: int = 0,
+    context: int | None = None,
 ) -> None:
     """
     Searches for words or patterns in text files, supporting similar word matching and smart subword detection.
@@ -2853,6 +2886,10 @@ def search_mode(
     if show_filename is None:
         show_filename = len(input_files) > 1
 
+    # Resolve context settings
+    b_ctx = context if context is not None else before_context
+    a_ctx = context if context is not None else after_context
+
     # Pre-compile patterns outside the loop for better performance
     lit_pattern = re.compile(re.escape(query), re.IGNORECASE)
     word_pattern = re.compile(r"([a-zA-Z0-9]+)")
@@ -2863,72 +2900,79 @@ def search_mode(
         file_lines = _read_file_lines_robust(input_file)
         file_matches = 0
 
+        preceding_lines = deque(maxlen=b_ctx)
+        after_remaining = 0
+        last_output_line_num = -1
+
         for i, line in enumerate(
             tqdm(file_lines, desc=f"Searching {input_file}", unit=" lines", disable=quiet)
         ):
+            if limit is not None and total_matches >= limit:
+                break
+
+            line_num = i + 1
             line_content = line.rstrip("\n")
             spans = []
 
-            # 1. Exact match on whole line first (case-insensitive)
+            # Match identification logic
             if apply_literal_match:
                 for m in lit_pattern.finditer(line_content):
                     spans.append(m.span())
 
-            # 2. Word-by-word logic for filtering/similar word/smart matching.
             for m_word in word_pattern.finditer(line_content):
                 word = m_word.group(0)
                 word_start, word_end = m_word.span()
-
                 word_clean = filter_to_letters(word) if clean_items else word.lower()
-                if not word_clean:
+                if not word_clean or not (min_length <= len(word_clean) <= max_length):
                     continue
-
-                if not (min_length <= len(word_clean) <= max_length):
-                    continue
-
-                match_found_in_word = False
 
                 if query_clean in word_clean:
+                    match_found_in_word = False
                     for m_lit in lit_pattern.finditer(word):
                         spans.append((word_start + m_lit.start(), word_start + m_lit.end()))
                         match_found_in_word = True
-
                     if not match_found_in_word:
                         spans.append((word_start, word_end))
-                        match_found_in_word = True
-
-                elif (
-                    max_dist > 0
-                    and levenshtein_distance(word_clean, query_clean) <= max_dist
-                ):
+                elif max_dist > 0 and levenshtein_distance(word_clean, query_clean) <= max_dist:
                     spans.append((word_start, word_end))
-                    match_found_in_word = True
-
                 elif smart:
                     sub_parts = _smart_split(word)
                     for sp in sub_parts:
                         sp_clean = filter_to_letters(sp) if clean_items else sp.lower()
-                        if not sp_clean:
-                            continue
-
+                        if not sp_clean: continue
                         for qp_clean in query_parts_clean:
                             if levenshtein_distance(sp_clean, qp_clean) <= max_dist:
                                 spans.append((word_start, word_end))
-                                match_found_in_word = True
                                 break
-                        if match_found_in_word:
-                            break
+                        else: continue
+                        break
 
             if spans:
                 file_matches += 1
+                total_matches += 1
 
+                # Group/separator logic - check against the first line of this block
+                first_line_of_block = line_num
+                if preceding_lines:
+                    first_line_of_block = preceding_lines[0][0]
+
+                if last_output_line_num != -1 and first_line_of_block > last_output_line_num + 1:
+                    accumulated_lines.append("--")
+
+                # Output preceding context
+                while preceding_lines:
+                    p_num, p_content = preceding_lines.popleft()
+                    accumulated_lines.append(_format_search_line(
+                        input_file, p_num, p_content, '-', show_filename, line_numbers, use_color
+                    ))
+
+                # Highlight and output match line
                 spans.sort()
                 merged = []
                 if spans:
                     curr_start, curr_end = spans[0]
                     for next_start, next_end in spans[1:]:
-                        if next_start <= curr_end:
-                            curr_end = max(curr_end, next_end)
+                        if next_start <= curr_end: curr_end = max(curr_end, next_end)
                         else:
                             merged.append((curr_start, curr_end))
                             curr_start, curr_end = next_start, next_end
@@ -2942,27 +2986,29 @@ def search_mode(
                         highlighted_line += f"{YELLOW}{line_content[start:end]}{RESET}"
                         last_idx = end
                     highlighted_line += line_content[last_idx:]
-                    display_line = highlighted_line
+                    display_content = highlighted_line
                 else:
-                    display_line = line_content
+                    display_content = line_content
 
-                prefix_parts = []
-                if show_filename:
-                    prefix_parts.append(input_file)
-                if line_numbers:
-                    prefix_parts.append(str(i+1))
+                accumulated_lines.append(_format_search_line(
+                    input_file, line_num, display_content, ':', show_filename, line_numbers, use_color
+                ))
 
-                if prefix_parts:
-                    raw_prefix = ":".join(prefix_parts) + ":"
-                    display_line = (
-                        f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
-                        if use_color
-                        else f"{raw_prefix} {display_line}"
-                    )
+                last_output_line_num = line_num
+                after_remaining = a_ctx
+            elif after_remaining > 0:
+                # Output trailing context
+                if last_output_line_num != -1 and line_num > last_output_line_num + 1:
+                    accumulated_lines.append("--") # Should not happen with continuous context
 
-                accumulated_lines.append(display_line)
-
-        total_matches += file_matches
+                accumulated_lines.append(_format_search_line(
+                    input_file, line_num, line_content, '-', show_filename, line_numbers, use_color
+                ))
+                after_remaining -= 1
+                last_output_line_num = line_num
+            else:
+                # Store potential preceding context
+                preceding_lines.append((line_num, line_content))
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
@@ -4047,6 +4093,9 @@ def scan_mode(
     line_numbers: bool = False,
     with_filename: bool | None = None,
     ad_hoc: List[str] | None = None,
+    before_context: int = 0,
+    after_context: int = 0,
+    context: int | None = None,
 ) -> None:
     """
     Scans files for occurrences of words from a mapping file or extra pairs, providing context.
@@ -4067,25 +4116,34 @@ def scan_mode(
     if show_filename is None:
         show_filename = len(input_files) > 1
 
+    # Resolve context settings
+    b_ctx = context if context is not None else before_context
+    a_ctx = context if context is not None else after_context
+
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         file_matches = 0
 
+        preceding_lines = deque(maxlen=b_ctx)
+        after_remaining = 0
+        last_output_line_num = -1
+
         for i, line in enumerate(tqdm(file_lines, desc=f"Scanning {input_file}", unit=" lines", disable=quiet)):
+            if limit is not None and total_matches >= limit:
+                break
+
+            line_num = i + 1
             line_content = line.rstrip('\n')
             parts = pattern.split(line_content)
             match_found = False
 
             # First pass: check if any word in the line is in our mapping
             for part in parts:
-                if not part or not pattern.match(part):
-                    continue
-
+                if not part or not pattern.match(part): continue
                 match_key = filter_to_letters(part) if clean_items else part
                 if match_key in mapping:
                     match_found = True
                     break
-
                 if smart:
                     sub_parts = _smart_split(part)
                     for sp in sub_parts:
@@ -4093,18 +4151,32 @@ def scan_mode(
                         if sm_key in mapping:
                             match_found = True
                             break
-                    if match_found:
-                        break
+                    if match_found: break
 
             if match_found:
                 file_matches += 1
+                total_matches += 1
+
+                # Group/separator logic - check against the first line of this block
+                first_line_of_block = line_num
+                if preceding_lines:
+                    first_line_of_block = preceding_lines[0][0]
+
+                if last_output_line_num != -1 and first_line_of_block > last_output_line_num + 1:
+                    accumulated_lines.append("--")
+
+                # Output preceding context
+                while preceding_lines:
+                    p_num, p_content = preceding_lines.popleft()
+                    accumulated_lines.append(_format_search_line(
+                        input_file, p_num, p_content, '-', show_filename, line_numbers, use_color
+                    ))
 
                 # Second pass: apply highlighting for the output
                 if use_color:
                     new_parts = []
                     for part in parts:
-                        if not part:
-                            continue
+                        if not part: continue
                         if pattern.match(part):
                             mk = filter_to_letters(part) if clean_items else part
                             if mk in mapping:
@@ -4116,34 +4188,33 @@ def scan_mode(
                                     smk = filter_to_letters(sp) if clean_items else sp
                                     if smk in mapping:
                                         sub_new_parts.append(f"{YELLOW}{sp}{RESET}")
-                                    else:
-                                        sub_new_parts.append(sp)
+                                    else: sub_new_parts.append(sp)
                                 new_parts.append("".join(sub_new_parts))
-                            else:
-                                new_parts.append(part)
-                        else:
-                            new_parts.append(part)
-                    display_line = "".join(new_parts)
+                            else: new_parts.append(part)
+                        else: new_parts.append(part)
+                    display_content = "".join(new_parts)
                 else:
-                    display_line = line_content
+                    display_content = line_content
 
-                prefix_parts = []
-                if show_filename:
-                    prefix_parts.append(input_file)
-                if line_numbers:
-                    prefix_parts.append(str(i+1))
+                accumulated_lines.append(_format_search_line(
+                    input_file, line_num, display_content, ':', show_filename, line_numbers, use_color
+                ))
 
-                if prefix_parts:
-                    raw_prefix = ":".join(prefix_parts) + ":"
-                    display_line = (
-                        f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
-                        if use_color
-                        else f"{raw_prefix} {display_line}"
-                    )
+                last_output_line_num = line_num
+                after_remaining = a_ctx
+            elif after_remaining > 0:
+                # Output trailing context
+                if last_output_line_num != -1 and line_num > last_output_line_num + 1:
+                    accumulated_lines.append("--")
 
-                accumulated_lines.append(display_line)
-
-        total_matches += file_matches
+                accumulated_lines.append(_format_search_line(
+                    input_file, line_num, line_content, '-', show_filename, line_numbers, use_color
+                ))
+                after_remaining -= 1
+                last_output_line_num = line_num
+            else:
+                # Store potential preceding context
+                preceding_lines.append((line_num, line_content))
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
@@ -5507,6 +5578,23 @@ def _build_parser() -> argparse.ArgumentParser:
         dest='with_filename',
         help="Suppress the prefixing of filenames on output.",
     )
+    search_options.add_argument(
+        '-B', '--before-context',
+        type=int,
+        default=0,
+        help="Print NUM lines of leading context before matching lines.",
+    )
+    search_options.add_argument(
+        '-A', '--after-context',
+        type=int,
+        default=0,
+        help="Print NUM lines of trailing context after matching lines.",
+    )
+    search_options.add_argument(
+        '-C', '--context',
+        type=int,
+        help="Print NUM lines of output context.",
+    )
     _add_common_mode_arguments(search_parser)
 
     set_parser = subparsers.add_parser(
@@ -5908,6 +5996,23 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_false',
         dest='with_filename',
         help="Suppress the prefixing of filenames on output.",
+    )
+    scan_options.add_argument(
+        '-B', '--before-context',
+        type=int,
+        default=0,
+        help="Print NUM lines of leading context before matching lines.",
+    )
+    scan_options.add_argument(
+        '-A', '--after-context',
+        type=int,
+        default=0,
+        help="Print NUM lines of trailing context after matching lines.",
+    )
+    scan_options.add_argument(
+        '-C', '--context',
+        type=int,
+        help="Print NUM lines of output context.",
     )
     _add_common_mode_arguments(scan_parser)
 
@@ -6320,6 +6425,9 @@ def main() -> None:
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
                 'with_filename': getattr(args, 'with_filename', None),
+                'before_context': getattr(args, 'before_context', 0),
+                'after_context': getattr(args, 'after_context', 0),
+                'context': getattr(args, 'context', None),
             }
         ),
         'unique': (
@@ -6528,6 +6636,9 @@ def main() -> None:
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
                 'with_filename': getattr(args, 'with_filename', None),
+                'before_context': getattr(args, 'before_context', 0),
+                'after_context': getattr(args, 'after_context', 0),
+                'context': getattr(args, 'context', None),
             }
         ),
         'verify': (

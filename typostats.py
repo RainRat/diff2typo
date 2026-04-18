@@ -515,7 +515,6 @@ def generate_report(
     if output_format == 'arrow':
         # arrow
         padding = "  "
-        label_width = 35
 
         enabled_features = []
         if keyboard:

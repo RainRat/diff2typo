@@ -67,7 +67,7 @@ def test_scrub_mode_diff_integration(tmp_path, capsys):
     input_file = tmp_path / "input.txt"
     input_file.write_text("teh typo")
 
-    # Run scrub_mode with diff=True and ad-hoc mapping
+    # Run scrub_mode with diff=True and extra mapping
     multitool.scrub_mode(
         input_files=[str(input_file)],
         mapping_file=None,

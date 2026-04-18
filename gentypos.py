@@ -4,7 +4,7 @@ gentypos.py
 Purpose:
     Generate common typing errors (typos) for a list of words. This tool helps you
     predict mistakes people might make when typing specific words, which is
-    useful for building robust spell-checkers.
+    useful for building robust similar word matching tools.
 
 Features:
     - Generates typos based on common typing patterns (skipping letters, swapping neighbors, and so on).

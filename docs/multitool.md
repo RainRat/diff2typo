@@ -243,7 +243,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1`
 
 - **`casing`**
-  - **What it does:** Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.
+  - **What it does:** Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for finding inconsistent naming or typos that differ only by case.
   - **Options:**
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
@@ -276,7 +276,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py scan . --add teh:the --smart`
 
 - **`verify`**
-  - **What it does:** Identifies which entries in a mapping file or extra pairs are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
+  - **What it does:** Finds which entries in a mapping file or extra pairs are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
   - **Options:**
     - Use the `--mapping` flag to provide the file containing typos to check.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.

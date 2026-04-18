@@ -8,7 +8,7 @@ def test_count_mode_mapping_audit(tmp_path):
     # Create an output file
     output_file = tmp_path / "output.csv"
 
-    # Run count mode with an ad-hoc mapping
+    # Run count mode with an extra mapping
     multitool.count_mode(
         input_files=[str(input_file)],
         output_file=str(output_file),

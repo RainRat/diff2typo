@@ -43,10 +43,19 @@ BOLD = "\033[1m"
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
 # We check the main output and error output as help goes to the main output and logging/stats to error output
-if (not sys.stdout.isatty() and not os.environ.get('FORCE_COLOR')) or os.environ.get('NO_COLOR'):
+if (not sys.stdout.isatty() and 'FORCE_COLOR' not in os.environ) or 'NO_COLOR' in os.environ:
     BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
 # Note: we use the main output's status for the global constants, but individual
 # functions might still check the error output if they specifically log to it.
+
+
+def _should_enable_color(stream: TextIO) -> bool:
+    """Determine if ANSI color codes should be enabled for a given stream."""
+    if 'NO_COLOR' in os.environ:
+        return False
+    if 'FORCE_COLOR' in os.environ:
+        return True
+    return stream.isatty()
 
 
 def _parse_markdown_table_row(line: str) -> List[str] | None:
@@ -501,9 +510,7 @@ def print_processing_stats(
     start_time: float | None = None,
 ) -> None:
     """Print summary statistics for processed text items with visual hierarchy."""
-    use_color = sys.stderr.isatty() or bool(os.environ.get('FORCE_COLOR'))
-    if os.environ.get('NO_COLOR'):
-        use_color = False
+    use_color = _should_enable_color(sys.stderr)
 
     report = _format_analysis_summary(
         raw_item_count, filtered_items, item_label, start_time, use_color
@@ -682,8 +689,8 @@ def _write_diff_report(
         lineterm=""
     )
 
-    # Check if color is enabled (using global YELLOW as proxy for overall color support)
-    use_color = bool(YELLOW)
+    # Check if color is enabled for the output stream
+    use_color = _should_enable_color(out)
 
     for line in diff_gen:
         if use_color:
@@ -789,7 +796,7 @@ def _write_paired_output(
                 max_right = max(max_right, len(right_header))
 
                 # Colors for table
-                show_color = (out_file.isatty() or os.environ.get('FORCE_COLOR')) and not os.environ.get('NO_COLOR')
+                show_color = _should_enable_color(out_file)
                 c_bold = BOLD if show_color else ""
                 c_blue = BLUE if show_color else ""
                 c_green = GREEN if show_color else ""
@@ -1611,8 +1618,8 @@ def count_mode(
 
             # Colors for output
             # We determine color availability independently for stdout and stderr to preserve correct behavior when piping.
-            use_color_out = (out_file.isatty() or os.environ.get('FORCE_COLOR')) and not os.environ.get('NO_COLOR')
-            use_color_err = (sys.stderr.isatty() or os.environ.get('FORCE_COLOR')) and not os.environ.get('NO_COLOR')
+            use_color_out = _should_enable_color(out_file)
+            use_color_err = _should_enable_color(sys.stderr)
 
             c_out_bold = BOLD if use_color_out else ""
             c_out_blue = BLUE if use_color_out else ""
@@ -1932,9 +1939,7 @@ def stats_mode(
     else:
         # Human readable text
         with smart_open_output(output_file) as f:
-            use_color = f.isatty() or bool(os.environ.get('FORCE_COLOR'))
-            if os.environ.get('NO_COLOR'):
-                use_color = False
+            use_color = _should_enable_color(f)
 
             # In stats_mode, filtered_items is the primary list of items collected
             report = _format_analysis_summary(
@@ -2567,10 +2572,11 @@ def diff_mode(
             out.write('\n')
         else:
             # Terminal/Line output with colors
-            c_red = RED if out.isatty() else ""
-            c_green = GREEN if out.isatty() else ""
-            c_yellow = YELLOW if out.isatty() else ""
-            c_reset = RESET if out.isatty() else ""
+            use_color = _should_enable_color(out)
+            c_red = RED if use_color else ""
+            c_green = GREEN if use_color else ""
+            c_yellow = YELLOW if use_color else ""
+            c_reset = RESET if use_color else ""
 
             for line in results:
                 if line.startswith('+'):
@@ -2845,8 +2851,8 @@ def search_mode(
     )
 
     accumulated_lines = []
-    # Check if color is enabled by global setup
-    use_color = bool(YELLOW)
+    # Check if color is enabled for the output
+    use_color = _should_enable_color(sys.stdout) if output_file == '-' else ('FORCE_COLOR' in os.environ and 'NO_COLOR' not in os.environ)
 
     # Determine if filenames should be shown
     show_filename = with_filename
@@ -4059,8 +4065,8 @@ def scan_mode(
     pattern = re.compile(r'([a-zA-Z0-9]+)')
 
     accumulated_lines = []
-    # Check if color is enabled by global setup
-    use_color = bool(YELLOW)
+    # Check if color is enabled for the output
+    use_color = _should_enable_color(sys.stdout) if output_file == '-' else ('FORCE_COLOR' in os.environ and 'NO_COLOR' not in os.environ)
 
     # Determine if filenames should be shown
     show_filename = with_filename
@@ -4817,9 +4823,7 @@ class MinimalFormatter(logging.Formatter):
 
         levelname = record.levelname
         # Determine if color should be used for this log record
-        # We respect the global constants (YELLOW, RESET, and others) which already account for
-        # TTY, FORCE_COLOR, and NO_COLOR.
-        use_color = bool(YELLOW)
+        use_color = _should_enable_color(sys.stderr)
 
         if use_color and levelname:
             color = self.LEVEL_COLORS.get(record.levelno)

@@ -30,12 +30,13 @@ def test_write_diff_report_color(tmp_path, capsys):
     original = ["Line 1", "Line 2"]
     modified = ["Line 1 modified", "Line 2"]
 
-    # Mock colors
+    # Mock colors and FORCE_COLOR
     with patch("multitool.YELLOW", "\033[1;33m"), \
          patch("multitool.GREEN", "\033[1;32m"), \
          patch("multitool.RED", "\033[1;31m"), \
          patch("multitool.BLUE", "\033[1;34m"), \
-         patch("multitool.RESET", "\033[0m"):
+         patch("multitool.RESET", "\033[0m"), \
+         patch.dict("os.environ", {"FORCE_COLOR": "1"}):
         multitool._write_diff_report(input_file, original, modified, sys.stdout)
 
     captured = capsys.readouterr()

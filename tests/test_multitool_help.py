@@ -106,3 +106,26 @@ def test_search_standard_help(monkeypatch, capsys):
     assert "A typo-aware search tool." in output
     assert "Example:" in output
     assert "python multitool.py search 'teh' report.txt" in output
+
+def test_multitool_main_help_subcommand_redirection(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'help', 'count'])
+
+    with pytest.raises(SystemExit) as exc:
+        multitool.main()
+
+    assert exc.value.code == 0
+    captured = capsys.readouterr()
+    output = captured.out + captured.err
+    assert "MODE:" in output
+    assert "COUNT" in output
+    assert "SUMMARY:" in output
+
+def test_multitool_main_help_subcommand_summary_default(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'help'])
+
+    with pytest.raises(SystemExit) as exc:
+        multitool.main()
+
+    assert exc.value.code == 0
+    captured = capsys.readouterr()
+    assert "Available Modes:" in captured.out

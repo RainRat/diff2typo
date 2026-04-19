@@ -6544,7 +6544,6 @@ def main() -> None:
 
     if args.mode == 'help':
         show_mode_help(args.mode_to_help, parser)
-        return
 
     handler, handler_args = handler_map[args.mode]
     try:

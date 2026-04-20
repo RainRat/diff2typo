@@ -511,6 +511,31 @@ def print_processing_stats(
     logging.info("\n".join(report))
 
 
+def _format_search_line(
+    input_file: str,
+    line_index: int,
+    display_line: str,
+    show_filename: bool,
+    line_numbers: bool,
+    use_color: bool,
+) -> str:
+    """Format a single search or scan result line with optional prefixing."""
+    prefix_parts = []
+    if show_filename:
+        prefix_parts.append(input_file)
+    if line_numbers:
+        prefix_parts.append(str(line_index + 1))
+
+    if prefix_parts:
+        raw_prefix = ":".join(prefix_parts) + ":"
+        return (
+            f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
+            if use_color
+            else f"{raw_prefix} {display_line}"
+        )
+    return display_line
+
+
 @contextlib.contextmanager
 def smart_open_output(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
     """
@@ -2946,20 +2971,9 @@ def search_mode(
                 else:
                     display_line = line_content
 
-                prefix_parts = []
-                if show_filename:
-                    prefix_parts.append(input_file)
-                if line_numbers:
-                    prefix_parts.append(str(i+1))
-
-                if prefix_parts:
-                    raw_prefix = ":".join(prefix_parts) + ":"
-                    display_line = (
-                        f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
-                        if use_color
-                        else f"{raw_prefix} {display_line}"
-                    )
-
+                display_line = _format_search_line(
+                    input_file, i, display_line, show_filename, line_numbers, use_color
+                )
                 accumulated_lines.append(display_line)
 
         total_matches += file_matches
@@ -4127,20 +4141,9 @@ def scan_mode(
                 else:
                     display_line = line_content
 
-                prefix_parts = []
-                if show_filename:
-                    prefix_parts.append(input_file)
-                if line_numbers:
-                    prefix_parts.append(str(i+1))
-
-                if prefix_parts:
-                    raw_prefix = ":".join(prefix_parts) + ":"
-                    display_line = (
-                        f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
-                        if use_color
-                        else f"{raw_prefix} {display_line}"
-                    )
-
+                display_line = _format_search_line(
+                    input_file, i, display_line, show_filename, line_numbers, use_color
+                )
                 accumulated_lines.append(display_line)
 
         total_matches += file_matches

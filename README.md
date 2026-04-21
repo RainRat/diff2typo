@@ -45,7 +45,7 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 
 ## 🚀 Quick Start
 
-Follow these steps to find typos you have fixed recently and identify your common mistakes.
+Follow these steps to find typos you have fixed recently and see your common mistakes.
 
 ### 1. Create a Large Dictionary
 The tools work best when they know which words are correct. Create a file named `words.csv` and add words you use often (like project names or technical terms), one per line. This is your "large dictionary." If you skip this, the tools will still work, but they might flag some correct words as typos.

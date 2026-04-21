@@ -220,7 +220,7 @@ def is_transposition(typo: str, correction: str) -> list[tuple[str, str]]:
     """
     Checks if a mistake was caused by swapping two letters next to each other.
 
-    For example, it identifies 'teh' instead of 'the' as a swapped letter mistake.
+    For example, it shows 'teh' instead of 'the' as a swapped letter mistake.
 
     Returns:
       A list with the swapped characters if found, otherwise an empty list.
@@ -246,7 +246,7 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
     Creates a map of keys that are next to each other on a QWERTY keyboard.
 
-    This is used to identify typos caused by a finger slipping to a nearby key.
+    This is used to find typos caused by a finger slipping to a nearby key.
 
     Args:
         include_diagonals: Whether to count keys that are diagonal to each other.
@@ -301,7 +301,7 @@ def is_one_letter_replacement(
     """
     Checks if a mistake was caused by changing, adding, or removing letters.
 
-    It can identify when one letter was swapped for another, or more complex
+    It can show when one letter was swapped for another, or more complex
     cases like replacing 'm' with 'rn'.
 
     Returns:
@@ -374,7 +374,7 @@ def process_typos(
     """
     Finds common mistake patterns in a list of typo corrections.
 
-    This function reads through your typo list and identifies how letters were replaced.
+    This function reads through your typo list and shows how letters were replaced.
     It can find simple one-letter mistakes, swapped letters, or cases where multiple
     letters were changed at once.
 
@@ -573,7 +573,7 @@ def generate_report(
         if unique_filtered > len(sorted_replacements):
             extra_metrics["Showing patterns"] = f"{len(sorted_replacements)} of {unique_filtered}"
 
-        # Generate a list of all replacements to leverage summary statistics
+        # Generate a list of all replacements to use summary statistics
         all_replacements = [k for k, v in replacement_counts.items() for _ in range(v)]
         summary_lines = _format_analysis_summary(
             total_pairs if total_pairs is not None else total_typos,

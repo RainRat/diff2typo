@@ -191,14 +191,14 @@ def _compare_word_lists(
     import difflib
 
     # Use sequence alignment to find corresponding changes in words.
-    # This allows correctly finding typo corrections even when words
+    # This allows finding typo corrections even when words
     # are added or removed within the same diff block.
     matcher = difflib.SequenceMatcher(None, before_words, after_words)
     typos: List[str] = []
 
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == 'replace':
-            # Extraction of words from the identified replaced blocks.
+            # Extraction of words from the replaced blocks.
             # We match them 1-to-1 if the block sizes are identical.
             # Otherwise, we attempt to find the most likely pairing.
             removals = before_words[i1:i2]
@@ -383,7 +383,7 @@ def _read_git_diff(git_args: Optional[str]) -> str:
         command.extend(shlex.split(git_args))
 
     try:
-        logging.info(f"Running git command: {' '.join(command)}")
+        logging.info(f"Running Git command: {' '.join(command)}")
         result = subprocess.run(
             command, capture_output=True, text=True, check=True
         )
@@ -776,7 +776,7 @@ def main():
 
     # Process corrections if requested.
     if args.mode in ['corrections', 'both']:
-        logging.info("Processing corrections to existing typos...")
+        logging.info("Processing corrections to typos...")
         corrections_raw = process_corrections_mode(candidates, large_dictionary_mapping, quiet=args.quiet)
         corrections_result = format_typos(corrections_raw, args.output_format)
         logging.info(f"Found {len(corrections_result)} correction(s).")

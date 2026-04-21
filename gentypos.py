@@ -852,7 +852,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Determine if we are in CLI Mode (extra words provided)
-    # Support both legacy --word and new positional args
+    # Support both legacy --word and positional args
     cli_words = args.words or []
     if args.word:
         cli_words.extend(args.word)

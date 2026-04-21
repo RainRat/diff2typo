@@ -208,10 +208,10 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py cycles typos.csv --output-format arrow`
 
 - **`fuzzymatch`**
-  - **What it does:** Finds words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos.
+  - **What it does:** Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos.
   - **Options:** Use `--min-dist` and `--max-dist` to control the number of changes allowed, and `--show-dist` to see the number of changes in the output.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
-  - **Example:** `python multitool.py fuzzymatch typos.txt dictionary.txt --max-dist 1 --show-dist`
+  - **Example:** `python multitool.py fuzzymatch typos.txt words.csv --max-dist 1 --show-dist`
 
 - **`near_duplicates`**
   - **What it does:** Finds pairs of words in your list that are very similar (only a few characters are different). This is useful for finding potential typos or unintended duplicates.
@@ -243,7 +243,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1`
 
 - **`casing`**
-  - **What it does:** Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.
+  - **What it does:** Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for seeing inconsistent naming or typos that differ only by case.
   - **Options:**
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
@@ -276,7 +276,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py scan . --add teh:the --smart`
 
 - **`verify`**
-  - **What it does:** Identifies which entries in a mapping file or extra pairs are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
+  - **What it does:** Finds which entries in a mapping file or extra pairs are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
   - **Options:**
     - Use the `--mapping` flag to provide the file containing typos to check.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.

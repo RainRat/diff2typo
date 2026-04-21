@@ -2798,6 +2798,31 @@ def words_mode(
     )
 
 
+def _format_search_line(
+    filename: str,
+    line_idx: int,
+    line_content: str,
+    is_match: bool,
+    show_filename: bool,
+    line_numbers: bool,
+    use_color: bool,
+) -> str:
+    """Formats a single line for search/scan output with optional filename and line number."""
+    sep = ":" if is_match else "-"
+    prefix_parts = []
+    if show_filename:
+        prefix_parts.append(filename)
+    if line_numbers:
+        prefix_parts.append(str(line_idx + 1))
+
+    if prefix_parts:
+        raw_prefix = sep.join(prefix_parts) + sep
+        if use_color:
+            return f"{BOLD}{BLUE}{raw_prefix}{RESET} {line_content}"
+        return f"{raw_prefix} {line_content}"
+    return line_content
+
+
 def search_mode(
     input_files: Sequence[str],
     query: str,
@@ -2812,6 +2837,8 @@ def search_mode(
     clean_items: bool = True,
     limit: int | None = None,
     with_filename: bool | None = None,
+    before_context: int = 0,
+    after_context: int = 0,
 ) -> None:
     """
     Searches for words or patterns in text files, supporting similar word matching and smart subword detection.
@@ -2853,12 +2880,13 @@ def search_mode(
 
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
-        file_matches = 0
+        # Store original lines without trailing newlines for consistent rendering
+        file_contents = [line.rstrip("\n") for line in file_lines]
+        match_indices = {}  # index -> highlighted_line
 
-        for i, line in enumerate(
-            tqdm(file_lines, desc=f"Searching {input_file}", unit=" lines", disable=quiet)
+        for i, line_content in enumerate(
+            tqdm(file_contents, desc=f"Searching {input_file}", unit=" lines", disable=quiet)
         ):
-            line_content = line.rstrip("\n")
             spans = []
 
             # 1. Exact match on whole line first (case-insensitive)
@@ -2912,8 +2940,6 @@ def search_mode(
                             break
 
             if spans:
-                file_matches += 1
-
                 spans.sort()
                 merged = []
                 if spans:
@@ -2934,27 +2960,40 @@ def search_mode(
                         highlighted_line += f"{YELLOW}{line_content[start:end]}{RESET}"
                         last_idx = end
                     highlighted_line += line_content[last_idx:]
-                    display_line = highlighted_line
+                    match_indices[i] = highlighted_line
                 else:
-                    display_line = line_content
+                    match_indices[i] = line_content
 
-                prefix_parts = []
-                if show_filename:
-                    prefix_parts.append(input_file)
-                if line_numbers:
-                    prefix_parts.append(str(i+1))
+        if not match_indices:
+            continue
 
-                if prefix_parts:
-                    raw_prefix = ":".join(prefix_parts) + ":"
-                    display_line = (
-                        f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
-                        if use_color
-                        else f"{raw_prefix} {display_line}"
+        total_matches += len(match_indices)
+
+        # Collect context blocks
+        sorted_indices = sorted(match_indices.keys())
+        last_rendered_idx = -1
+
+        for idx in sorted_indices:
+            # Determine block start and end
+            start = max(0, idx - before_context)
+            end = min(len(file_contents), idx + after_context + 1)
+
+            # If there's a gap between blocks, add separator
+            if last_rendered_idx != -1 and start > last_rendered_idx:
+                accumulated_lines.append("--")
+
+            # Render lines in the window that haven't been rendered yet
+            current_start = max(start, last_rendered_idx)
+            for j in range(current_start, end):
+                is_match = j in match_indices
+                content = match_indices[j] if is_match else file_contents[j]
+                accumulated_lines.append(
+                    _format_search_line(
+                        input_file, j, content, is_match, show_filename, line_numbers, use_color
                     )
+                )
 
-                accumulated_lines.append(display_line)
-
-        total_matches += file_matches
+            last_rendered_idx = end
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
@@ -4039,6 +4078,8 @@ def scan_mode(
     line_numbers: bool = False,
     with_filename: bool | None = None,
     ad_hoc: List[str] | None = None,
+    before_context: int = 0,
+    after_context: int = 0,
 ) -> None:
     """
     Scans files for occurrences of words from a mapping file or extra pairs, providing context.
@@ -4061,10 +4102,10 @@ def scan_mode(
 
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
-        file_matches = 0
+        file_contents = [line.rstrip('\n') for line in file_lines]
+        match_indices = {}  # index -> highlighted_line
 
-        for i, line in enumerate(tqdm(file_lines, desc=f"Scanning {input_file}", unit=" lines", disable=quiet)):
-            line_content = line.rstrip('\n')
+        for i, line_content in enumerate(tqdm(file_contents, desc=f"Scanning {input_file}", unit=" lines", disable=quiet)):
             parts = pattern.split(line_content)
             match_found = False
 
@@ -4089,9 +4130,7 @@ def scan_mode(
                         break
 
             if match_found:
-                file_matches += 1
-
-                # Second pass: apply highlighting for the output
+                # Highlight if color is enabled
                 if use_color:
                     new_parts = []
                     for part in parts:
@@ -4115,27 +4154,37 @@ def scan_mode(
                                 new_parts.append(part)
                         else:
                             new_parts.append(part)
-                    display_line = "".join(new_parts)
+                    match_indices[i] = "".join(new_parts)
                 else:
-                    display_line = line_content
+                    match_indices[i] = line_content
 
-                prefix_parts = []
-                if show_filename:
-                    prefix_parts.append(input_file)
-                if line_numbers:
-                    prefix_parts.append(str(i+1))
+        if not match_indices:
+            continue
 
-                if prefix_parts:
-                    raw_prefix = ":".join(prefix_parts) + ":"
-                    display_line = (
-                        f"{BOLD}{BLUE}{raw_prefix}{RESET} {display_line}"
-                        if use_color
-                        else f"{raw_prefix} {display_line}"
+        total_matches += len(match_indices)
+
+        # Collect context blocks
+        sorted_indices = sorted(match_indices.keys())
+        last_rendered_idx = -1
+
+        for idx in sorted_indices:
+            start = max(0, idx - before_context)
+            end = min(len(file_contents), idx + after_context + 1)
+
+            if last_rendered_idx != -1 and start > last_rendered_idx:
+                accumulated_lines.append("--")
+
+            current_start = max(start, last_rendered_idx)
+            for j in range(current_start, end):
+                is_match = j in match_indices
+                content = match_indices[j] if is_match else file_contents[j]
+                accumulated_lines.append(
+                    _format_search_line(
+                        input_file, j, content, is_match, show_filename, line_numbers, use_color
                     )
+                )
 
-                accumulated_lines.append(display_line)
-
-        total_matches += file_matches
+            last_rendered_idx = end
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
@@ -4705,15 +4754,15 @@ MODE_DETAILS = {
     },
     "search": {
         "summary": "Search for words or patterns.",
-        "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting and line numbers.",
-        "example": "python multitool.py search 'teh' report.txt --max-dist 1 --line-numbers",
-        "flags": "QUERY [FILES...] [-S] [-n]",
+        "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.",
+        "example": "python multitool.py search 'teh' report.txt --max-dist 1 --line-numbers -C 2",
+        "flags": "QUERY [FILES...] [-S] [-n] [-B N] [-A N] [-C N]",
     },
     "scan": {
         "summary": "Audit project for known typos.",
-        "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. Use this to audit your project for known typos without making any changes.",
-        "example": "python multitool.py scan . --add teh:the --smart",
-        "flags": "MAPPING [FILES...] [-a K:V] [-S]",
+        "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. It also supports context lines.",
+        "example": "python multitool.py scan . --add teh:the --smart -A 1",
+        "flags": "MAPPING [FILES...] [-a K:V] [-S] [-B N] [-A N] [-C N]",
     },
     "verify": {
         "summary": "Check if typos exist in project.",
@@ -5497,6 +5546,23 @@ def _build_parser() -> argparse.ArgumentParser:
         dest='with_filename',
         help="Suppress the prefixing of filenames on output.",
     )
+    search_options.add_argument(
+        '-B', '--before-context',
+        type=int,
+        default=0,
+        help="Show this many lines of context before each match.",
+    )
+    search_options.add_argument(
+        '-A', '--after-context',
+        type=int,
+        default=0,
+        help="Show this many lines of context after each match.",
+    )
+    search_options.add_argument(
+        '-C', '--context',
+        type=int,
+        help="Show this many lines of context before and after each match.",
+    )
     _add_common_mode_arguments(search_parser)
 
     set_parser = subparsers.add_parser(
@@ -5899,6 +5965,23 @@ def _build_parser() -> argparse.ArgumentParser:
         dest='with_filename',
         help="Suppress the prefixing of filenames on output.",
     )
+    scan_options.add_argument(
+        '-B', '--before-context',
+        type=int,
+        default=0,
+        help="Show this many lines of context before each match.",
+    )
+    scan_options.add_argument(
+        '-A', '--after-context',
+        type=int,
+        default=0,
+        help="Show this many lines of context after each match.",
+    )
+    scan_options.add_argument(
+        '-C', '--context',
+        type=int,
+        help="Show this many lines of context before and after each match.",
+    )
     _add_common_mode_arguments(scan_parser)
 
     verify_parser = subparsers.add_parser(
@@ -6055,6 +6138,16 @@ def main() -> None:
 
     # Store for handler
     args.input = input_paths
+
+    # Resolve context flags (merge -C into -A and -B if -A/-B are not set)
+    before_context = getattr(args, 'before_context', 0)
+    after_context = getattr(args, 'after_context', 0)
+    context = getattr(args, 'context', None)
+    if context is not None:
+        if before_context == 0:
+            before_context = context
+        if after_context == 0:
+            after_context = context
 
     # Fallback logic for modes that require a secondary file (for example, zip, map, scrub, highlight)
     # If the flag is missing, we check positional arguments.
@@ -6310,6 +6403,8 @@ def main() -> None:
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
                 'with_filename': getattr(args, 'with_filename', None),
+                'before_context': before_context,
+                'after_context': after_context,
             }
         ),
         'unique': (
@@ -6518,6 +6613,8 @@ def main() -> None:
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
                 'with_filename': getattr(args, 'with_filename', None),
+                'before_context': before_context,
+                'after_context': after_context,
             }
         ),
         'verify': (

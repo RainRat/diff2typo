@@ -1739,6 +1739,7 @@ def classify_mode(
     adj_keys = get_adjacent_keys()
 
     results = []
+    stats_items = []
     raw_count = 0
     for left, right in raw_pairs:
         raw_count += 1
@@ -1761,9 +1762,14 @@ def classify_mode(
                 dist = levenshtein_distance(left_clean, right_clean)
                 label = f"{label} (dist: {dist})"
             results.append((left, f"{right} {label}"))
+            stats_items.append((left, right))
 
     if process_output:
-        results = sorted(set(results))
+        # We need to sort and deduplicate while maintaining synchronicity between
+        # labeled results and base stats_items.
+        combined = sorted(set(zip(results, stats_items)))
+        results = [c[0] for c in combined]
+        stats_items = [c[1] for c in combined]
 
     _write_paired_output(
         results,
@@ -1773,14 +1779,6 @@ def classify_mode(
         quiet,
         limit=limit
     )
-
-    # Use actual result pairs for stats to enable distance calculation
-    stats_items = []
-    for typo, correction_with_label in results:
-        # correction_with_label is like "correction [T]" or "correction [T] (dist: 1)"
-        # We need the base correction for distance stats
-        base_correction = correction_with_label.split(' [')[0]
-        stats_items.append((typo, base_correction))
 
     print_processing_stats(
         raw_count, stats_items, item_label="classified-typo", start_time=start_time
@@ -2178,6 +2176,7 @@ def similarity_mode(
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
 
     filtered_results = []
+    stats_items = []
     for left, right in raw_pairs:
         if clean_items:
             left = filter_to_letters(left)
@@ -2202,9 +2201,12 @@ def similarity_mode(
             filtered_results.append((left, f"{right} (changes: {dist})"))
         else:
             filtered_results.append((left, right))
+        stats_items.append((left, right))
 
     if process_output:
-        filtered_results = sorted(set(filtered_results))
+        combined = sorted(set(zip(filtered_results, stats_items)))
+        filtered_results = [c[0] for c in combined]
+        stats_items = [c[1] for c in combined]
 
     _write_paired_output(
         filtered_results,
@@ -2214,12 +2216,6 @@ def similarity_mode(
         quiet,
         limit=limit
     )
-
-    stats_items = []
-    for left, right_with_dist in filtered_results:
-        # Strip "(changes: N)" from right side
-        base_right = right_with_dist.rsplit(' (changes: ', 1)[0]
-        stats_items.append((left, base_right))
 
     print_processing_stats(
         len(filtered_results), stats_items, item_label="similar-pair", start_time=start_time
@@ -2263,6 +2259,7 @@ def near_duplicates_mode(
     unique_items.sort(key=len)
 
     results = []
+    stats_items = []
     num_items = len(unique_items)
 
     for i in tqdm(range(num_items), desc="Finding near-duplicates", unit="word", disable=quiet):
@@ -2284,9 +2281,12 @@ def near_duplicates_mode(
                     results.append((word_i, f"{word_j} (changes: {dist})"))
                 else:
                     results.append((word_i, word_j))
+                stats_items.append((word_i, word_j))
 
     if process_output:
-        results.sort()
+        combined = sorted(set(zip(results, stats_items)))
+        results = [c[0] for c in combined]
+        stats_items = [c[1] for c in combined]
 
     _write_paired_output(
         results,
@@ -2296,11 +2296,6 @@ def near_duplicates_mode(
         quiet,
         limit=limit
     )
-
-    stats_items = []
-    for left, right_with_dist in results:
-        base_right = right_with_dist.rsplit(' (changes: ', 1)[0]
-        stats_items.append((left, base_right))
 
     print_processing_stats(
         raw_item_count, stats_items, item_label="near-duplicate", start_time=start_time
@@ -2353,6 +2348,7 @@ def fuzzymatch_mode(
     list2_unique = sorted(set(list2_unique), key=len)
 
     results = []
+    stats_items = []
 
     for word_i in tqdm(list1_unique, desc="Finding similar words", disable=quiet):
         len_i = len(word_i)
@@ -2373,9 +2369,12 @@ def fuzzymatch_mode(
                     results.append((word_i, f"{word_j} (changes: {dist})"))
                 else:
                     results.append((word_i, word_j))
+                stats_items.append((word_i, word_j))
 
     if process_output:
-        results.sort()
+        combined = sorted(set(zip(results, stats_items)))
+        results = [c[0] for c in combined]
+        stats_items = [c[1] for c in combined]
 
     _write_paired_output(
         results,
@@ -2385,12 +2384,6 @@ def fuzzymatch_mode(
         quiet,
         limit=limit
     )
-
-    stats_items = []
-    for left, right_with_dist in results:
-        # Strip "(changes: N)" from right side
-        base_right = right_with_dist.rsplit(' (changes: ', 1)[0]
-        stats_items.append((left, base_right))
 
     print_processing_stats(
         raw_item_count, stats_items, item_label="similar-word-match", start_time=start_time
@@ -2671,6 +2664,7 @@ def discovery_mode(
     frequent_words = sorted([word for word, count in word_counts.items() if count >= freq_min], key=len)
 
     results = []
+    stats_items = []
     for rare in tqdm(rare_words, desc="Finding likely corrections", unit="word", disable=quiet):
         len_rare = len(rare)
         for freq in frequent_words:
@@ -2687,9 +2681,12 @@ def discovery_mode(
                     results.append((rare, f"{freq} (changes: {dist})"))
                 else:
                     results.append((rare, freq))
+                stats_items.append((rare, freq))
 
     if process_output:
-        results.sort()
+        combined = sorted(set(zip(results, stats_items)))
+        results = [c[0] for c in combined]
+        stats_items = [c[1] for c in combined]
 
     _write_paired_output(
         results,
@@ -2699,12 +2696,6 @@ def discovery_mode(
         quiet,
         limit=limit
     )
-
-    stats_items = []
-    for left, right_with_dist in results:
-        # Strip "(changes: N)" from right side
-        base_right = right_with_dist.rsplit(' (changes: ', 1)[0]
-        stats_items.append((left, base_right))
 
     print_processing_stats(
         raw_item_count, stats_items, item_label="discovered-typo", start_time=start_time

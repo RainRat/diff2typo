@@ -763,7 +763,7 @@ def _write_paired_output(
             try:
                 import yaml
                 # Using a dictionary preserves pairs but deduplicates keys.
-                # Since pairs_list is already deduplicated if process_output is True,
+                # Since pairs_list is deduplicated if process_output is True,
                 # this is generally safe.
                 yaml_data = dict(pairs_list)
                 yaml.dump(yaml_data, out_file, default_flow_style=False, sort_keys=False)
@@ -1950,7 +1950,7 @@ def stats_mode(
                     "Conflicts (1 typo -> N corr)": stats['pairs']['conflicts'],
                     "Overlaps (typo == correction)": stats['pairs']['overlaps']
                 }
-                # filtered_pairs is already filtered by length and cleaning
+                # filtered_pairs is filtered by length and cleaning
                 pair_report = _format_analysis_summary(
                     stats['pairs']['total_extracted'],
                     filtered_pairs,
@@ -2023,7 +2023,7 @@ def conflict_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies typos that are associated with more than one unique correction.
+    Finds typos that are associated with more than one unique correction.
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
@@ -2074,7 +2074,7 @@ def cycles_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies repeated loops in typo-correction pairs.
+    Finds repeated loops in typo-correction pairs.
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
@@ -2094,7 +2094,7 @@ def cycles_mode(
 
     for start_node in sorted(adj.keys()):
         if start_node not in visited:
-            # Re-initialize path tracking for each new component search
+            # Re-initialize path tracking for each component search
             path_set = set()
             path_list = []
 
@@ -2404,7 +2404,7 @@ def casing_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies words that appear with inconsistent capitalization.
+    Finds words that appear with inconsistent capitalization.
     """
     start_time = time.perf_counter()
     raw_item_count = 0
@@ -2463,7 +2463,7 @@ def diff_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies added, removed, and changed items between two files or lists.
+    Finds added, removed, and changed items between two files or lists.
     """
     start_time = time.perf_counter()
     if pairs:
@@ -2595,7 +2595,7 @@ def repeated_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies consecutive identical words.
+    Finds consecutive identical words.
     """
     start_time = time.perf_counter()
     results = list(_extract_repeated_items(
@@ -2644,7 +2644,7 @@ def discovery_mode(
     smart: bool = False,
 ) -> None:
     """
-    Identifies potential typos by comparing rare words to frequent words.
+    Finds potential typos by comparing rare words to frequent words.
     """
     start_time = time.perf_counter()
     word_counts = Counter()
@@ -2660,7 +2660,7 @@ def discovery_mode(
             if filtered:
                 word_counts.update(filtered)
 
-    # Identify rare and frequent words
+    # Find rare and frequent words
     rare_words = sorted([word for word, count in word_counts.items() if count <= rare_max])
     frequent_words = sorted([word for word, count in word_counts.items() if count >= freq_min], key=len)
 
@@ -3235,7 +3235,7 @@ def resolve_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Identifies and flattens chains of typo corrections. For example, if a list
+    Finds and flattens chains of typo corrections. For example, if a list
     contains A -> B and B -> C, this mode will update it to A -> C and B -> C.
     """
     start_time = time.perf_counter()
@@ -3406,7 +3406,7 @@ def _resolve_full_mapping(
                 else:
                     full_mapping[content] = ""
 
-    # 2. Add extra pairs (for example, "teh:the" or "old:new")
+    # 2. Add extra pairs (for example, "teh:the" or "old:correction")
     if ad_hoc_pairs:
         for pair in ad_hoc_pairs:
             if ":" in pair:
@@ -3653,7 +3653,7 @@ def standardize_mode(
                 mapping[norm] = norm_winners[norm]
 
     if not mapping:
-        logging.info("No inconsistencies found. Everything is already standardized.")
+        logging.info("No inconsistencies found. Everything is standardized.")
         # If not in-place, we still proceed to Pass 3 to ensure output is written if requested.
         # But if in-place, we can exit early.
         if in_place is not None:
@@ -3935,7 +3935,7 @@ def rename_mode(
             limit=limit
         )
 
-    # For stats, use the new paths as the items
+    # For stats, use the paths as the items
     stats_items = [r[1] for r in rename_results]
     print_processing_stats(
         len(unique_paths), stats_items, item_label="rename", start_time=start_time
@@ -4170,7 +4170,7 @@ def verify_mode(
     ad_hoc: List[str] | None = None,
 ) -> None:
     """
-    Identifies which entries in a mapping file are present in the provided input files.
+    Finds which entries in a mapping file are present in the provided input files.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -4423,7 +4423,7 @@ def filter_fragments_mode(
                 matched_words.add(keyword)
 
     non_matches = [word for word in all_cleaned_list1 if word not in matched_words]
-    # Items were already cleaned/processed during loading; only length filtering is needed now.
+    # Items were cleaned during loading; only length filtering is needed now.
     filtered_items = clean_and_filter(non_matches, min_length, max_length, clean=False)
 
     if process_output:
@@ -4572,8 +4572,8 @@ MODE_DETAILS = {
         "flags": "[-d DELIM] [-S]",
     },
     "ngrams": {
-        "summary": "Gets sequences of N words.",
-        "description": "Gets sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
+        "summary": "Gets sequences of words.",
+        "description": "Gets sequences of words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
         "example": "python multitool.py ngrams report.txt -n 2 --smart --output phrases.txt",
         "flags": "[-n N] [-d DELIM] [-S]",
     },
@@ -4615,7 +4615,7 @@ MODE_DETAILS = {
     },
     "map": {
         "summary": "Replaces items using a mapping.",
-        "description": "Replaces items in your list with new values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
+        "description": "Replaces items in your list with values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
         "flags": "MAPPING [FILES...] [-a K:V] [-p]",
     },
@@ -4639,7 +4639,7 @@ MODE_DETAILS = {
     },
     "conflict": {
         "summary": "Finds typos with multiple fixes.",
-        "description": "Identifies typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.",
+        "description": "Finds typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.",
         "example": "python multitool.py conflict typos.csv --output-format arrow --output conflicts.txt",
         "flags": "",
     },
@@ -4651,14 +4651,14 @@ MODE_DETAILS = {
     },
     "near_duplicates": {
         "summary": "Finds similar words in one list.",
-        "description": "Identifies pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
+        "description": "Finds pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
         "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
         "flags": "[--max-dist N] [--show-dist]",
     },
     "fuzzymatch": {
         "summary": "Finds similar words in two lists.",
-        "description": "Identifies words in your list that are similar to words in a second list (dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
-        "example": "python multitool.py fuzzymatch typos.txt dictionary.txt --max-dist 1 --show-dist",
+        "description": "Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
+        "example": "python multitool.py fuzzymatch typos.txt words.csv --max-dist 1 --show-dist",
         "flags": "[FILE2] [--max-dist N] [--show-dist]",
     },
     "stats": {
@@ -4675,25 +4675,25 @@ MODE_DETAILS = {
     },
     "discovery": {
         "summary": "Finds typos in rare words.",
-        "description": "Automatically finds potential typos in a text by identifying rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
+        "description": "Automatically finds potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
         "example": "python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1",
         "flags": "[--rare-max N] [-S]",
     },
     "casing": {
         "summary": "Finds inconsistent casing.",
-        "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for identifying inconsistent naming or typos that differ only by case.",
+        "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for seeing inconsistent naming or typos that differ only by case.",
         "example": "python multitool.py casing report.txt --smart --output-format arrow",
         "flags": "[-d DELIM] [-S]",
     },
     "cycles": {
-        "summary": "Identifies loops in typo pairs.",
+        "summary": "Finds loops in typo pairs.",
         "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues during automated scrubbing and represent logic errors in your data.",
         "example": "python multitool.py cycles typos.csv --output-format arrow",
         "flags": "",
     },
     "repeated": {
         "summary": "Finds doubled words.",
-        "description": "Identifies doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
+        "description": "Finds doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
         "example": "python multitool.py repeated report.txt --smart --output-format arrow",
         "flags": "[-d DELIM] [-S]",
     },
@@ -4717,7 +4717,7 @@ MODE_DETAILS = {
     },
     "verify": {
         "summary": "Check if typos exist in project.",
-        "description": "Checks a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a new mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
+        "description": "Checks a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
         "example": "python multitool.py verify . --mapping typos.csv --prune",
         "flags": "MAPPING [FILES...] [-a K:V] [-S] [--prune]",
     },
@@ -4735,7 +4735,7 @@ MODE_DETAILS = {
     },
     "diff": {
         "summary": "Finds differences between files.",
-        "description": "Identifies differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what's new (+), what's gone (-), and what changed (~).",
+        "description": "Finds differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what is added (+), what is removed (-), and what changed (~).",
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
         "flags": "[FILE2] [-p]",
     },
@@ -4747,7 +4747,7 @@ MODE_DETAILS = {
     },
     "resolve": {
         "summary": "Flatten typo correction chains.",
-        "description": "Identifies and flattens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of scrubbing and analysis.",
+        "description": "Finds and flattens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of scrubbing and analysis.",
         "example": "python multitool.py resolve mappings.csv --output resolved.csv",
         "flags": "",
     },
@@ -4977,7 +4977,7 @@ def _build_parser() -> argparse.ArgumentParser:
         nargs='?',
         choices=[*MODE_DETAILS.keys(), 'all'],
         metavar='MODE',
-        help="The mode to show help for (e.g., 'count', 'scrub', 'standardize').",
+        help="The mode to show help for (for example, 'count', 'scrub', 'standardize').",
     )
 
     arrow_parser = subparsers.add_parser(
@@ -5931,7 +5931,7 @@ def _build_parser() -> argparse.ArgumentParser:
     verify_options.add_argument(
         '--prune',
         action='store_true',
-        help='Output a new mapping containing only the found typos.',
+        help='Output a mapping containing only the found typos.',
     )
     _add_common_mode_arguments(verify_parser)
 

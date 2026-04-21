@@ -22,4 +22,4 @@ This file applies to the entire repository.
 - **Entry Points:** All scripts must have an `if __name__ == "__main__":` block invoking a `main()` function.
 
 ## Testing
-- **Unit Tests:** Always run `pytest` from the repository root before submitting changes. Try to fix any test failures, even if you do not think you caused them.
+- **Unit Tests:** Always run `pytest` from the top level before submitting changes. Try to fix any test failures, even if you do not think you caused them.

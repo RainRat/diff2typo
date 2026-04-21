@@ -4,8 +4,9 @@ def test_generate_report_multi_char_summary_stderr(capsys):
     counts = {('a', 'aa'): 1, ('bb', 'b'): 1}
     typostats.generate_report(counts, include_deletions=True, quiet=False)
     captured = capsys.readouterr()
-    assert "Multiple letters [M]:" in captured.err
-    assert "2/2" in captured.err
+    assert "Insertions [Ins]:" in captured.err
+    assert "Deletions [Del]:" in captured.err
+    assert "1/2" in captured.err
 
 def test_generate_report_multi_char_summary_file(tmp_path):
     output_file = tmp_path / "report.txt"
@@ -18,7 +19,7 @@ def test_generate_report_multi_char_summary_file(tmp_path):
     )
 
     content = output_file.read_text()
-    assert "Multiple letters [M]:" in content
+    assert "Deletions [Del]:" in content
     assert "5/5" in content
 
 def test_generate_report_multi_char_summary_mixed(capsys):
@@ -26,5 +27,5 @@ def test_generate_report_multi_char_summary_mixed(capsys):
 
     typostats.generate_report(counts, allow_1to2=True, quiet=False)
     captured = capsys.readouterr()
-    assert "Multiple letters [M]:" in captured.err
+    assert "Insertions [Ins]:" in captured.err
     assert "2/5" in captured.err

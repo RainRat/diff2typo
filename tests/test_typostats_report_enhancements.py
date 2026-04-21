@@ -17,8 +17,8 @@ def test_generate_report_marker_multi_char(capsys):
     # but the markers are in stdout.
     typostats.generate_report(counts, allow_1to2=True, quiet=False)
     captured = capsys.readouterr().out
-    # Check for [M] marker (might be colorized if TTY, but here it shouldn't be as capsys is not a TTY)
-    assert "[M]" in captured
+    # Check for [1:2] marker (might be colorized if TTY, but here it shouldn't be as capsys is not a TTY)
+    assert "[1:2]" in captured
 
 def test_generate_report_marker_transposition(capsys):
     """Verify the [T] marker for transpositions in the report."""

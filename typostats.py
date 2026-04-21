@@ -33,7 +33,7 @@ RESET = "\033[0m"
 BOLD = "\033[1m"
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
-if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
+if (not sys.stdout.isatty() and not os.environ.get('FORCE_COLOR')) or os.environ.get('NO_COLOR'):
     BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
 
 
@@ -105,13 +105,21 @@ def _format_analysis_summary(
     report.append(f"\n{padding}{c_bold}{c_blue}{title}{c_reset}")
     report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
 
+    # In typostats, raw_count is the number of word pairs, but filtered_items are patterns.
+    # We rename labels to be more descriptive of what they actually count.
+    raw_label = "Total word pairs encountered:"
+    filtered_label = "Total patterns after analysis:"
+    if item_label != "replacement":
+        raw_label = f"Total {item_label_plural} encountered:"
+        filtered_label = f"Total {item_label_plural} after filtering:"
+
     report.append(
-        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
+        f"  {c_bold}{c_blue}{raw_label:<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
     )
 
     filtered_count = len(filtered_items)
     report.append(
-        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
+        f"  {c_bold}{c_blue}{filtered_label:<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
     )
 
     if raw_count > 0:
@@ -140,8 +148,9 @@ def _format_analysis_summary(
     except (TypeError, ValueError):
         unique_count = len(filtered_items)
 
+    unique_label = "Unique patterns found:" if item_label == "replacement" else f"Unique {item_label_plural}:"
     report.append(
-        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
+        f"  {c_bold}{c_blue}{unique_label:<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
     )
 
     # Shortest/Longest and stats
@@ -559,13 +568,23 @@ def generate_report(
                 extra_metrics["Transpositions [T]"] = f"{trans_count}/{total_typos} ({percent:.1f}%)"
 
         if any([kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions')]):
-            multi_count = 0
+            counts = defaultdict(int)
             for (c, t), count in replacement_counts.items():
-                if len(c) != len(t):
-                    multi_count += count
-            if multi_count > 0:
-                percent = (multi_count / total_typos) * 100 if total_typos > 0 else 0
-                extra_metrics["Multiple letters [M]"] = f"{multi_count}/{total_typos} ({percent:.1f}%)"
+                if len(c) < len(t):
+                    if c in t:
+                        counts["Insertions [Ins]"] += count
+                    else:
+                        counts["1-to-2 replacements [1:2]"] += count
+                elif len(c) > len(t):
+                    if t in c:
+                        counts["Deletions [Del]"] += count
+                    else:
+                        counts["2-to-1 replacements [2:1]"] += count
+
+            for label, count in counts.items():
+                if count > 0:
+                    percent = (count / total_typos) * 100 if total_typos > 0 else 0
+                    extra_metrics[label] = f"{count}/{total_typos} ({percent:.1f}%)"
 
         if unique_filtered != unique_total:
             extra_metrics["Patterns matching criteria"] = unique_filtered
@@ -613,7 +632,7 @@ def generate_report(
         # 3 chars for each " │ " (total 3 * 3 = 9)
         visible_header_len = max_c + max_t + max_n + max_p + 9
 
-        show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1')])
+        show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions'), kwargs.get('all')])
 
         if show_attr:
             header_row += f" {sep} {c_bold}{c_blue}{'ATTR':<4}{c_reset}"
@@ -676,14 +695,29 @@ def generate_report(
             )
 
             if show_attr:
-                marker = "    "
+                marker_text = "     "
                 if len(correct_char) == 1 and len(typo_char) == 1:
                     if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                        marker = f"{c_bold}[K]{c_reset} "
+                        marker_text = "[K]"
                 elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
-                    marker = f"{c_bold}[T]{c_reset} "
+                    marker_text = "[T]"
+                elif len(correct_char) < len(typo_char):
+                    # Typo is longer: Insertion [Ins] or 1-to-2 replacement [1:2]
+                    if correct_char in typo_char:
+                        marker_text = "[Ins]"
+                    else:
+                        marker_text = "[1:2]"
+                elif len(correct_char) > len(typo_char):
+                    # Typo is shorter: Deletion [Del] or 2-to-1 replacement [2:1]
+                    if typo_char in correct_char:
+                        marker_text = "[Del]"
+                    else:
+                        marker_text = "[2:1]"
                 elif len(correct_char) != len(typo_char):
-                    marker = f"{c_bold}[M]{c_reset} "
+                    # Fallback for any other multi-letter case
+                    marker_text = "[M]"
+
+                marker = f"{c_bold}{marker_text:<5}{c_reset}"
                 row += f" {sep} {marker}"
 
             row += f" {sep} {c_red}{bar}{c_reset}"

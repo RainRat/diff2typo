@@ -39,6 +39,10 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Gets text found inside backticks (for example, \`code\`). It picks items near words like 'error' or 'warning' to find the most useful data.
   - **Example:** `python multitool.py backtick build.log`
 
+- **`quoted`**
+  - **What it does:** Gets text found inside double (`"`) or single (`'`) quotes. It handles backslash escaping (like `\"` or `\'`) to correctly extract strings from code or data files.
+  - **Example:** `python multitool.py quoted source.py`
+
 - **`csv`**
   - **What it does:** Gets columns from a CSV file. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) followed by one or more numbers to get specific columns. Use `--delimiter` (or `-d`) to pick a different column separator (for example, `;`).
   - **Example:** `python multitool.py csv data.csv --column 2`

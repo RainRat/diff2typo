@@ -923,6 +923,18 @@ def _extract_backtick_items(input_file: str, quiet: bool = False) -> Iterable[st
             yield from candidates
 
 
+def _extract_quoted_items(input_file: str, quiet: bool = False) -> Iterable[str]:
+    """Yield text found between double or single quotes."""
+    # Matches "..." or '...' and handles backslash escaping
+    pattern = re.compile(r'"((?:[^"\\]|\\.)*)"|\'((?:[^\'\\]|\\.)*)\'')
+
+    lines = _read_file_lines_robust(input_file)
+    for line in tqdm(lines, desc=f'Processing {input_file} (quoted)', unit=' lines', disable=quiet):
+        for match in pattern.finditer(line):
+            content = match.group(1) if match.group(1) is not None else match.group(2)
+            yield content
+
+
 def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
     """Recursively traverse a nested data structure (list/dict) to get values."""
     # If it's a list, apply the current path traversal to every item
@@ -1387,6 +1399,34 @@ def backtick_mode(
         process_output,
         'Backtick',
         'Successfully got strings.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+    )
+
+
+def quoted_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Wrapper for getting text between quotes."""
+    _process_items(
+        _extract_quoted_items,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Quoted',
+        'Successfully got quoted strings.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -4578,6 +4618,12 @@ MODE_DETAILS = {
         "example": "python multitool.py backtick build.log --output suspects.txt",
         "flags": "",
     },
+    "quoted": {
+        "summary": "Gets text found inside quotes.",
+        "description": "Finds text inside double (\") or single (') quotes. It handles backslash escaping (like \\\" or \\') to correctly extract strings from code or data files.",
+        "example": "python multitool.py quoted source.py --output strings.txt",
+        "flags": "",
+    },
     "csv": {
         "summary": "Gets specific columns from CSV.",
         "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
@@ -4806,7 +4852,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GETTING DATA": ["arrow", "table", "backtick", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
+        "GETTING DATA": ["arrow", "table", "backtick", "quoted", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
         "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -5067,6 +5113,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['backtick']['example']}{RESET}",
     )
     _add_common_mode_arguments(backtick_parser)
+
+    quoted_parser = subparsers.add_parser(
+        'quoted',
+        help=MODE_DETAILS['quoted']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['quoted']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['quoted']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(quoted_parser)
 
     csv_parser = subparsers.add_parser(
         'csv',
@@ -6292,6 +6347,10 @@ def main() -> None:
         ),
         'backtick': (
             backtick_mode,
+            {**common_kwargs, 'output_format': output_format},
+        ),
+        'quoted': (
+            quoted_mode,
             {**common_kwargs, 'output_format': output_format},
         ),
         'csv': (

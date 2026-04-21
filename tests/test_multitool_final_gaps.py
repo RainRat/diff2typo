@@ -95,13 +95,14 @@ def test_minimal_formatter_colorized_branch():
     )
 
     # Force YELLOW/RED/RESET to be colored to simulate color-capable environment
-    with patch("multitool.YELLOW", "\033[1;33m"):
-        with patch("multitool.RED", "\033[1;31m"):
-            with patch("multitool.RESET", "\033[0m"):
-                # Patch LEVEL_COLORS directly as it's already initialized
-                with patch.dict(formatter.LEVEL_COLORS, {logging.ERROR: "\033[1;31m"}):
-                    formatted = formatter.format(record)
-                    assert "\033[1;31mERROR\033[0m: Error message" in formatted
+    with patch.dict("os.environ", {"FORCE_COLOR": "1"}), \
+         patch("multitool.YELLOW", "\033[1;33m"), \
+         patch("multitool.RED", "\033[1;31m"), \
+         patch("multitool.RESET", "\033[0m"):
+        # Patch LEVEL_COLORS directly as it's already initialized
+        with patch.dict(formatter.LEVEL_COLORS, {logging.ERROR: "\033[1;31m"}):
+            formatted = formatter.format(record)
+            assert "\033[1;31mERROR\033[0m: Error message" in formatted
 
 def test_main_entry_point():
     """Cover line 4862: the __main__ block by running as a subprocess."""

@@ -70,6 +70,7 @@ def test_scan_extra(tmp_path, monkeypatch):
     monkeypatch.setattr(multitool, "RESET", "[R]")
     monkeypatch.setattr(multitool, "BOLD", "[B]")
     monkeypatch.setattr(multitool, "BLUE", "[C]")
+    monkeypatch.setenv("FORCE_COLOR", "1")
 
     # Scan with line numbers and extra
     sys.argv = ['multitool.py', 'scan', str(input_file), '--add', 'teh:the', '--line-numbers']

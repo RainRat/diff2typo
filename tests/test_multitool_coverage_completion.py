@@ -35,7 +35,8 @@ def test_search_mode_span_merging_else_branch(tmp_path):
     # We need to trigger two separate spans.
     # Query 'word' will match 'word' in 'word1' and 'word' in 'word2'.
     # Mock YELLOW to cover highlighting logic in search_mode too
-    with patch('multitool.YELLOW', '\033[33m'), \
+    with patch.dict("os.environ", {"FORCE_COLOR": "1"}), \
+         patch('multitool.YELLOW', '\033[33m'), \
          patch('multitool.RESET', '\033[0m'), \
          patch('multitool.BLUE', '\033[34m'), \
          patch('multitool.BOLD', '\033[1m'):
@@ -200,7 +201,8 @@ def test_scan_mode_highlighting_and_sorting(tmp_path):
     output_file = tmp_path / "output.txt"
 
     # Mock YELLOW to enable highlighting logic
-    with patch('multitool.YELLOW', '\033[33m'), \
+    with patch.dict("os.environ", {"FORCE_COLOR": "1"}), \
+         patch('multitool.YELLOW', '\033[33m'), \
          patch('multitool.RESET', '\033[0m'), \
          patch('multitool.BLUE', '\033[34m'), \
          patch('multitool.BOLD', '\033[1m'):
@@ -239,7 +241,8 @@ def test_scan_mode_highlighting_no_smart(tmp_path):
 
     output_file = tmp_path / "output.txt"
 
-    with patch('multitool.YELLOW', '\033[33m'), \
+    with patch.dict("os.environ", {"FORCE_COLOR": "1"}), \
+         patch('multitool.YELLOW', '\033[33m'), \
          patch('multitool.RESET', '\033[0m'):
         multitool.scan_mode(
             input_files=[str(input_file)],

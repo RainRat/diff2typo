@@ -1634,23 +1634,7 @@ def count_mode(
             # Rich visual report for arrow format
             total_count = sum(item_counts.values())
 
-            # Format item labels for visualization
-            if pairs:
-                labels = [f"{item[0]} -> {item[1]}" for item, _ in final_results]
-                item_header = "Typo -> Correction"
-            elif lines:
-                labels = [str(item) for item, _ in final_results]
-                item_header = "Line"
-            elif chars:
-                labels = [str(item) for item, _ in final_results]
-                item_header = "Character"
-            else:
-                labels = [str(item) for item, _ in final_results]
-                item_header = "Word"
-
-            # Find max width for columns
-            max_item = max((len(label) for label in labels), default=len(item_header))
-            max_item = max(max_item, len(item_header))
+            # Find max width for common columns
             max_count_len = max((len(str(count)) for item, count in final_results), default=5)
             max_count_len = max(max_count_len, 5)  # 'Count'
             max_pct = 6  # "100.0%"
@@ -1667,20 +1651,47 @@ def count_mode(
             c_out_yellow = YELLOW if use_color_out else ""
             c_out_reset = RESET if use_color_out else ""
 
-            # Header and divider
+            # Header and divider elements
             padding = "  "
             # Bold blue for table visual elements
             sep = f"{c_out_bold}{c_out_blue}│{c_out_reset}"
 
-            # Define table header and divider
-            # We use c_out_* for the visual components of the table
-            header = (
-                f"{padding}{c_out_bold}{c_out_blue}{item_header:<{max_item}}{c_out_reset} {sep} "
-                f"{c_out_bold}{c_out_blue}{'Count':>{max_count_len}}{c_out_reset} {sep} "
-                f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
-                f"{c_out_bold}{c_out_blue}{'Visual':<{max_bar}}{c_out_reset}"
-            )
-            visible_header_len = max_item + max_count_len + max_pct + max_bar + 9
+            if pairs:
+                item_header_left = "Typo"
+                item_header_right = "Correction"
+                max_left = max((len(str(item[0])) for item, _ in final_results), default=len(item_header_left))
+                max_left = max(max_left, len(item_header_left))
+                max_right = max((len(str(item[1])) for item, _ in final_results), default=len(item_header_right))
+                max_right = max(max_right, len(item_header_right))
+
+                header = (
+                    f"{padding}{c_out_bold}{c_out_blue}{item_header_left:<{max_left}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{item_header_right:<{max_right}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{'Count':>{max_count_len}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{'Visual':<{max_bar}}{c_out_reset}"
+                )
+                # 3 chars for each " │ " (total 4 * 3 = 12)
+                visible_header_len = max_left + max_right + max_count_len + max_pct + max_bar + 12
+            else:
+                if lines:
+                    item_header = "Line"
+                elif chars:
+                    item_header = "Character"
+                else:
+                    item_header = "Word"
+
+                max_item = max((len(str(item)) for item, _ in final_results), default=len(item_header))
+                max_item = max(max_item, len(item_header))
+
+                header = (
+                    f"{padding}{c_out_bold}{c_out_blue}{item_header:<{max_item}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{'Count':>{max_count_len}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{'Visual':<{max_bar}}{c_out_reset}"
+                )
+                visible_header_len = max_item + max_count_len + max_pct + max_bar + 9
+
             divider = f"{padding}{c_out_bold}{c_out_blue}{'─' * visible_header_len}{c_out_reset}"
             header_block = f"\n{header}\n{divider}\n"
 
@@ -1711,9 +1722,8 @@ def count_mode(
                     out_file.write(summary_text)
                     out_file.write(header_block)
 
-            for i, (item, count) in enumerate(final_results):
+            for item, count in final_results:
                 percent = (count / total_count * 100) if total_count > 0 else 0
-                label = labels[i]
 
                 # High-res visual bar
                 total_blocks = (percent * max_bar) / 100
@@ -1727,12 +1737,21 @@ def count_mode(
                     bar += blocks[frac_idx]
                     bar += " " * (max_bar - full_blocks - 1)
 
-                row = (
-                    f"{padding}{c_out_green}{label:<{max_item}}{c_out_reset} {sep} "
-                    f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
-                    f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
-                    f"{c_out_blue}{bar}{c_out_reset}"
-                )
+                if pairs:
+                    row = (
+                        f"{padding}{c_out_green}{item[0]:<{max_left}}{c_out_reset} {sep} "
+                        f"{c_out_yellow}{item[1]:<{max_right}}{c_out_reset} {sep} "
+                        f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
+                        f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
+                        f"{c_out_blue}{bar}{c_out_reset}"
+                    )
+                else:
+                    row = (
+                        f"{padding}{c_out_green}{str(item):<{max_item}}{c_out_reset} {sep} "
+                        f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
+                        f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
+                        f"{c_out_blue}{bar}{c_out_reset}"
+                    )
                 out_file.write(f"{row}\n")
             out_file.write("\n")
         else:  # 'line' or fallback

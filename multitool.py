@@ -2980,9 +2980,9 @@ def search_mode(
                             break
 
             if spans:
-                spans.sort()
-                merged = []
-                if spans:
+                if use_color:
+                    spans.sort()
+                    merged = []
                     curr_start, curr_end = spans[0]
                     for next_start, next_end in spans[1:]:
                         if next_start <= curr_end:
@@ -2992,7 +2992,6 @@ def search_mode(
                             curr_start, curr_end = next_start, next_end
                     merged.append((curr_start, curr_end))
 
-                if use_color:
                     last_idx = 0
                     highlighted_line = ""
                     for start, end in merged:

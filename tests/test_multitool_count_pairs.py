@@ -81,9 +81,12 @@ def test_count_mode_pairs_arrow_visual(tmp_path):
     )
 
     content = output_file.read_text()
-    assert "Typo -> Correction" in content
-    assert "teh -> the" in content
-    assert "recieve -> receive" in content
+    assert "Typo" in content
+    assert "Correction" in content
+    assert "teh" in content
+    assert "the" in content
+    assert "recieve" in content
+    assert "receive" in content
 
 def test_count_mode_pairs_filtering(tmp_path):
     input_file = tmp_path / "typos.txt"

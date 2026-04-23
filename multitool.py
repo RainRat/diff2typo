@@ -2877,7 +2877,8 @@ def _format_search_line(
     if prefix_parts:
         raw_prefix = sep.join(prefix_parts) + sep
         if use_color:
-            return f"{BOLD}{BLUE}{raw_prefix}{RESET} {line_content}"
+            style = (BOLD + BLUE) if is_match else BLUE
+            return f"{style}{raw_prefix}{RESET} {line_content}"
         return f"{raw_prefix} {line_content}"
     return line_content
 
@@ -3015,7 +3016,7 @@ def search_mode(
                     highlighted_line = ""
                     for start, end in merged:
                         highlighted_line += line_content[last_idx:start]
-                        highlighted_line += f"{YELLOW}{line_content[start:end]}{RESET}"
+                        highlighted_line += f"{BOLD}{YELLOW}{line_content[start:end]}{RESET}"
                         last_idx = end
                     highlighted_line += line_content[last_idx:]
                     match_indices[i] = highlighted_line
@@ -3038,7 +3039,8 @@ def search_mode(
 
             # If there's a gap between blocks, add separator
             if last_rendered_idx != -1 and start > last_rendered_idx:
-                accumulated_lines.append("--")
+                separator = f"{BLUE}--{RESET}" if use_color else "--"
+                accumulated_lines.append(separator)
 
             # Render lines in the window that haven't been rendered yet
             current_start = max(start, last_rendered_idx)
@@ -4081,7 +4083,7 @@ def highlight_mode(
                     match_key = filter_to_letters(part) if clean_items else part
 
                     if match_key in mapping:
-                        new_parts.append(f"{YELLOW}{part}{RESET}")
+                        new_parts.append(f"{BOLD}{YELLOW}{part}{RESET}")
                         file_highlights += 1
                     elif smart:
                         # Try subword matching
@@ -4090,7 +4092,7 @@ def highlight_mode(
                         for sp in sub_parts:
                             sm_key = filter_to_letters(sp) if clean_items else sp
                             if sm_key in mapping:
-                                new_sub_parts.append(f"{YELLOW}{sp}{RESET}")
+                                new_sub_parts.append(f"{BOLD}{YELLOW}{sp}{RESET}")
                                 file_highlights += 1
                             else:
                                 new_sub_parts.append(sp)
@@ -4197,14 +4199,14 @@ def scan_mode(
                         if pattern.match(part):
                             mk = filter_to_letters(part) if clean_items else part
                             if mk in mapping:
-                                new_parts.append(f"{YELLOW}{part}{RESET}")
+                                new_parts.append(f"{BOLD}{YELLOW}{part}{RESET}")
                             elif smart:
                                 sub_parts = _smart_split(part)
                                 sub_new_parts = []
                                 for sp in sub_parts:
                                     smk = filter_to_letters(sp) if clean_items else sp
                                     if smk in mapping:
-                                        sub_new_parts.append(f"{YELLOW}{sp}{RESET}")
+                                        sub_new_parts.append(f"{BOLD}{YELLOW}{sp}{RESET}")
                                     else:
                                         sub_new_parts.append(sp)
                                 new_parts.append("".join(sub_new_parts))
@@ -4230,7 +4232,8 @@ def scan_mode(
             end = min(len(file_contents), idx + after_context + 1)
 
             if last_rendered_idx != -1 and start > last_rendered_idx:
-                accumulated_lines.append("--")
+                separator = f"{BLUE}--{RESET}" if use_color else "--"
+                accumulated_lines.append(separator)
 
             current_start = max(start, last_rendered_idx)
             for j in range(current_start, end):

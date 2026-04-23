@@ -85,7 +85,7 @@ def test_scan_extra(tmp_path, monkeypatch):
 
     # Output should include line number and highlighted match
     # Since only 1 file, filename might not be shown by default unless forced or multiple files
-    assert "[B][C]1:[R] [Y]teh[R] cat" in captured_output.getvalue()
+    assert "[B][C]1:[R] [B][Y]teh[R] cat" in captured_output.getvalue()
 
 def test_map_file_and_extra(tmp_path):
     mapping_file = tmp_path / "map.csv"

@@ -713,9 +713,6 @@ def generate_report(
                         marker_text = "[Del]"
                     else:
                         marker_text = "[2:1]"
-                elif len(correct_char) != len(typo_char):
-                    # Fallback for any other multi-letter case
-                    marker_text = "[M]"
 
                 marker = f"{c_bold}{marker_text:<5}{c_reset}"
                 row += f" {sep} {marker}"

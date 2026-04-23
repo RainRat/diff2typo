@@ -733,12 +733,7 @@ def main():
 
     # Load the large dictionary (words mapping) once.
     # If the file is missing, we don't exit. Instead we just warn and continue without filtering.
-    if args.dictionary_file == 'words.csv' and not os.path.exists(args.dictionary_file):
-        logging.warning("Default large dictionary file 'words.csv' not found. Skipping filtering.")
-        large_dictionary_mapping = {}
-    else:
-        # If it's NOT the default words.csv, it will also warn and continue if missing.
-        large_dictionary_mapping = read_words_mapping(args.dictionary_file, required=False)
+    large_dictionary_mapping = read_words_mapping(args.dictionary_file, required=False)
 
     try:
         allowed_words = read_allowed_words(args.allowed_file)

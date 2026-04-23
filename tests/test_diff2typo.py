@@ -473,8 +473,8 @@ def test_main_default_values_preserved(monkeypatch):
 
     # We mock read_words_mapping and read_allowed_words to avoid file not found errors
     # during this specific test of the argument parser defaults.
-    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda _: {})
-    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda _: set())
+    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *args, **kwargs: {})
+    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *args, **kwargs: set())
 
     # Use a dummy output to avoid writing to stdout during test
     monkeypatch.setattr(sys, 'stdout', io.StringIO())

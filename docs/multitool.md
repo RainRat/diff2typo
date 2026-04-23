@@ -130,7 +130,8 @@ These modes help you transform or combine your data.
     - `intersection`: Finds lines common to both files.
     - `union`: Combines all lines from both files.
     - `difference`: Finds lines in the first file that are not in the second.
-  - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation difference`
+    - `symmetric_difference`: Finds lines that are unique to each file (items in either file, but not both).
+  - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation symmetric_difference`
 
 - **`zip`**
   - **What it does:** Joins two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**. If the files have a different number of lines, the output will stop at the end of the shortest file.

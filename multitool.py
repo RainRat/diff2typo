@@ -4561,9 +4561,9 @@ def set_operation_mode(
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Perform set operations (intersection, union, difference) between input files (merged) and a second file."""
+    """Perform set operations (intersection, union, difference, symmetric_difference) between input files (merged) and a second file."""
     start_time = time.perf_counter()
-    allowed_operations = {'intersection', 'union', 'difference'}
+    allowed_operations = {'intersection', 'union', 'difference', 'symmetric_difference'}
     if operation not in allowed_operations:
         raise ValueError(
             f"Invalid operation '{operation}'. Must be one of: {', '.join(sorted(allowed_operations))}."
@@ -4592,8 +4592,14 @@ def set_operation_mode(
         result_items = [item for item in unique_a if item in set_b]
     elif operation == 'union':
         result_items = list(dict.fromkeys(unique_a + unique_b))
-    else:  # difference
+    elif operation == 'difference':
         result_items = [item for item in unique_a if item not in set_b]
+    else:  # symmetric_difference
+        # Items in either set but not both
+        only_a = [item for item in unique_a if item not in set_b]
+        set_a = set(unique_a)
+        only_b = [item for item in unique_b if item not in set_a]
+        result_items = only_a + only_b
 
     if process_output:
         result_items = sorted(set(result_items))
@@ -4713,8 +4719,8 @@ MODE_DETAILS = {
     },
     "set_operation": {
         "summary": "Compares files using set logic.",
-        "description": "Compares two files to find shared lines (intersection), all lines (union), or lines unique to the first file (difference).",
-        "example": "python multitool.py set_operation fileA.txt fileB.txt --operation intersection --output shared.txt",
+        "description": "Compares two files to find shared lines (intersection), all lines (union), lines unique to the first file (difference), or lines unique to either file (symmetric_difference).",
+        "example": "python multitool.py set_operation fileA.txt fileB.txt --operation difference --output unique.txt",
         "flags": "[FILE2] --operation OP",
     },
     "sample": {
@@ -5658,7 +5664,7 @@ def _build_parser() -> argparse.ArgumentParser:
     set_options.add_argument(
         '--operation',
         type=str,
-        choices=['intersection', 'union', 'difference'],
+        choices=['intersection', 'union', 'difference', 'symmetric_difference'],
         required=True,
         help='Set operation to perform between the two files.',
     )

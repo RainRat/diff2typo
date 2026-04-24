@@ -5054,8 +5054,8 @@ def _build_parser() -> argparse.ArgumentParser:
     proc_group.add_argument(
         '-m', '--min-length',
         type=int,
-        default=3,
-        help="Skip items shorter than this (default: 3).",
+        default=None,
+        help="Skip items shorter than this (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').",
     )
     proc_group.add_argument(
         '-M', '--max-length',
@@ -6153,6 +6153,21 @@ def main() -> None:
     argv = _normalize_mode_args(sys.argv[1:], parser)
 
     args = parser.parse_args(argv)
+
+    # Implement sensible context-sensitive defaults for --min-length
+    if args.min_length is None:
+        if args.mode in ('words', 'ngrams', 'stats'):
+            args.min_length = 3
+        elif args.mode == 'count':
+            # Count mode uses 3 for word extraction, but 1 for auditing or character counting
+            if any([getattr(args, 'pairs', False), getattr(args, 'chars', False),
+                    getattr(args, 'mapping_file', None), getattr(args, 'ad_hoc', None)]):
+                args.min_length = 1
+            else:
+                args.min_length = 3
+        else:
+            # Finding, auditing, and processing modes default to 1 to avoid missing data
+            args.min_length = 1
 
     log_level = logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean

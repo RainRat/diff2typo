@@ -2236,7 +2236,9 @@ def similarity_mode(
 
     filtered_results = []
     stats_items = []
+    raw_count = 0
     for left, right in raw_pairs:
+        raw_count += 1
         if clean_items:
             left = filter_to_letters(left)
             right = filter_to_letters(right)
@@ -2277,7 +2279,7 @@ def similarity_mode(
     )
 
     print_processing_stats(
-        len(filtered_results), stats_items, item_label="similar-pair", start_time=start_time
+        raw_count, stats_items, item_label="similar-pair", start_time=start_time
     )
 
 

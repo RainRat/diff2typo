@@ -6163,7 +6163,7 @@ def main() -> None:
         elif args.mode == 'count':
             # Count mode uses 3 for word extraction, but 1 for auditing or character counting
             if any([getattr(args, 'pairs', False), getattr(args, 'chars', False),
-                    getattr(args, 'mapping_file', None), getattr(args, 'ad_hoc', None)]):
+                    getattr(args, 'mapping', None), getattr(args, 'ad_hoc', None)]):
                 args.min_length = 1
             else:
                 args.min_length = 3

@@ -56,11 +56,11 @@ When using the default **arrow** format, the report displays results in two sect
 ```text
   ANALYSIS SUMMARY
   ───────────────────────────────────────────────────────
-  Total lines processed:              10
-  Total pairs processed:              15
-  Replacements found:                 15
-  Retention rate:                     100.0%
+  Total word pairs encountered:       15
+  Total patterns after analysis:      15
+  Retention rate:                     100.0% ████████████████████
   Unique patterns found:              2
+  Total lines processed:              10
   Enabled features:                   keyboard, transposition
   Keyboard Adjacency [K]:             12/15 (80.0%)
   Transpositions [T]:                 3/15 (20.0%)
@@ -75,12 +75,12 @@ When using the default **arrow** format, the report displays results in two sect
 
 ### Analysis Summary
 The dashboard at the top gives you an overview of your typo history:
-- **Total lines/pairs processed:** How much data was analyzed.
-- **Replacements found:** How many actual mistakes were found.
-- **Unique patterns:** How many different types of mistakes were found.
+- **Total word pairs encountered:** How many typo-correction pairs were found in your input.
+- **Total patterns after analysis:** How many character-level mistakes were extracted from those pairs.
+- **Retention rate:** A visual bar showing how much of your data passed the analysis filters.
+- **Unique patterns found:** How many different types of mistakes were identified.
 - **Keyboard Adjacency [K]:** Percentage of typos caused by hitting a key next to the correct one.
-- **Transpositions [T]:** Percentage of typos caused by swapping two letters.
-- **Multiple letters [M]:** Percentage of typos involving multiple letters (like `m` -> `rn`).
+- **Transpositions [T]:** Percentage of typos caused by swapping two letters next to each other.
 
 ### Letter Replacements Table
 This section breaks down every mistake:
@@ -97,7 +97,10 @@ For example, a row showing `o │ p` means you typed `p` when you meant to type 
 When you enable analysis features, the tool finds specific patterns in the **ATTR** column:
 - **[K]**: Keyboard slip (the keys are next to each other on a QWERTY layout).
 - **[T]**: Transposition (swapped letters, like `teh` instead of `the`).
-- **[M]**: Multiple letters replacement (for example, `m` to `rn` or `ph` to `f`).
+- **[1:2]**: One letter replaced by two (for example, `m` to `rn`).
+- **[2:1]**: Two letters replaced by one (for example, `ph` to `f`).
+- **[Ins]**: Insertion (an extra letter was typed).
+- **[Del]**: Deletion (a letter was missed).
 
 ### Visual Bar
 The **VISUAL** column provides a small bar chart to help you quickly see which mistakes are the most frequent.

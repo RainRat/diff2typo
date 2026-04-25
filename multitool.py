@@ -800,6 +800,7 @@ def _write_paired_output(
                 c_bold = BOLD if show_color else ""
                 c_blue = BLUE if show_color else ""
                 c_green = GREEN if show_color else ""
+                c_red = RED if show_color else ""
                 c_yellow = YELLOW if show_color else ""
                 c_reset = RESET if show_color else ""
 
@@ -815,8 +816,8 @@ def _write_paired_output(
                 out_file.write(f"\n{header}\n")
                 out_file.write(f"{divider}\n")
                 for left, right in pairs_list:
-                    # Use green for original items and yellow for target items
-                    out_file.write(f"{padding}{c_green}{left:<{max_left}}{c_reset} {sep} {c_yellow}{right}{c_reset}\n")
+                    # Use red for typos and green for corrections
+                    out_file.write(f"{padding}{c_red}{left:<{max_left}}{c_reset} {sep} {c_green}{right}{c_reset}\n")
                 out_file.write("\n")
         else:  # 'line' or fallback
             for left, right in pairs_list:
@@ -1648,6 +1649,7 @@ def count_mode(
             c_out_bold = BOLD if use_color_out else ""
             c_out_blue = BLUE if use_color_out else ""
             c_out_green = GREEN if use_color_out else ""
+            c_out_red = RED if use_color_out else ""
             c_out_yellow = YELLOW if use_color_out else ""
             c_out_reset = RESET if use_color_out else ""
 
@@ -1739,8 +1741,8 @@ def count_mode(
 
                 if pairs:
                     row = (
-                        f"{padding}{c_out_green}{item[0]:<{max_left}}{c_out_reset} {sep} "
-                        f"{c_out_yellow}{item[1]:<{max_right}}{c_out_reset} {sep} "
+                        f"{padding}{c_out_red}{item[0]:<{max_left}}{c_out_reset} {sep} "
+                        f"{c_out_green}{item[1]:<{max_right}}{c_out_reset} {sep} "
                         f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
                         f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
                         f"{c_out_blue}{bar}{c_out_reset}"

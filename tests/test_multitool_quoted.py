@@ -1,8 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
-import os
-import sys
-import io
+from unittest.mock import patch
 
 # Import the functions to be tested from multitool
 from multitool import _extract_quoted_items, quoted_mode

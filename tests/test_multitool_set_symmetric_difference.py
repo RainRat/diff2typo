@@ -1,5 +1,4 @@
 import pytest
-import os
 from multitool import main
 
 def test_set_operation_symmetric_difference(tmp_path, capsys):

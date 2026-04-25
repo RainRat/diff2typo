@@ -3,14 +3,14 @@
 The **diff2typo Suite** is a set of tools to help you find and fix typos in your code. It works with your Git history to learn from your past mistakes and helps you stop those typos from coming back.
 
 ## ✨ Key Features
-- **Learn from history:** Automatically find typos you've already fixed in your Git logs.
-- **Predict mistakes:** Generate lists of likely typos based on how keyboards are laid out.
-- **Clean your data:** Powerful text processing tools to filter, merge, and organize typo lists.
+- **Learn from history:** Automatically find typos you fixed in your Git logs.
+- **Predict mistakes:** Create lists of likely typos based on your keyboard layout.
+- **Clean your data:** Filter, merge, and organize typo lists.
 - **Find patterns:** See which keys you hit by mistake most often.
 
 ## 📋 Prerequisites
 
-- **Python 3.10 or newer:** The suite uses modern Python features.
+- **Python 3.10 or newer:** The suite uses recent Python features.
 - **Git:** Required to use `diff2typo.py` with your repository history.
 - **Dependencies:** The following Python packages are required and will be installed in step 2:
   - `PyYAML`: Handles configuration files.

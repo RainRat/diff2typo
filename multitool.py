@@ -3704,7 +3704,7 @@ def standardize_mode(
                             if min_length <= len(sp_norm) <= max_length:
                                 variation_counts[sp_norm][sp] += 1
 
-    # Pass 2: Identify "winners" and build mapping
+    # Pass 2: Find "winners" and build mapping
     mapping = {}
 
     # 2a: Determine the best casing variation for each normalized word

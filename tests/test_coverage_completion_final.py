@@ -182,9 +182,14 @@ def test_rename_mode_dry_run_logging(tmp_path, caplog):
 def test_mode_help_action_usage_formatting(capsys):
     """Cover multitool.py line 4628: USAGE formatting for modes with positional labels."""
     # We trigger the ModeHelpAction by calling the parser
+    # Mock _build_parser to return a parser with prog="multitool.py"
+    import argparse
+    mock_parser = multitool._build_parser()
+    mock_parser.prog = "multitool.py"
     with patch("sys.argv", ["multitool.py", "--mode-help", "search"]):
-        with pytest.raises(SystemExit):
-            multitool.main()
+        with patch("multitool._build_parser", return_value=mock_parser):
+            with pytest.raises(SystemExit):
+                multitool.main()
 
     captured = capsys.readouterr()
     output = captured.err + captured.out

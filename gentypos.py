@@ -38,6 +38,15 @@ from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Option
 from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 
 
+def _should_enable_color(stream: Any) -> bool:
+    """Determine if ANSI color codes should be enabled for a given stream."""
+    if os.environ.get('NO_COLOR'):
+        return False
+    if os.environ.get('FORCE_COLOR'):
+        return True
+    return stream.isatty()
+
+
 # ANSI Color Codes
 BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
@@ -46,9 +55,23 @@ YELLOW = "\033[1;33m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
-# Disable colors if not running in a terminal or if NO_COLOR is set
-if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
-    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+
+def init_colors() -> None:
+    """Initialize or reset ANSI color constants based on environment."""
+    global BLUE, GREEN, RED, YELLOW, RESET, BOLD
+    if not _should_enable_color(sys.stdout):
+        BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+    else:
+        BLUE = "\033[1;34m"
+        GREEN = "\033[1;32m"
+        RED = "\033[1;31m"
+        YELLOW = "\033[1;33m"
+        RESET = "\033[0m"
+        BOLD = "\033[1m"
+
+
+# Initial setup
+init_colors()
 
 
 class MinimalFormatter(logging.Formatter):
@@ -66,7 +89,7 @@ class MinimalFormatter(logging.Formatter):
 
         levelname = record.levelname
         # Colorize the level name if stderr is a terminal and color is available
-        if sys.stderr.isatty() and levelname:
+        if _should_enable_color(sys.stderr) and levelname:
             color = self.LEVEL_COLORS.get(record.levelno)
             if color:
                 levelname = f"{color}{levelname}{RESET}"

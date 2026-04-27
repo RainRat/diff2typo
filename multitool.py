@@ -3123,9 +3123,14 @@ def search_mode(
             out.write(line + "\n")
 
     duration = time.perf_counter() - start_time
+    # Use color for feedback if stderr is a terminal
+    c_blue = (BOLD + BLUE) if _should_enable_color(sys.stderr) else ""
+    c_green = GREEN if _should_enable_color(sys.stderr) else ""
+    c_reset = RESET if _should_enable_color(sys.stderr) else ""
+
     logging.info(
-        f"[Search Mode] Completed search in {len(input_files)} file(s) for \"{query}\". "
-        f"Found {total_matches} match(es). Output written to \"{output_file}\". "
+        f"{c_blue}[Search Mode]{c_reset} Completed search in {len(input_files)} file(s) for \"{query}\". "
+        f"Found {c_green}{total_matches}{c_reset} match(es). Output written to \"{output_file}\". "
         f"Processing time: {duration:.3f}s"
     )
 
@@ -4315,9 +4320,14 @@ def scan_mode(
             out.write(line + '\n')
 
     duration = time.perf_counter() - start_time
+    # Use color for feedback if stderr is a terminal
+    c_blue = (BOLD + BLUE) if _should_enable_color(sys.stderr) else ""
+    c_green = GREEN if _should_enable_color(sys.stderr) else ""
+    c_reset = RESET if _should_enable_color(sys.stderr) else ""
+
     logging.info(
-        f"[Scan Mode] Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
-        f"Found {total_matches} match(es). Output written to '{output_file}'. "
+        f"{c_blue}[Scan Mode]{c_reset} Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
+        f"Found {c_green}{total_matches}{c_reset} match(es). Output written to '{output_file}'. "
         f"Processing time: {duration:.3f}s"
     )
 
@@ -4973,7 +4983,7 @@ def get_mode_summary_text() -> str:
                 # Ensure summary stays within its column to maintain table alignment
                 if len(summary) > width_summary:
                     summary = summary[:width_summary-3] + "..."
-                lines.append(f"    {GREEN}{mode:<{width_mode}}{RESET} {summary:<{width_summary}} {YELLOW}{flags}{RESET}")
+                lines.append(f"    {BOLD}{GREEN}{mode:<{width_mode}}{RESET} {summary:<{width_summary}} {YELLOW}{flags}{RESET}")
 
     lines.append(f"\nRun '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
     return "\n".join(lines)
@@ -5037,14 +5047,14 @@ def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> No
         else:
             usage_line = f"python {parser.prog} {mode_name} [FILES...] [FLAGS]"
 
-        block.append(f"\n{label_color}{'USAGE:':<13}{RESET}{usage_line}")
+        block.append(f"\n{label_color}{'USAGE:':<13}{RESET}{BOLD}{usage_line}{RESET}")
 
         if details.get("flags"):
             block.append(f"{label_color}{'FLAGS:':<13}{RESET}{YELLOW}{details['flags']}{RESET}")
 
         if details.get("example"):
             block.append(f"\n{label_color}{'EXAMPLE:':<13}{RESET}")
-            block.append(f"  {BLUE}{details['example']}{RESET}")
+            block.append(f"  {GREEN}{details['example']}{RESET}")
 
         block.append(divider)
 

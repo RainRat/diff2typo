@@ -43,6 +43,11 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Gets text found inside double (`"`) or single (`'`) quotes. It handles backslash escaping (like `\"` or `\'`) to correctly extract strings from code or data files.
   - **Example:** `python multitool.py quoted source.py`
 
+- **`between`**
+  - **What it does:** Gets text found between two markers. It is useful for extracting data from templating languages, logs, or custom file formats. You can use the `--multi-line` flag to capture content that spans multiple lines.
+  - **Options:** Requires `--start` and `--end` to define the markers.
+  - **Example:** `python multitool.py between input.txt --start '{{' --end '}}'`
+
 - **`csv`**
   - **What it does:** Gets columns from a CSV file. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) followed by one or more numbers to get specific columns. Use `--delimiter` (or `-d`) to pick a different column separator (for example, `;`).
   - **Example:** `python multitool.py csv data.csv --column 2`

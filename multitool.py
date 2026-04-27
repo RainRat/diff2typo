@@ -936,6 +936,26 @@ def _extract_quoted_items(input_file: str, quiet: bool = False) -> Iterable[str]
             yield content
 
 
+def _extract_between_items(
+    input_file: str, start: str, end: str, multi_line: bool = False, quiet: bool = False
+) -> Iterable[str]:
+    """Yield text found between start and end markers."""
+    flags = re.DOTALL if multi_line else 0
+    # Escape markers for safe regex usage
+    pattern = re.compile(re.escape(start) + r'(.*?)' + re.escape(end), flags)
+
+    if multi_line:
+        lines = _read_file_lines_robust(input_file)
+        content = "".join(lines)
+        for match in pattern.finditer(content):
+            yield match.group(1)
+    else:
+        lines = _read_file_lines_robust(input_file)
+        for line in tqdm(lines, desc=f'Processing {input_file} (between)', unit=' lines', disable=quiet):
+            for match in pattern.finditer(line):
+                yield match.group(1)
+
+
 def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
     """Recursively traverse a nested data structure (list/dict) to get values."""
     # If it's a list, apply the current path traversal to every item
@@ -1428,6 +1448,39 @@ def quoted_mode(
         process_output,
         'Quoted',
         'Successfully got quoted strings.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+    )
+
+
+def between_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    start: str,
+    end: str,
+    multi_line: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Wrapper for getting text between markers."""
+    def extractor(f, quiet=False):
+        return _extract_between_items(f, start, end, multi_line=multi_line, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Between',
+        'Successfully got strings.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -4655,6 +4708,12 @@ MODE_DETAILS = {
         "example": "python multitool.py quoted source.py --output strings.txt",
         "flags": "",
     },
+    "between": {
+        "summary": "Gets text between markers.",
+        "description": "Finds text between a starting marker and an ending marker. It supports simple text markers and can work across multiple lines if the --multi-line flag is used.",
+        "example": "python multitool.py between input.txt --start '{{' --end '}}' --output items.txt",
+        "flags": "--start S --end E [--multi-line]",
+    },
     "csv": {
         "summary": "Gets specific columns from CSV.",
         "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
@@ -4883,7 +4942,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GETTING DATA": ["arrow", "table", "backtick", "quoted", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
+        "GETTING DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
         "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -5153,6 +5212,33 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['quoted']['example']}{RESET}",
     )
     _add_common_mode_arguments(quoted_parser)
+
+    between_parser = subparsers.add_parser(
+        'between',
+        help=MODE_DETAILS['between']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['between']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['between']['example']}{RESET}",
+    )
+    between_options = between_parser.add_argument_group(f"{BLUE}BETWEEN OPTIONS{RESET}")
+    between_options.add_argument(
+        '--start',
+        type=str,
+        required=True,
+        help="The starting marker to find.",
+    )
+    between_options.add_argument(
+        '--end',
+        type=str,
+        required=True,
+        help="The ending marker to find.",
+    )
+    between_options.add_argument(
+        '--multi-line',
+        action='store_true',
+        help="Allow markers to span across multiple lines.",
+    )
+    _add_common_mode_arguments(between_parser)
 
     csv_parser = subparsers.add_parser(
         'csv',
@@ -6398,6 +6484,16 @@ def main() -> None:
         'quoted': (
             quoted_mode,
             {**common_kwargs, 'output_format': output_format},
+        ),
+        'between': (
+            between_mode,
+            {
+                **common_kwargs,
+                'start': getattr(args, 'start', ''),
+                'end': getattr(args, 'end', ''),
+                'multi_line': getattr(args, 'multi_line', False),
+                'output_format': output_format,
+            },
         ),
         'csv': (
             csv_mode,

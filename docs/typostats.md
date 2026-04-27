@@ -31,12 +31,12 @@ The tool automatically recognizes three common ways of listing typos:
 ### Analysis Options
 - `-m`, `--min`: Only show patterns that appear at least this many times (Default: 1).
 - `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by fix).
-- `-a`, `--all`: Shorthand to enable all analysis features at once (transpositions, keyboard adjacency, 1-to-2/2-to-1 replacements, and deletions/insertions).
+- `-a`, `--all`: Enable all analysis features at once. This is the default if no other analysis options are chosen.
 - `-n`, `-L`, `--limit`: Only show the top N results.
 - `-2`, `--allow-two-char`: Look for cases where one letter is replaced by two (like `m` -> `rn`) or two by one (like `ph` -> `f`).
 - `--1to2`: Specifically look for single-to-double letter replacements.
 - `--2to1`: Specifically look for double-to-single letter replacements.
-- `--include-deletions`: Include cases where you skipped a letter or typed an extra one.
+- `--include-deletions`: Include cases where you added an extra letter or missed one (like `aa` -> `a`).
 - `-t`, `--transposition`: Find swapped letters (like `teh` instead of `the`).
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
 
@@ -56,31 +56,39 @@ When using the default **arrow** format, the report displays results in two sect
 ```text
   ANALYSIS SUMMARY
   ───────────────────────────────────────────────────────
-  Total lines processed:              10
-  Total pairs processed:              15
-  Replacements found:                 15
-  Retention rate:                     100.0%
-  Unique patterns found:              2
-  Enabled features:                   keyboard, transposition
-  Keyboard Adjacency [K]:             12/15 (80.0%)
-  Transpositions [T]:                 3/15 (20.0%)
+  Total word pairs encountered:       4
+  Total patterns after analysis:      4
+  Retention rate:                     100.0% ████████████████████
+  Unique patterns found:              3
+  Min/Max/Avg length:                 7 / 8 / 7.5
+  Shortest replacement:               'rn -> m' (length: 7)
+  Longest replacement:                'he -> eh' (length: 8)
+  Min/Max/Avg changes:                1 / 2 / 1.8
+  Total lines processed:              4
+  Enabled features:                   keyboard, transposition, 1-to-2, 2-to-1, deletions/insertions
+  Transpositions [T]:                 2/4 (50.0%)
+  2-to-1 replacements [2:1]:          1/4 (25.0%)
+  Insertions [Ins]:                   1/4 (25.0%)
+  Processing time:                    0.001s
 
   LETTER REPLACEMENTS
   ───────────────────────────────────────────────────────
   CORRECT │ TYPO │ COUNT │      % │ ATTR │ VISUAL
   ───────────────────────────────────────────────────────
-        o │ p    │    12 │  80.0% │ [K]  │ ████████████
-       th │ ht   │     3 │  20.0% │ [T]  │ ███
+       he │ eh   │     2 │  50.0% │ [T]   │ ███████▌
+       rn │ m    │     1 │  25.0% │ [2:1] │ ███▊
+        h │ he   │     1 │  25.0% │ [Ins] │ ███▊
 ```
 
 ### Analysis Summary
 The dashboard at the top gives you an overview of your typo history:
-- **Total lines/pairs processed:** How much data was analyzed.
-- **Replacements found:** How many actual mistakes were found.
-- **Unique patterns:** How many different types of mistakes were found.
-- **Keyboard Adjacency [K]:** Percentage of typos caused by hitting a key next to the correct one.
-- **Transpositions [T]:** Percentage of typos caused by swapping two letters.
-- **Multiple letters [M]:** Percentage of typos involving multiple letters (like `m` -> `rn`).
+- **Total word pairs encountered:** The number of typo-correction pairs found in the input.
+- **Total patterns after analysis:** The number of character-level replacements extracted.
+- **Retention rate:** A visual bar showing the percentage of items kept after filtering.
+- **Unique patterns found:** The number of distinct character-level mistakes found.
+- **Min/Max/Avg length:** Statistics on the length of the extracted patterns.
+- **Min/Max/Avg changes:** Statistics on the number of character changes (edit distance) per typo.
+- **Enabled features:** Which analysis modes (like keyboard adjacency or transpositions) were active.
 
 ### Letter Replacements Table
 This section breaks down every mistake:
@@ -89,15 +97,18 @@ This section breaks down every mistake:
 - **COUNT:** How many times this specific mistake happened.
 - **%:** What percentage of all found replacements this mistake represents.
 - **ATTR:** Special markers showing the type of mistake (for example, `[K]` for keyboard slip).
-- **VISUAL:** A small bar chart for quick comparison.
+- **VISUAL:** A high-resolution bar chart for quick comparison.
 
-For example, a row showing `o │ p` means you typed `p` when you meant to type `o`.
+For example, a row showing `he │ eh` means you swapped the letters `h` and `e`.
 
 ### Typo Attributes (ATTR)
 When you enable analysis features, the tool finds specific patterns in the **ATTR** column:
 - **[K]**: Keyboard slip (the keys are next to each other on a QWERTY layout).
 - **[T]**: Transposition (swapped letters, like `teh` instead of `the`).
-- **[M]**: Multiple letters replacement (for example, `m` to `rn` or `ph` to `f`).
+- **[1:2]**: One-to-two replacement (for example, typing `rn` instead of `m`).
+- **[2:1]**: Two-to-one replacement (for example, typing `f` instead of `ph`).
+- **[Ins]**: Insertion (typing an extra letter).
+- **[Del]**: Deletion (missing a letter).
 
 ### Visual Bar
 The **VISUAL** column provides a small bar chart to help you quickly see which mistakes are the most frequent.

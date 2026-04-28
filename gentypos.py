@@ -700,7 +700,7 @@ def _run_typo_generation(
 ) -> dict[str, str]:
     """Generate, filter, and sort typos based on the provided settings."""
 
-    logging.info("Generating fake typos...")
+    logging.info("Generating likely typos...")
     typo_to_correct_word = defaultdict(list)
 
     for word in tqdm(word_list, desc="Processing words", disable=quiet):
@@ -733,7 +733,7 @@ def _run_typo_generation(
 
     total_typos_generated = len(typo_to_correct_word)
     logging.info(
-        "Generated %d unique fake typos before filtering.", total_typos_generated
+        "Generated %d unique likely typos before filtering.", total_typos_generated
     )
 
     filtered_typo_to_correct_word = {}
@@ -772,11 +772,11 @@ def _run_typo_generation(
 
 def main() -> None:
     """
-    Main function to generate fake typos and save them to a file based on YAML configuration.
+    Main function to generate likely typos and save them to a file based on YAML configuration.
     """
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Fake Typo Generator: Create lists of common typing mistakes.{RESET}",
+        description=f"{BOLD}Likely Typo Generator: Create lists of common typing mistakes.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python gentypos.py "hello" "world"{RESET}
@@ -991,7 +991,7 @@ def main() -> None:
                 for typo in formatted_typos:
                     file.write(f"{typo}\n")
             logging.info(
-                "Successfully generated %d fake typos and saved to '%s'.",
+                "Successfully generated %d likely typos and saved to '%s'.",
                 len(formatted_typos),
                 output_target,
             )

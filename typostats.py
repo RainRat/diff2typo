@@ -105,13 +105,8 @@ def _format_analysis_summary(
     report.append(f"\n{padding}{c_bold}{c_blue}{title}{c_reset}")
     report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
 
-    # In typostats, raw_count is the number of word pairs, but filtered_items are patterns.
-    # We rename labels to be more descriptive of what they actually count.
-    raw_label = "Total word pairs encountered:"
-    filtered_label = "Total patterns after analysis:"
-    if item_label != "replacement":
-        raw_label = f"Total {item_label_plural} encountered:"
-        filtered_label = f"Total {item_label_plural} after filtering:"
+    raw_label = f"Total {item_label_plural} found:"
+    filtered_label = f"Total {item_label_plural} kept:"
 
     report.append(
         f"  {c_bold}{c_blue}{raw_label:<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
@@ -148,7 +143,7 @@ def _format_analysis_summary(
     except (TypeError, ValueError):
         unique_count = len(filtered_items)
 
-    unique_label = "Unique patterns found:" if item_label == "replacement" else f"Unique {item_label_plural}:"
+    unique_label = f"Unique {item_label_plural} found:"
     report.append(
         f"  {c_bold}{c_blue}{unique_label:<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
     )
@@ -158,7 +153,9 @@ def _format_analysis_summary(
 
         def format_item(it: Any) -> str:
             if isinstance(it, tuple) and len(it) == 2:
-                return f"{it[0]} -> {it[1]}"
+                # In typostats, pairs are stored as (correct, typo)
+                # We display them as typo -> correct for consistency
+                return f"{it[1]} -> {it[0]}"
             return str(it)
 
         try:
@@ -178,10 +175,10 @@ def _format_analysis_summary(
             l_display = format_item(longest)
 
             report.append(
-                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
+                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ' kept:':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
             )
             report.append(
-                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
+                f"  {c_bold}{c_blue}{'Longest ' + item_label + ' kept:':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
             )
         except (ValueError, TypeError):
             pass
@@ -538,6 +535,8 @@ def generate_report(
             enabled_features.append("deletions/insertions")
 
         extra_metrics = {}
+        if total_pairs is not None:
+            extra_metrics["Total word pairs analyzed"] = total_pairs
         if total_lines is not None:
             extra_metrics["Total lines processed"] = total_lines
         if enabled_features:
@@ -592,22 +591,23 @@ def generate_report(
         if unique_filtered > len(sorted_replacements):
             extra_metrics["Showing patterns"] = f"{len(sorted_replacements)} of {unique_filtered}"
 
-        # Generate a list of all replacements to use summary statistics
-        all_replacements = [k for k, v in replacement_counts.items() for _ in range(v)]
+        # Generate flattened list of kept patterns for summary statistics
+        # This ensures retention rate is calculated based on patterns kept / patterns found
+        kept_patterns_flattened = [k for k, v in filtered.items() for _ in range(v)]
         summary_lines = _format_analysis_summary(
-            total_pairs if total_pairs is not None else total_typos,
-            all_replacements,
-            item_label="replacement",
+            total_typos,
+            kept_patterns_flattened,
+            item_label="pattern",
             use_color=show_color_err,
             extra_metrics=extra_metrics,
             start_time=start_time,
         )
 
         # Calculate padding for alignment (default to header labels' lengths)
-        max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
-        max_c = max(max_c, 7)  # 'CORRECT' is 7
         max_t = max((len(t) for (c, t), count in sorted_replacements), default=4)
         max_t = max(max_t, 4)  # 'TYPO' is 4
+        max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
+        max_c = max(max_c, 7)  # 'CORRECT' is 7
         max_n = max((len(str(count)) for (c, t), count in sorted_replacements), default=5)
         max_n = max(max_n, 5)  # 'COUNT' is 5
         max_p = 6  # Width for percentage (for example, "100.0%")
@@ -624,8 +624,8 @@ def generate_report(
         # Bold blue for table visual elements
         sep = f"{c_bold}{c_blue}│{c_reset}"
         header_row = (
-            f"{padding}{c_bold}{c_blue}{'CORRECT':>{max_c}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
+            f"{padding}{c_bold}{c_blue}{'TYPO':>{max_t}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'CORRECT':<{max_c}}{c_reset} {sep} "
             f"{c_bold}{c_blue}{'COUNT':>{max_n}}{c_reset} {sep} "
             f"{c_bold}{c_blue}{'%':>{max_p}}{c_reset}"
         )
@@ -688,8 +688,8 @@ def generate_report(
                 bar += " " * (max_bar - full_blocks - 1)
 
             row = (
-                f"{padding}{c_green}{correct_char:>{max_c}}{c_reset} {sep} "
-                f"{c_red}{typo_char:<{max_t}}{c_reset} {sep} "
+                f"{padding}{c_red}{typo_char:>{max_t}}{c_reset} {sep} "
+                f"{c_green}{correct_char:<{max_c}}{c_reset} {sep} "
                 f"{c_yellow}{count:>{max_n}}{c_reset} {sep} "
                 f"{c_green}{percent:>5.1f}%{c_reset}"
             )
@@ -717,7 +717,7 @@ def generate_report(
                 marker = f"{c_bold}{marker_text:<5}{c_reset}"
                 row += f" {sep} {marker}"
 
-            row += f" {sep} {c_red}{bar}{c_reset}"
+            row += f" {sep} {c_blue}{bar}{c_reset}"
             report_lines.append(row)
         report_content = "\n".join(report_lines)
     elif output_format == 'json':

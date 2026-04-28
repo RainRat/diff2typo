@@ -65,11 +65,11 @@ def test_levenshtein_distance_empty_s2():
 
 def test_generate_report_unhashable_items():
     """Test _format_analysis_summary with unhashable items to trigger except block."""
-    # The gap is in _format_analysis_summary at line 140
-    # Let's mock set() to raise TypeError to trigger line 140
+    # Let's mock set() to raise TypeError to trigger hashable check failure
     with patch('builtins.set', side_effect=TypeError("unhashable")):
         lines = typostats._format_analysis_summary(10, ["item1"], use_color=False)
-    assert any("Unique items:" in line for line in lines)
+    # Changed to match new label format: 'Unique items found:'
+    assert any("Unique items found:" in line for line in lines)
 
 def test_generate_report_format_item_failure():
     """Test _format_analysis_summary format_item failure to trigger except block."""
@@ -96,7 +96,8 @@ def test_generate_report_all_summary_branches(capsys):
     typostats.generate_report(counts, quiet=True)
     captured = capsys.readouterr()
     assert captured.err == ""
-    assert "a │ b" in captured.out
+    # Swapped order: typo 'b' then correct 'a'
+    assert "b │ a" in captured.out
 
 def test_format_analysis_summary_retention_bar_edge():
     """Trigger the bar += blocks[frac_idx] branch in _format_analysis_summary."""

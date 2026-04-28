@@ -18,11 +18,12 @@ def test_new_markers(capsys):
 
 def test_summary_labels(capsys):
     """Verify improved labels in the analysis summary."""
-    counts = {('teh', 'the'): 1}
+    counts = {('the', 'teh'): 1}
     # generate_report prints summary to stderr when no output_file
-    typostats.generate_report(counts, quiet=False)
+    typostats.generate_report(counts, quiet=False, total_pairs=1)
     captured = capsys.readouterr().err
 
-    assert "Total word pairs encountered:" in captured
-    assert "Total patterns after analysis:" in captured
+    assert "Total word pairs analyzed:" in captured
+    assert "Total patterns found:" in captured
+    assert "Total patterns kept:" in captured
     assert "Unique patterns found:" in captured

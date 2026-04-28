@@ -56,14 +56,15 @@ When using the default **arrow** format, the report displays results in two sect
 ```text
   ANALYSIS SUMMARY
   ───────────────────────────────────────────────────────
-  Total word pairs encountered:       4
-  Total patterns after analysis:      4
+  Total patterns found:               4
+  Total patterns kept:                4
   Retention rate:                     100.0% ████████████████████
   Unique patterns found:              3
   Min/Max/Avg length:                 7 / 8 / 7.5
-  Shortest replacement:               'rn -> m' (length: 7)
-  Longest replacement:                'he -> eh' (length: 8)
+  Shortest pattern kept:              'm -> rn' (length: 7)
+  Longest pattern kept:               'eh -> he' (length: 8)
   Min/Max/Avg changes:                1 / 2 / 1.8
+  Total word pairs analyzed:          4
   Total lines processed:              4
   Enabled features:                   keyboard, transposition, 1-to-2, 2-to-1, deletions/insertions
   Transpositions [T]:                 2/4 (50.0%)

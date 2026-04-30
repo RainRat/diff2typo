@@ -552,7 +552,8 @@ def format_typos(
             formatted.append(f"{typo},{correct_word}")
         elif output_format == 'table':
             formatted.append(f'{typo} = "{correct_word}"')
-        elif output_format == 'list':
+        else:
+            # Fallback to typo itself for 'list' or unrecognized formats
             formatted.append(f"{typo}")
     return formatted
 

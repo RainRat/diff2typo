@@ -624,19 +624,19 @@ def generate_report(
         # Bold blue for table visual elements
         sep = f"{c_bold}{c_blue}│{c_reset}"
         header_row = (
-            f"{padding}{c_bold}{c_blue}{'CORRECT':>{max_c}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
+            f"{padding}{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'CORRECT':<{max_c}}{c_reset} {sep} "
             f"{c_bold}{c_blue}{'COUNT':>{max_n}}{c_reset} {sep} "
             f"{c_bold}{c_blue}{'%':>{max_p}}{c_reset}"
         )
         # 3 chars for each " │ " (total 3 * 3 = 9)
-        visible_header_len = max_c + max_t + max_n + max_p + 9
+        visible_header_len = max_t + max_c + max_n + max_p + 9
 
         show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions'), kwargs.get('all')])
 
         if show_attr:
-            header_row += f" {sep} {c_bold}{c_blue}{'ATTR':<4}{c_reset}"
-            visible_header_len += 7
+            header_row += f" {sep} {c_bold}{c_blue}{'ATTR':<5}{c_reset}"
+            visible_header_len += 8
 
         # Add Visual column header
         max_bar = 15
@@ -688,8 +688,8 @@ def generate_report(
                 bar += " " * (max_bar - full_blocks - 1)
 
             row = (
-                f"{padding}{c_green}{correct_char:>{max_c}}{c_reset} {sep} "
-                f"{c_red}{typo_char:<{max_t}}{c_reset} {sep} "
+                f"{padding}{c_red}{typo_char:<{max_t}}{c_reset} {sep} "
+                f"{c_green}{correct_char:<{max_c}}{c_reset} {sep} "
                 f"{c_yellow}{count:>{max_n}}{c_reset} {sep} "
                 f"{c_green}{percent:>5.1f}%{c_reset}"
             )
@@ -717,7 +717,7 @@ def generate_report(
                 marker = f"{c_bold}{marker_text:<5}{c_reset}"
                 row += f" {sep} {marker}"
 
-            row += f" {sep} {c_red}{bar}{c_reset}"
+            row += f" {sep} {c_blue}{bar}{c_reset}"
             report_lines.append(row)
         report_content = "\n".join(report_lines)
     elif output_format == 'json':

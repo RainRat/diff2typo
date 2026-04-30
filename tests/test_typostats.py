@@ -86,7 +86,7 @@ def test_process_typos_formats():
 def test_generate_report_formats(capsys, tmp_path):
     counts = {('s', 'z'): 3, ('e', 'a'): 1}
     typostats.generate_report(counts, output_format='arrow', quiet=True)
-    assert 's │ z' in capsys.readouterr().out
+    assert 'z    │ s' in capsys.readouterr().out
     typostats.generate_report(counts, output_format='json')
     assert len(json.loads(capsys.readouterr().out)["replacements"]) == 2
     typostats.generate_report(counts, output_format='csv')
@@ -101,16 +101,17 @@ def test_generate_report_formats(capsys, tmp_path):
 def test_generate_report_sorting_and_filtering(capsys):
     counts = {('b', 'z'): 1, ('a', 'y'): 2, ('a', 'x'): 3}
     typostats.generate_report(counts, sort_by='count', output_format='arrow', quiet=True)
-    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'CORRECT' not in l and '─' not in l]
+    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]
     assert 'x' in lines[0] and 'y' in lines[1] and 'z' in lines[2]
     typostats.generate_report(counts, sort_by='typo', output_format='arrow', quiet=True)
-    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'CORRECT' not in l and '─' not in l]
+    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]
     assert 'x' in lines[0] and 'y' in lines[1] and 'z' in lines[2]
     typostats.generate_report(counts, sort_by='correct', output_format='arrow', quiet=True)
-    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'CORRECT' not in l and '─' not in l]
-    assert lines[0].strip().startswith('a') and lines[2].strip().startswith('b')
+    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]
+    # First column is TYPO, so we check second column for 'a'
+    assert '│ a' in lines[0] and '│ b' in lines[2]
     typostats.generate_report(counts, min_occurrences=2, output_format='arrow', quiet=True)
-    assert len([l for l in capsys.readouterr().out.splitlines() if '│' in l and 'CORRECT' not in l and '─' not in l]) == 2
+    assert len([l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]) == 2
 
 
 def test_generate_report_summaries(capsys):
@@ -235,4 +236,4 @@ def test_format_analysis_summary_branches():
     assert "Shortest item:" in report or "Shortest replacement:" in report
     assert "Longest item:" in report or "Longest replacement:" in report
     report = "\n".join(typostats._format_analysis_summary(10, ["a"], item_label="word"))
-    assert "Total words encountered:" in report
+    assert "Total words found:" in report

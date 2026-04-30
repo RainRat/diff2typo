@@ -86,6 +86,7 @@ def _format_analysis_summary(
     use_color: bool = False,
     extra_metrics: Mapping[str, Any] | None = None,
     title: str = "ANALYSIS SUMMARY",
+    total_input_items: int | None = None,
 ) -> List[str]:
     """
     Standardizes the "ANALYSIS SUMMARY" block with consistent colors and a visual retention bar.
@@ -105,13 +106,15 @@ def _format_analysis_summary(
     report.append(f"\n{padding}{c_bold}{c_blue}{title}{c_reset}")
     report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
 
-    # In typostats, raw_count is the number of word pairs, but filtered_items are patterns.
+    if total_input_items is not None:
+        report.append(
+            f"  {c_bold}{c_blue}{'Total word pairs analyzed:':<{label_width}}{c_reset} {c_yellow}{total_input_items}{c_reset}"
+        )
+
+    # In typostats, raw_count is the total number of patterns found, but filtered_items are patterns kept.
     # We rename labels to be more descriptive of what they actually count.
-    raw_label = "Total word pairs encountered:"
-    filtered_label = "Total patterns after analysis:"
-    if item_label != "replacement":
-        raw_label = f"Total {item_label_plural} encountered:"
-        filtered_label = f"Total {item_label_plural} after filtering:"
+    raw_label = f"Total {item_label_plural} found:"
+    filtered_label = f"Total {item_label_plural} kept:"
 
     report.append(
         f"  {c_bold}{c_blue}{raw_label:<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
@@ -148,7 +151,7 @@ def _format_analysis_summary(
     except (TypeError, ValueError):
         unique_count = len(filtered_items)
 
-    unique_label = "Unique patterns found:" if item_label == "replacement" else f"Unique {item_label_plural}:"
+    unique_label = "Unique patterns found:" if item_label in ("replacement", "pattern") else f"Unique {item_label_plural}:"
     report.append(
         f"  {c_bold}{c_blue}{unique_label:<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
     )
@@ -593,14 +596,15 @@ def generate_report(
             extra_metrics["Showing patterns"] = f"{len(sorted_replacements)} of {unique_filtered}"
 
         # Generate a list of all replacements to use summary statistics
-        all_replacements = [k for k, v in replacement_counts.items() for _ in range(v)]
+        all_replacements = [k for k, v in filtered.items() for _ in range(v)]
         summary_lines = _format_analysis_summary(
-            total_pairs if total_pairs is not None else total_typos,
+            total_typos,
             all_replacements,
-            item_label="replacement",
+            item_label="pattern",
             use_color=show_color_err,
             extra_metrics=extra_metrics,
             start_time=start_time,
+            total_input_items=total_pairs,
         )
 
         # Calculate padding for alignment (default to header labels' lengths)
@@ -619,24 +623,22 @@ def generate_report(
         c_yellow = YELLOW if show_color_out else ""
         c_red = RED if show_color_out else ""
         c_reset = RESET if show_color_out else ""
-
         # Header row and divider with consistent padding and vertical separators
         # Bold blue for table visual elements
         sep = f"{c_bold}{c_blue}│{c_reset}"
         header_row = (
-            f"{padding}{c_bold}{c_blue}{'CORRECT':>{max_c}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
+            f"{padding}{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'CORRECT':<{max_c}}{c_reset} {sep} "
             f"{c_bold}{c_blue}{'COUNT':>{max_n}}{c_reset} {sep} "
             f"{c_bold}{c_blue}{'%':>{max_p}}{c_reset}"
         )
-        # 3 chars for each " │ " (total 3 * 3 = 9)
-        visible_header_len = max_c + max_t + max_n + max_p + 9
+        visible_header_len = max_t + max_c + max_n + max_p + 9
 
         show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions'), kwargs.get('all')])
 
         if show_attr:
-            header_row += f" {sep} {c_bold}{c_blue}{'ATTR':<4}{c_reset}"
-            visible_header_len += 7
+            header_row += f" {sep} {c_bold}{c_blue}{'ATTR':<5}{c_reset}"
+            visible_header_len += 8
 
         # Add Visual column header
         max_bar = 15
@@ -686,14 +688,12 @@ def generate_report(
             if full_blocks < max_bar:
                 bar += blocks[frac_idx]
                 bar += " " * (max_bar - full_blocks - 1)
-
             row = (
-                f"{padding}{c_green}{correct_char:>{max_c}}{c_reset} {sep} "
-                f"{c_red}{typo_char:<{max_t}}{c_reset} {sep} "
+                f"{padding}{c_red}{typo_char:<{max_t}}{c_reset} {sep} "
+                f"{c_green}{correct_char:<{max_c}}{c_reset} {sep} "
                 f"{c_yellow}{count:>{max_n}}{c_reset} {sep} "
                 f"{c_green}{percent:>5.1f}%{c_reset}"
             )
-
             if show_attr:
                 marker_text = "     "
                 if len(correct_char) == 1 and len(typo_char) == 1:
@@ -717,7 +717,7 @@ def generate_report(
                 marker = f"{c_bold}{marker_text:<5}{c_reset}"
                 row += f" {sep} {marker}"
 
-            row += f" {sep} {c_red}{bar}{c_reset}"
+            row += f" {sep} {c_blue}{bar}{c_reset}"
             report_lines.append(row)
         report_content = "\n".join(report_lines)
     elif output_format == 'json':

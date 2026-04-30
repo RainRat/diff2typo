@@ -96,7 +96,7 @@ def test_generate_report_all_summary_branches(capsys):
     typostats.generate_report(counts, quiet=True)
     captured = capsys.readouterr()
     assert captured.err == ""
-    assert "a │ b" in captured.out
+    assert "b    │ a" in captured.out
 
 def test_format_analysis_summary_retention_bar_edge():
     """Trigger the bar += blocks[frac_idx] branch in _format_analysis_summary."""

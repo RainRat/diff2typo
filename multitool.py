@@ -2932,16 +2932,15 @@ def _format_search_line(
         return line_content
 
     if use_color:
-        sep_style = (BOLD + BLUE) if is_match else BLUE
-        sep = f"{sep_style}{sep_char}{RESET}"
-
+        style = (BOLD + BLUE) if is_match else BLUE
         parts = []
         if show_filename:
-            parts.append(f"{MAGENTA}{filename}{RESET}")
+            parts.append(filename)
         if line_numbers:
-            parts.append(f"{CYAN}{line_idx + 1}{RESET}")
-
-        return f"{sep.join(parts)}{sep} {line_content}"
+            parts.append(str(line_idx + 1))
+        
+        prefix = sep_char.join(parts) + sep_char
+        return f"{style}{prefix}{RESET} {line_content}"
     else:
         prefix_parts = []
         if show_filename:
@@ -4337,9 +4336,33 @@ def scan_mode(
                 use_color,
             )
         )
-                use_color,
-            )
-        )
+
+    if process_output:
+        accumulated_lines = sorted(set(accumulated_lines))
+
+    if limit is not None:
+        accumulated_lines = accumulated_lines[:limit]
+
+    with smart_open_output(output_file) as out:
+        for line in accumulated_lines:
+            out.write(line + "\n")
+
+    duration = time.perf_counter() - start_time
+    # Use color for feedback if stderr is a terminal
+    c_blue = (BOLD + BLUE) if _should_enable_color(sys.stderr) else ""
+    c_green = GREEN if _should_enable_color(sys.stderr) else ""
+    c_reset = RESET if _should_enable_color(sys.stderr) else ""
+
+    logging.info(
+        f"{c_blue}[Scan Mode]{c_reset} Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
+        f"Found {c_green}{total_matches}{c_reset} match(es). Output written to '{output_file}'. "
+        f"Processing time: {duration:.3f}s"
+    )
+
+def verify_mode(
+    input_files: Sequence[str],
+    mapping_file: str | None,
+    output_file: str,
     min_length: int,
     max_length: int,
     process_output: bool,

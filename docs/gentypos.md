@@ -1,6 +1,6 @@
 # gentypos.py
 
-**Purpose:** Generates fake typos from a list of words. It mimics common mistakes like hitting the wrong key, skipping a letter, swapping two letters, or typing a letter twice.
+**Purpose:** Generates likely typos from a list of words. It mimics common mistakes like hitting the wrong key, skipping a letter, swapping two letters, or typing a letter twice.
 
 ## Usage
 
@@ -93,5 +93,5 @@ Supported formats:
 ## How it Works
 
 1.  **Generation:** The tool applies the selected mistake types to every word in your input.
-2.  **Filtering:** It checks the new "typos" against your `dictionary_file` (the large dictionary). If a generated typo is actually a real word (like "form" instead of "from"), it is removed. This prevents the tool from flagging correct words as typos.
+2.  **Filtering:** It checks the "typos" against your `dictionary_file` (the large dictionary). If a generated typo is actually a real word (like "form" instead of "from"), it is removed. This prevents the tool from flagging correct words as typos.
 3.  **Saving:** The final list is formatted and saved to your output file or printed to the screen.

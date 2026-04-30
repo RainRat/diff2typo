@@ -2952,6 +2952,46 @@ def _format_search_line(
         return f"{raw_prefix} {line_content}"
 
 
+def _render_context_to_lines(
+    match_indices: Mapping[int, str],
+    file_contents: Sequence[str],
+    before_context: int,
+    after_context: int,
+    filename: str,
+    show_filename: bool,
+    line_numbers: bool,
+    use_color: bool,
+) -> List[str]:
+    """Renders match lines and their surrounding context lines into a list of strings."""
+    accumulated_lines = []
+    sorted_indices = sorted(match_indices.keys())
+    last_rendered_idx = -1
+
+    for idx in sorted_indices:
+        # Determine block start and end
+        start = max(0, idx - before_context)
+        end = min(len(file_contents), idx + after_context + 1)
+
+        # If there's a gap between blocks, add separator
+        if last_rendered_idx != -1 and start > last_rendered_idx:
+            separator = f"{BLUE}--{RESET}" if use_color else "--"
+            accumulated_lines.append(separator)
+
+        # Render lines in the window that haven't been rendered yet
+        current_start = max(start, last_rendered_idx)
+        for j in range(current_start, end):
+            is_match = j in match_indices
+            content = match_indices[j] if is_match else file_contents[j]
+            accumulated_lines.append(
+                _format_search_line(
+                    filename, j, content, is_match, show_filename, line_numbers, use_color
+                )
+            )
+
+        last_rendered_idx = end
+    return accumulated_lines
+
+
 def search_mode(
     input_files: Sequence[str],
     query: str,
@@ -3098,31 +3138,18 @@ def search_mode(
         total_matches += len(match_indices)
 
         # Collect context blocks
-        sorted_indices = sorted(match_indices.keys())
-        last_rendered_idx = -1
-
-        for idx in sorted_indices:
-            # Determine block start and end
-            start = max(0, idx - before_context)
-            end = min(len(file_contents), idx + after_context + 1)
-
-            # If there's a gap between blocks, add separator
-            if last_rendered_idx != -1 and start > last_rendered_idx:
-                separator = f"{BOLD + BLUE}--{RESET}" if use_color else "--"
-                accumulated_lines.append(separator)
-
-            # Render lines in the window that haven't been rendered yet
-            current_start = max(start, last_rendered_idx)
-            for j in range(current_start, end):
-                is_match = j in match_indices
-                content = match_indices[j] if is_match else file_contents[j]
-                accumulated_lines.append(
-                    _format_search_line(
-                        input_file, j, content, is_match, show_filename, line_numbers, use_color
-                    )
-                )
-
-            last_rendered_idx = end
+        accumulated_lines.extend(
+            _render_context_to_lines(
+                match_indices,
+                file_contents,
+                before_context,
+                after_context,
+                input_file,
+                show_filename,
+                line_numbers,
+                use_color,
+            )
+        )
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
@@ -4298,56 +4325,21 @@ def scan_mode(
         total_matches += len(match_indices)
 
         # Collect context blocks
-        sorted_indices = sorted(match_indices.keys())
-        last_rendered_idx = -1
-
-        for idx in sorted_indices:
-            start = max(0, idx - before_context)
-            end = min(len(file_contents), idx + after_context + 1)
-
-            if last_rendered_idx != -1 and start > last_rendered_idx:
-                separator = f"{BOLD + BLUE}--{RESET}" if use_color else "--"
-                accumulated_lines.append(separator)
-
-            current_start = max(start, last_rendered_idx)
-            for j in range(current_start, end):
-                is_match = j in match_indices
-                content = match_indices[j] if is_match else file_contents[j]
-                accumulated_lines.append(
-                    _format_search_line(
-                        input_file, j, content, is_match, show_filename, line_numbers, use_color
-                    )
-                )
-
-            last_rendered_idx = end
-
-    if process_output:
-        accumulated_lines = sorted(set(accumulated_lines))
-
-    if limit is not None:
-        accumulated_lines = accumulated_lines[:limit]
-
-    with smart_open_output(output_file) as out:
-        for line in accumulated_lines:
-            out.write(line + '\n')
-
-    duration = time.perf_counter() - start_time
-    # Use color for feedback if stderr is a terminal
-    c_blue = (BOLD + BLUE) if _should_enable_color(sys.stderr) else ""
-    c_green = GREEN if _should_enable_color(sys.stderr) else ""
-    c_reset = RESET if _should_enable_color(sys.stderr) else ""
-
-    logging.info(
-        f"{c_blue}[Scan Mode]{c_reset} Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
-        f"Found {c_green}{total_matches}{c_reset} match(es). Output written to '{output_file}'. "
-        f"Processing time: {duration:.3f}s"
-    )
-
-
-def verify_mode(
-    input_files: Sequence[str],
-    mapping_file: str | None,
-    output_file: str,
+        accumulated_lines.extend(
+            _render_context_to_lines(
+                match_indices,
+                file_contents,
+                before_context,
+                after_context,
+                input_file,
+                show_filename,
+                line_numbers,
+                use_color,
+            )
+        )
+                use_color,
+            )
+        )
     min_length: int,
     max_length: int,
     process_output: bool,

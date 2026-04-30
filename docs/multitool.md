@@ -301,7 +301,7 @@ These options work with most modes:
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input** if not provided.
 - `--output`: The file to write results to. Defaults to printing to the screen.
 - `--output-format`: The format of the output. Options include `line` (default), `json`, `yaml`, `csv`, `markdown`, `md-table`, `arrow`, and `table`.
-- `--min-length`: Skip words shorter than this length (default: 3).
+- `--min-length`: Skip items shorter than this length (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
 - `--limit`, `-L`: Limit the number of items in the output.

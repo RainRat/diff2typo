@@ -4505,7 +4505,7 @@ def _add_common_mode_arguments(
         '-m', '--min-length',
         type=int,
         default=argparse.SUPPRESS,
-        help="Skip items shorter than this (default: 3).",
+        help="Skip items shorter than this (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').",
     )
     proc_group.add_argument(
         '-M', '--max-length',

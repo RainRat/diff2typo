@@ -623,18 +623,16 @@ def generate_report(
         c_yellow = YELLOW if show_color_out else ""
         c_red = RED if show_color_out else ""
         c_reset = RESET if show_color_out else ""
-
-        # Header row and divider with consistent padding and vertical separators
-        # Bold blue for table visual elements
-        sep = f"{c_bold}{c_blue}│{c_reset}"
-        header_row = (
-            f"{padding}{c_bold}{c_blue}{'TYPO':>{max_t}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'CORRECT':<{max_c}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'COUNT':>{max_n}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'%':>{max_p}}{c_reset}"
-        )
-        # 3 chars for each " │ " (total 3 * 3 = 9)
-        visible_header_len = max_c + max_t + max_n + max_p + 9
+# Header row and divider with consistent padding and vertical separators
+# Bold blue for table visual elements
+sep = f"{c_bold}{c_blue}│{c_reset}"
+header_row = (
+    f"{padding}{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
+    f"{c_bold}{c_blue}{'CORRECT':<{max_c}}{c_reset} {sep} "
+    f"{c_bold}{c_blue}{'COUNT':>{max_n}}{c_reset} {sep} "
+    f"{c_bold}{c_blue}{'%':>{max_p}}{c_reset}"
+)
+        visible_header_len = max_t + max_c + max_n + max_p + 9
 
         show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions'), kwargs.get('all')])
 
@@ -690,14 +688,12 @@ def generate_report(
             if full_blocks < max_bar:
                 bar += blocks[frac_idx]
                 bar += " " * (max_bar - full_blocks - 1)
-
-            row = (
-                f"{padding}{c_red}{typo_char:>{max_t}}{c_reset} {sep} "
-                f"{c_green}{correct_char:<{max_c}}{c_reset} {sep} "
-                f"{c_yellow}{count:>{max_n}}{c_reset} {sep} "
-                f"{c_green}{percent:>5.1f}%{c_reset}"
-            )
-
+row = (
+    f"{padding}{c_red}{typo_char:<{max_t}}{c_reset} {sep} "
+    f"{c_green}{correct_char:<{max_c}}{c_reset} {sep} "
+    f"{c_yellow}{count:>{max_n}}{c_reset} {sep} "
+    f"{c_green}{percent:>5.1f}%{c_reset}"
+)
             if show_attr:
                 marker_text = "     "
                 if len(correct_char) == 1 and len(typo_char) == 1:

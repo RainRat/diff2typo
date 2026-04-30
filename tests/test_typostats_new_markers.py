@@ -23,6 +23,6 @@ def test_summary_labels(capsys):
     typostats.generate_report(counts, quiet=False)
     captured = capsys.readouterr().err
 
-    assert "Total word pairs encountered:" in captured
-    assert "Total patterns after analysis:" in captured
+    assert "Total patterns found:" in captured
+    assert "Total patterns kept:" in captured
     assert "Unique patterns found:" in captured

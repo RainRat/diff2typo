@@ -161,7 +161,7 @@ def split_into_subwords(word: str) -> List[str]:
 
 def read_words_mapping(file_path: str, required: bool = True) -> Dict[str, Set[str]]:
     """
-    Reads a CSV file of typo fixes and returns a list:
+    Reads a CSV file of typo fixes and returns a mapping:
          incorrect_word -> corrections
 
     Each row should be in the form:
@@ -563,7 +563,7 @@ def process_corrections_mode(candidates, words_mapping, quiet=False):
 def process_audit_typos(candidates, args, large_dictionary, allowed_words):
     """
     Find cases where a correct word was changed into a typo.
-    Identifies cases where a word that used to be valid
+    Finds cases where a word that used to be valid
     was changed to a word that is not in the large dictionary.
     """
     audit_candidates = []

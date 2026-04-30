@@ -38,13 +38,15 @@ BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
 RED = "\033[1;31m"
 YELLOW = "\033[1;33m"
+MAGENTA = "\033[1;35m"
+CYAN = "\033[1;36m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
 # We check the main output and error output as help goes to the main output and logging/stats to error output
 if (not sys.stdout.isatty() and 'FORCE_COLOR' not in os.environ) or 'NO_COLOR' in os.environ:
-    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+    BLUE = GREEN = RED = YELLOW = MAGENTA = CYAN = RESET = BOLD = ""
 # Note: we use the main output's status for the global constants, but individual
 # functions might still check the error output if they specifically log to it.
 
@@ -2924,20 +2926,70 @@ def _format_search_line(
     use_color: bool,
 ) -> str:
     """Formats a single line for search/scan output with optional filename and line number."""
-    sep = ":" if is_match else "-"
-    prefix_parts = []
-    if show_filename:
-        prefix_parts.append(filename)
-    if line_numbers:
-        prefix_parts.append(str(line_idx + 1))
+    sep_char = ":" if is_match else "-"
 
-    if prefix_parts:
-        raw_prefix = sep.join(prefix_parts) + sep
-        if use_color:
-            style = (BOLD + BLUE) if is_match else BLUE
-            return f"{style}{raw_prefix}{RESET} {line_content}"
+    if not show_filename and not line_numbers:
+        return line_content
+
+    if use_color:
+        sep_style = (BOLD + BLUE) if is_match else BLUE
+        sep = f"{sep_style}{sep_char}{RESET}"
+
+        parts = []
+        if show_filename:
+            parts.append(f"{MAGENTA}{filename}{RESET}")
+        if line_numbers:
+            parts.append(f"{CYAN}{line_idx + 1}{RESET}")
+
+        return f"{sep.join(parts)}{sep} {line_content}"
+    else:
+        prefix_parts = []
+        if show_filename:
+            prefix_parts.append(filename)
+        if line_numbers:
+            prefix_parts.append(str(line_idx + 1))
+        raw_prefix = sep_char.join(prefix_parts) + sep_char
         return f"{raw_prefix} {line_content}"
-    return line_content
+
+
+def _render_context_to_lines(
+    match_indices: Mapping[int, str],
+    file_contents: Sequence[str],
+    before_context: int,
+    after_context: int,
+    filename: str,
+    show_filename: bool,
+    line_numbers: bool,
+    use_color: bool,
+) -> List[str]:
+    """Renders match lines and their surrounding context lines into a list of strings."""
+    accumulated_lines = []
+    sorted_indices = sorted(match_indices.keys())
+    last_rendered_idx = -1
+
+    for idx in sorted_indices:
+        # Determine block start and end
+        start = max(0, idx - before_context)
+        end = min(len(file_contents), idx + after_context + 1)
+
+        # If there's a gap between blocks, add separator
+        if last_rendered_idx != -1 and start > last_rendered_idx:
+            separator = f"{BLUE}--{RESET}" if use_color else "--"
+            accumulated_lines.append(separator)
+
+        # Render lines in the window that haven't been rendered yet
+        current_start = max(start, last_rendered_idx)
+        for j in range(current_start, end):
+            is_match = j in match_indices
+            content = match_indices[j] if is_match else file_contents[j]
+            accumulated_lines.append(
+                _format_search_line(
+                    filename, j, content, is_match, show_filename, line_numbers, use_color
+                )
+            )
+
+        last_rendered_idx = end
+    return accumulated_lines
 
 
 def search_mode(
@@ -3086,31 +3138,18 @@ def search_mode(
         total_matches += len(match_indices)
 
         # Collect context blocks
-        sorted_indices = sorted(match_indices.keys())
-        last_rendered_idx = -1
-
-        for idx in sorted_indices:
-            # Determine block start and end
-            start = max(0, idx - before_context)
-            end = min(len(file_contents), idx + after_context + 1)
-
-            # If there's a gap between blocks, add separator
-            if last_rendered_idx != -1 and start > last_rendered_idx:
-                separator = f"{BLUE}--{RESET}" if use_color else "--"
-                accumulated_lines.append(separator)
-
-            # Render lines in the window that haven't been rendered yet
-            current_start = max(start, last_rendered_idx)
-            for j in range(current_start, end):
-                is_match = j in match_indices
-                content = match_indices[j] if is_match else file_contents[j]
-                accumulated_lines.append(
-                    _format_search_line(
-                        input_file, j, content, is_match, show_filename, line_numbers, use_color
-                    )
-                )
-
-            last_rendered_idx = end
+        accumulated_lines.extend(
+            _render_context_to_lines(
+                match_indices,
+                file_contents,
+                before_context,
+                after_context,
+                input_file,
+                show_filename,
+                line_numbers,
+                use_color,
+            )
+        )
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
@@ -4286,56 +4325,21 @@ def scan_mode(
         total_matches += len(match_indices)
 
         # Collect context blocks
-        sorted_indices = sorted(match_indices.keys())
-        last_rendered_idx = -1
-
-        for idx in sorted_indices:
-            start = max(0, idx - before_context)
-            end = min(len(file_contents), idx + after_context + 1)
-
-            if last_rendered_idx != -1 and start > last_rendered_idx:
-                separator = f"{BLUE}--{RESET}" if use_color else "--"
-                accumulated_lines.append(separator)
-
-            current_start = max(start, last_rendered_idx)
-            for j in range(current_start, end):
-                is_match = j in match_indices
-                content = match_indices[j] if is_match else file_contents[j]
-                accumulated_lines.append(
-                    _format_search_line(
-                        input_file, j, content, is_match, show_filename, line_numbers, use_color
-                    )
-                )
-
-            last_rendered_idx = end
-
-    if process_output:
-        accumulated_lines = sorted(set(accumulated_lines))
-
-    if limit is not None:
-        accumulated_lines = accumulated_lines[:limit]
-
-    with smart_open_output(output_file) as out:
-        for line in accumulated_lines:
-            out.write(line + '\n')
-
-    duration = time.perf_counter() - start_time
-    # Use color for feedback if stderr is a terminal
-    c_blue = (BOLD + BLUE) if _should_enable_color(sys.stderr) else ""
-    c_green = GREEN if _should_enable_color(sys.stderr) else ""
-    c_reset = RESET if _should_enable_color(sys.stderr) else ""
-
-    logging.info(
-        f"{c_blue}[Scan Mode]{c_reset} Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
-        f"Found {c_green}{total_matches}{c_reset} match(es). Output written to '{output_file}'. "
-        f"Processing time: {duration:.3f}s"
-    )
-
-
-def verify_mode(
-    input_files: Sequence[str],
-    mapping_file: str | None,
-    output_file: str,
+        accumulated_lines.extend(
+            _render_context_to_lines(
+                match_indices,
+                file_contents,
+                before_context,
+                after_context,
+                input_file,
+                show_filename,
+                line_numbers,
+                use_color,
+            )
+        )
+                use_color,
+            )
+        )
     min_length: int,
     max_length: int,
     process_output: bool,
@@ -4501,7 +4505,7 @@ def _add_common_mode_arguments(
         '-m', '--min-length',
         type=int,
         default=argparse.SUPPRESS,
-        help="Skip items shorter than this (default: 3).",
+        help="Skip items shorter than this (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').",
     )
     proc_group.add_argument(
         '-M', '--max-length',

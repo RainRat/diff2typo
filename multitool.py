@@ -38,13 +38,15 @@ BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
 RED = "\033[1;31m"
 YELLOW = "\033[1;33m"
+MAGENTA = "\033[1;35m"
+CYAN = "\033[1;36m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
 # We check the main output and error output as help goes to the main output and logging/stats to error output
 if (not sys.stdout.isatty() and 'FORCE_COLOR' not in os.environ) or 'NO_COLOR' in os.environ:
-    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+    BLUE = GREEN = RED = YELLOW = MAGENTA = CYAN = RESET = BOLD = ""
 # Note: we use the main output's status for the global constants, but individual
 # functions might still check the error output if they specifically log to it.
 
@@ -2924,20 +2926,30 @@ def _format_search_line(
     use_color: bool,
 ) -> str:
     """Formats a single line for search/scan output with optional filename and line number."""
-    sep = ":" if is_match else "-"
-    prefix_parts = []
-    if show_filename:
-        prefix_parts.append(filename)
-    if line_numbers:
-        prefix_parts.append(str(line_idx + 1))
+    sep_char = ":" if is_match else "-"
 
-    if prefix_parts:
-        raw_prefix = sep.join(prefix_parts) + sep
-        if use_color:
-            style = (BOLD + BLUE) if is_match else BLUE
-            return f"{style}{raw_prefix}{RESET} {line_content}"
+    if not show_filename and not line_numbers:
+        return line_content
+
+    if use_color:
+        sep_style = (BOLD + BLUE) if is_match else BLUE
+        sep = f"{sep_style}{sep_char}{RESET}"
+
+        parts = []
+        if show_filename:
+            parts.append(f"{MAGENTA}{filename}{RESET}")
+        if line_numbers:
+            parts.append(f"{CYAN}{line_idx + 1}{RESET}")
+
+        return f"{sep.join(parts)}{sep} {line_content}"
+    else:
+        prefix_parts = []
+        if show_filename:
+            prefix_parts.append(filename)
+        if line_numbers:
+            prefix_parts.append(str(line_idx + 1))
+        raw_prefix = sep_char.join(prefix_parts) + sep_char
         return f"{raw_prefix} {line_content}"
-    return line_content
 
 
 def _render_context_to_lines(
@@ -4325,34 +4337,9 @@ def scan_mode(
                 use_color,
             )
         )
-
-    if process_output:
-        accumulated_lines = sorted(set(accumulated_lines))
-
-    if limit is not None:
-        accumulated_lines = accumulated_lines[:limit]
-
-    with smart_open_output(output_file) as out:
-        for line in accumulated_lines:
-            out.write(line + '\n')
-
-    duration = time.perf_counter() - start_time
-    # Use color for feedback if stderr is a terminal
-    c_blue = (BOLD + BLUE) if _should_enable_color(sys.stderr) else ""
-    c_green = GREEN if _should_enable_color(sys.stderr) else ""
-    c_reset = RESET if _should_enable_color(sys.stderr) else ""
-
-    logging.info(
-        f"{c_blue}[Scan Mode]{c_reset} Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
-        f"Found {c_green}{total_matches}{c_reset} match(es). Output written to '{output_file}'. "
-        f"Processing time: {duration:.3f}s"
-    )
-
-
-def verify_mode(
-    input_files: Sequence[str],
-    mapping_file: str | None,
-    output_file: str,
+                use_color,
+            )
+        )
     min_length: int,
     max_length: int,
     process_output: bool,

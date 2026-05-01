@@ -99,7 +99,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py unique raw_typos.txt`
 
 - **`resolve`**
-  - **What it does:** Finds and flattens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`. This ensures that your mappings always point directly to the final correct word, making them more efficient for scrubbing and analysis.
+  - **What it does:** Finds and shortens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`. This ensures that your mappings always point directly to the final correct word, making them more efficient for fixing typos and analysis.
   - **Example:** `python multitool.py resolve mappings.csv`
 
 - **`rename`**

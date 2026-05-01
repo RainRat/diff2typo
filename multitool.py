@@ -170,7 +170,7 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
 
 def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> str:
     """
-    Categorizes a typo based on its relationship to the correction.
+    Groups a typo based on its relationship to the correction.
     Returns a code: [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, [M] Multiple letters.
     """
     if not typo or not correction or typo == correction:
@@ -255,6 +255,24 @@ def detect_encoding(file_path: str) -> str | None:
 
     logging.warning("Failed to reliably detect encoding for '%s'.", file_path)
     return None
+
+def _get_total_line_count(input_files: Sequence[str]) -> int:
+    """Efficiently counts total lines across multiple files, respecting the stdin cache."""
+    total = 0
+    for f in input_files:
+        if f == '-':
+            total += len(_read_file_lines_robust('-'))
+        else:
+            try:
+                # Use a fast byte-counting approach for regular files
+                with open(f, 'rb') as fp:
+                    # buffer-aware line counting is generally faster than sum(1 for _ in fp)
+                    # but sum(1 for line in fp) is clear and optimized in Python 3
+                    total += sum(1 for _ in fp)
+            except Exception:
+                pass
+    return total
+
 
 def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     """Read lines from a file with robust encoding fallback (UTF-8 -> Detect -> Latin-1)."""
@@ -1597,7 +1615,7 @@ def count_mode(
         min_length = 1
 
     if mapping:
-        # Audit mode: Count occurrences of mapped typos in input files
+        # Audit mode: Count matches of mapped typos in input files
         for input_file in input_files:
             if by_file:
                 file_items = set()
@@ -1889,7 +1907,7 @@ def classify_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Categorizes typo corrections based on their error type.
+    Groups typo corrections based on their error type.
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
@@ -3085,15 +3103,24 @@ def search_mode(
     query_len = len(query_clean) if clean_items else len(query)
     apply_literal_match = min_length <= query_len <= max_length
 
+    # Pre-calculate total lines for a single cohesive progress bar
+    pbar = None
+    if not quiet:
+        total_lines = _get_total_line_count(input_files)
+        pbar = tqdm(total=total_lines, desc="Searching", unit=" lines", disable=quiet)
+
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         # Store original lines without trailing newlines for consistent rendering
         file_contents = [line.rstrip("\n") for line in file_lines]
         match_indices = {}  # index -> highlighted_line
 
-        for i, line_content in enumerate(
-            tqdm(file_contents, desc=f"Searching {input_file}", unit=" lines", disable=quiet)
-        ):
+        if pbar:
+            pbar.set_postfix(file=os.path.basename(input_file), refresh=True)
+
+        for i, line_content in enumerate(file_contents):
+            if pbar:
+                pbar.update(1)
             spans = []
 
             # 1. Exact match on whole line first (case-insensitive)
@@ -3191,6 +3218,9 @@ def search_mode(
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
+
+    if pbar:
+        pbar.close()
 
     if limit is not None:
         accumulated_lines = accumulated_lines[:limit]
@@ -3473,7 +3503,7 @@ def resolve_mode(
     limit: int | None = None,
 ) -> None:
     """
-    Finds and flattens chains of typo corrections. For example, if a list
+    Finds and shortens chains of typo corrections. For example, if a list
     contains A -> B and B -> C, this mode will update it to A -> C and B -> C.
     """
     start_time = time.perf_counter()
@@ -4026,7 +4056,7 @@ def scrub_mode(
             modified_lines = []
             file_replacements = 0
 
-            for line in tqdm(file_lines, desc=f"Scrubbing {input_file}", unit=" lines", disable=quiet):
+            for line in tqdm(file_lines, desc=f"Fixing typos in {input_file}", unit=" lines", disable=quiet):
                 modified_line, replacements = _scrub_line(
                     line, mapping, pattern, clean_items, smart_case
                 )
@@ -4084,13 +4114,13 @@ def scrub_mode(
                         out.write('\n')
 
             logging.info(
-                f"[Scrub Mode] Completed scrubbing {len(input_files)} file(s) using '{mapping_file}'. "
+                f"[Scrub Mode] Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
                 f"Made {total_replacements} replacements. Output written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
         else:
             logging.info(
-                f"[Scrub Mode] Completed scrubbing {len(input_files)} file(s) using '{mapping_file}'. "
+                f"[Scrub Mode] Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
                 f"Made {total_replacements} replacements. Diff report written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
@@ -4281,7 +4311,7 @@ def scan_mode(
     after_context: int = 0,
 ) -> None:
     """
-    Scans files for occurrences of words from a mapping file or extra pairs, providing context.
+    Scans files for matches of words from a mapping file or extra pairs, providing context.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
@@ -4299,12 +4329,23 @@ def scan_mode(
     if show_filename is None:
         show_filename = len(input_files) > 1
 
+    # Pre-calculate total lines for a single cohesive progress bar
+    pbar = None
+    if not quiet:
+        total_lines = _get_total_line_count(input_files)
+        pbar = tqdm(total=total_lines, desc="Scanning", unit=" lines", disable=quiet)
+
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         file_contents = [line.rstrip('\n') for line in file_lines]
         match_indices = {}  # index -> highlighted_line
 
-        for i, line_content in enumerate(tqdm(file_contents, desc=f"Scanning {input_file}", unit=" lines", disable=quiet)):
+        if pbar:
+            pbar.set_postfix(file=os.path.basename(input_file), refresh=True)
+
+        for i, line_content in enumerate(file_contents):
+            if pbar:
+                pbar.update(1)
             parts = pattern.split(line_content)
             match_found = False
 
@@ -4378,6 +4419,9 @@ def scan_mode(
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
+
+    if pbar:
+        pbar.close()
 
     if limit is not None:
         accumulated_lines = accumulated_lines[:limit]
@@ -4840,7 +4884,7 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how often items appear.",
-        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count occurrences of specific typos across your files.",
+        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
         "example": "python multitool.py count . --lines --min-count 5 -f arrow",
         "flags": "[-s S] [-a K:V] [-d D] [-S] [-p] [-l] [-c] [-B]",
     },
@@ -4929,7 +4973,7 @@ MODE_DETAILS = {
         "flags": "[-p]",
     },
     "classify": {
-        "summary": "Categorizes typos by error type.",
+        "summary": "Groups typos by error type.",
         "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, and [M] Multiple letters. Use --show-dist to include the number of character changes.",
         "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
         "flags": "[--show-dist]",
@@ -4948,7 +4992,7 @@ MODE_DETAILS = {
     },
     "cycles": {
         "summary": "Finds loops in typo pairs.",
-        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues during automated scrubbing and represent logic errors in your data.",
+        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues when automatically fixing typos and represent logic errors in your data.",
         "example": "python multitool.py cycles typos.csv --output-format arrow",
         "flags": "",
     },
@@ -5002,13 +5046,13 @@ MODE_DETAILS = {
     },
     "highlight": {
         "summary": "Color-code words from a list.",
-        "description": "Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the scrubbing tool.",
+        "description": "Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the typo-fixing tool.",
         "example": "python multitool.py highlight input.txt --add teh:the",
         "flags": "MAPPING [FILES...] [-a K:V] [-S]",
     },
     "resolve": {
-        "summary": "Flatten typo correction chains.",
-        "description": "Finds and flattens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of scrubbing and analysis.",
+        "summary": "Shorten typo correction chains.",
+        "description": "Finds and shortens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of fixing typos and analysis.",
         "example": "python multitool.py resolve mappings.csv --output resolved.csv",
         "flags": "",
     },
@@ -5141,7 +5185,7 @@ class ModeHelpAction(argparse.Action):
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    # Build a categorized mode summary for the epilog
+    # Build a grouped mode summary for the epilog
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
@@ -5454,12 +5498,12 @@ def _build_parser() -> argparse.ArgumentParser:
         '--min-count',
         type=int,
         default=1,
-        help="Minimum occurrence count to include an item in the output (default: 1).",
+        help="Minimum match count to include an item in the output (default: 1).",
     )
     count_options.add_argument(
         '--max-count',
         type=int,
-        help="Maximum occurrence count to include an item in the output.",
+        help="Maximum match count to include an item in the output.",
     )
     count_options.add_argument(
         '-d', '--delimiter',

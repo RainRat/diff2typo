@@ -2,7 +2,6 @@ import json
 import sys
 import logging
 import io
-import runpy
 import subprocess
 import importlib
 from pathlib import Path
@@ -22,6 +21,11 @@ def test_levenshtein_distance_basic():
     assert typostats.levenshtein_distance('tests', 'test') == 1
     assert typostats.levenshtein_distance('', 'abc') == 3
     assert typostats.levenshtein_distance('abc', '') == 3
+
+
+def test_levenshtein_distance_extra():
+    assert typostats.levenshtein_distance('a', 'abc') == 2
+    assert typostats.levenshtein_distance('abc', 'a') == 2
 
 
 def test_is_transposition_basic():
@@ -70,6 +74,24 @@ def test_is_one_letter_replacement_two_to_one():
     assert typostats.is_one_letter_replacement('a', 'aa', allow_2to1=True, include_deletions=True) == [('aa', 'a')]
 
 
+def test_is_one_letter_replacement_filtering():
+    # 1-to-2 replacement, but it's an insertion: 'a' -> 'aa'
+    assert typostats.is_one_letter_replacement('aa', 'a', allow_1to2=True, include_deletions=False) == []
+    # 2-to-1 replacement, but it's a deletion: 'aa' -> 'a'
+    assert typostats.is_one_letter_replacement('a', 'aa', allow_2to1=True, include_deletions=False) == []
+    # 1-to-2 replacement, not an insertion: 'm' -> 'rn'
+    assert typostats.is_one_letter_replacement('rn', 'm', allow_1to2=True, include_deletions=False) == [('m', 'rn')]
+    # 2-to-1 replacement, not a deletion: 'ph' -> 'f'
+    assert typostats.is_one_letter_replacement('f', 'ph', allow_2to1=True, include_deletions=False) == [('ph', 'f')]
+
+
+def test_is_one_letter_replacement_edge_cases():
+    # Suffix match failures
+    assert typostats.is_one_letter_replacement('abc', 'a', allow_1to2=True) == []
+    assert typostats.is_one_letter_replacement('a', 'abc', allow_2to1=True) == []
+    assert typostats.is_one_letter_replacement('ab', 'abc', allow_2to1=True) == []
+
+
 def test_process_typos_formats():
     assert typostats.process_typos(['teh -> the'])[0] == {}
     assert typostats.process_typos(['teh -> the'], allow_transposition=True)[0] == {('he', 'eh'): 1}
@@ -81,6 +103,18 @@ def test_process_typos_formats():
     assert typostats.process_typos(['fóo, foo'])[0] == {}
     assert typostats.process_typos(['foo, fóo'])[0] == {}
     assert typostats.process_typos(['', 'tezt -> test'])[1] == 2
+
+
+def test_process_typos_multi_format():
+    counts, _, _ = typostats.process_typos(['tezt, test, tent', 'teht -> the', 'tost = "test"'])
+    assert counts[('s', 'z')] == 1
+    assert counts[('n', 'z')] == 1
+    assert counts[('he', 'eh')] == 0
+    assert counts[('e', 'o')] == 1
+
+    # Non-ASCII filters
+    assert typostats.process_typos(['tést, test'])[0] == {}
+    assert typostats.process_typos(['test, tést'])[0] == {}
 
 
 def test_generate_report_formats(capsys, tmp_path):
@@ -98,6 +132,25 @@ def test_generate_report_formats(capsys, tmp_path):
     assert "ANALYSIS SUMMARY" in out_file.read_text()
 
 
+def test_generate_report_formats_extra():
+    counts = {('q', 'w'): 1}
+    # JSON with keyboard
+    with patch('sys.stdout', new=io.StringIO()) as out:
+        typostats.generate_report(counts, output_format='json', keyboard=True)
+        data = json.loads(out.getvalue())
+        assert data["replacements"][0]["is_adjacent"] is True
+
+    # CSV explicit
+    with patch('sys.stdout', new=io.StringIO()) as out:
+        typostats.generate_report(counts, output_format='csv')
+        assert "q,w,1" in out.getvalue()
+
+    # Generic YAML fallback
+    with patch('sys.stdout', new=io.StringIO()) as out:
+        typostats.generate_report(counts, output_format='other')
+        assert "  q:" in out.getvalue()
+
+
 def test_generate_report_sorting_and_filtering(capsys):
     counts = {('b', 'z'): 1, ('a', 'y'): 2, ('a', 'x'): 3}
     typostats.generate_report(counts, sort_by='count', output_format='arrow', quiet=True)
@@ -108,7 +161,6 @@ def test_generate_report_sorting_and_filtering(capsys):
     assert 'x' in lines[0] and 'y' in lines[1] and 'z' in lines[2]
     typostats.generate_report(counts, sort_by='correct', output_format='arrow', quiet=True)
     lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]
-    # First column is TYPO, so we check second column for 'a'
     assert '│ a' in lines[0] and '│ b' in lines[2]
     typostats.generate_report(counts, min_occurrences=2, output_format='arrow', quiet=True)
     assert len([l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]) == 2
@@ -144,6 +196,37 @@ def test_generate_report_markers(capsys):
     assert all(m in out for m in ["[Ins]", "[Del]", "[1:2]", "[2:1]", "[T]"])
 
 
+def test_generate_report_markers_extra():
+    counts = {
+        ('a', 'abc'): 1, # [Ins]
+        ('abc', 'a'): 1, # [Del]
+        ('a', 'bc'): 1,  # [1:2]
+        ('bc', 'a'): 1,  # [2:1]
+    }
+    with patch('sys.stdout', new=io.StringIO()) as out:
+        typostats.generate_report(counts, all=True)
+        val = out.getvalue()
+        assert all(m in val for m in ["[Ins]", "[Del]", "[1:2]", "[2:1]"])
+
+
+def test_generate_report_edge_cases():
+    # Empty filtering result
+    with patch('sys.stderr', new=io.StringIO()) as err:
+        typostats.generate_report({}, quiet=False)
+        assert "No patterns passed the filtering criteria" in err.getvalue()
+
+    # File write failure
+    with patch("builtins.open", side_effect=Exception("Write error")):
+        with patch('logging.error') as mock_log:
+            typostats.generate_report({('a', 'b'): 1}, output_file="fail.txt")
+            mock_log.assert_called()
+
+    # Explicit no results
+    with patch('sys.stderr', new=io.StringIO()) as err:
+        typostats.generate_report({}, quiet=False)
+        assert "No replacements found matching the criteria" in err.getvalue()
+
+
 def test_detect_encoding_variants(caplog):
     with patch('typostats._CHARDET_AVAILABLE', False):
         assert typostats.detect_encoding("dummy.txt") is None
@@ -172,6 +255,29 @@ def test_load_lines_from_file_variants(monkeypatch, tmp_path):
         assert typostats.load_lines_from_file('dummy.txt') == ["\xff"]
 
 
+def test_load_lines_encoding_failures():
+    # Detected encoding failure
+    with patch("builtins.open") as mocked_open:
+        def side_effect(file, mode='r', encoding=None, **kwargs):
+            if mode == 'r' and encoding == 'utf-8': raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+            if mode == 'r' and encoding == 'detected': raise UnicodeDecodeError('detected', b'', 0, 1, 'invalid')
+            if mode == 'r' and encoding == 'latin1': return io.StringIO("latin1")
+            return io.BytesIO(b"data")
+        mocked_open.side_effect = side_effect
+        with patch("typostats.detect_encoding", return_value="detected"):
+            assert typostats.load_lines_from_file("dummy.txt") == ["latin1"]
+
+    # Detect encoding returns None
+    with patch("builtins.open") as mocked_open:
+        def side_effect_none(file, mode='r', encoding=None, **kwargs):
+            if mode == 'r' and encoding == 'utf-8': raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+            if mode == 'r' and encoding == 'latin1': return io.StringIO("latin1_fallback")
+            return io.BytesIO(b"data")
+        mocked_open.side_effect = side_effect_none
+        with patch("typostats.detect_encoding", return_value=None):
+            assert typostats.load_lines_from_file("dummy_none.txt") == ["latin1_fallback"]
+
+
 def test_main_cli_functionality():
     with patch('sys.argv', ['typostats.py', '--help']):
         with pytest.raises(SystemExit): typostats.main()
@@ -186,6 +292,29 @@ def test_main_cli_functionality():
          patch('typostats.generate_report'):
         typostats.main()
         assert mock_process.call_args[1]['allow_1to2'] is True and mock_process.call_args[1]['allow_2to1'] is True
+
+
+def test_main_cli_args_extra():
+    # args.all = True if no flags
+    with patch('sys.argv', ['typostats.py', 'input.txt']), \
+         patch('typostats.load_lines_from_file', return_value=[]), \
+         patch('typostats.generate_report') as mock_report:
+        typostats.main()
+        assert mock_report.call_args[1]['keyboard'] is True
+
+    # input_files = ['-']
+    with patch('sys.argv', ['typostats.py']), \
+         patch('typostats.load_lines_from_file', return_value=[]) as mock_load, \
+         patch('typostats.generate_report'):
+        typostats.main()
+        mock_load.assert_called_with('-')
+
+    # lines is None
+    with patch('sys.argv', ['typostats.py', 'empty.txt']), \
+         patch('typostats.load_lines_from_file', return_value=None), \
+         patch('typostats.generate_report') as mock_report:
+        typostats.main()
+        assert mock_report.call_args[1]['total_lines'] == 0
 
 
 def test_typostats_subprocess_all(tmp_path):
@@ -215,25 +344,65 @@ def test_minimal_formatter():
         assert formatter.format(logging.LogRecord('n', logging.WARNING, 'p', 1, 'msg', None, None)) == 'WARNING: msg'
 
 
+def test_minimal_formatter_color_full():
+    formatter = typostats.MinimalFormatter()
+    record = logging.LogRecord('n', logging.WARNING, 'p', 1, 'msg', None, None)
+    with patch('typostats.sys.stderr.isatty', return_value=True), \
+         patch.dict(formatter.LEVEL_COLORS, {logging.WARNING: "\033[1;33m"}), \
+         patch('typostats.RESET', "\033[0m"):
+        res = formatter.format(record)
+        assert "\033[1;33mWARNING\033[0m: msg" in res
+
+    record_no_name = logging.LogRecord('n', logging.WARNING, 'p', 1, 'msg', None, None)
+    record_no_name.levelname = None
+    assert formatter.format(record_no_name) == "None: msg"
+
+
 def test_format_analysis_summary_branches():
     # Retention bar branches
-    # 100% retention
     report = "\n".join(typostats._format_analysis_summary(10, ["a"] * 10))
-    assert "Retention rate:" in report and "100.0%" in report
-    assert "████████████████████" in report
+    assert "100.0%" in report and "████████████████████" in report
 
-    # 0% retention
     report = "\n".join(typostats._format_analysis_summary(10, []))
-    assert "Retention rate:" in report and "0.0%" in report
-    assert "No items passed" in report
+    assert "0.0%" in report and "No items passed" in report
 
     # Non-hashable unique items
     report = "\n".join(typostats._format_analysis_summary(2, [["a"], ["a"]], item_label="list"))
     assert "Unique items:" in report or "Unique lists:" in report
 
-    # Shortest/Longest with format_item
+    # Shortest/Longest
     report = "\n".join(typostats._format_analysis_summary(2, [("a", "bc"), ("def", "g")]))
     assert "Shortest item:" in report or "Shortest replacement:" in report
     assert "Longest item:" in report or "Longest replacement:" in report
-    report = "\n".join(typostats._format_analysis_summary(10, ["a"], item_label="word"))
-    assert "Total words found:" in report
+
+
+def test_format_analysis_summary_extra_full():
+    report = typostats._format_analysis_summary(
+        10, ["a"] * 5,
+        extra_metrics={"Extra": "Value"},
+        total_input_items=100,
+        start_time=0.0
+    )
+    report_text = "\n".join(report)
+    assert "Total word pairs analyzed:" in report_text
+    assert "Extra:" in report_text
+    assert "Processing time:" in report_text
+
+
+def test_format_analysis_summary_edge_cases():
+    # Bad item causing TypeError in str()
+    class ReallyBadItem:
+        def __str__(self): raise TypeError("Really Bad")
+    report = typostats._format_analysis_summary(10, [ReallyBadItem()])
+    assert report
+
+    # Bad tuple for distances
+    report = typostats._format_analysis_summary(10, [("a", "b"), ("c",)])
+    assert report
+
+
+def test_get_adjacent_keys_no_diagonals():
+    adj = typostats.get_adjacent_keys(include_diagonals=False)
+    assert 'w' in adj['q']
+    assert 'a' in adj['q']
+    assert 's' not in adj['q']

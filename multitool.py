@@ -256,6 +256,24 @@ def detect_encoding(file_path: str) -> str | None:
     logging.warning("Failed to reliably detect encoding for '%s'.", file_path)
     return None
 
+def _get_total_line_count(input_files: Sequence[str]) -> int:
+    """Efficiently counts total lines across multiple files, respecting the stdin cache."""
+    total = 0
+    for f in input_files:
+        if f == '-':
+            total += len(_read_file_lines_robust('-'))
+        else:
+            try:
+                # Use a fast byte-counting approach for regular files
+                with open(f, 'rb') as fp:
+                    # buffer-aware line counting is generally faster than sum(1 for _ in fp)
+                    # but sum(1 for line in fp) is clear and optimized in Python 3
+                    total += sum(1 for _ in fp)
+            except Exception:
+                pass
+    return total
+
+
 def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     """Read lines from a file with robust encoding fallback (UTF-8 -> Detect -> Latin-1)."""
     global _STDIN_CACHE
@@ -3046,15 +3064,24 @@ def search_mode(
     query_len = len(query_clean) if clean_items else len(query)
     apply_literal_match = min_length <= query_len <= max_length
 
+    # Pre-calculate total lines for a single cohesive progress bar
+    pbar = None
+    if not quiet:
+        total_lines = _get_total_line_count(input_files)
+        pbar = tqdm(total=total_lines, desc="Searching", unit=" lines", disable=quiet)
+
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         # Store original lines without trailing newlines for consistent rendering
         file_contents = [line.rstrip("\n") for line in file_lines]
         match_indices = {}  # index -> highlighted_line
 
-        for i, line_content in enumerate(
-            tqdm(file_contents, desc=f"Searching {input_file}", unit=" lines", disable=quiet)
-        ):
+        if pbar:
+            pbar.set_postfix(file=os.path.basename(input_file), refresh=True)
+
+        for i, line_content in enumerate(file_contents):
+            if pbar:
+                pbar.update(1)
             spans = []
 
             # 1. Exact match on whole line first (case-insensitive)
@@ -3152,6 +3179,9 @@ def search_mode(
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
+
+    if pbar:
+        pbar.close()
 
     if limit is not None:
         accumulated_lines = accumulated_lines[:limit]
@@ -4260,12 +4290,23 @@ def scan_mode(
     if show_filename is None:
         show_filename = len(input_files) > 1
 
+    # Pre-calculate total lines for a single cohesive progress bar
+    pbar = None
+    if not quiet:
+        total_lines = _get_total_line_count(input_files)
+        pbar = tqdm(total=total_lines, desc="Scanning", unit=" lines", disable=quiet)
+
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         file_contents = [line.rstrip('\n') for line in file_lines]
         match_indices = {}  # index -> highlighted_line
 
-        for i, line_content in enumerate(tqdm(file_contents, desc=f"Scanning {input_file}", unit=" lines", disable=quiet)):
+        if pbar:
+            pbar.set_postfix(file=os.path.basename(input_file), refresh=True)
+
+        for i, line_content in enumerate(file_contents):
+            if pbar:
+                pbar.update(1)
             parts = pattern.split(line_content)
             match_found = False
 
@@ -4339,6 +4380,9 @@ def scan_mode(
 
     if process_output:
         accumulated_lines = sorted(set(accumulated_lines))
+
+    if pbar:
+        pbar.close()
 
     if limit is not None:
         accumulated_lines = accumulated_lines[:limit]

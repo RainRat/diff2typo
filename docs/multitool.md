@@ -207,10 +207,12 @@ These modes help you analyze your data.
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
     - `-p`, `--pairs`: Count frequencies of word pairs (for example, `typo -> correction`) instead of single words.
+    - `-B`, `--by-file`: Count how many files contain each item instead of total occurrences. This is useful for finding words that are common across your entire project.
   - **Visual Report:** Use `--output-format arrow` to generate a rich visual report. This includes an **ANALYSIS SUMMARY** dashboard with metrics like retention rate, an aligned frequency table, and high-resolution bar charts.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, and `line`.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5 -f arrow --smart`
+  - **By-File Example:** `python multitool.py count src/*.py --by-file --output-format arrow`
   - **Pairs Example:** `python multitool.py count typos.log --pairs --output-format arrow`
 
 - **`cycles`**

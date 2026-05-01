@@ -1571,6 +1571,7 @@ def count_mode(
     chars: bool = False,
     mapping_file: str | None = None,
     ad_hoc: List[str] | None = None,
+    by_file: bool = False,
 ) -> None:
     """
     Counts the frequency of each word, pair, line, or character in the input file(s)
@@ -1598,6 +1599,8 @@ def count_mode(
     if mapping:
         # Audit mode: Count occurrences of mapped typos in input files
         for input_file in input_files:
+            if by_file:
+                file_items = set()
             words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
             for word in words_gen:
                 raw_count += 1
@@ -1605,23 +1608,41 @@ def count_mode(
                 if match_key in mapping:
                     correction = mapping[match_key]
                     if min_length <= len(match_key) <= max_length:
-                        filtered_items.append((match_key, correction))
-                        item_counts.update([(match_key, correction)])
+                        if by_file:
+                            file_items.add((match_key, correction))
+                        else:
+                            filtered_items.append((match_key, correction))
+                            item_counts.update([(match_key, correction)])
+            if by_file:
+                filtered_items.extend(list(file_items))
+                item_counts.update(file_items)
     elif pairs:
         # Mode for counting typo -> correction pairs from existing mapping files
-        for left, right in _extract_pairs(input_files, quiet=quiet):
-            raw_count += 1
-            if clean_items:
-                left = filter_to_letters(left)
-                right = filter_to_letters(right)
-            if not left or not right:
-                continue
-            if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
-                filtered_items.append((left, right))
-                item_counts.update([(left, right)])
+        for input_file in input_files:
+            if by_file:
+                file_items = set()
+            for left, right in _extract_pairs([input_file], quiet=quiet):
+                raw_count += 1
+                if clean_items:
+                    left = filter_to_letters(left)
+                    right = filter_to_letters(right)
+                if not left or not right:
+                    continue
+                if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+                    if by_file:
+                        file_items.add((left, right))
+                    else:
+                        filtered_items.append((left, right))
+                        item_counts.update([(left, right)])
+            if by_file:
+                filtered_items.extend(list(file_items))
+                item_counts.update(file_items)
     else:
         # Default mode for counting individual words, lines, or characters
         for input_file in input_files:
+            if by_file:
+                file_items = set()
+
             if lines:
                 items_gen = _extract_line_items(input_file, quiet=quiet)
             elif chars:
@@ -1634,8 +1655,14 @@ def count_mode(
                 # Filter and clean the item
                 filtered = clean_and_filter([item], min_length, max_length, clean=clean_items)
                 if filtered:
-                    filtered_items.extend(filtered)
-                    item_counts.update(filtered)
+                    if by_file:
+                        file_items.update(filtered)
+                    else:
+                        filtered_items.extend(filtered)
+                        item_counts.update(filtered)
+            if by_file:
+                filtered_items.extend(list(file_items))
+                item_counts.update(file_items)
 
     sorted_words = sorted(item_counts.items(), key=lambda x: (-x[1], x[0]))
 
@@ -1664,11 +1691,14 @@ def count_mode(
             out_file.write('\n')
         elif output_format == 'csv':
             writer = csv.writer(out_file)
+            count_label = "files" if by_file else "count"
             if pairs:
-                writer.writerow(["typo", "correction", "count"])
+                writer.writerow(["typo", "correction", count_label])
                 for item, count in final_results:
                     writer.writerow([item[0], item[1], count])
             else:
+                if by_file:
+                    writer.writerow(["item", count_label])
                 for item, count in final_results:
                     writer.writerow([item, count])
         elif output_format == 'markdown':
@@ -1676,23 +1706,27 @@ def count_mode(
                 label = f"{item[0]} -> {item[1]}" if pairs else item
                 out_file.write(f"- {label}: {count}\n")
         elif output_format == 'md-table':
+            count_label = "Files" if by_file else "Count"
             if pairs:
-                out_file.write("| Typo | Correction | Count |\n")
+                out_file.write(f"| Typo | Correction | {count_label} |\n")
                 out_file.write("| :--- | :--- | :--- |\n")
                 for item, count in final_results:
                     out_file.write(f"| {item[0]} | {item[1]} | {count} |\n")
             else:
-                out_file.write("| Item | Count |\n")
+                out_file.write(f"| Item | {count_label} |\n")
                 out_file.write("| :--- | :--- |\n")
                 for item, count in final_results:
                     out_file.write(f"| {item} | {count} |\n")
         elif output_format == 'arrow':
             # Rich visual report for arrow format
             total_count = sum(item_counts.values())
+            # For file-based counting, percentages are relative to total files
+            total_for_pct = len(input_files) if by_file else total_count
 
             # Find max width for common columns
             max_count_len = max((len(str(count)) for item, count in final_results), default=5)
-            max_count_len = max(max_count_len, 5)  # 'Count'
+            count_header_label = "Files" if by_file else "Count"
+            max_count_len = max(max_count_len, len(count_header_label))
             max_pct = 6  # "100.0%"
             max_bar = 20
 
@@ -1724,7 +1758,7 @@ def count_mode(
                 header = (
                     f"{padding}{c_out_bold}{c_out_blue}{item_header_left:<{max_left}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{item_header_right:<{max_right}}{c_out_reset} {sep} "
-                    f"{c_out_bold}{c_out_blue}{'Count':>{max_count_len}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{count_header_label:>{max_count_len}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{'Visual':<{max_bar}}{c_out_reset}"
                 )
@@ -1743,7 +1777,7 @@ def count_mode(
 
                 header = (
                     f"{padding}{c_out_bold}{c_out_blue}{item_header:<{max_item}}{c_out_reset} {sep} "
-                    f"{c_out_bold}{c_out_blue}{'Count':>{max_count_len}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{count_header_label:>{max_count_len}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{'Visual':<{max_bar}}{c_out_reset}"
                 )
@@ -1763,8 +1797,13 @@ def count_mode(
                 else:
                     item_label = "word"
 
+                extra_metrics = {}
+                if by_file:
+                    extra_metrics["Total files processed"] = len(input_files)
+
                 summary_lines = _format_analysis_summary(
-                    raw_count, filtered_items, item_label, start_time, use_color_err
+                    raw_count, filtered_items, item_label, start_time, use_color_err,
+                    extra_metrics=extra_metrics
                 )
                 summary_text = "\n".join(summary_lines) + "\n"
 
@@ -1780,7 +1819,7 @@ def count_mode(
                     out_file.write(header_block)
 
             for item, count in final_results:
-                percent = (count / total_count * 100) if total_count > 0 else 0
+                percent = (count / total_for_pct * 100) if total_for_pct > 0 else 0
 
                 # High-res visual bar
                 total_blocks = (percent * max_bar) / 100
@@ -4801,9 +4840,9 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how often items appear.",
-        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. You can also provide a mapping (via --mapping or --add) to count occurrences of specific typos across your files.",
+        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count occurrences of specific typos across your files.",
         "example": "python multitool.py count . --lines --min-count 5 -f arrow",
-        "flags": "[-s S] [-a K:V] [-d D] [-S] [-p] [-l] [-c]",
+        "flags": "[-s S] [-a K:V] [-d D] [-S] [-p] [-l] [-c] [-B]",
     },
     "filterfragments": {
         "summary": "Removes words found inside others.",
@@ -5431,6 +5470,11 @@ def _build_parser() -> argparse.ArgumentParser:
         '-S', '--smart',
         action='store_true',
         help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
+    )
+    count_options.add_argument(
+        '-B', '--by-file',
+        action='store_true',
+        help='Count how many files contain each item instead of total occurrences.',
     )
     unit_group = count_options.add_mutually_exclusive_group()
     unit_group.add_argument(
@@ -6590,6 +6634,7 @@ def main() -> None:
                 'chars': getattr(args, 'chars', False),
                 'mapping_file': getattr(args, 'mapping', None),
                 'ad_hoc': getattr(args, 'ad_hoc', None),
+                'by_file': getattr(args, 'by_file', False),
             },
         ),
         'filterfragments': (

@@ -12,7 +12,7 @@ import multitool
 
 @pytest.fixture(autouse=True)
 def disable_tqdm(monkeypatch):
-    monkeypatch.setattr(multitool, "tqdm", lambda iterable, *_, **__: iterable)
+    monkeypatch.setattr(multitool, "tqdm", lambda iterable=None, *_, **__: iterable if iterable is not None else MagicMock())
 
 def test_read_file_lines_robust_not_found(caplog):
     with caplog.at_level(logging.ERROR):

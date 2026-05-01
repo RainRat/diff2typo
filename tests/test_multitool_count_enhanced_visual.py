@@ -8,7 +8,7 @@ import multitool
 @pytest.fixture(autouse=True)
 def disable_tqdm(monkeypatch):
     """Replace tqdm with identity to avoid progress output during tests."""
-    monkeypatch.setattr(multitool, "tqdm", lambda iterable, *_, **__: iterable)
+    monkeypatch.setattr(multitool, "tqdm", lambda iterable=None, *_, **__: iterable if iterable is not None else MagicMock())
 
 def test_count_mode_smart_splitting(tmp_path):
     input_file = tmp_path / "input.txt"

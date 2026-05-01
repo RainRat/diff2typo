@@ -82,7 +82,7 @@ def test_validate_config_missing_field():
 
 
 def test_run_typo_generation_filters_existing_words(monkeypatch):
-    monkeypatch.setattr(gentypos, 'tqdm', lambda iterable, *_, **__: iterable)
+    monkeypatch.setattr(gentypos, 'tqdm', lambda iterable=None, *_, **__: iterable if iterable is not None else MagicMock())
 
     settings = types.SimpleNamespace(
         min_length=1,
@@ -104,7 +104,7 @@ def test_run_typo_generation_filters_existing_words(monkeypatch):
 
 def test_main_integration_success(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(gentypos, 'tqdm', lambda iterable, *_, **__: iterable)
+    monkeypatch.setattr(gentypos, 'tqdm', lambda iterable=None, *_, **__: iterable if iterable is not None else MagicMock())
 
     input_file = tmp_path / 'input.txt'
     input_file.write_text('cat\n')

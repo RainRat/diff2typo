@@ -1,6 +1,9 @@
 import sys
 import logging
+import os
+import importlib
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -8,6 +11,7 @@ import yaml
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import cmdrunner
+from cmdrunner import MinimalFormatter, ConfigError
 
 
 def test_load_config_success(tmp_path):
@@ -33,7 +37,7 @@ def test_load_config_malformed_yaml(tmp_path):
     bad_file = tmp_path / 'bad.yaml'
     bad_file.write_text(": invalid: yaml: content")
 
-    with pytest.raises(cmdrunner.ConfigError, match="Error parsing YAML file"):
+    with pytest.raises(ConfigError, match="Error parsing YAML file"):
         cmdrunner.load_config(str(bad_file))
 
 
@@ -41,7 +45,7 @@ def test_load_config_empty_file(tmp_path):
     empty_file = tmp_path / 'empty.yaml'
     empty_file.write_text("")
 
-    with pytest.raises(cmdrunner.ConfigError, match="empty or malformed"):
+    with pytest.raises(ConfigError, match="empty or malformed"):
         cmdrunner.load_config(str(empty_file))
 
 
@@ -56,7 +60,7 @@ def test_load_config_missing_required_fields(tmp_path, config_data, expected_mes
     config_file = tmp_path / 'config.yaml'
     config_file.write_text(yaml.safe_dump(config_data))
 
-    with pytest.raises(cmdrunner.ConfigError, match=expected_message):
+    with pytest.raises(ConfigError, match=expected_message):
         cmdrunner.load_config(str(config_file))
 
 
@@ -65,6 +69,7 @@ def test_load_config_invalid_types(tmp_path):
     config_file.write_text(
         yaml.safe_dump(
             {
+                'main_folder': 456,
                 'base_directory': 123,
                 'command_to_run': ['echo', 'test'],
                 'excluded_folders': 'not-a-list',
@@ -72,13 +77,31 @@ def test_load_config_invalid_types(tmp_path):
         )
     )
 
-    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+    with pytest.raises(ConfigError) as exc_info:
         cmdrunner.load_config(str(config_file))
 
     message = str(exc_info.value)
+    assert "'main_folder' must be a string" in message
     assert "'base_directory' must be a string" in message
     assert "'command_to_run' must be a string" in message
     assert "must be a list" in message
+
+
+def test_load_config_invalid_main_folder(tmp_path):
+    config_file = tmp_path / 'config_invalid_main.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': 123,
+                'command_to_run': 'echo test',
+            }
+        )
+    )
+
+    with pytest.raises(ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    assert "'main_folder' must be a string" in exc_info.value.args[0]
 
 
 def test_run_command_in_folders_creates_files(tmp_path):
@@ -296,3 +319,128 @@ def test_main_missing_command_to_run(tmp_path, monkeypatch):
 
     with pytest.raises(SystemExit):
         cmdrunner.main()
+
+# --- Consolidated from test_cmdrunner_extra.py and expanded for full coverage ---
+
+def test_minimal_formatter_info():
+    formatter = MinimalFormatter()
+    record = logging.LogRecord(
+        name="test",
+        level=logging.INFO,
+        pathname="test.py",
+        lineno=10,
+        msg="info message",
+        args=None,
+        exc_info=None
+    )
+    assert formatter.format(record) == "info message"
+
+def test_minimal_formatter_warning_no_tty():
+    formatter = MinimalFormatter()
+    record = logging.LogRecord(
+        name="test",
+        level=logging.WARNING,
+        pathname="test.py",
+        lineno=10,
+        msg="warning message",
+        args=None,
+        exc_info=None
+    )
+    # Mock sys.stderr.isatty() to return False
+    with patch("sys.stderr.isatty", return_value=False):
+        assert formatter.format(record) == "WARNING: warning message"
+
+def test_minimal_formatter_error_with_tty():
+    with patch("cmdrunner.RED", "\033[31m"), patch("cmdrunner.RESET", "\033[0m"):
+        # Patch the class attribute
+        with patch.dict(MinimalFormatter.LEVEL_COLORS, {logging.ERROR: "\033[31m"}):
+            formatter = MinimalFormatter()
+            record = logging.LogRecord(
+                name="test",
+                level=logging.ERROR,
+                pathname="test.py",
+                lineno=10,
+                msg="error message",
+                args=None,
+                exc_info=None
+            )
+            # Mock sys.stderr.isatty() to return True
+            with patch("sys.stderr.isatty", return_value=True):
+                formatted = formatter.format(record)
+                assert "\033[31m" in formatted
+                assert "ERROR" in formatted
+                assert "error message" in formatted
+
+def test_minimal_formatter_uncolored_level_with_tty():
+    """Covers line 46: when a level has no color defined in LEVEL_COLORS."""
+    formatter = MinimalFormatter()
+    record = logging.LogRecord(
+        name="test",
+        level=logging.DEBUG,
+        pathname="test.py",
+        lineno=10,
+        msg="debug message",
+        args=None,
+        exc_info=None
+    )
+    with patch("sys.stderr.isatty", return_value=True):
+        assert formatter.format(record) == "DEBUG: debug message"
+
+def test_minimal_formatter_no_levelname():
+    """Covers line 44: when levelname is empty or None."""
+    formatter = MinimalFormatter()
+    record = logging.LogRecord(
+        name="test",
+        level=logging.WARNING,
+        pathname="test.py",
+        lineno=10,
+        msg="warning message",
+        args=None,
+        exc_info=None
+    )
+    record.levelname = ""
+    with patch("sys.stderr.isatty", return_value=True):
+        assert formatter.format(record) == ": warning message"
+
+def test_load_config_no_yaml_available():
+    with patch("cmdrunner._YAML_AVAILABLE", False):
+        with patch("logging.error") as mock_log_error:
+            with pytest.raises(SystemExit) as excinfo:
+                cmdrunner.load_config("any.yaml")
+            assert excinfo.value.code == 1
+            mock_log_error.assert_called_with("PyYAML is not installed. Install via 'pip install PyYAML' to use cmdrunner.")
+
+def test_color_initialization_no_tty():
+    """Covers line 25: when stdout is not a tty, colors should be disabled."""
+    with patch("sys.stdout.isatty", return_value=False), \
+         patch.dict(os.environ, {}, clear=False):
+        if "cmdrunner" in sys.modules:
+            importlib.reload(cmdrunner)
+        assert cmdrunner.RED == ""
+        assert cmdrunner.GREEN == ""
+
+def test_color_initialization_no_color_env():
+    """Covers line 25: when NO_COLOR is set, colors should be disabled."""
+    with patch("sys.stdout.isatty", return_value=True), \
+         patch.dict(os.environ, {"NO_COLOR": "1"}):
+        if "cmdrunner" in sys.modules:
+            importlib.reload(cmdrunner)
+        assert cmdrunner.RED == ""
+        assert cmdrunner.GREEN == ""
+
+def test_color_initialization_enabled():
+    """Verifies colors are enabled when tty is present and NO_COLOR is NOT set."""
+    with patch("sys.stdout.isatty", return_value=True), \
+         patch.dict(os.environ, {}, clear=True):
+        # We need to make sure we don't accidentally have NO_COLOR from the environment
+        if "cmdrunner" in sys.modules:
+            importlib.reload(cmdrunner)
+        assert cmdrunner.RED != ""
+        assert cmdrunner.GREEN != ""
+
+def test_main_block():
+    import runpy
+    with patch("sys.argv", ["cmdrunner.py", "--help"]):
+        with pytest.raises(SystemExit) as excinfo:
+            runpy.run_module("cmdrunner", run_name="__main__")
+        assert excinfo.value.code == 0

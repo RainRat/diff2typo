@@ -56,13 +56,14 @@ When using the default **arrow** format, the report displays results in two sect
 ```text
   ANALYSIS SUMMARY
   ───────────────────────────────────────────────────────
-  Total word pairs encountered:       4
-  Total patterns after analysis:      4
+  Total word pairs analyzed:          4
+  Total patterns encountered:         4
+  Total patterns after filtering:     4
   Retention rate:                     100.0% ████████████████████
-  Unique patterns found:              3
+  Unique patterns:                    3
   Min/Max/Avg length:                 7 / 8 / 7.5
-  Shortest replacement:               'rn -> m' (length: 7)
-  Longest replacement:                'he -> eh' (length: 8)
+  Shortest pattern:                   'm -> rn' (length: 7)
+  Longest pattern:                    'eh -> he' (length: 8)
   Min/Max/Avg changes:                1 / 2 / 1.8
   Total lines processed:              4
   Enabled features:                   keyboard, transposition, 1-to-2, 2-to-1, deletions/insertions
@@ -73,33 +74,34 @@ When using the default **arrow** format, the report displays results in two sect
 
   LETTER REPLACEMENTS
   ───────────────────────────────────────────────────────
-  CORRECT │ TYPO │ COUNT │      % │ ATTR │ VISUAL
+  TYPO │ CORRECT │ COUNT │      % │ ATTR  │ VISUAL
   ───────────────────────────────────────────────────────
-       he │ eh   │     2 │  50.0% │ [T]   │ ███████▌
-       rn │ m    │     1 │  25.0% │ [2:1] │ ███▊
-        h │ he   │     1 │  25.0% │ [Ins] │ ███▊
+  eh   │ he      │     2 │  50.0% │ [T]   │ ███████▌
+  m    │ rn      │     1 │  25.0% │ [2:1] │ ███▊
+  he   │ h       │     1 │  25.0% │ [Ins] │ ███▊
 ```
 
 ### Analysis Summary
 The dashboard at the top gives you an overview of your typo history:
-- **Total word pairs encountered:** The number of typo-correction pairs found in the input.
-- **Total patterns after analysis:** The number of character-level replacements extracted.
+- **Total word pairs analyzed:** The number of typo-correction pairs found in the input.
+- **Total patterns encountered:** The total number of character-level replacements extracted.
+- **Total patterns after filtering:** The number of patterns that remain after applying filters (like `--min`).
 - **Retention rate:** A visual bar showing the percentage of items kept after filtering.
-- **Unique patterns found:** The number of distinct character-level mistakes found.
+- **Unique patterns:** The number of distinct character-level mistakes found.
 - **Min/Max/Avg length:** Statistics on the length of the extracted patterns.
 - **Min/Max/Avg changes:** Statistics on the number of character changes (edit distance) per typo.
 - **Enabled features:** Which analysis modes (like keyboard adjacency or transpositions) were active.
 
 ### Letter Replacements Table
 This section breaks down every mistake:
-- **CORRECT:** The character you intended to type.
 - **TYPO:** The mistake you actually made.
+- **CORRECT:** The character you intended to type.
 - **COUNT:** How many times this specific mistake happened.
 - **%:** What percentage of all found replacements this mistake represents.
 - **ATTR:** Special markers showing the type of mistake (for example, `[K]` for keyboard slip).
 - **VISUAL:** A high-resolution bar chart for quick comparison.
 
-For example, a row showing `he │ eh` means you swapped the letters `h` and `e`.
+For example, a row showing `eh │ he` means you swapped the letters `h` and `e`.
 
 ### Typo Attributes (ATTR)
 When you enable analysis features, the tool finds specific patterns in the **ATTR** column:

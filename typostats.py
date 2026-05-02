@@ -111,10 +111,9 @@ def _format_analysis_summary(
             f"  {c_bold}{c_blue}{'Total word pairs analyzed:':<{label_width}}{c_reset} {c_yellow}{total_input_items}{c_reset}"
         )
 
-    # In typostats, raw_count is the total number of patterns found, but filtered_items are patterns kept.
-    # We rename labels to be more descriptive of what they actually count.
-    raw_label = f"Total {item_label_plural} found:"
-    filtered_label = f"Total {item_label_plural} kept:"
+    # In typostats, raw_count is the total number of patterns encountered, but filtered_items are patterns after filtering.
+    raw_label = f"Total {item_label_plural} encountered:"
+    filtered_label = f"Total {item_label_plural} after filtering:"
 
     report.append(
         f"  {c_bold}{c_blue}{raw_label:<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
@@ -151,7 +150,7 @@ def _format_analysis_summary(
     except (TypeError, ValueError):
         unique_count = len(filtered_items)
 
-    unique_label = "Unique patterns found:" if item_label in ("replacement", "pattern") else f"Unique {item_label_plural}:"
+    unique_label = "Unique patterns:" if item_label in ("replacement", "pattern") else f"Unique {item_label_plural}:"
     report.append(
         f"  {c_bold}{c_blue}{unique_label:<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
     )
@@ -161,7 +160,7 @@ def _format_analysis_summary(
 
         def format_item(it: Any) -> str:
             if isinstance(it, tuple) and len(it) == 2:
-                return f"{it[0]} -> {it[1]}"
+                return f"{it[1]} -> {it[0]}"
             return str(it)
 
         try:
@@ -728,8 +727,8 @@ def generate_report(
         replacements = []
         for (correct_char, typo_char), count in sorted_replacements:
             item = {
-                "correct": correct_char,
                 "typo": typo_char,
+                "correct": correct_char,
                 "count": count,
             }
             if keyboard:
@@ -744,9 +743,9 @@ def generate_report(
     elif output_format == 'csv':
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['correct_char', 'typo_char', 'count'])
+        writer.writerow(['typo', 'correction', 'count'])
         for (correct_char, typo_char), count in sorted_replacements:
-            writer.writerow([correct_char, typo_char, count])
+            writer.writerow([typo_char, correct_char, count])
         report_content = output.getvalue()
     else:
         # YAML-like

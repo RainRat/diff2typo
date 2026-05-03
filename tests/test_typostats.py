@@ -124,7 +124,7 @@ def test_generate_report_formats(capsys, tmp_path):
     typostats.generate_report(counts, output_format='json')
     assert len(json.loads(capsys.readouterr().out)["replacements"]) == 2
     typostats.generate_report(counts, output_format='csv')
-    assert "correct_char,typo_char,count" in capsys.readouterr().out
+    assert "typo,correction,count" in capsys.readouterr().out
     typostats.generate_report(counts, output_format='yaml')
     assert "  s:" in capsys.readouterr().out
     out_file = tmp_path / "report.txt"
@@ -143,7 +143,7 @@ def test_generate_report_formats_extra():
     # CSV explicit
     with patch('sys.stdout', new=io.StringIO()) as out:
         typostats.generate_report(counts, output_format='csv')
-        assert "q,w,1" in out.getvalue()
+        assert "w,q,1" in out.getvalue()
 
     # Generic YAML fallback
     with patch('sys.stdout', new=io.StringIO()) as out:

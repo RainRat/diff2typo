@@ -70,6 +70,9 @@ def test_scan_extra(tmp_path, monkeypatch):
     monkeypatch.setattr(multitool, "RESET", "[R]")
     monkeypatch.setattr(multitool, "BOLD", "[B]")
     monkeypatch.setattr(multitool, "BLUE", "[C]")
+    monkeypatch.setattr(multitool, "CYAN", "[Cy]")
+    monkeypatch.setattr(multitool, "GREEN", "[G]")
+    monkeypatch.setattr(multitool, "MAGENTA", "[M]")
     monkeypatch.setenv("FORCE_COLOR", "1")
 
     # Scan with line numbers and extra
@@ -85,7 +88,8 @@ def test_scan_extra(tmp_path, monkeypatch):
 
     # Output should include line number and highlighted match
     # Since only 1 file, filename might not be shown by default unless forced or multiple files
-    assert "[B][C]1:[R] [B][Y]teh[R] cat" in captured_output.getvalue()
+    # The new format for line 1 match is: [B][G]1[R][B][Cy]:[R] [B][Y]teh[R] cat
+    assert "[B][G]1[R][B][Cy]:[R] [B][Y]teh[R] cat" in captured_output.getvalue()
 
 def test_map_file_and_extra(tmp_path):
     mapping_file = tmp_path / "map.csv"

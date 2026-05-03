@@ -2989,15 +2989,19 @@ def _format_search_line(
         return line_content
 
     if use_color:
-        style = (BOLD + BLUE) if is_match else BLUE
+        style = BOLD if is_match else ""
+        c_sep = style + CYAN
         parts = []
         if show_filename:
-            parts.append(filename)
+            parts.append(f"{style}{MAGENTA}{filename}{RESET}")
         if line_numbers:
-            parts.append(str(line_idx + 1))
-        
-        prefix = sep_char.join(parts) + sep_char
-        return f"{style}{prefix}{RESET} {line_content}"
+            parts.append(f"{style}{GREEN}{line_idx + 1}{RESET}")
+
+        if not parts:
+            return line_content
+
+        prefix = f"{c_sep}{sep_char}{RESET}".join(parts) + f"{c_sep}{sep_char}{RESET}"
+        return f"{prefix} {line_content}"
     else:
         prefix_parts = []
         if show_filename:
@@ -3030,7 +3034,7 @@ def _render_context_to_lines(
 
         # If there's a gap between blocks, add separator
         if last_rendered_idx != -1 and start > last_rendered_idx:
-            separator = f"{BLUE}--{RESET}" if use_color else "--"
+            separator = f"{BOLD}{BLUE}--{RESET}" if use_color else "--"
             accumulated_lines.append(separator)
 
         # Render lines in the window that haven't been rendered yet

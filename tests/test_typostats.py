@@ -33,6 +33,7 @@ def test_is_transposition_basic():
     assert typostats.is_transposition('tehs', 'thes') == [('he', 'eh')]
     assert typostats.is_transposition('test', 'test') == []
     assert typostats.is_transposition('tset', 'test') == [('es', 'se')]
+    assert typostats.is_transposition('abcde', 'abcle') == [] # Not a transposition
     assert typostats.is_transposition('abcde', 'abced') == [('ed', 'de')]
     assert typostats.is_transposition('ecbad', 'abcde') == []
     assert typostats.is_transposition("abc", "ab") == []
@@ -93,28 +94,33 @@ def test_is_one_letter_replacement_edge_cases():
 
 
 def test_process_typos_formats():
-    assert typostats.process_typos(['teh -> the'])[0] == {}
-    assert typostats.process_typos(['teh -> the'], allow_transposition=True)[0] == {('he', 'eh'): 1}
-    assert typostats.process_typos(['tezt = "test"'])[0] == {('s', 'z'): 1}
-    assert typostats.process_typos(['tezt: test'])[0] == {('s', 'z'): 1}
-    assert typostats.process_typos(['tezt, test'])[0] == {('s', 'z'): 1}
-    counts, _, _ = typostats.process_typos(['tezt, test, toast'])
-    assert counts == {('s', 'z'): 1}
-    assert typostats.process_typos(['fóo, foo'])[0] == {}
-    assert typostats.process_typos(['foo, fóo'])[0] == {}
-    assert typostats.process_typos(['', 'tezt -> test'])[1] == 2
+    # process_typos now takes pairs directly
+    assert typostats.process_typos([('teh', 'the')])[0] == {}
+    assert typostats.process_typos([('teh', 'the')], allow_transposition=True)[0] == {('he', 'eh'): 1}
+    assert typostats.process_typos([('tezt', 'test')])[0] == {('s', 'z'): 1}
+
+    # Test with multiple pairs
+    counts, pairs_count = typostats.process_typos([('tezt', 'test'), ('tezt', 'tent')])
+    assert counts == {('s', 'z'): 1, ('n', 'z'): 1}
+    assert pairs_count == 2
+
+    # Non-ASCII word filter
+    assert typostats.process_typos([('fóo', 'foo')])[0] == {}
+    assert typostats.process_typos([('foo', 'fóo')])[0] == {}
 
 
 def test_process_typos_multi_format():
-    counts, _, _ = typostats.process_typos(['tezt, test, tent', 'teht -> the', 'tost = "test"'])
+    pairs = [('tezt', 'test'), ('tezt', 'tent'), ('teht', 'the'), ('tost', 'test')]
+    counts, pairs_count = typostats.process_typos(pairs)
     assert counts[('s', 'z')] == 1
     assert counts[('n', 'z')] == 1
     assert counts[('he', 'eh')] == 0
     assert counts[('e', 'o')] == 1
+    assert pairs_count == 4
 
     # Non-ASCII filters
-    assert typostats.process_typos(['tést, test'])[0] == {}
-    assert typostats.process_typos(['test, tést'])[0] == {}
+    assert typostats.process_typos([('tést', 'test')])[0] == {}
+    assert typostats.process_typos([('test', 'tést')])[0] == {}
 
 
 def test_generate_report_formats(capsys, tmp_path):
@@ -240,55 +246,81 @@ def test_detect_encoding_variants(caplog):
             assert typostats.detect_encoding("dummy.txt") is None
 
 
-def test_load_lines_from_file_variants(monkeypatch, tmp_path):
-    monkeypatch.setattr(sys.stdin, 'readlines', lambda: ["line1\n"])
-    assert typostats.load_lines_from_file('-') == ["line1\n"]
-    assert typostats.load_lines_from_file(str(tmp_path / "nonexistent")) is None
+def test_read_file_lines_robust_variants(tmp_path):
+    from unittest.mock import MagicMock
+    # Reset STDIN cache
+    typostats._STDIN_CACHE = None
+
+    # Mock sys.stdin
+    mock_stdin = MagicMock()
+    mock_stdin.buffer.read.return_value = b"line1\n"
+    with patch('typostats.sys.stdin', mock_stdin):
+        assert typostats._read_file_lines_robust('-') == ["line1\n"]
+
+    # Test nonexistent file
+    with pytest.raises(SystemExit):
+        typostats._read_file_lines_robust(str(tmp_path / "nonexistent"))
+
+    # Test directory
+    dir_path = tmp_path / "test_dir"
+    dir_path.mkdir()
+    assert typostats._read_file_lines_robust(str(dir_path)) == []
+
+    # Test encoding fallback
     mock_files = {'dummy.txt': b'\xff'}
-    def mocked_open(file, mode='r', encoding=None, **kwargs):
+    def mocked_open_func(file, mode='r', encoding=None, **kwargs):
         if 'b' in mode: return io.BytesIO(mock_files['dummy.txt'])
         if encoding == 'utf-8': raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
-        if encoding == 'latin1': return io.StringIO("\xff")
+        if encoding == 'latin-1': return io.StringIO("\xff")
         raise UnicodeDecodeError('other', b'', 0, 1, 'invalid')
-    with patch('builtins.open', side_effect=mocked_open), \
-         patch('typostats.detect_encoding', return_value=None):
-        assert typostats.load_lines_from_file('dummy.txt') == ["\xff"]
+
+    with patch('builtins.open', side_effect=mocked_open_func), \
+         patch('typostats.detect_encoding', return_value=None), \
+         patch('os.path.exists', return_value=True), \
+         patch('os.path.isdir', return_value=False):
+        assert typostats._read_file_lines_robust('dummy.txt') == ["\xff"]
 
 
-def test_load_lines_encoding_failures():
+def test_read_file_lines_robust_encoding_failures():
     # Detected encoding failure
     with patch("builtins.open") as mocked_open:
         def side_effect(file, mode='r', encoding=None, **kwargs):
+            if 'b' in mode: return io.BytesIO(b"data")
             if mode == 'r' and encoding == 'utf-8': raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
             if mode == 'r' and encoding == 'detected': raise UnicodeDecodeError('detected', b'', 0, 1, 'invalid')
-            if mode == 'r' and encoding == 'latin1': return io.StringIO("latin1")
-            return io.BytesIO(b"data")
+            if mode == 'r' and encoding == 'latin-1': return io.StringIO("latin-1")
+            return io.StringIO("default")
         mocked_open.side_effect = side_effect
-        with patch("typostats.detect_encoding", return_value="detected"):
-            assert typostats.load_lines_from_file("dummy.txt") == ["latin1"]
+        with patch("typostats.detect_encoding", return_value="detected"), \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=False):
+            assert typostats._read_file_lines_robust("dummy.txt") == ["latin-1"]
 
     # Detect encoding returns None
     with patch("builtins.open") as mocked_open:
         def side_effect_none(file, mode='r', encoding=None, **kwargs):
+            if 'b' in mode: return io.BytesIO(b"data")
             if mode == 'r' and encoding == 'utf-8': raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
-            if mode == 'r' and encoding == 'latin1': return io.StringIO("latin1_fallback")
-            return io.BytesIO(b"data")
+            if mode == 'r' and encoding == 'latin-1': return io.StringIO("latin-1_fallback")
+            return io.StringIO("default")
         mocked_open.side_effect = side_effect_none
-        with patch("typostats.detect_encoding", return_value=None):
-            assert typostats.load_lines_from_file("dummy_none.txt") == ["latin1_fallback"]
+        with patch("typostats.detect_encoding", return_value=None), \
+             patch('os.path.exists', return_value=True), \
+             patch('os.path.isdir', return_value=False):
+            assert typostats._read_file_lines_robust("dummy_none.txt") == ["latin-1_fallback"]
 
 
 def test_main_cli_functionality():
     with patch('sys.argv', ['typostats.py', '--help']):
         with pytest.raises(SystemExit): typostats.main()
     with patch('sys.argv', ['typostats.py', 'input.txt', '-a', '-q']), \
-         patch('typostats.load_lines_from_file', return_value=["teh -> the"]), \
+         patch('typostats._extract_pairs', return_value=[("teh", "the")]), \
          patch('typostats.generate_report') as mock_report:
         typostats.main()
         assert mock_report.call_args[1]['keyboard'] is True and mock_report.call_args[1]['quiet'] is True
     with patch('sys.argv', ['typostats.py', 'input.txt', '--allow-two-char']), \
-         patch('typostats.load_lines_from_file', return_value=["m -> rn"]), \
-         patch('typostats.process_typos', return_value=({}, 0, 0)) as mock_process, \
+         patch('typostats._extract_pairs', return_value=[("m", "rn")]), \
+         patch('typostats.process_typos', return_value=({}, 0)) as mock_process, \
          patch('typostats.generate_report'):
         typostats.main()
         assert mock_process.call_args[1]['allow_1to2'] is True and mock_process.call_args[1]['allow_2to1'] is True
@@ -297,24 +329,24 @@ def test_main_cli_functionality():
 def test_main_cli_args_extra():
     # args.all = True if no flags
     with patch('sys.argv', ['typostats.py', 'input.txt']), \
-         patch('typostats.load_lines_from_file', return_value=[]), \
+         patch('typostats._extract_pairs', return_value=[]), \
          patch('typostats.generate_report') as mock_report:
         typostats.main()
         assert mock_report.call_args[1]['keyboard'] is True
 
     # input_files = ['-']
     with patch('sys.argv', ['typostats.py']), \
-         patch('typostats.load_lines_from_file', return_value=[]) as mock_load, \
+         patch('typostats._extract_pairs', return_value=[]) as mock_extract, \
          patch('typostats.generate_report'):
         typostats.main()
-        mock_load.assert_called_with('-')
+        mock_extract.assert_called_with(['-'], quiet=False)
 
-    # lines is None
+    # empty result
     with patch('sys.argv', ['typostats.py', 'empty.txt']), \
-         patch('typostats.load_lines_from_file', return_value=None), \
+         patch('typostats._extract_pairs', return_value=[]), \
          patch('typostats.generate_report') as mock_report:
         typostats.main()
-        assert mock_report.call_args[1]['total_lines'] == 0
+        assert mock_report.call_args[1]['total_pairs'] == 0
 
 
 def test_typostats_subprocess_all(tmp_path):

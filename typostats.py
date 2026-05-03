@@ -5,8 +5,9 @@ import logging
 import csv
 import io
 import os
+import re
 import time
-from typing import Any, Iterable, List, Mapping, Sequence
+from typing import Any, Iterable, List, Mapping, Sequence, Tuple
 
 try:
     from tqdm import tqdm
@@ -23,6 +24,14 @@ except ImportError:  # pragma: no cover - optional dependency
     chardet = None
     _CHARDET_AVAILABLE = False
 
+try:
+    import yaml
+    _YAML_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    _YAML_AVAILABLE = False
+
+# Cache for standard input to allow multiple passes
+_STDIN_CACHE: List[str] | None = None
 
 # ANSI Color Codes
 BLUE = "\033[1;34m"
@@ -302,6 +311,199 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     return adjacent
 
 
+def _parse_markdown_table_row(line: str) -> List[str] | None:
+    """
+    Parses a single line as a Markdown table row.
+    Returns a list of cell contents if it's a valid data row, otherwise None.
+    """
+    content = line.strip()
+    if not (content.startswith('|') and content.count('|') >= 2):
+        return None
+
+    parts = [p.strip() for p in content.split('|')]
+    # Filter out empty parts from edges if they exist
+    if parts and not parts[0]:
+        parts = parts[1:]
+    if parts and not parts[-1]:
+        parts = parts[:-1]
+
+    if len(parts) < 2:
+        return None
+
+    # Skip divider lines like | --- | --- |
+    if all(re.match(r'^:?-+:?$', p) for p in parts):
+        return None
+
+    # Skip header line if it contains generic labels
+    if parts[0].lower() in ('typo', 'left', 'word 1', 'item') and \
+       parts[1].lower() in ('correction', 'right', 'word 2', 'count', 'corrections'):
+        return None
+
+    return parts
+
+
+def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
+    """Read lines from a file with robust encoding fallback (UTF-8 -> Detect -> Latin-1)."""
+    global _STDIN_CACHE
+    lines = []
+    used_encoding = 'utf-8'
+
+    if path == '-':
+        if _STDIN_CACHE is not None:
+            logging.info("Using cached standard input...")
+            return list(_STDIN_CACHE)
+
+        logging.info("Reading from standard input...")
+        stream = getattr(sys.stdin, "buffer", sys.stdin)
+        data = stream.read()
+        if isinstance(data, str):
+            lines = data.splitlines(keepends=True)
+            used_encoding = sys.stdin.encoding or 'utf-8'
+        else:
+            try:
+                text = data.decode("utf-8")
+                used_encoding = 'utf-8'
+            except UnicodeDecodeError:
+                text = data.decode("latin-1")
+                used_encoding = 'latin-1'
+            lines = text.splitlines(keepends=True)
+
+        _STDIN_CACHE = lines
+    else:
+        if not os.path.exists(path):
+            logging.error(f"Input file '{path}' not found.")
+            sys.exit(1)
+
+        if os.path.isdir(path):
+            logging.warning(f"Input path '{path}' is a directory. Skipping.")
+            return []
+
+        try:
+            with open(path, 'r', encoding='utf-8', newline=newline) as handle:
+                lines = handle.readlines()
+                used_encoding = 'utf-8'
+        except UnicodeDecodeError:
+            logging.warning("UTF-8 decoding failed for '%s'. Attempting detection...", path)
+            detected_encoding = detect_encoding(path)
+            if detected_encoding:
+                logging.warning(
+                    "Using detected encoding '%s' for '%s'.", detected_encoding, path
+                )
+                try:
+                    with open(path, 'r', encoding=detected_encoding, newline=newline) as handle:
+                        lines = handle.readlines()
+                    used_encoding = detected_encoding
+                except UnicodeDecodeError:
+                    logging.warning(
+                        "Detected encoding '%s' failed for '%s'. Fallback to latin-1.",
+                        detected_encoding,
+                        path,
+                    )
+                    with open(path, 'r', encoding='latin-1', newline=newline) as handle:
+                        lines = handle.readlines()
+                    used_encoding = 'latin-1'
+            else:
+                logging.warning("Encoding detection failed. Fallback to latin-1 for '%s'.", path)
+                with open(path, 'r', encoding='latin-1', newline=newline) as handle:
+                    lines = handle.readlines()
+                used_encoding = 'latin-1'
+
+    logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
+    return lines
+
+
+def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[Tuple[str, str]]:
+    """Yield (left, right) pairs from input files, supporting multiple formats."""
+    for input_file in input_files:
+        ext = input_file.lower()
+        if ext.endswith('.json'):
+            content = "".join(_read_file_lines_robust(input_file))
+            if content.strip():
+                try:
+                    data = json.loads(content)
+                    if isinstance(data, dict):
+                        if 'replacements' in data and isinstance(data['replacements'], list):
+                            for item in data['replacements']:
+                                if isinstance(item, dict) and 'typo' in item:
+                                    correct = item.get('correct', item.get('correction'))
+                                    if correct is not None:
+                                        yield str(item['typo']), str(correct)
+                        else:
+                            for k, v in data.items():
+                                yield str(k), str(v)
+                    elif isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict) and 'typo' in item:
+                                correct = item.get('correct', item.get('correction'))
+                                if correct is not None:
+                                    yield str(item['typo']), str(correct)
+                except Exception as e:
+                    logging.error(f"Failed to parse JSON in '{input_file}': {e}")
+            continue
+
+        if ext.endswith('.yaml') or ext.endswith('.yml'):
+            try:
+                if not _YAML_AVAILABLE:
+                    logging.error("PyYAML not installed.")
+                    continue
+                content = "".join(_read_file_lines_robust(input_file))
+                for doc in yaml.safe_load_all(content):
+                    if isinstance(doc, dict):
+                        for k, v in doc.items():
+                            yield str(k), str(v)
+                    elif isinstance(doc, list):
+                        for item in doc:
+                            if isinstance(item, dict):
+                                if 'typo' in item:
+                                    correct = item.get('correct', item.get('correction'))
+                                    if correct is not None:
+                                        yield str(item['typo']), str(correct)
+                                        continue
+                                for k, v in item.items():
+                                    yield str(k), str(v)
+            except Exception as e:
+                logging.error(f"Failed to parse YAML in '{input_file}': {e}")
+            continue
+
+        # Text formats
+        lines = _read_file_lines_robust(input_file)
+        if not quiet:
+            iterator = tqdm(lines, desc=f'Processing {input_file}', unit=' lines', leave=False)
+        else:
+            iterator = lines
+
+        for line in iterator:
+            content = line.strip()
+            if not content or content.startswith('#'):
+                continue
+
+            # Strip Markdown bullet points if present to handle list items consistently
+            content = re.sub(r'^\s*[-*+]\s+', '', content)
+
+            table_parts = _parse_markdown_table_row(line)
+            if table_parts:
+                yield table_parts[0], table_parts[1]
+                continue
+
+            if " -> " in content:
+                parts = content.split(" -> ", 1)
+                yield parts[0].strip(), parts[1].strip()
+            elif ' = "' in content:
+                parts = content.split(' = "', 1)
+                yield parts[0].strip(), parts[1].rsplit('"', 1)[0]
+            elif ": " in content:
+                parts = content.split(": ", 1)
+                yield parts[0].strip(), parts[1].strip()
+            else:
+                try:
+                    reader = csv.reader([content])
+                    row = next(reader)
+                    if len(row) >= 2:
+                        yield row[0].strip(), row[1].strip()
+                except (csv.Error, StopIteration):
+                    continue
+
+
 def is_one_letter_replacement(
     typo: str,
     correction: str,
@@ -376,21 +578,21 @@ def is_one_letter_replacement(
 
 
 def process_typos(
-    lines: Iterable[str],
+    pairs: Iterable[tuple[str, str]],
     allow_1to2: bool = False,
     allow_2to1: bool = False,
     include_deletions: bool = False,
     allow_transposition: bool = False,
-) -> tuple[dict[tuple[str, str], int], int, int]:
+) -> tuple[dict[tuple[str, str], int], int]:
     """
     Finds common mistake patterns in a list of typo corrections.
 
-    This function reads through your typo list and shows how letters were replaced.
+    This function analyzes typo-correction pairs and shows how letters were replaced.
     It can find simple one-letter mistakes, swapped letters, or cases where multiple
     letters were changed at once.
 
     Args:
-        lines: The lines of text containing your typo corrections.
+        pairs: An iterable of (typo, correction) pairs.
         allow_1to2: If True, look for one letter replaced by two (like 'm' to 'rn').
         allow_2to1: If True, look for two letters replaced by one (like 'ph' to 'f').
         include_deletions: If True, also count when letters were added or missed.
@@ -399,66 +601,42 @@ def process_typos(
     Returns:
         A tuple containing:
         - A dictionary of how often each character replacement happened.
-        - The total number of lines processed.
         - The total number of typo-correction pairs found.
     """
 
     replacement_counts = defaultdict(int)
-    total_lines = 0
     total_pairs = 0
-    for line in lines:
-        line = line.strip()
-        total_lines += 1
-        if not line:
-            continue
-
-        if " -> " in line:
-            parts = line.split(" -> ", 1)
-            typo = parts[0].strip()
-            # Arrow format usually implies single correction per line: typo -> correction
-            corrections = [parts[1].strip()]
-        elif " = " in line:
-            parts = line.split(" = ", 1)
-            typo = parts[0].strip()
-            correction = parts[1].strip().strip('"')
-            corrections = [correction]
-        elif ": " in line:
-            parts = line.split(": ", 1)
-            typo = parts[0].strip()
-            corrections = [parts[1].strip()]
-        else:
-            parts = line.split(',')
-            typo = parts[0].strip()
-            corrections = [corr.strip() for corr in parts[1:]]
+    for typo, correction in pairs:
+        typo = typo.strip()
+        correction = correction.strip()
 
         # Filter out non-ASCII words
         if not all(ord(c) < 128 for c in typo):
             continue
+        if not all(ord(c) < 128 for c in correction):
+            continue
 
-        for correction in corrections:
-            if not all(ord(c) < 128 for c in correction):
-                continue
-            total_pairs += 1
-            # Now we have: `typo` (incorrect word), `correction` (correct word)
-            # Check for transpositions first if enabled, as they are a specific pattern
-            replacements = []
-            if allow_transposition:
-                replacements = is_transposition(typo, correction)
+        total_pairs += 1
+        # Now we have: `typo` (incorrect word), `correction` (correct word)
+        # Check for transpositions first if enabled, as they are a specific pattern
+        replacements = []
+        if allow_transposition:
+            replacements = is_transposition(typo, correction)
 
-            # If no transposition found, check for one-letter replacements
-            if not replacements:
-                replacements = is_one_letter_replacement(
-                    typo,
-                    correction,
-                    allow_1to2=allow_1to2,
-                    allow_2to1=allow_2to1,
-                    include_deletions=include_deletions,
-                )
+        # If no transposition found, check for one-letter replacements
+        if not replacements:
+            replacements = is_one_letter_replacement(
+                typo,
+                correction,
+                allow_1to2=allow_1to2,
+                allow_2to1=allow_2to1,
+                include_deletions=include_deletions,
+            )
 
-            for replacement in replacements:
-                # replacement is (correct_char, typo_char)
-                replacement_counts[replacement] += 1
-    return replacement_counts, total_lines, total_pairs
+        for replacement in replacements:
+            # replacement is (correct_char, typo_char)
+            replacement_counts[replacement] += 1
+    return replacement_counts, total_pairs
 
 
 def generate_report(
@@ -799,52 +977,15 @@ def detect_encoding(file_path: str) -> str | None:
             return None
 
 
-def load_lines_from_file(file_path: str) -> list[str] | None:
-    """
-    Reads all lines from a file and handles different text encodings.
-
-    If the file is not in standard UTF-8 format, it tries to detect the
-    correct encoding or falls back to a simpler format to prevent crashes.
-    """
-    if file_path == '-':
-        logging.info("Reading from standard input...")
-        return sys.stdin.readlines()
-
-    lines = None
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-    except UnicodeDecodeError:
-        logging.warning(f"UTF-8 decoding failed for {file_path}. Attempting detection...")
-        lines = None
-
-        # Try to detect encoding
-        enc = detect_encoding(file_path)
-        if enc:
-            try:
-                logging.info(f"Using detected encoding: {enc}")
-                with open(file_path, 'r', encoding=enc) as f:
-                    lines = f.readlines()
-            except UnicodeDecodeError:
-                logging.warning(f"Detected encoding {enc} failed.")
-
-        # Fallback to latin1 if detection failed or wasn't possible
-        if lines is None:
-            logging.warning("Fallback to latin1...")
-            with open(file_path, 'r', encoding='latin1') as f:
-                lines = f.readlines()
-    except FileNotFoundError:
-        logging.error(f"File not found: {file_path}")
-        return None
-
-    return lines
 
 
 def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Find common patterns in your typos. This tool analyzes your list of corrections and tells you which keys you hit by mistake most often.{RESET}",
+        description=f"{BOLD}Find common patterns in your typos. This tool analyzes typo corrections and tells you which keys you hit by mistake most often.{RESET}\n\n"
+                    f"It supports multiple input formats including standard typo lists (arrow, table, colon, CSV),\n"
+                    f"JSON/YAML mapping files, and Markdown lists or tables.",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python typostats.py typos.txt -t{RESET}          # Find swapped letters (like 'teh' -> 'the')
@@ -859,7 +1000,7 @@ def main() -> None:
     io_group.add_argument(
         'input_files',
         nargs='*',
-        help="One or more files containing typo corrections. If empty, it reads from standard input.",
+        help="One or more files containing typo corrections (txt, csv, json, yaml, md). If empty, it reads from standard input.",
     )
     io_group.add_argument('-o', '--output', help="Save the report to this file instead of printing it.")
     io_group.add_argument(
@@ -982,23 +1123,29 @@ def main() -> None:
     total_pairs_all = 0
 
     for file_path in input_files:
-        lines = load_lines_from_file(file_path)
+        # Pre-calculate total lines for statistics and progress tracking
+        try:
+            if file_path == '-':
+                lines = _read_file_lines_robust('-')
+                total_lines_all += len(lines)
+            else:
+                with open(file_path, 'rb') as f:
+                    total_lines_all += sum(1 for _ in f)
+        except Exception:
+            pass
 
-        if lines:
-            if not args.quiet and _TQDM_AVAILABLE:
-                lines = tqdm(lines, desc=f"Processing {file_path}", unit="lines", leave=False)
+        pairs = _extract_pairs([file_path], quiet=args.quiet)
 
-            file_counts, lines_count, pairs_count = process_typos(
-                lines,
-                allow_1to2=allow_1to2,
-                allow_2to1=allow_2to1,
-                include_deletions=include_deletions,
-                allow_transposition=allow_transposition,
-            )
-            for k, v in file_counts.items():
-                all_counts[k] += v
-            total_lines_all += lines_count
-            total_pairs_all += pairs_count
+        file_counts, pairs_count = process_typos(
+            pairs,
+            allow_1to2=allow_1to2,
+            allow_2to1=allow_2to1,
+            include_deletions=include_deletions,
+            allow_transposition=allow_transposition,
+        )
+        for k, v in file_counts.items():
+            all_counts[k] += v
+        total_pairs_all += pairs_count
 
     generate_report(
         all_counts,

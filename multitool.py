@@ -1610,10 +1610,6 @@ def count_mode(
         mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
         pairs = True  # Automatically enable pairs for mapping audit
 
-    if chars and min_length == 3:
-        # Adjust default min_length for character counting
-        min_length = 1
-
     if mapping:
         # Audit mode: Count matches of mapped typos in input files
         for input_file in input_files:
@@ -6374,8 +6370,8 @@ def main() -> None:
         if args.mode in ('words', 'ngrams', 'stats'):
             args.min_length = 3
         elif args.mode == 'count':
-            # Count mode uses 3 for word extraction, but 1 for auditing or character counting
-            if any([getattr(args, 'pairs', False), getattr(args, 'chars', False),
+            # Count mode uses 3 for word extraction, but 1 for auditing, lines, or character counting
+            if any([getattr(args, 'pairs', False), getattr(args, 'chars', False), getattr(args, 'lines', False),
                     getattr(args, 'mapping', None), getattr(args, 'ad_hoc', None)]):
                 args.min_length = 1
             else:

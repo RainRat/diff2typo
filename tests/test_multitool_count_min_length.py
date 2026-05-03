@@ -47,6 +47,16 @@ def test_min_length_defaults_in_count_mode(tmp_path, monkeypatch):
         _, kwargs = mock_count.call_args
         assert kwargs["min_length"] == 1
 
+    # 3b. With --lines should be 1
+    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--lines"]), \
+         patch("multitool.count_mode") as mock_count:
+        try:
+            multitool.main()
+        except SystemExit:
+            pass
+        _, kwargs = mock_count.call_args
+        assert kwargs["min_length"] == 1
+
     # 4. With --add (ad_hoc) should be 1
     with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--add", "a:b"]), \
          patch("multitool.count_mode") as mock_count:
@@ -117,3 +127,13 @@ def test_min_length_defaults_in_count_mode(tmp_path, monkeypatch):
             pass
         _, kwargs = mock_count.call_args
         assert kwargs["min_length"] == 5
+
+    # 11. Explicit min_length for --chars should be preserved (NOT overridden by 1)
+    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--chars", "--min-length", "3"]), \
+         patch("multitool.count_mode") as mock_count:
+        try:
+            multitool.main()
+        except SystemExit:
+            pass
+        _, kwargs = mock_count.call_args
+        assert kwargs["min_length"] == 3

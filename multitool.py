@@ -3554,6 +3554,72 @@ def resolve_mode(
     )
 
 
+def align_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    sep: str = " -> ",
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Reads typo-correction pairs and outputs them with perfectly aligned separators.
+    """
+    start_time = time.perf_counter()
+    raw_pairs = list(_extract_pairs(input_files, quiet=quiet))
+
+    filtered_pairs = []
+    raw_count = 0
+    for left, right in raw_pairs:
+        raw_count += 1
+        if clean_items:
+            left = filter_to_letters(left)
+            right = filter_to_letters(right)
+
+        if not left or not right:
+            continue
+
+        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+            filtered_pairs.append((left, right))
+
+    if process_output:
+        filtered_pairs = sorted(set(filtered_pairs))
+
+    if limit is not None:
+        filtered_pairs = filtered_pairs[:limit]
+
+    if not filtered_pairs:
+        write_output([], output_file, output_format, quiet)
+        return
+
+    # Determine the maximum width of the left column for alignment
+    max_left = max(len(left) for left, _ in filtered_pairs)
+
+    # Use specialized formatting if output_format is 'line'
+    if output_format == 'line':
+        with smart_open_output(output_file) as out:
+            for left, right in filtered_pairs:
+                out.write(f"{left:<{max_left}}{sep}{right}\n")
+    else:
+        # For other formats (json, csv, md, etc.), use the standard paired output helper
+        _write_paired_output(
+            filtered_pairs,
+            output_file,
+            output_format,
+            "Align",
+            quiet,
+            limit=None  # Limit already applied
+        )
+
+    print_processing_stats(
+        raw_count, filtered_pairs, item_label="aligned-pair", start_time=start_time
+    )
+
+
 def sample_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -4804,6 +4870,12 @@ MODE_DETAILS = {
         "example": "python multitool.py table typos.toml --right -o corrections.txt",
         "flags": "[--right]",
     },
+    "align": {
+        "summary": "Aligns typo-correction pairs.",
+        "description": "Reads typo-correction pairs from any supported format and outputs them in perfectly aligned columns. Useful for keeping your typo lists tidy and easy to read.",
+        "example": "python multitool.py align typos.txt --sep \" : \" --output aligned.txt",
+        "flags": "[--sep S]",
+    },
     "combine": {
         "summary": "Merges multiple files into one.",
         "description": "Combines several files into one list. It removes duplicates and sorts the results alphabetically.",
@@ -5063,7 +5135,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GETTING DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGING DATA": ["align", "combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -5284,6 +5356,22 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar='MODE',
         help="The mode to show help for (for example, 'count', 'scrub', 'standardize').",
     )
+
+    align_parser = subparsers.add_parser(
+        'align',
+        help=MODE_DETAILS['align']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['align']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['align']['example']}{RESET}",
+    )
+    align_options = align_parser.add_argument_group(f"{BLUE}ALIGN OPTIONS{RESET}")
+    align_options.add_argument(
+        '--sep',
+        type=str,
+        default=" -> ",
+        help="The separator string to use between columns (default: ' -> ').",
+    )
+    _add_common_mode_arguments(align_parser)
 
     arrow_parser = subparsers.add_parser(
         'arrow',
@@ -6534,6 +6622,14 @@ def main() -> None:
     }
 
     handler_map = {
+        'align': (
+            align_mode,
+            {
+                **common_kwargs,
+                'sep': getattr(args, 'sep', ' -> '),
+                'output_format': output_format,
+            },
+        ),
         'arrow': (
             arrow_mode,
             {

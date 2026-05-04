@@ -89,6 +89,11 @@ These modes help you pull specific data out of a messy file.
 
 These modes help you transform or combine your data.
 
+- **`align`**
+  - **What it does:** Reads typo-correction pairs from any supported format and outputs them in perfectly aligned columns. This is useful for keeping your typo mapping files tidy and easy to read.
+  - **Options:** Use the `--sep` flag to pick the separator string between the columns (default is ` -> `).
+  - **Example:** `python multitool.py align typos.txt --sep " : "`
+
 - **`combine`**
   - **What it does:** Merges multiple files (or standard input) into one list, removes duplicates, and sorts the result alphabetically.
   - **Note:** This mode has built-in sorting and deduplication; the `--process-output` flag is not needed.

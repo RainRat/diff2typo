@@ -5062,40 +5062,51 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GETTING DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
+        "CHANGE DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "AUDIT & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
     lines = []
     lines.append(f"{BOLD}Available Modes:{RESET}")
 
     width_mode = 15
-    width_summary = 35
+    width_summary = 33
+
+    # Visual separators
+    sep = f"{BOLD}{BLUE}│{RESET}"
+    header_sep = f"{BOLD}{BLUE}┼{RESET}"
 
     # Table Header
     header_mode = f"{'Mode':<{width_mode}}"
     header_summary = f"{'Summary':<{width_summary}}"
     header_flags = "Quick Start / Primary Flags"
-    lines.append(f"\n    {BOLD}{BLUE}{header_mode} {header_summary} {header_flags}{RESET}")
+    lines.append(f"\n    {BOLD}{BLUE}{header_mode}{RESET} {sep} {BOLD}{BLUE}{header_summary}{RESET} {sep} {BOLD}{BLUE}{header_flags}{RESET}")
     # Separator line adjusted for 80-character terminal fit
-    header_separator = f"    {BOLD}{'─' * 78}{RESET}"
-    lines.append(header_separator)
+    header_line = f"{'─' * (width_mode + 1)}" + header_sep + f"{'─' * (width_summary + 2)}" + header_sep + f"{'─' * 21}"
+    lines.append(f"    {BOLD}{BLUE}{header_line}{RESET}")
 
     for category, modes in categories.items():
         lines.append(f"\n  {BOLD}{BLUE}{category}{RESET}")
-        lines.append(f"  {BLUE}{'─' * 80}{RESET}")
+        lines.append(f"  {BOLD}{BLUE}{'─' * 78}{RESET}")
         for mode in modes:
             if mode in MODE_DETAILS:
                 details = MODE_DETAILS[mode]
-                summary = details['summary']
+                summary = details['summary'].rstrip('.')
                 flags = details.get('flags', '')
                 # Ensure summary stays within its column to maintain table alignment
                 if len(summary) > width_summary:
                     summary = summary[:width_summary-3] + "..."
-                lines.append(f"    {BOLD}{GREEN}{mode:<{width_mode}}{RESET} {summary:<{width_summary}} {YELLOW}{flags}{RESET}")
+                lines.append(f"    {BOLD}{GREEN}{mode:<{width_mode}}{RESET} {sep} {summary:<{width_summary}} {sep} {YELLOW}{flags}{RESET}")
 
-    lines.append(f"\nRun '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.\n")
+    lines.append(f"\nRun '{BOLD}python multitool.py --mode-help <mode>{RESET}' for details on a specific mode.")
+
+    lines.append(f"\n  {BOLD}{BLUE}Quick Tips:{RESET}")
+    lines.append(f"  {BLUE}──────────────────────────────────────────────────────────────────────────────{RESET}")
+    lines.append(f"    {BOLD}-f arrow{RESET}     Use with {BOLD}count{RESET} mode for a rich visual report with bar charts.")
+    lines.append(f"    {BOLD}-P / --process{RESET} Automatic sorting and deduplication of results.")
+    lines.append(f"    {BOLD}--in-place{RESET}     Apply changes directly to files (supports optional backup EXT).\n")
+
     return "\n".join(lines)
 
 

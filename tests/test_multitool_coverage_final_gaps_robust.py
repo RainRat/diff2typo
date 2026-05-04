@@ -33,6 +33,6 @@ def test_get_mode_summary_text_truncation(monkeypatch):
 
     output = multitool.get_mode_summary_text()
 
-    expected_truncated = long_summary[:35-3] + "..."
+    expected_truncated = long_summary[:33-3] + "..."
     assert expected_truncated in output
     assert long_summary not in output

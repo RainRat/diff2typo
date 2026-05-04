@@ -533,7 +533,7 @@ def is_one_letter_replacement(
         return differences if len(differences) == 1 else []
 
     # One-to-two replacement scenario allowed only if difference in length is 1
-    if allow_1to2 and len(typo) == len(correction) + 1:
+    if (allow_1to2 or include_deletions) and len(typo) == len(correction) + 1:
         # Find all positions i where correction[i] is replaced by typo[i:i+2].
         # We use a set to avoid counting identical interpretations (for example for doubled letters) multiple times.
         replacements = set()
@@ -545,17 +545,20 @@ def is_one_letter_replacement(
                 repl_correction = correction[i]
                 repl_typo = typo[i:i+2]
 
-                # Filter out insertions unless requested
-                if not include_deletions:
-                    # It's an insertion if the correction character is one of the two typo characters
-                    if repl_correction in repl_typo:
+                # Check if it's an insertion or a replacement
+                is_insertion = repl_correction in repl_typo
+                if is_insertion:
+                    if not include_deletions:
+                        continue
+                else:
+                    if not allow_1to2:
                         continue
 
                 replacements.add((repl_correction, repl_typo))
         return sorted(replacements)
 
     # Two-to-one replacement scenario (for example 'ph' -> 'f')
-    if allow_2to1 and len(typo) == len(correction) - 1:
+    if (allow_2to1 or include_deletions) and len(typo) == len(correction) - 1:
         replacements = set()
         for i in range(len(typo)):
             # To be a replacement of correction[i:i+2] with typo[i],
@@ -565,10 +568,13 @@ def is_one_letter_replacement(
                 repl_correction = correction[i:i+2]
                 repl_typo = typo[i]
 
-                # Filter out deletions unless requested
-                if not include_deletions:
-                    # It's a deletion if the typo character is one of the two correction characters
-                    if repl_typo in repl_correction:
+                # Check if it's a deletion or a replacement
+                is_deletion = repl_typo in repl_correction
+                if is_deletion:
+                    if not include_deletions:
+                        continue
+                else:
+                    if not allow_2to1:
                         continue
 
                 replacements.add((repl_correction, repl_typo))

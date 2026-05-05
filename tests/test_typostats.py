@@ -1,4 +1,5 @@
 import json
+import csv
 import sys
 import logging
 import io
@@ -37,6 +38,10 @@ def test_is_transposition_basic():
     assert typostats.is_transposition('abcde', 'abced') == [('ed', 'de')]
     assert typostats.is_transposition('ecbad', 'abcde') == []
     assert typostats.is_transposition("abc", "ab") == []
+    # Case with exactly 2 differences but not adjacent
+    assert typostats.is_transposition('axcye', 'abcde') == []
+    # Case with exactly 2 differences adjacent but not a swap
+    assert typostats.is_transposition('abxye', 'abcde') == []
 
 
 def test_is_one_letter_replacement_basic():
@@ -385,6 +390,12 @@ def test_minimal_formatter_color_full():
         res = formatter.format(record)
         assert "\033[1;33mWARNING\033[0m: msg" in res
 
+    # Test with level not in LEVEL_COLORS
+    record_unknown = logging.LogRecord('n', logging.CRITICAL + 1, 'p', 1, 'msg', None, None)
+    with patch('typostats.sys.stderr.isatty', return_value=True):
+        res = formatter.format(record_unknown)
+        assert "Level 51: msg" in res
+
     record_no_name = logging.LogRecord('n', logging.WARNING, 'p', 1, 'msg', None, None)
     record_no_name.levelname = None
     assert formatter.format(record_no_name) == "None: msg"
@@ -491,3 +502,194 @@ def test_process_typos_logic_fix():
 
     counts, _ = typostats.process_typos(pairs, include_deletions=False)
     assert not counts
+
+def test_parse_markdown_table_row_edge_cases():
+    # Generic row with no vertical bars
+    assert typostats._parse_markdown_table_row("no bars") is None
+    # Empty parts row
+    assert typostats._parse_markdown_table_row("| | |") == ["", ""]
+    # Rows with empty edge parts to test edge trimming branches
+    assert typostats._parse_markdown_table_row("|a|b|") == ["a", "b"]
+    # Header skip
+    assert typostats._parse_markdown_table_row("| Typo | Correction |") is None
+    # Header skip with other variants
+    assert typostats._parse_markdown_table_row("| item | count |") is None
+    # Partial header (should NOT skip)
+    assert typostats._parse_markdown_table_row("| Typo | SomethingElse |") == ["Typo", "SomethingElse"]
+    # Divider skip
+    assert typostats._parse_markdown_table_row("| --- | --- |") is None
+    # Too few parts
+    assert typostats._parse_markdown_table_row("| only_one |") is None
+    # Valid row
+    assert typostats._parse_markdown_table_row("| teh | the |") == ["teh", "the"]
+
+
+def test_extract_pairs_json_variations(tmp_path):
+    # JSON list of dicts with 'typo' and 'correct'
+    # Also test item that is not a dict, or missing typo, or missing correct
+    f = tmp_path / "test1.json"
+    f.write_text(json.dumps([
+        {"typo": "teh", "correct": "the"},
+        "not a dict",
+        {"no typo": "here"},
+        {"typo": "missing_correct", "correct": None}
+    ]), encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == [("teh", "the")]
+
+    # JSON dict with 'replacements' list
+    # Also test item missing typo or missing correct
+    f = tmp_path / "test2.json"
+    f.write_text(json.dumps({"replacements": [
+        {"typo": "teh", "correction": "the"},
+        {"no typo": "here"},
+        {"typo": "missing_correct", "correct": None}
+    ]}), encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == [("teh", "the")]
+
+    # JSON that is just a string (neither dict nor list)
+    f = tmp_path / "string.json"
+    f.write_text(json.dumps("just a string"), encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == []
+
+    # Empty JSON
+    f = tmp_path / "empty.json"
+    f.write_text("   ", encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == []
+
+    # JSON flat dict
+    f = tmp_path / "test3.json"
+    f.write_text(json.dumps({"teh": "the"}), encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == [("teh", "the")]
+
+    # JSON with 'replacements' but not a list
+    f = tmp_path / "test5.json"
+    f.write_text(json.dumps({"replacements": "not a list", "a": "b"}), encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == [("replacements", "not a list"), ("a", "b")]
+
+    # JSON invalid/empty
+    f = tmp_path / "test4.json"
+    f.write_text("invalid", encoding="utf-8")
+    with patch('logging.error') as mock_log:
+        assert list(typostats._extract_pairs([str(f)])) == []
+        mock_log.assert_called()
+
+
+def test_extract_pairs_yaml_variations(tmp_path):
+    if not typostats._YAML_AVAILABLE:
+        pytest.skip("PyYAML not available")
+
+    # YAML list of dicts
+    # Also test item with 'typo' but missing correct, and item not a dict
+    f = tmp_path / "test1.yaml"
+    f.write_text("""
+- typo: teh
+  correct: the
+- typo: only_typo
+- not_a_dict: value
+- k: v
+""", encoding="utf-8")
+    # item with only 'typo' will yield ('typo', 'only_typo') because it falls back to k,v iteration
+    assert list(typostats._extract_pairs([str(f)])) == [("teh", "the"), ("typo", "only_typo"), ("not_a_dict", "value"), ("k", "v")]
+
+    # YAML that is just a string
+    f = tmp_path / "string.yaml"
+    f.write_text("just a string", encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == []
+
+    # YAML flat dict
+    f = tmp_path / "test2.yaml"
+    f.write_text("teh: the", encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == [("teh", "the")]
+
+    # YAML with nested list (should be ignored by inner loop if not a dict)
+    f = tmp_path / "test_nested.yaml"
+    f.write_text("- - nested list", encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == []
+
+    # YAML multiple docs
+    f = tmp_path / "test3.yaml"
+    f.write_text("a: b\n---\nc: d", encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f)])) == [("a", "b"), ("c", "d")]
+
+    # YAML invalid
+    f = tmp_path / "test4.yaml"
+    f.write_text("!!invalid", encoding="utf-8")
+    with patch('logging.error') as mock_log:
+        assert list(typostats._extract_pairs([str(f)])) == []
+        mock_log.assert_called()
+
+
+def test_extract_pairs_text_variations(tmp_path):
+    f = tmp_path / "test.txt"
+    f.write_text("""
+# Comment
+teh -> the
+m = "rn"
+key: value
+csv1,csv2
+* bullet -> fix
+| Typo | Correction |
+| --- | --- |
+| table_typo | table_fix |
+""", encoding="utf-8")
+    pairs = list(typostats._extract_pairs([str(f)], quiet=True))
+    assert ("teh", "the") in pairs
+    assert ("m", "rn") in pairs
+    assert ("key", "value") in pairs
+    assert ("csv1", "csv2") in pairs
+    assert ("bullet", "fix") in pairs
+    assert ("table_typo", "table_fix") in pairs
+
+
+def test_extract_pairs_csv_error(tmp_path):
+    f = tmp_path / "test.txt"
+    # A line that might cause csv.Error - actually csv.reader is very robust,
+    # but we can try to trigger StopIteration by providing an empty row if possible
+    with patch('csv.reader', side_effect=csv.Error("test error")):
+        f.write_text("a,b", encoding="utf-8")
+        assert list(typostats._extract_pairs([str(f)], quiet=True)) == []
+
+
+def test_generate_report_with_file_output(tmp_path):
+    counts = {('s', 'z'): 1}
+    out_file = tmp_path / "report.txt"
+    # Test with arrow format to file
+    typostats.generate_report(counts, output_file=str(out_file), output_format='arrow')
+    content = out_file.read_text()
+    assert "LETTER REPLACEMENTS" in content
+    assert "z" in content and "s" in content
+
+    # Test with empty results to file
+    typostats.generate_report({}, output_file=str(out_file))
+    assert "No replacements found" in out_file.read_text()
+
+
+def test_main_with_stdin(tmp_path):
+    # Reset STDIN cache
+    typostats._STDIN_CACHE = None
+    mock_stdin = io.StringIO("teh -> the\n")
+    with patch('sys.stdin', mock_stdin), \
+         patch('sys.argv', ['typostats.py']), \
+         patch('typostats.generate_report') as mock_report:
+        typostats.main()
+        # total_lines should be 1
+        assert mock_report.call_args[1]['total_lines'] == 1
+
+
+def test_main_with_multiple_files(tmp_path):
+    f1 = tmp_path / "f1.txt"
+    f1.write_text("a -> b\n")
+    f2 = tmp_path / "f2.txt"
+    f2.write_text("c -> d\n")
+
+    with patch('sys.argv', ['typostats.py', str(f1), str(f2)]), \
+         patch('typostats.generate_report') as mock_report:
+        typostats.main()
+        assert mock_report.call_args[1]['total_pairs'] == 2
+
+
+def test_main_no_yaml(caplog):
+    with patch('typostats._YAML_AVAILABLE', False), \
+         patch('sys.argv', ['typostats.py', 'test.yaml']):
+        typostats.main()
+        assert "PyYAML not installed" in caplog.text

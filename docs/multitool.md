@@ -102,6 +102,11 @@ These modes help you transform or combine your data.
   - **What it does:** Finds and shortens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`. This ensures that your mappings always point directly to the final correct word, making them more efficient for fixing typos and analysis.
   - **Example:** `python multitool.py resolve mappings.csv`
 
+- **`align`**
+  - **What it does:** Extracts typo-correction pairs from any supported format (CSV, Arrow, Markdown lists/tables, JSON, YAML) and outputs them in perfectly aligned columns by automatically calculating the maximum width of the left column. This is the recommended way to "beautify" your typo lists for human readability.
+  - **Options:** Use the `--sep` flag to customize the separator string between columns (default is ` -> `).
+  - **Example:** `python multitool.py align typos.csv --sep ' | '`
+
 - **`rename`**
   - **What it does:** Changes file and folder names using a mapping file or extra pairs. It is useful for fixing typos in filenames across your entire project. It handles nested renames by processing files before their parent folders.
   - **Options:**

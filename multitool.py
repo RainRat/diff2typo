@@ -733,6 +733,7 @@ def _write_paired_output(
     mode_label: str,
     quiet: bool = False,
     limit: int | None = None,
+    separator: str = " -> ",
 ) -> None:
     """
     Writes a collection of paired strings to the output file in the specified format.
@@ -740,10 +741,11 @@ def _write_paired_output(
     Args:
         pairs: Collection of (left, right) tuples.
         output_file: Path to the output file or '-' for the main output.
-        output_format: Format (arrow, table, csv, markdown, md-table, json, yaml).
+        output_format: Format (arrow, table, csv, markdown, md-table, json, yaml, aligned).
         mode_label: Label for the current mode (used for headers).
         quiet: If True, suppress informational output.
         limit: If provided, limit the output to the first N pairs.
+        separator: The separator to use for 'aligned' format.
     """
     pairs_list = list(pairs)
     if limit is not None:
@@ -807,6 +809,12 @@ def _write_paired_output(
                 out_file.write("| :--- | :--- |\n")
                 for left, right in pairs_list:
                     out_file.write(f"| {left} | {right} |\n")
+        elif output_format == 'aligned':
+            if pairs_list:
+                # Calculate the maximum width of the left column for alignment
+                max_left = max((len(str(left)) for left, _ in pairs_list), default=0)
+                for left, right in pairs_list:
+                    out_file.write(f"{left:<{max_left}}{separator}{right}\n")
         elif output_format == 'arrow':
             if pairs_list:
                 # Dynamic column width calculation for aligned table
@@ -3438,6 +3446,58 @@ def pairs_mode(
     )
 
 
+def align_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    separator: str = " -> ",
+    output_format: str = 'aligned',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts pairs from any supported format and outputs them in aligned columns."""
+    start_time = time.perf_counter()
+
+    raw_pairs = _extract_pairs(input_files, quiet=quiet)
+
+    filtered_pairs = []
+    raw_count = 0
+    for left, right in raw_pairs:
+        raw_count += 1
+        # Clean if requested
+        if clean_items:
+            left = filter_to_letters(left)
+            right = filter_to_letters(right)
+
+        # Skip if either side is empty after cleaning
+        if not left or not right:
+            continue
+
+        # Apply length filtering to both sides to ensure valid data pairs
+        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+            filtered_pairs.append((left, right))
+
+    if process_output:
+        filtered_pairs = sorted(set(filtered_pairs))
+
+    _write_paired_output(
+        filtered_pairs,
+        output_file,
+        output_format,
+        "Align",
+        quiet,
+        limit=limit,
+        separator=separator
+    )
+
+    print_processing_stats(
+        raw_count, filtered_pairs, item_label="pair", start_time=start_time
+    )
+
+
 def swap_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -5032,6 +5092,12 @@ MODE_DETAILS = {
         "example": "python multitool.py scrub input.txt --add teh:the --diff",
         "flags": "MAPPING [FILES...] [-a K:V] [--diff]",
     },
+    "align": {
+        "summary": "Aligns typo-correction pairs.",
+        "description": "Extracts typo-correction pairs from any supported format (CSV, arrow, Markdown lists/tables) and outputs them in perfectly aligned columns by automatically calculating the maximum width of the left column. It supports a custom separator string via the --sep flag.",
+        "example": "python multitool.py align typos.csv --sep ' -> ' --output-format aligned",
+        "flags": "[--sep S]",
+    },
     "rename": {
         "summary": "Batch rename files and folders.",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
@@ -5063,7 +5129,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GETTING DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
-        "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECKING DATA": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -6324,6 +6390,22 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(resolve_parser)
 
+    align_parser = subparsers.add_parser(
+        'align',
+        help=MODE_DETAILS['align']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['align']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['align']['example']}{RESET}",
+    )
+    align_options = align_parser.add_argument_group(f"{BLUE}ALIGN OPTIONS{RESET}")
+    align_options.add_argument(
+        '--sep',
+        type=str,
+        default=" -> ",
+        help="The separator string to use between aligned columns (default: ' -> ').",
+    )
+    _add_common_mode_arguments(align_parser)
+
 
     return parser
 
@@ -6534,6 +6616,14 @@ def main() -> None:
     }
 
     handler_map = {
+        'align': (
+            align_mode,
+            {
+                **common_kwargs,
+                'separator': getattr(args, 'sep', " -> "),
+                'output_format': output_format if output_format != 'line' else 'aligned',
+            },
+        ),
         'arrow': (
             arrow_mode,
             {

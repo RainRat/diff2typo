@@ -34,7 +34,7 @@ def test_count_mode_lines(tmp_path):
     content = output_file.read_text()
     assert "Line" in content # Header
     assert "line one" in content
-    assert "Total lines encountered" in content
+    assert "Total lines analyzed" in content
 
     # Test non-arrow format for item_label
     output_file_2 = tmp_path / "output2.txt"
@@ -74,7 +74,7 @@ def test_count_mode_chars(tmp_path):
     content = output_file.read_text()
     assert "Character" in content # Header
     assert "a" in content
-    assert "Total characters encountered" in content
+    assert "Total characters analyzed" in content
 
     # Test non-arrow format for item_label
     output_file_2 = tmp_path / "output2.txt"

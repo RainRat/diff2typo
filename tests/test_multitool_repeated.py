@@ -145,7 +145,7 @@ def test_repeated_mode_stats_output(tmp_path, caplog):
         multitool.repeated_mode([str(f)], str(out), 1, 100, False)
 
     assert "ANALYSIS SUMMARY" in caplog.text
-    assert "Total repeated-words encountered:   2" in caplog.text
+    assert "Total repeated-words analyzed:      2" in caplog.text
 
 def test_extract_repeated_items_stdin(reset_stdin_cache):
     input_text = "the the quick quick"

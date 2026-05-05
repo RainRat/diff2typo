@@ -413,7 +413,7 @@ def _format_analysis_summary(
     report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
 
     report.append(
-        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' encountered:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' analyzed:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
     )
 
     filtered_count = len(filtered_items)
@@ -2000,7 +2000,7 @@ def stats_mode(
 
     stats = {
         "items": {
-            "total_encountered": raw_item_count,
+            "total_analyzed": raw_item_count,
             "total_filtered": len(filtered_items),
             "unique_count": unique_count,
         }
@@ -2084,7 +2084,7 @@ def stats_mode(
             f.write("### ANALYSIS SUMMARY\n\n")
             f.write("| Metric | Value |\n")
             f.write("| :--- | :--- |\n")
-            f.write(f"| Total items encountered | {stats['items']['total_encountered']} |\n")
+            f.write(f"| Total items analyzed | {stats['items']['total_analyzed']} |\n")
             f.write(f"| Total items after filtering | {stats['items']['total_filtered']} |\n")
             f.write(f"| Unique items | {stats['items']['unique_count']} |\n")
             if "min_length" in stats["items"]:
@@ -2113,7 +2113,7 @@ def stats_mode(
 
             # In stats_mode, filtered_items is the primary list of items collected
             report = _format_analysis_summary(
-                stats['items']['total_encountered'],
+                stats['items']['total_analyzed'],
                 filtered_items,
                 "item",
                 start_time,
@@ -3579,7 +3579,7 @@ def resolve_mode(
             continue
 
         if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
-            # We take the first mapping encountered for each typo if there are conflicts.
+            # We take the first mapping analyzed for each typo if there are conflicts.
             # Using dict.setdefault ensures the first entry wins.
             mapping.setdefault(left, right)
 

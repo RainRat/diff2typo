@@ -120,8 +120,8 @@ def _format_analysis_summary(
             f"  {c_bold}{c_blue}{'Total word pairs analyzed:':<{label_width}}{c_reset} {c_yellow}{total_input_items}{c_reset}"
         )
 
-    # In typostats, raw_count is the total number of patterns encountered, but filtered_items are patterns after filtering.
-    raw_label = f"Total {item_label_plural} encountered:"
+    # In typostats, raw_count is the total number of patterns analyzed, but filtered_items are patterns after filtering.
+    raw_label = f"Total {item_label_plural} analyzed:"
     filtered_label = f"Total {item_label_plural} after filtering:"
 
     report.append(

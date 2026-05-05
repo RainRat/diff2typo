@@ -438,3 +438,56 @@ def test_get_adjacent_keys_no_diagonals():
     assert 'w' in adj['q']
     assert 'a' in adj['q']
     assert 's' not in adj['q']
+
+
+def test_is_one_letter_replacement_logic_fix():
+    # Test that include_deletions=True works independently of allow_1to2/allow_2to1
+    # Deletion: 'receive' -> 'receve' (actually multiple potential deletions, but let's test one)
+    # is_one_letter_replacement returns a list of potential replacements
+
+    # 1. Deletion case (typo is shorter)
+    # 'a' in 'aa' -> deletion of 'a'
+    res = typostats.is_one_letter_replacement('a', 'aa', include_deletions=True)
+    assert ('aa', 'a') in res
+
+    res = typostats.is_one_letter_replacement('a', 'aa', include_deletions=False)
+    assert ('aa', 'a') not in res
+
+    # 2. Insertion case (typo is longer)
+    # 'a' in 'aa' -> insertion of 'a'
+    res = typostats.is_one_letter_replacement('aa', 'a', include_deletions=True)
+    assert ('a', 'aa') in res
+
+    res = typostats.is_one_letter_replacement('aa', 'a', include_deletions=False)
+    assert ('a', 'aa') not in res
+
+    # 3. 1-to-2 replacement (not an insertion)
+    res = typostats.is_one_letter_replacement('rn', 'm', allow_1to2=True)
+    assert ('m', 'rn') in res
+
+    res = typostats.is_one_letter_replacement('rn', 'm', allow_1to2=False)
+    assert ('m', 'rn') not in res
+
+    # 4. 2-to-1 replacement (not a deletion)
+    res = typostats.is_one_letter_replacement('f', 'ph', allow_2to1=True)
+    assert ('ph', 'f') in res
+
+    res = typostats.is_one_letter_replacement('f', 'ph', allow_2to1=False)
+    assert ('ph', 'f') not in res
+
+def test_process_typos_logic_fix():
+    # Test process_typos with the new logic
+    pairs = [("receve", "receive")]
+    counts, _ = typostats.process_typos(pairs, include_deletions=True)
+    assert ('ei', 'e') in counts
+    assert ('iv', 'v') in counts
+
+    counts, _ = typostats.process_typos(pairs, include_deletions=False)
+    assert not counts
+
+    pairs = [("aa", "a")]
+    counts, _ = typostats.process_typos(pairs, include_deletions=True)
+    assert ('a', 'aa') in counts
+
+    counts, _ = typostats.process_typos(pairs, include_deletions=False)
+    assert not counts

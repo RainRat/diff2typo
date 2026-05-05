@@ -438,3 +438,88 @@ def test_get_adjacent_keys_no_diagonals():
     assert 'w' in adj['q']
     assert 'a' in adj['q']
     assert 's' not in adj['q']
+
+
+def test_levenshtein_distance_optimization():
+    assert typostats.levenshtein_distance('a', 'abc') == 2
+
+
+def test_extract_pairs_json_variants(tmp_path):
+    f1 = tmp_path / "simple.json"
+    f1.write_text(json.dumps({"typo1": "correct1"}), encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f1)])) == [("typo1", "correct1")]
+
+    f2 = tmp_path / "list.json"
+    f2.write_text(json.dumps([{"typo": "typo2", "correction": "correct2"}]), encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f2)])) == [("typo2", "correct2")]
+
+
+def test_extract_pairs_yaml_variants(tmp_path):
+    if not typostats._YAML_AVAILABLE:
+        pytest.skip("PyYAML not installed")
+    f1 = tmp_path / "test.yaml"
+    f1.write_text("- typo: t1\n  correct: c1\n- key2: val2", encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f1)])) == [("t1", "c1"), ("key2", "val2")]
+
+
+def test_extract_pairs_text_formats(tmp_path):
+    f1 = tmp_path / "text.txt"
+    f1.write_text('  - bullet -> bullet_fix\nkey = "value"\ncolon: fix', encoding="utf-8")
+    pairs = list(typostats._extract_pairs([str(f1)]))
+    assert ("bullet", "bullet_fix") in pairs
+    assert ("key", "value") in pairs
+    assert ("colon", "fix") in pairs
+
+
+def test_read_file_lines_robust_stdin_cache_explicit():
+    typostats._STDIN_CACHE = ["line1\n"]
+    assert typostats._read_file_lines_robust("-") == ["line1\n"]
+
+
+def test_generate_report_with_file_variants(tmp_path, capsys):
+    out_file = tmp_path / "report.txt"
+    counts = {("correct", "typo"): 1}
+    typostats.generate_report(counts, output_file=str(out_file), quiet=True)
+    assert out_file.exists()
+    assert "CORRECT" in out_file.read_text()
+
+    out_file_empty = tmp_path / "empty.txt"
+    typostats.generate_report({}, output_file=str(out_file_empty), quiet=True)
+    assert "No replacements found" in out_file_empty.read_text()
+
+
+def test_generate_report_extra_metrics_full(capsys):
+    # correct, typo pairs
+    counts = {
+        ("te", "t"): 1,     # Deletion typo is 't', correct is 'te'
+        ("t", "te"): 1,     # Insertion typo is 'te', correct is 't'
+        ("m", "rn"): 1,     # 1:2
+        ("ph", "f"): 1,     # 2:1
+        ("he", "eh"): 1,    # Transposition
+        ("q", "w"): 1,      # [K]
+    }
+    typostats.generate_report(counts, include_deletions=True, allow_1to2=True, allow_2to1=True, allow_transposition=True, quiet=False, keyboard=True, total_lines=10)
+    err = capsys.readouterr().err
+    assert "Total lines processed:" in err
+    assert "Transpositions [T]:" in err
+    assert "Keyboard Adjacency [K]:" in err
+    assert "Insertions [Ins]:" in err
+    assert "Deletions [Del]:" in err
+    assert "1-to-2 replacements [1:2]:" in err
+    assert "2-to-1 replacements [2:1]:" in err
+
+
+def test_generate_report_json_keyboard_branches():
+    counts = {("he", "eh"): 1, ("q", "p"): 1}
+    with patch('sys.stdout', new=io.StringIO()) as out:
+        typostats.generate_report(counts, output_format='json', keyboard=True)
+        data = json.loads(out.getvalue())
+        for item in data["replacements"]:
+            assert item["is_adjacent"] is False
+
+
+def test_main_stdin_path_explicit(capsys):
+    with patch('sys.stdin', io.StringIO("typo -> correct\n")),          patch('sys.argv', ['typostats.py', '-a']),          patch('typostats._STDIN_CACHE', None):
+        typostats.main()
+        err = capsys.readouterr().err
+        assert "Total word pairs analyzed:" in err

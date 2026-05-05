@@ -166,12 +166,14 @@ These modes help you transform or combine your data.
   - **In-Place Example:** `python multitool.py scrub file1.txt file2.txt --mapping corrections.csv --in-place`
 
 - **`standardize`**
-  - **What it does:** Fixes inconsistent casing by using the most frequent form. It analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures naming consistency without needing a manual mapping file.
+  - **What it does:** Fixes inconsistent casing or spelling by using the most frequent form. It analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures consistency without needing a manual mapping file.
   - **Options:**
     - Supports `--in-place` editing and `--dry-run` preview.
+    - **Similar Word Matching:** Use `--fuzzy` to set the maximum character distance for matching similar words.
+    - **Frequency Ratio:** Use `--threshold` to set the minimum frequency ratio required to consider a rare word a typo (default: 10.0).
     - **Diff Preview:** Use the `--diff` flag to see a unified diff of the changes that would be made.
     - Works with standard filters like `--min-length` and `--max-length`.
-  - **Example:** `python multitool.py standardize . --diff --min-length 4`
+  - **Example:** `python multitool.py standardize . --diff --min-length 4 --fuzzy 1`
 
 - **`highlight`**
   - **What it does:** Searches for words from a list, mapping, or extra pairs and colors them in the output. This is useful as a preview before using the `scrub` mode to make permanent changes.
@@ -206,13 +208,16 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py conflict mappings.csv`
 
 - **`count`**
-  - **What it does:** Counts how often each word appears in a file and sorts them by frequency (most frequent first).
+  - **What it does:** Counts how often each word, pair, line, or character appears in a file and sorts them by frequency (most frequent first).
   - **Options:**
     - `--min-count` and `--max-count`: Filter results by their frequency.
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
     - `-p`, `--pairs`: Count frequencies of word pairs (for example, `typo -> correction`) instead of single words.
-    - `-B`, `--by-file`: Count how many files contain each item instead of total occurrences. This is useful for finding words that are common across your entire project.
+    - `-l`, `--lines`: Count frequencies of raw lines instead of individual words.
+    - `-c`, `--chars`: Count frequencies of individual characters.
+    - `-B`, `--by-file`: Count how many files contain each item instead of total matches. This is useful for finding words that are common across your entire project.
+    - **Auditing:** Use the `--mapping` flag or `--add` to count matches of specific typos across your files.
   - **Visual Report:** Use `--output-format arrow` to generate a rich visual report. This includes an **ANALYSIS SUMMARY** dashboard with metrics like retention rate, an aligned frequency table, and high-resolution bar charts.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, and `line`.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.

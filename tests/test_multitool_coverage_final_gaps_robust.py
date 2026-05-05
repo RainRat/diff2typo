@@ -22,7 +22,7 @@ def test_count_mode_quiet_stdout_no_stderr(tmp_path, capsys):
     assert captured.err == ""
 
 def test_get_mode_summary_text_truncation(monkeypatch):
-    long_summary = "This is a very long summary that definitely exceeds the thirty-five character limit."
+    long_summary = "This is a very long summary that definitely exceeds the thirty-three character limit."
 
     orig_details = multitool.MODE_DETAILS.copy()
     new_details = orig_details.copy()
@@ -33,6 +33,6 @@ def test_get_mode_summary_text_truncation(monkeypatch):
 
     output = multitool.get_mode_summary_text()
 
-    expected_truncated = long_summary[:35-3] + "..."
+    expected_truncated = long_summary[:33-3] + "..."
     assert expected_truncated in output
     assert long_summary not in output

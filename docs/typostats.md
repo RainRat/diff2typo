@@ -57,7 +57,7 @@ When using the default **arrow** format, the report displays results in two sect
   ANALYSIS SUMMARY
   ───────────────────────────────────────────────────────
   Total word pairs analyzed:          4
-  Total patterns encountered:         4
+  Total patterns analyzed:            4
   Total patterns after filtering:     4
   Retention rate:                     100.0% ████████████████████
   Unique patterns:                    3
@@ -84,7 +84,7 @@ When using the default **arrow** format, the report displays results in two sect
 ### Analysis Summary
 The dashboard at the top gives you an overview of your typo history:
 - **Total word pairs analyzed:** The number of typo-correction pairs found in the input.
-- **Total patterns encountered:** The total number of character-level replacements extracted.
+- **Total patterns analyzed:** The total number of character-level replacements extracted.
 - **Total patterns after filtering:** The number of patterns that remain after applying filters (like `--min`).
 - **Retention rate:** A visual bar showing the percentage of items kept after filtering.
 - **Unique patterns:** The number of distinct character-level mistakes found.

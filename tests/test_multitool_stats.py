@@ -29,7 +29,7 @@ def test_stats_mode_items_json(tmp_path):
     with open(out) as j:
         stats = json.load(j)
 
-    assert stats["items"]["total_encountered"] == 4
+    assert stats["items"]["total_analyzed"] == 4
     assert stats["items"]["total_filtered"] == 4
     assert stats["items"]["unique_count"] == 3
     assert stats["items"]["min_length"] == 5
@@ -63,7 +63,7 @@ def test_stats_mode_yaml(tmp_path):
     # Test with yaml module if available
     multitool.stats_mode([str(f)], str(out), min_length=1, max_length=100, process_output=False, output_format='yaml')
     content = out.read_text()
-    assert "total_encountered: 1" in content
+    assert "total_analyzed: 1" in content
 
 def test_stats_mode_yaml_no_module(tmp_path, monkeypatch):
     # Mock ImportError for yaml
@@ -83,7 +83,7 @@ def test_stats_mode_yaml_no_module(tmp_path, monkeypatch):
     multitool.stats_mode([str(f)], str(out), min_length=1, max_length=100, process_output=False, include_pairs=True, output_format='yaml')
     content = out.read_text()
     assert "items:" in content
-    assert "total_encountered: 1" in content
+    assert "total_analyzed: 1" in content
     assert "pairs:" in content
 
 def test_stats_mode_markdown(tmp_path):
@@ -95,7 +95,7 @@ def test_stats_mode_markdown(tmp_path):
     content = out.read_text()
     assert "### ANALYSIS SUMMARY" in content
     assert "### PAIRED DATA STATISTICS" in content
-    assert "| Total items encountered | 1 |" in content
+    assert "| Total items analyzed | 1 |" in content
 
 def test_stats_mode_human_readable(tmp_path):
     f = tmp_path / "input.txt"
@@ -147,7 +147,7 @@ def test_stats_mode_empty_input(tmp_path):
 
     with open(out) as j:
         stats = json.load(j)
-    assert stats["items"]["total_encountered"] == 0
+    assert stats["items"]["total_analyzed"] == 0
     assert "min_length" not in stats["items"]
 
 def test_stats_mode_filtering(tmp_path):
@@ -160,7 +160,7 @@ def test_stats_mode_filtering(tmp_path):
 
     with open(out) as j:
         stats = json.load(j)
-    assert stats["items"]["total_encountered"] == 3
+    assert stats["items"]["total_analyzed"] == 3
     assert stats["items"]["total_filtered"] == 1
     assert stats["items"]["unique_count"] == 1
 

@@ -48,7 +48,7 @@ def test_count_mode_visual_report_content(tmp_path, monkeypatch):
     content = output_file.read_text()
 
     assert "ANALYSIS SUMMARY" in content
-    assert "Total words encountered" in content
+    assert "Total words analyzed" in content
     assert "Retention rate" in content
     assert "Word" in content
     assert "Count" in content

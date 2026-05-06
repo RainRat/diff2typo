@@ -68,6 +68,10 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Gets values from a YAML file using a key path. Like JSON mode, it supports dot notation (for example, `config.items`). If you do not provide a key, it gets items from the top level.
   - **Example:** `python multitool.py yaml config.yaml --key config.items`
 
+- **`toml`**
+  - **What it does:** Gets values from a TOML file using a key path. Like JSON and YAML modes, it supports dot notation (for example, `tool.poetry.name`). If you do not provide a key, it gets items from the top level. It automatically handles tables and lists of tables.
+  - **Example:** `python multitool.py toml pyproject.toml --key tool.poetry.dependencies`
+
 - **`line`**
   - **What it does:** Reads a file line by line. Use this to simply clean or filter a text file without special getting logic.
   - **Example:** `python multitool.py line raw_words.txt`

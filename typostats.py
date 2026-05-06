@@ -465,6 +465,34 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                 logging.error(f"Failed to parse YAML in '{input_file}': {e}")
             continue
 
+        if ext.endswith('.toml'):
+            try:
+                try:
+                    import tomllib
+                except ImportError:
+                    import toml as tomllib
+                content = "".join(_read_file_lines_robust(input_file))
+                data = tomllib.loads(content)
+                if isinstance(data, dict):
+                    if 'replacements' in data and isinstance(data['replacements'], list):
+                        for item in data['replacements']:
+                            if isinstance(item, dict) and 'typo' in item:
+                                correct = item.get('correct', item.get('correction'))
+                                if correct is not None:
+                                    yield str(item['typo']), str(correct)
+                    else:
+                        for k, v in data.items():
+                            if isinstance(v, dict):
+                                for sk, sv in v.items():
+                                    yield str(sk), str(sv)
+                            else:
+                                yield str(k), str(v)
+            except ImportError:
+                logging.error("TOML support requires Python 3.11+ (tomllib) or the 'toml' package.")
+            except Exception as e:
+                logging.error(f"Failed to parse TOML in '{input_file}': {e}")
+            continue
+
         # Text formats
         lines = _read_file_lines_robust(input_file)
         if not quiet:

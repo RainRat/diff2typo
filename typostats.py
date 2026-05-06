@@ -789,12 +789,12 @@ def generate_report(
         )
 
         # Calculate padding for alignment (default to header labels' lengths)
-        max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
-        max_c = max(max_c, 7)  # 'CORRECT' is 7
+        max_c = max((len(c) for (c, t), count in sorted_replacements), default=10)
+        max_c = max(max_c, 10)  # 'Correction' is 10
         max_t = max((len(t) for (c, t), count in sorted_replacements), default=4)
-        max_t = max(max_t, 4)  # 'TYPO' is 4
+        max_t = max(max_t, 4)  # 'Typo' is 4
         max_n = max((len(str(count)) for (c, t), count in sorted_replacements), default=5)
-        max_n = max(max_n, 5)  # 'COUNT' is 5
+        max_n = max(max_n, 5)  # 'Count' is 5
         max_p = 6  # Width for percentage (for example, "100.0%")
 
         # Colors for table
@@ -808,9 +808,9 @@ def generate_report(
         # Bold blue for table visual elements
         sep = f"{c_bold}{c_blue}│{c_reset}"
         header_row = (
-            f"{padding}{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'CORRECT':<{max_c}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'COUNT':>{max_n}}{c_reset} {sep} "
+            f"{padding}{c_bold}{c_blue}{'Typo':<{max_t}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'Correction':<{max_c}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'Count':>{max_n}}{c_reset} {sep} "
             f"{c_bold}{c_blue}{'%':>{max_p}}{c_reset}"
         )
         visible_header_len = max_t + max_c + max_n + max_p + 9
@@ -818,12 +818,12 @@ def generate_report(
         show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions'), kwargs.get('all')])
 
         if show_attr:
-            header_row += f" {sep} {c_bold}{c_blue}{'ATTR':<5}{c_reset}"
+            header_row += f" {sep} {c_bold}{c_blue}{'Attr':<5}{c_reset}"
             visible_header_len += 8
 
         # Add Visual column header
-        max_bar = 15
-        header_row += f" {sep} {c_bold}{c_blue}{'VISUAL':<{max_bar}}{c_reset}"
+        max_bar = 20
+        header_row += f" {sep} {c_bold}{c_blue}{'Visual':<{max_bar}}{c_reset}"
         visible_header_len += 3 + max_bar
 
         divider = f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}"

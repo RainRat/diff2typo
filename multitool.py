@@ -5621,7 +5621,7 @@ def _build_parser() -> argparse.ArgumentParser:
     count_options.add_argument(
         '-B', '--by-file',
         action='store_true',
-        help='Count how many files contain each item instead of total occurrences.',
+        help='Count how many files contain each item instead of total matches.',
     )
     unit_group = count_options.add_mutually_exclusive_group()
     unit_group.add_argument(

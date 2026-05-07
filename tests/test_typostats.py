@@ -734,7 +734,7 @@ def test_generate_report_with_file_variants(tmp_path, capsys):
     counts = {("correct", "typo"): 1}
     typostats.generate_report(counts, output_file=str(out_file), quiet=True)
     assert out_file.exists()
-    assert "CORRECT" in out_file.read_text()
+    assert "Correction" in out_file.read_text()
 
     out_file_empty = tmp_path / "empty.txt"
     typostats.generate_report({}, output_file=str(out_file_empty), quiet=True)

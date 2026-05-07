@@ -68,6 +68,10 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Gets values from a YAML file using a key path. Like JSON mode, it supports dot notation (for example, `config.items`). If you do not provide a key, it gets items from the top level.
   - **Example:** `python multitool.py yaml config.yaml --key config.items`
 
+- **`toml`**
+  - **What it does:** Gets values from a TOML file using a key path. Like JSON and YAML modes, it supports dot notation (for example, `tool.poetry.dependencies`). If you do not provide a key, it gets items from the top level. It automatically handles nested tables.
+  - **Example:** `python multitool.py toml pyproject.toml --key tool.poetry.dependencies`
+
 - **`line`**
   - **What it does:** Reads a file line by line. Use this to simply clean or filter a text file without special getting logic.
   - **Example:** `python multitool.py line raw_words.txt`
@@ -103,7 +107,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py resolve mappings.csv`
 
 - **`align`**
-  - **What it does:** Extracts typo-correction pairs from any supported format (CSV, Arrow, Markdown lists/tables, JSON, YAML) and outputs them in perfectly aligned columns by automatically calculating the maximum width of the left column. This is the recommended way to "beautify" your typo lists for human readability.
+  - **What it does:** Extracts typo-correction pairs from any supported format (CSV, Arrow, Markdown lists/tables, JSON, YAML, TOML) and outputs them in perfectly aligned columns by automatically calculating the maximum width of the left column. This is the recommended way to "beautify" your typo lists for human readability.
   - **Options:** Use the `--sep` flag to customize the separator string between columns (default is ` -> `).
   - **Example:** `python multitool.py align typos.csv --sep ' | '`
 
@@ -126,7 +130,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py filterfragments candidates.txt --file2 dictionary.txt`
 
 - **`map`**
-  - **What it does:** Changes items in your list using values from a mapping file or extra pairs. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, and YAML formats. By default, it keeps items that are not in the mapping. The `--min-length` and `--max-length` filters are **re-applied** to items after they are changed. Use `--drop-missing` to remove unmatched items.
+  - **What it does:** Changes items in your list using values from a mapping file or extra pairs. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, YAML, and TOML formats. By default, it keeps items that are not in the mapping. The `--min-length` and `--max-length` filters are **re-applied** to items after they are changed. Use `--drop-missing` to remove unmatched items.
   - **Options:**
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
   - **Example:** `python multitool.py map input.txt --add teh:the`
@@ -145,17 +149,17 @@ These modes help you transform or combine your data.
 
 - **`zip`**
   - **What it does:** Joins two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**. If the files have a different number of lines, the output will stop at the end of the shortest file.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
 - **`swap`**
   - **What it does:** Flips the order of elements in paired data (for example, `typo -> correction` becomes `correction -> typo`).
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
 
 - **`scrub`**
   - **What it does:** Fixes typos in your text files using a mapping file or extra pairs. It tries to keep the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like `CamelCase` and `snake_case` variables.
-  - **Supported Formats:** Supports CSV, Arrow, Table, JSON, and YAML mapping formats.
+  - **Supported Formats:** Supports CSV, Arrow, Table, JSON, YAML, and TOML mapping formats.
   - **Options:**
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
   - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (for example, `--in-place .bak`), the tool will create a backup of each file before modifying it.
@@ -185,7 +189,7 @@ These modes help you transform or combine your data.
 
 - **`pairs`**
   - **What it does:** Works with and converts paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (for example, from JSON to CSV) while applying cleaning and length filters.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py pairs typos.json --output-format csv`
 
 ### 3. CHECKING DATA
@@ -199,12 +203,12 @@ These modes help you analyze your data.
 - **`classify`**
   - **What it does:** Groups typo corrections based on their error type. It labels each pair with a code like `[K]` (Keyboard), `[T]` (Transposition), `[D]` (Deletion), `[I]` (Insertion), `[R]` (Replacement), or `[M]` (Multiple letters).
   - **Options:** Use `--show-dist` to include the number of character changes in the output labels.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py classify typos.txt --show-dist --output labeled.txt`
 
 - **`conflict`**
   - **What it does:** Finds typos that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py conflict mappings.csv`
 
 - **`count`**
@@ -232,19 +236,19 @@ These modes help you analyze your data.
 - **`fuzzymatch`**
   - **What it does:** Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos.
   - **Options:** Use `--min-dist` and `--max-dist` to control the number of changes allowed, and `--show-dist` to see the number of changes in the output.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py fuzzymatch typos.txt words.csv --max-dist 1 --show-dist`
 
 - **`near_duplicates`**
   - **What it does:** Finds pairs of words in your list that are very similar (only a few characters are different). This is useful for finding potential typos or unintended duplicates.
   - **Options:** Use `--min-dist` and `--max-dist` to control the number of changes allowed, and `--show-dist` to see the number of changes in the output.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py near_duplicates words.txt --max-dist 1 --show-dist`
 
 - **`similarity`**
   - **What it does:** Filters paired data (like `typo -> correction`) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.
   - **Options:** Use `--min-dist` and `--max-dist` to set the range of allowed changes, and `--show-dist` to include the number of changes in the output.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py similarity typos.txt --max-dist 2 --show-dist`
 
 - **`stats`**
@@ -261,7 +265,7 @@ These modes help you analyze your data.
     - `--show-dist`: Include the number of character changes in the output.
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1`
 
 - **`casing`**
@@ -269,7 +273,7 @@ These modes help you analyze your data.
   - **Options:**
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py casing report.txt --smart --output-format arrow`
 
 - **`repeated`**
@@ -277,7 +281,7 @@ These modes help you analyze your data.
   - **Options:**
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, and `yaml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
 
 - **`search`**
@@ -312,7 +316,7 @@ These options work with most modes:
 
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input** if not provided.
 - `--output`: The file to write results to. Defaults to printing to the screen.
-- `--output-format`: The format of the output. Options include `line` (default), `json`, `yaml`, `csv`, `markdown`, `md-table`, `arrow`, and `table`.
+- `--output-format`: The format of the output. Options include `line` (default), `json`, `yaml`, `toml`, `csv`, `markdown`, `md-table`, `arrow`, and `table`.
 - `--min-length`: Skip items shorter than this length (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').
 - `--max-length`: Skip words longer than this length (default: 1000).
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.

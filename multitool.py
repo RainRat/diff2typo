@@ -30,6 +30,17 @@ except ImportError:  # pragma: no cover - optional dependency
     chardet = None
     _CHARDET_AVAILABLE = False
 
+try:
+    import tomllib
+    _TOMLLIB_AVAILABLE = True
+except ImportError:
+    try:
+        import toml
+        _TOML_AVAILABLE = True
+    except ImportError:
+        _TOMLLIB_AVAILABLE = False
+        _TOML_AVAILABLE = False
+
 # Cache for standard input to allow multiple passes
 _STDIN_CACHE: List[str] | None = None
 
@@ -598,6 +609,10 @@ def write_output(
             except ImportError:
                 for item in items_list:
                     outfile.write(f"- {item}\n")
+        elif output_format == 'toml':
+            # Alias for table format for simple lists
+            for item in items_list:
+                outfile.write(f'{item} = ""\n')
         else:  # 'line' or fallback
             for item in items_list:
                 outfile.write(item + '\n')
@@ -654,6 +669,46 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                 logging.error("PyYAML not installed.")
             except Exception as e:
                 logging.error(f"Failed to parse YAML in '{input_file}': {e}")
+            continue
+
+        if ext.endswith('.toml'):
+            if not _TOMLLIB_AVAILABLE and not _TOML_AVAILABLE:
+                logging.error("TOML support requires Python 3.11+ or the 'toml' package.")
+                continue
+            content = "".join(_read_file_lines_robust(input_file))
+            if content.strip():
+                try:
+                    if _TOMLLIB_AVAILABLE:
+                        data = tomllib.loads(content)
+                    else:
+                        import toml
+                        data = toml.loads(content)
+
+                    if isinstance(data, dict):
+                        if 'replacements' in data:
+                            repls = data['replacements']
+                            if isinstance(repls, list):
+                                for item in repls:
+                                    if isinstance(item, dict) and 'typo' in item:
+                                        correct = item.get('correct', item.get('correction'))
+                                        if correct is not None:
+                                            yield str(item['typo']), str(correct)
+                            elif isinstance(repls, dict):
+                                for k, v in repls.items():
+                                    if isinstance(v, list):
+                                        for item in v:
+                                            if isinstance(item, dict) and 'typo' in item:
+                                                correct = item.get('correct', item.get('correction'))
+                                                if correct is not None:
+                                                    yield str(item['typo']), str(correct)
+                                    elif not isinstance(v, dict):
+                                        yield str(k), str(v)
+                        else:
+                            for k, v in data.items():
+                                if not isinstance(v, (dict, list)):
+                                    yield str(k), str(v)
+                except Exception as e:
+                    logging.error(f"Failed to parse TOML in '{input_file}': {e}")
             continue
 
         # Text formats
@@ -797,7 +852,7 @@ def _write_paired_output(
             writer = csv.writer(out_file)
             for left, right in pairs_list:
                 writer.writerow([left, right])
-        elif output_format == 'table':
+        elif output_format in ('table', 'toml'):
             for left, right in pairs_list:
                 out_file.write(f'{left} = "{right}"\n')
         elif output_format == 'markdown':
@@ -1049,6 +1104,32 @@ def _extract_yaml_items(input_file: str, key_path: str, quiet: bool = False) -> 
             yield from _traverse_data(doc, path_parts)
     except yaml.YAMLError as e:
         logging.error(f"Failed to parse YAML in '{input_file}': {e}")
+        return
+
+
+def _extract_toml_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:
+    """Yield values from TOML objects based on a dotted key path."""
+
+    if not _TOMLLIB_AVAILABLE and not _TOML_AVAILABLE:
+        logging.error("TOML support requires Python 3.11+ or the 'toml' package.")
+        sys.exit(1)
+
+    path_parts = key_path.split('.') if key_path else []
+
+    lines = _read_file_lines_robust(input_file)
+    content = "".join(lines)
+    try:
+        if not content.strip():
+            return
+        if _TOMLLIB_AVAILABLE:
+            data = tomllib.loads(content)
+        else:
+            # Fallback to third-party toml package
+            import toml
+            data = toml.loads(content)
+        yield from _traverse_data(data, path_parts)
+    except Exception as e:
+        logging.error(f"Failed to parse TOML in '{input_file}': {e}")
         return
 
 
@@ -1324,6 +1405,37 @@ def arrow_mode(
         process_output,
         'Arrow',
         'File(s) processed successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+    )
+
+
+def toml_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    key: str,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Wrapper for getting fields from TOML files."""
+    def extractor(f, quiet=False):
+        return _extract_toml_items(f, key, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'TOML',
+        'Successfully got TOML values.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -4653,10 +4765,10 @@ def _add_common_mode_arguments(
     io_group.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
+        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml'],
         metavar='FORMAT',
         default=argparse.SUPPRESS,
-        help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml.",
+        help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -4924,6 +5036,12 @@ MODE_DETAILS = {
         "example": "python multitool.py yaml list.yaml -o items.txt",
         "flags": "[-k KEY]",
     },
+    "toml": {
+        "summary": "Extracts TOML values by key",
+        "description": "Finds values for a specific key in a TOML file. Use dots for nested keys (like 'tool.poetry.dependencies'). If no key is provided, it gets items from the top level. It automatically handles nested tables.",
+        "example": "python multitool.py toml pyproject.toml -k tool.poetry.dependencies --output-format toml",
+        "flags": "[-k KEY]",
+    },
     "line": {
         "summary": "Reads a file line by line",
         "description": "Reads every line from a file, cleans the text, and writes it to the output. Useful for simple cleaning and filtering.",
@@ -5128,7 +5246,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "line", "words", "ngrams", "regex"],
         "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "AUDIT & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -5324,10 +5442,10 @@ def _build_parser() -> argparse.ArgumentParser:
     io_group.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml'],
+        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml'],
         metavar='FORMAT',
         default='line',
-        help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml.",
+        help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -5561,6 +5679,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The key path to get (for example 'config.items'). If not provided, gets from the top level.",
     )
     _add_common_mode_arguments(yaml_parser)
+
+    toml_parser = subparsers.add_parser(
+        'toml',
+        help=MODE_DETAILS['toml']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['toml']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['toml']['example']}{RESET}",
+    )
+    toml_options = toml_parser.add_argument_group(f"{BLUE}TOML OPTIONS{RESET}")
+    toml_options.add_argument(
+        '-k', '--key',
+        type=str,
+        default='',
+        help="The key path to get (for example 'tool.poetry.dependencies'). If not provided, gets from the top level.",
+    )
+    _add_common_mode_arguments(toml_parser)
 
     combine_parser = subparsers.add_parser(
         'combine',
@@ -6767,6 +6901,14 @@ def main() -> None:
         ),
         'yaml': (
             yaml_mode,
+            {
+                **common_kwargs,
+                'key': getattr(args, 'key', ''),
+                'output_format': output_format,
+            },
+        ),
+        'toml': (
+            toml_mode,
             {
                 **common_kwargs,
                 'key': getattr(args, 'key', ''),

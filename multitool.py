@@ -4982,7 +4982,7 @@ MODE_DETAILS = {
         "summary": "Replaces items using a mapping",
         "description": "Replaces items in your list with values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
-        "flags": "MAPPING [FILES...] [-a K:V] [-p]",
+        "flags": "[MAPPING] [FILES...] [-a K:V] [-p]",
     },
     "zip": {
         "summary": "Pairs lines from two files",
@@ -5066,31 +5066,31 @@ MODE_DETAILS = {
         "summary": "Fixes casing/spelling project-wide",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching based on your project's dominant patterns.",
         "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1",
-        "flags": "[--in-place] [--dry-run] [--diff] [--fuzzy N] [--threshold R]",
+        "flags": "[FILES...] [--in-place] [--dry-run] [--diff] [--fuzzy N] [--threshold R]",
     },
     "search": {
         "summary": "Searches for words or patterns",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.",
         "example": "python multitool.py search 'teh' report.txt --max-dist 1 --line-numbers -C 2",
-        "flags": "QUERY [FILES...] [-S] [-n] [-B N] [-A N] [-C N]",
+        "flags": "[QUERY] [FILES...] [-S] [-n] [-B N] [-A N] [-C N]",
     },
     "scan": {
         "summary": "Audits project for known typos",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. It also supports context lines.",
         "example": "python multitool.py scan . --add teh:the --smart -A 1",
-        "flags": "MAPPING [FILES...] [-a K:V] [-S] [-B N] [-A N] [-C N]",
+        "flags": "[MAPPING] [FILES...] [-a K:V] [-S] [-B N] [-A N] [-C N]",
     },
     "verify": {
         "summary": "Checks if typos exist in project",
         "description": "Checks a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
         "example": "python multitool.py verify . --mapping typos.csv --prune",
-        "flags": "MAPPING [FILES...] [-a K:V] [-S] [--prune]",
+        "flags": "[MAPPING] [FILES...] [-a K:V] [-S] [--prune]",
     },
     "scrub": {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --diff",
-        "flags": "MAPPING [FILES...] [-a K:V] [--diff]",
+        "flags": "[MAPPING] [FILES...] [-a K:V] [--diff]",
     },
     "align": {
         "summary": "Aligns typo-correction pairs",
@@ -5114,7 +5114,7 @@ MODE_DETAILS = {
         "summary": "Color-codes words from a list",
         "description": "Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the typo-fixing tool.",
         "example": "python multitool.py highlight input.txt --add teh:the",
-        "flags": "MAPPING [FILES...] [-a K:V] [-S]",
+        "flags": "[MAPPING] [FILES...] [-a K:V] [-S]",
     },
     "resolve": {
         "summary": "Shortens typo correction chains",
@@ -5254,9 +5254,15 @@ def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> No
 
         flags_str = details.get("flags", "[FILES...]")
         first_word = flags_str.split()[0] if flags_str else ""
-        # If the flags string starts with a positional label (uppercase, no brackets), show it as part of USAGE
-        if first_word.isupper() and not first_word.startswith('[') and not first_word.startswith('-'):
-            usage_line = f"python {parser.prog} {mode_name} {first_word} [FILES...] [FLAGS]"
+        # Include the first word in USAGE if it looks like a positional argument
+        # (uppercase word, potentially bracketed) but is not the generic [FILES...]
+        if (first_word and not first_word.startswith('-') and
+            first_word not in ("[FILES...]", "FILES...")):
+            clean_word = first_word.strip('[]().')
+            if clean_word.isupper():
+                usage_line = f"python {parser.prog} {mode_name} {first_word} [FILES...] [FLAGS]"
+            else:
+                usage_line = f"python {parser.prog} {mode_name} [FILES...] [FLAGS]"
         else:
             usage_line = f"python {parser.prog} {mode_name} [FILES...] [FLAGS]"
 

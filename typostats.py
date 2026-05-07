@@ -38,12 +38,16 @@ BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
 RED = "\033[1;31m"
 YELLOW = "\033[1;33m"
+MAGENTA = "\033[1;35m"
+CYAN = "\033[1;36m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
-# Disable colors if not running in a terminal or if NO_COLOR is set
-if (not sys.stdout.isatty() and not os.environ.get('FORCE_COLOR')) or os.environ.get('NO_COLOR'):
-    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+# Global color constants are initialized based on stdout.
+# Specific functions (like generate_report) may use _should_enable_color
+# for more granular stream-based color detection.
+if (not sys.stdout.isatty() and 'FORCE_COLOR' not in os.environ) or 'NO_COLOR' in os.environ:
+    BLUE = GREEN = RED = YELLOW = MAGENTA = CYAN = RESET = BOLD = ""
 
 
 class MinimalFormatter(logging.Formatter):
@@ -67,6 +71,15 @@ class MinimalFormatter(logging.Formatter):
                 levelname = f"{color}{levelname}{RESET}"
 
         return f"{levelname}: {record.getMessage()}"
+
+
+def _should_enable_color(stream: Any) -> bool:
+    """Check if color should be enabled for a given stream."""
+    if os.environ.get('NO_COLOR'):
+        return False
+    if os.environ.get('FORCE_COLOR'):
+        return True
+    return hasattr(stream, 'isatty') and stream.isatty()
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -700,10 +713,19 @@ def generate_report(
     # Color support detection
     # main output colors (used for the report data)
     # These are suppressed if writing to a file or if the main output is not a terminal (piping)
-    show_color_out = not output_file and sys.stdout.isatty()
+    show_color_out = not output_file and _should_enable_color(sys.stdout)
     # standard error colors (used for human-readable headers)
     # If output_file is set, we avoid colors in headers that might be written to the file
-    show_color_err = not output_file and sys.stderr.isatty()
+    show_color_err = not output_file and _should_enable_color(sys.stderr)
+
+    c_bold = BOLD if show_color_out else ""
+    c_blue = BLUE if show_color_out else ""
+    c_green = GREEN if show_color_out else ""
+    c_yellow = YELLOW if show_color_out else ""
+    c_magenta = MAGENTA if show_color_out else ""
+    c_cyan = CYAN if show_color_out else ""
+    c_red = RED if show_color_out else ""
+    c_reset = RESET if show_color_out else ""
 
     if output_format == 'arrow':
         # arrow
@@ -789,28 +811,21 @@ def generate_report(
         )
 
         # Calculate padding for alignment (default to header labels' lengths)
-        max_c = max((len(c) for (c, t), count in sorted_replacements), default=7)
-        max_c = max(max_c, 7)  # 'CORRECT' is 7
+        max_c = max((len(c) for (c, t), count in sorted_replacements), default=10)
+        max_c = max(max_c, 10)  # 'Correction' is 10
         max_t = max((len(t) for (c, t), count in sorted_replacements), default=4)
-        max_t = max(max_t, 4)  # 'TYPO' is 4
+        max_t = max(max_t, 4)  # 'Typo' is 4
         max_n = max((len(str(count)) for (c, t), count in sorted_replacements), default=5)
-        max_n = max(max_n, 5)  # 'COUNT' is 5
+        max_n = max(max_n, 5)  # 'Count' is 5
         max_p = 6  # Width for percentage (for example, "100.0%")
 
-        # Colors for table
-        c_bold = BOLD if show_color_out else ""
-        c_blue = BLUE if show_color_out else ""
-        c_green = GREEN if show_color_out else ""
-        c_yellow = YELLOW if show_color_out else ""
-        c_red = RED if show_color_out else ""
-        c_reset = RESET if show_color_out else ""
         # Header row and divider with consistent padding and vertical separators
         # Bold blue for table visual elements
         sep = f"{c_bold}{c_blue}│{c_reset}"
         header_row = (
-            f"{padding}{c_bold}{c_blue}{'TYPO':<{max_t}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'CORRECT':<{max_c}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{'COUNT':>{max_n}}{c_reset} {sep} "
+            f"{padding}{c_bold}{c_blue}{'Typo':<{max_t}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'Correction':<{max_c}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'Count':>{max_n}}{c_reset} {sep} "
             f"{c_bold}{c_blue}{'%':>{max_p}}{c_reset}"
         )
         visible_header_len = max_t + max_c + max_n + max_p + 9
@@ -818,12 +833,12 @@ def generate_report(
         show_attr = any([keyboard, kwargs.get('allow_transposition'), kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions'), kwargs.get('all')])
 
         if show_attr:
-            header_row += f" {sep} {c_bold}{c_blue}{'ATTR':<5}{c_reset}"
+            header_row += f" {sep} {c_bold}{c_blue}{'Attr':<5}{c_reset}"
             visible_header_len += 8
 
         # Add Visual column header
-        max_bar = 15
-        header_row += f" {sep} {c_bold}{c_blue}{'VISUAL':<{max_bar}}{c_reset}"
+        max_bar = 20
+        header_row += f" {sep} {c_bold}{c_blue}{'Visual':<{max_bar}}{c_reset}"
         visible_header_len += 3 + max_bar
 
         divider = f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}"
@@ -877,11 +892,14 @@ def generate_report(
             )
             if show_attr:
                 marker_text = "     "
+                marker_color = c_yellow
                 if len(correct_char) == 1 and len(typo_char) == 1:
                     if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
                         marker_text = "[K]"
+                        marker_color = c_cyan
                 elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
                     marker_text = "[T]"
+                    marker_color = c_magenta
                 elif len(correct_char) < len(typo_char):
                     # Typo is longer: Insertion [Ins] or 1-to-2 replacement [1:2]
                     if correct_char in typo_char:
@@ -895,7 +913,7 @@ def generate_report(
                     else:
                         marker_text = "[2:1]"
 
-                marker = f"{c_bold}{marker_text:<5}{c_reset}"
+                marker = f"{marker_color}{marker_text:<5}{c_reset}"
                 row += f" {sep} {marker}"
 
             row += f" {sep} {c_blue}{bar}{c_reset}"

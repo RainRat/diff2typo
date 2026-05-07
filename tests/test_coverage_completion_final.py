@@ -195,7 +195,7 @@ def test_mode_help_action_usage_formatting(capsys):
     output = captured.err + captured.out
     # Strip ANSI codes for comparison
     clean_output = re.sub(r'\x1b\[[0-9;]*m', '', output)
-    assert "USAGE:       python multitool.py search QUERY [FILES...] [FLAGS]" in clean_output
+    assert "USAGE:       python multitool.py search [QUERY] [FILES...] [FLAGS]" in clean_output
 
 def test_main_search_fallback(tmp_path):
     """Cover multitool.py lines 5673-5674: main() search mode fallbacks."""

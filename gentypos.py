@@ -200,19 +200,28 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                 else:
                     # Fallback: plain typo,correction CSV.
                     reader = csv.reader(f)
-                    header_keywords = {'typo', 'correction', 'before', 'after', 'correct', 'word', 'correct_char', 'typo_char'}
+                    typo_indicators = {'typo', 'typo_char', 'before'}
+                    correct_indicators = {'correction', 'correct', 'correct_char', 'after', 'word'}
+                    header_keywords = typo_indicators | correct_indicators
+
+                    idx_correct, idx_typo = 0, 1  # Default: correct,typo
 
                     for i, row in enumerate(reader):
                         if not row or len(row) < 2:
                             continue
-                        
+
                         # Skip header if first row matches keywords
                         if i == 0:
                             val1, val2 = row[0].lower(), row[1].lower()
                             if val1 in header_keywords and val2 in header_keywords:
+                                # Determine column order based on headers
+                                if val1 in typo_indicators and val2 in correct_indicators:
+                                    idx_correct, idx_typo = 1, 0
+                                elif val1 in correct_indicators and val2 in typo_indicators:
+                                    idx_correct, idx_typo = 0, 1
                                 continue
 
-                        subs[row[0]].append(row[1])
+                        subs[str(row[idx_correct])].append(str(row[idx_typo]))
         else:
             # Assume YAML
             if not _YAML_AVAILABLE:

@@ -44,7 +44,8 @@ def test_load_substitutions_csv_plain_header(tmp_path):
     path = tmp_path / "subs.csv"
     path.write_text("typo,correction\ne,a\no,i\n")
     result = gentypos._load_substitutions_file(str(path))
-    assert result == {"e": ["a"], "o": ["i"]}
+    # 'a' is the correction, 'e' is the typo. Mapping should be correction -> [typo]
+    assert result == {"a": ["e"], "i": ["o"]}
 
 def test_load_substitutions_csv_plain_no_header(tmp_path):
     path = tmp_path / "subs.csv"

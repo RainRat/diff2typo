@@ -34,7 +34,8 @@ def test_load_substitutions_csv_empty_rows(tmp_path):
     path.write_text("typo,correction\n\nonly_one\ne,a\n")
 
     result = gentypos._load_substitutions_file(str(path))
-    assert result == {"e": ["a"]}
+    # 'a' is the correction, 'e' is the typo. Mapping should be correction -> [typo]
+    assert result == {"a": ["e"]}
 
 def test_main_output_header_file(tmp_path, monkeypatch):
     out_file = tmp_path / "out_with_header.txt"

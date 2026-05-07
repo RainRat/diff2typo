@@ -534,9 +534,7 @@ def is_one_letter_replacement(
 
     # One-to-two replacement scenario allowed only if difference in length is 1
     if (allow_1to2 or include_deletions) and len(typo) == len(correction) + 1:
-        # Find all positions i where correction[i] is replaced by typo[i:i+2].
-        # We use a set to avoid counting identical interpretations (for example for doubled letters) multiple times.
-        replacements = set()
+        # Find the first position i where correction[i] is replaced by typo[i:i+2].
         for i in range(len(correction)):
             # To be a replacement of correction[i] with typo[i:i+2],
             # the prefix correction[:i] must match typo[:i], and
@@ -553,12 +551,10 @@ def is_one_letter_replacement(
                     if not allow_1to2:
                         continue
 
-                replacements.add((repl_correction, repl_typo))
-        return sorted(replacements)
+                return [(repl_correction, repl_typo)]
 
     # Two-to-one replacement scenario (for example 'ph' -> 'f')
     if (allow_2to1 or include_deletions) and len(typo) == len(correction) - 1:
-        replacements = set()
         for i in range(len(typo)):
             # To be a replacement of correction[i:i+2] with typo[i],
             # the prefix correction[:i] must match typo[:i], and
@@ -575,8 +571,7 @@ def is_one_letter_replacement(
                     if not allow_2to1:
                         continue
 
-                replacements.add((repl_correction, repl_typo))
-        return sorted(replacements)
+                return [(repl_correction, repl_typo)]
 
     return []
 

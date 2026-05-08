@@ -112,6 +112,35 @@ def _merge_defaults(
                 logging.debug(f"Applying default for '{dotted_path}': {default_value}")
             config.setdefault(key, default_value)
 
+def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
+    """
+    Detect the output format based on the file extension.
+    Returns the default if no match is found or no extension is present.
+    """
+    if not path or path == '-':
+        return default
+
+    ext = os.path.splitext(path)[1].lower().lstrip('.')
+    if not ext:
+        return default
+
+    # Map common extensions to tool-supported formats
+    mapping = {
+        'txt': 'arrow',
+        'csv': 'csv',
+        'table': 'table',
+        'toml': 'table',
+        'list': 'list',
+        'arrow': 'arrow',
+    }
+
+    detected = mapping.get(ext)
+    if detected in allowed:
+        return detected
+
+    return default
+
+
 def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
     Returns a dictionary of adjacent keys on a QWERTY keyboard.
@@ -505,7 +534,7 @@ def parse_yaml_config(config_path: str) -> dict[str, Any]:
         with open(config_path, 'r', encoding='utf-8') as file:
             config = yaml.safe_load(file)
             logging.debug(f"Parsed YAML configuration from '{config_path}'.")
-            return config
+            return config or {}
     except FileNotFoundError:
         logging.error(f"Configuration file '{config_path}' not found.")
         sys.exit(1)
@@ -817,7 +846,8 @@ def main() -> None:
         '-f', '--format',
         choices=['arrow', 'csv', 'table', 'list'],
         metavar='FMT',
-        help="Choose an output format (default: arrow).",
+        default=None,
+        help="Choose an output format. If not provided, it is automatically detected from the output file extension. (default: arrow).",
     )
     io_group.add_argument(
         '-s', '--substitutions',
@@ -907,8 +937,7 @@ def main() -> None:
         # This overrides any persistent settings in the configuration file.
         if not args.output:
             config['output_file'] = '-'
-        if not args.format:
-            config['output_format'] = 'arrow'
+        # output_format default is now handled via extension detection
         # Ensure extra words aren't filtered out by default project-wide min_length settings.
         if args.min_length is None:
             if 'word_length' not in config:
@@ -920,6 +949,9 @@ def main() -> None:
         config['output_file'] = args.output
     if args.format:
         config['output_format'] = args.format
+    elif config.get('output_format') is None:
+        allowed_formats = ['arrow', 'csv', 'table', 'list']
+        config['output_format'] = _detect_format_from_extension(config.get('output_file'), allowed_formats, 'arrow')
     if args.substitutions:
         config['substitutions_file'] = args.substitutions
     if args.no_filter:

@@ -33,12 +33,13 @@ except ImportError:  # pragma: no cover - optional dependency
 try:
     import tomllib
     _TOMLLIB_AVAILABLE = True
+    _TOML_AVAILABLE = False
 except ImportError:
+    _TOMLLIB_AVAILABLE = False
     try:
         import toml
         _TOML_AVAILABLE = True
     except ImportError:
-        _TOMLLIB_AVAILABLE = False
         _TOML_AVAILABLE = False
 
 # Cache for standard input to allow multiple passes

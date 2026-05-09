@@ -108,6 +108,38 @@ def filter_to_letters(text: str) -> str:
     return re.sub("[^a-z]", "", text.lower())
 
 
+def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
+    """
+    Detect the output format based on the file extension.
+    Returns the default if no match is found or no extension is present.
+    """
+    if not path or path == '-':
+        return default
+
+    ext = os.path.splitext(path)[1].lower().lstrip('.')
+    if not ext:
+        return default
+
+    # Map common extensions to tool-supported formats
+    mapping = {
+        'txt': 'line',
+        'json': 'json',
+        'csv': 'csv',
+        'md': 'markdown',
+        'yaml': 'yaml',
+        'yml': 'yaml',
+        'toml': 'toml',
+        'arrow': 'arrow',
+        'table': 'table',
+    }
+
+    detected = mapping.get(ext)
+    if detected in allowed:
+        return detected
+
+    return default
+
+
 def _apply_smart_case(original: str, replacement: str) -> str:
     """
     Applies the casing of the original string to the replacement string.
@@ -4772,7 +4804,7 @@ def _add_common_mode_arguments(
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml'],
         metavar='FORMAT',
         default=argparse.SUPPRESS,
-        help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml.",
+        help="Choose the format for the output. If not provided, it is automatically detected from the output file extension. Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -5454,8 +5486,8 @@ def _build_parser() -> argparse.ArgumentParser:
         dest='output_format',
         choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml'],
         metavar='FORMAT',
-        default='line',
-        help="Choose the format for the output (default: line). Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml.",
+        default=None,
+        help="Choose the format for the output. If not provided, it is automatically detected from the output file extension. Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -6780,8 +6812,10 @@ def main() -> None:
     sample_count = getattr(args, 'sample_count', None)
     sample_percent = getattr(args, 'sample_percent', None)
     limit = getattr(args, 'limit', None)
-    output_format = getattr(args, 'output_format', 'line')
-
+    output_format = getattr(args, 'output_format', None)
+    if output_format is None:
+        allowed_formats = ['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml']
+        output_format = _detect_format_from_extension(args.output, allowed_formats, 'line')
 
     clean_items = not getattr(args, 'raw', False)
 

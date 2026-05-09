@@ -3191,6 +3191,7 @@ def search_mode(
     """
     start_time = time.perf_counter()
     total_matches = 0
+    matched_files_count = 0
     query_clean = filter_to_letters(query) if clean_items else query.lower()
 
     # Safety check for match-all queries
@@ -3322,6 +3323,7 @@ def search_mode(
             continue
 
         total_matches += len(match_indices)
+        matched_files_count += 1
 
         # Collect context blocks
         accumulated_lines.extend(
@@ -3358,8 +3360,8 @@ def search_mode(
 
     logging.info(
         f"{c_blue}[Search Mode]{c_reset} Completed search in {len(input_files)} file(s) for \"{query}\". "
-        f"Found {c_green}{total_matches}{c_reset} match(es). Output written to \"{output_file}\". "
-        f"Processing time: {duration:.3f}s"
+        f"Found {c_green}{total_matches}{c_reset} match(es) in {c_green}{matched_files_count}{c_reset} of {len(input_files)} files. "
+        f"Output written to \"{output_file}\". Processing time: {duration:.3f}s"
     )
 
 
@@ -4490,6 +4492,7 @@ def scan_mode(
     mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
 
     total_matches = 0
+    matched_files_count = 0
     pattern = re.compile(r'([a-zA-Z0-9]+)')
 
     accumulated_lines = []
@@ -4574,6 +4577,7 @@ def scan_mode(
             continue
 
         total_matches += len(match_indices)
+        matched_files_count += 1
 
         # Collect context blocks
         accumulated_lines.extend(
@@ -4610,8 +4614,8 @@ def scan_mode(
 
     logging.info(
         f"{c_blue}[Scan Mode]{c_reset} Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
-        f"Found {c_green}{total_matches}{c_reset} match(es). Output written to '{output_file}'. "
-        f"Processing time: {duration:.3f}s"
+        f"Found {c_green}{total_matches}{c_reset} match(es) in {c_green}{matched_files_count}{c_reset} of {len(input_files)} files. "
+        f"Output written to '{output_file}'. Processing time: {duration:.3f}s"
     )
 
 def verify_mode(

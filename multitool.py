@@ -3904,22 +3904,21 @@ def map_mode(
                 continue
 
             # Default behavior of map_mode is processing the whole line item.
-            parts = [line_content]
-            for part in parts:
-                raw_item_count += 1
-                match_key = filter_to_letters(part) if clean_items else part
+            part = line_content
+            raw_item_count += 1
+            match_key = filter_to_letters(part) if clean_items else part
 
-                if match_key in mapping:
-                    transformed = mapping[match_key]
-                    if smart_case:
-                        transformed = _apply_smart_case(part, transformed)
+            if match_key in mapping:
+                transformed = mapping[match_key]
+                if smart_case:
+                    transformed = _apply_smart_case(part, transformed)
 
-                    # Re-apply length filtering to the result of the mapping
-                    if transformed and min_length <= len(transformed) <= max_length:
-                        results.append((part, transformed) if pairs else transformed)
-                elif not drop_missing:
-                    if part and min_length <= len(part) <= max_length:
-                        results.append((part, part) if pairs else part)
+                # Re-apply length filtering to the result of the mapping
+                if transformed and min_length <= len(transformed) <= max_length:
+                    results.append((part, transformed) if pairs else transformed)
+            elif not drop_missing:
+                if part and min_length <= len(part) <= max_length:
+                    results.append((part, part) if pairs else part)
 
     if process_output:
         results = sorted(set(results))

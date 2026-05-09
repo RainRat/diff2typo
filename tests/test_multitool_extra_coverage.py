@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 import sys
 import json
 import csv

@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 import json
 import logging
 import pytest

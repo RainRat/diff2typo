@@ -36,11 +36,8 @@ try:
     _TOML_AVAILABLE = False
 except ImportError:
     _TOMLLIB_AVAILABLE = False
-    try:
-        import toml
-        _TOML_AVAILABLE = True
-    except ImportError:
-        _TOML_AVAILABLE = False
+    import importlib.util
+    _TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
 
 # Cache for standard input to allow multiple passes
 _STDIN_CACHE: List[str] | None = None
@@ -917,7 +914,6 @@ def _write_paired_output(
                 c_blue = BLUE if show_color else ""
                 c_green = GREEN if show_color else ""
                 c_red = RED if show_color else ""
-                c_yellow = YELLOW if show_color else ""
                 c_reset = RESET if show_color else ""
 
                 # Header and divider

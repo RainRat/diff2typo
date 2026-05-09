@@ -1,6 +1,5 @@
 import io
 from unittest.mock import patch
-import pytest
 import multitool
 
 def test_align_mode_default_separator(tmp_path):

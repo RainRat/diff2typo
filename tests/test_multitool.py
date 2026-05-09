@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 import sys
 from pathlib import Path
 

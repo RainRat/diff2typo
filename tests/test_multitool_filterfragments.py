@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 import sys
 import time
 from pathlib import Path

@@ -164,16 +164,16 @@ def test_generate_report_formats_extra():
 def test_generate_report_sorting_and_filtering(capsys):
     counts = {('b', 'z'): 1, ('a', 'y'): 2, ('a', 'x'): 3}
     typostats.generate_report(counts, sort_by='count', output_format='arrow', quiet=True)
-    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]
+    lines = [line for line in capsys.readouterr().out.splitlines() if '│' in line and 'TYPO' not in line and '─' not in line]
     assert 'x' in lines[0] and 'y' in lines[1] and 'z' in lines[2]
     typostats.generate_report(counts, sort_by='typo', output_format='arrow', quiet=True)
-    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]
+    lines = [line for line in capsys.readouterr().out.splitlines() if '│' in line and 'TYPO' not in line and '─' not in line]
     assert 'x' in lines[0] and 'y' in lines[1] and 'z' in lines[2]
     typostats.generate_report(counts, sort_by='correct', output_format='arrow', quiet=True)
-    lines = [l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]
+    lines = [line for line in capsys.readouterr().out.splitlines() if '│' in line and 'TYPO' not in line and '─' not in line]
     assert '│ a' in lines[0] and '│ b' in lines[2]
     typostats.generate_report(counts, min_occurrences=2, output_format='arrow', quiet=True)
-    assert len([l for l in capsys.readouterr().out.splitlines() if '│' in l and 'TYPO' not in l and '─' not in l]) == 2
+    assert len([line for line in capsys.readouterr().out.splitlines() if '│' in line and 'TYPO' not in line and '─' not in line]) == 2
 
 
 def test_generate_report_summaries(capsys):
@@ -273,9 +273,12 @@ def test_read_file_lines_robust_variants(tmp_path):
     # Test encoding fallback
     mock_files = {'dummy.txt': b'\xff'}
     def mocked_open_func(file, mode='r', encoding=None, **kwargs):
-        if 'b' in mode: return io.BytesIO(mock_files['dummy.txt'])
-        if encoding == 'utf-8': raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
-        if encoding == 'latin-1': return io.StringIO("\xff")
+        if 'b' in mode:
+            return io.BytesIO(mock_files['dummy.txt'])
+        if encoding == 'utf-8':
+            raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+        if encoding == 'latin-1':
+            return io.StringIO("\xff")
         raise UnicodeDecodeError('other', b'', 0, 1, 'invalid')
 
     with patch('builtins.open', side_effect=mocked_open_func), \
@@ -289,10 +292,14 @@ def test_read_file_lines_robust_encoding_failures():
     # Detected encoding failure
     with patch("builtins.open") as mocked_open:
         def side_effect(file, mode='r', encoding=None, **kwargs):
-            if 'b' in mode: return io.BytesIO(b"data")
-            if mode == 'r' and encoding == 'utf-8': raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
-            if mode == 'r' and encoding == 'detected': raise UnicodeDecodeError('detected', b'', 0, 1, 'invalid')
-            if mode == 'r' and encoding == 'latin-1': return io.StringIO("latin-1")
+            if 'b' in mode:
+                return io.BytesIO(b"data")
+            if mode == 'r' and encoding == 'utf-8':
+                raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+            if mode == 'r' and encoding == 'detected':
+                raise UnicodeDecodeError('detected', b'', 0, 1, 'invalid')
+            if mode == 'r' and encoding == 'latin-1':
+                return io.StringIO("latin-1")
             return io.StringIO("default")
         mocked_open.side_effect = side_effect
         with patch("typostats.detect_encoding", return_value="detected"), \
@@ -303,9 +310,12 @@ def test_read_file_lines_robust_encoding_failures():
     # Detect encoding returns None
     with patch("builtins.open") as mocked_open:
         def side_effect_none(file, mode='r', encoding=None, **kwargs):
-            if 'b' in mode: return io.BytesIO(b"data")
-            if mode == 'r' and encoding == 'utf-8': raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
-            if mode == 'r' and encoding == 'latin-1': return io.StringIO("latin-1_fallback")
+            if 'b' in mode:
+                return io.BytesIO(b"data")
+            if mode == 'r' and encoding == 'utf-8':
+                raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+            if mode == 'r' and encoding == 'latin-1':
+                return io.StringIO("latin-1_fallback")
             return io.StringIO("default")
         mocked_open.side_effect = side_effect_none
         with patch("typostats.detect_encoding", return_value=None), \
@@ -316,7 +326,8 @@ def test_read_file_lines_robust_encoding_failures():
 
 def test_main_cli_functionality():
     with patch('sys.argv', ['typostats.py', '--help']):
-        with pytest.raises(SystemExit): typostats.main()
+        with pytest.raises(SystemExit):
+            typostats.main()
     with patch('sys.argv', ['typostats.py', 'input.txt', '-a', '-q']), \
          patch('typostats._extract_pairs', return_value=[("teh", "the")]), \
          patch('typostats.generate_report') as mock_report:

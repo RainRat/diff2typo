@@ -1,8 +1,6 @@
 import multitool
-import pytest
 from unittest.mock import patch
 import io
-import os
 
 def test_toml_mode_extraction(tmp_path):
     toml_content = """

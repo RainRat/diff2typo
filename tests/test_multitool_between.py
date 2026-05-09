@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Import the functions to be tested from multitool
 from multitool import _extract_between_items, between_mode

@@ -1,6 +1,6 @@
 import pytest
 import multitool
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 @pytest.fixture(autouse=True)
 def disable_tqdm(monkeypatch):

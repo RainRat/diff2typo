@@ -2486,12 +2486,17 @@ def similarity_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    keyboard: bool = False,
+    transposition: bool = False,
 ) -> None:
     """
     Filters paired data based on the number of character changes between words.
+    Supports filtering by error type (keyboard slips or transpositions).
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
+
+    adj_keys = get_adjacent_keys() if keyboard else {}
 
     filtered_results = []
     stats_items = []
@@ -2515,6 +2520,16 @@ def similarity_mode(
             continue
         if max_dist is not None and dist > max_dist:
             continue
+
+        # Filter by error type if requested
+        if keyboard or transposition:
+            label = classify_typo(left, right, adj_keys)
+            if keyboard and label == "[K]":
+                pass
+            elif transposition and label == "[T]":
+                pass
+            else:
+                continue
 
         if show_dist:
             # Append number of changes to the right side for display
@@ -2555,9 +2570,12 @@ def near_duplicates_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    keyboard: bool = False,
+    transposition: bool = False,
 ) -> None:
     """
     Finds pairs of words in a single list that are similar to each other.
+    Supports filtering by error type (keyboard slips or transpositions).
     """
     start_time = time.perf_counter()
     raw_item_count = 0
@@ -2578,6 +2596,8 @@ def near_duplicates_mode(
     # Sort by length for optimized comparison
     unique_items.sort(key=len)
 
+    adj_keys = get_adjacent_keys() if keyboard else {}
+
     results = []
     stats_items = []
     num_items = len(unique_items)
@@ -2597,6 +2617,16 @@ def near_duplicates_mode(
             dist = levenshtein_distance(word_i, word_j)
 
             if min_dist <= dist <= max_dist:
+                # Filter by error type if requested
+                if keyboard or transposition:
+                    label = classify_typo(word_i, word_j, adj_keys)
+                    if keyboard and label == "[K]":
+                        pass
+                    elif transposition and label == "[T]":
+                        pass
+                    else:
+                        continue
+
                 if show_dist:
                     results.append((word_i, f"{word_j} (changes: {dist})"))
                 else:
@@ -2636,9 +2666,12 @@ def fuzzymatch_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    keyboard: bool = False,
+    transposition: bool = False,
 ) -> None:
     """
     Finds pairs of words between two lists that are similar to each other.
+    Supports filtering by error type (keyboard slips or transpositions).
     """
     start_time = time.perf_counter()
     raw_item_count = 0
@@ -2667,6 +2700,8 @@ def fuzzymatch_mode(
     # Sort list2 by length for optimized comparison
     list2_unique = sorted(set(list2_unique), key=len)
 
+    adj_keys = get_adjacent_keys() if keyboard else {}
+
     results = []
     stats_items = []
 
@@ -2685,6 +2720,16 @@ def fuzzymatch_mode(
             dist = levenshtein_distance(word_i, word_j)
 
             if min_dist <= dist <= max_dist:
+                # Filter by error type if requested
+                if keyboard or transposition:
+                    label = classify_typo(word_i, word_j, adj_keys)
+                    if keyboard and label == "[K]":
+                        pass
+                    elif transposition and label == "[T]":
+                        pass
+                    else:
+                        continue
+
                 if show_dist:
                     results.append((word_i, f"{word_j} (changes: {dist})"))
                 else:
@@ -2962,9 +3007,12 @@ def discovery_mode(
     limit: int | None = None,
     delimiter: str | None = None,
     smart: bool = False,
+    keyboard: bool = False,
+    transposition: bool = False,
 ) -> None:
     """
     Finds potential typos by comparing rare words to frequent words.
+    Supports filtering by error type (keyboard slips or transpositions).
     """
     start_time = time.perf_counter()
     word_counts = Counter()
@@ -2984,6 +3032,8 @@ def discovery_mode(
     rare_words = sorted([word for word, count in word_counts.items() if count <= rare_max])
     frequent_words = sorted([word for word, count in word_counts.items() if count >= freq_min], key=len)
 
+    adj_keys = get_adjacent_keys() if keyboard else {}
+
     results = []
     stats_items = []
     for rare in tqdm(rare_words, desc="Finding likely corrections", unit="word", disable=quiet):
@@ -2998,6 +3048,16 @@ def discovery_mode(
 
             dist = levenshtein_distance(rare, freq)
             if min_dist <= dist <= max_dist:
+                # Filter by error type if requested
+                if keyboard or transposition:
+                    label = classify_typo(rare, freq, adj_keys)
+                    if keyboard and label == "[K]":
+                        pass
+                    elif transposition and label == "[T]":
+                        pass
+                    else:
+                        continue
+
                 if show_dist:
                     results.append((rare, f"{freq} (changes: {dist})"))
                 else:
@@ -5160,21 +5220,21 @@ MODE_DETAILS = {
     },
     "similarity": {
         "summary": "Filters pairs by changes",
-        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.",
-        "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
-        "flags": "[--max-dist N] [--show-dist]",
+        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos. Supports filtering by error type (keyboard slips or transpositions).",
+        "example": "python multitool.py similarity typos.txt --max-dist 2 --keyboard --show-dist",
+        "flags": "[--max-dist N] [--show-dist] [-k] [-t]",
     },
     "near_duplicates": {
         "summary": "Finds similar words in one list",
-        "description": "Finds pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
-        "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
-        "flags": "[--max-dist N] [--show-dist]",
+        "description": "Finds pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project. Supports filtering by error type (keyboard slips or transpositions).",
+        "example": "python multitool.py near_duplicates words.txt --max-dist 1 --keyboard --show-dist",
+        "flags": "[--max-dist N] [--show-dist] [-k] [-t]",
     },
     "fuzzymatch": {
         "summary": "Finds similar words in two lists",
-        "description": "Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
-        "example": "python multitool.py fuzzymatch typos.txt words.csv --max-dist 1 --show-dist",
-        "flags": "[FILE2] [--max-dist N] [--show-dist]",
+        "description": "Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change. Supports filtering by error type (keyboard slips or transpositions).",
+        "example": "python multitool.py fuzzymatch typos.txt words.csv --max-dist 1 --keyboard --show-dist",
+        "flags": "[FILE2] [--max-dist N] [--show-dist] [-k] [-t]",
     },
     "stats": {
         "summary": "Calculates stats for a list",
@@ -5190,9 +5250,9 @@ MODE_DETAILS = {
     },
     "discovery": {
         "summary": "Finds typos in rare words",
-        "description": "Automatically finds potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
-        "example": "python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1",
-        "flags": "[--rare-max N] [-S]",
+        "description": "Automatically finds potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary. Supports filtering by error type (keyboard slips or transpositions).",
+        "example": "python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --keyboard",
+        "flags": "[--rare-max N] [-S] [-k] [-t]",
     },
     "casing": {
         "summary": "Finds inconsistent casing",
@@ -5894,6 +5954,16 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help="Include the number of character changes in the output.",
     )
+    similarity_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include typos caused by hitting a nearby key on the keyboard.",
+    )
+    similarity_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include typos caused by swapping two adjacent letters (for example, 'teh' -> 'the').",
+    )
     _add_common_mode_arguments(similarity_parser)
 
     near_duplicates_parser = subparsers.add_parser(
@@ -5920,6 +5990,16 @@ def _build_parser() -> argparse.ArgumentParser:
         '--show-dist',
         action='store_true',
         help="Include the number of character changes in the output.",
+    )
+    nd_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include words caused by hitting a nearby key on the keyboard.",
+    )
+    nd_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include words caused by swapping two adjacent letters (for example, 'teh' -> 'the').",
     )
     _add_common_mode_arguments(near_duplicates_parser)
 
@@ -5953,6 +6033,16 @@ def _build_parser() -> argparse.ArgumentParser:
         '--show-dist',
         action='store_true',
         help="Include the number of character changes in the output.",
+    )
+    fm_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include words caused by hitting a nearby key on the keyboard.",
+    )
+    fm_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include words caused by swapping two adjacent letters (for example, 'teh' -> 'the').",
     )
     _add_common_mode_arguments(fuzzymatch_parser)
 
@@ -6032,6 +6122,16 @@ def _build_parser() -> argparse.ArgumentParser:
         '-S', '--smart',
         action='store_true',
         help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
+    )
+    discovery_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include potential typos caused by hitting a nearby key on the keyboard.",
+    )
+    discovery_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include potential typos caused by swapping two adjacent letters (for example, 'teh' -> 'the').",
     )
     _add_common_mode_arguments(discovery_parser)
 
@@ -7186,6 +7286,8 @@ def main() -> None:
                 'max_dist': getattr(args, 'max_dist', None),
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
             },
         ),
         'near_duplicates': (
@@ -7196,6 +7298,8 @@ def main() -> None:
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
             },
         ),
         'fuzzymatch': (
@@ -7207,6 +7311,8 @@ def main() -> None:
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
                 'output_format': output_format,
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
             },
         ),
         'stats': (
@@ -7229,6 +7335,8 @@ def main() -> None:
                 'output_format': output_format,
                 'delimiter': delimiter,
                 'smart': getattr(args, 'smart', False),
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
             },
         ),
         'highlight': (

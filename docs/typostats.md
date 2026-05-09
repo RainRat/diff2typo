@@ -19,10 +19,11 @@ git diff | python diff2typo.py | python typostats.py
 
 ## Input Format
 
-The tool automatically recognizes three common ways of listing typos:
+The tool automatically recognizes four common ways of listing typos:
 1. **Arrow (Default):** `typo -> correction`
 2. **CSV:** `typo, correction`
 3. **Table:** `typo = "correction"`
+4. **Colon:** `typo: correction`
 
 > **Tip:** You can send the output from `diff2typo.py` directly into `typostats.py`.
 
@@ -73,12 +74,12 @@ When using the default **arrow** format, the report displays results in two sect
   Processing time:                    0.001s
 
   LETTER REPLACEMENTS
-  ───────────────────────────────────────────────────────
-  TYPO │ CORRECT │ COUNT │      % │ ATTR  │ VISUAL
-  ───────────────────────────────────────────────────────
-  eh   │ he      │     2 │  50.0% │ [T]   │ ███████▌
-  m    │ rn      │     1 │  25.0% │ [2:1] │ ███▊
-  he   │ h       │     1 │  25.0% │ [Ins] │ ███▊
+  ──────────────────────────────────────────────────────────────────
+  Typo │ Correction │ Count │      % │ Attr  │ Visual
+  ──────────────────────────────────────────────────────────────────
+  eh   │ he         │     2 │  50.0% │ [T]   │ ██████████
+  m    │ rn         │     1 │  25.0% │ [2:1] │ █████
+  he   │ h          │     1 │  25.0% │ [Ins] │ █████
 ```
 
 ### Analysis Summary
@@ -94,17 +95,17 @@ The dashboard at the top gives you an overview of your typo history:
 
 ### Letter Replacements Table
 This section breaks down every mistake:
-- **TYPO:** The mistake you actually made.
-- **CORRECT:** The character you intended to type.
-- **COUNT:** How many times this specific mistake happened.
+- **Typo:** The mistake you actually made.
+- **Correction:** The character you intended to type.
+- **Count:** How many times this specific mistake happened.
 - **%:** What percentage of all found replacements this mistake represents.
-- **ATTR:** Special markers showing the type of mistake (for example, `[K]` for keyboard slip).
-- **VISUAL:** A high-resolution bar chart for quick comparison.
+- **Attr:** Special markers showing the type of mistake (for example, `[K]` for keyboard slip).
+- **Visual:** A high-resolution bar chart for quick comparison.
 
 For example, a row showing `eh │ he` means you swapped the letters `h` and `e`.
 
-### Typo Attributes (ATTR)
-When you enable analysis features, the tool finds specific patterns in the **ATTR** column:
+### Typo Attributes (Attr)
+When you enable analysis features, the tool finds specific patterns in the **Attr** column:
 - **[K]**: Keyboard slip (the keys are next to each other on a QWERTY layout).
 - **[T]**: Transposition (swapped letters, like `teh` instead of `the`).
 - **[1:2]**: One-to-two replacement (for example, typing `rn` instead of `m`).

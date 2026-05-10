@@ -3539,6 +3539,62 @@ def zip_mode(
     )
 
 
+def _process_pairs(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    mode_label: str,
+    item_label: str,
+    output_format: str,
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    transform: Callable[[str, str], Tuple[str, str]] | None = None,
+    separator: str = " -> ",
+) -> None:
+    """Generic processing for modes that handle paired data (typo -> correction)."""
+    start_time = time.perf_counter()
+
+    raw_pairs = _extract_pairs(input_files, quiet=quiet)
+
+    filtered_pairs = []
+    raw_count = 0
+    for left, right in raw_pairs:
+        raw_count += 1
+
+        if transform:
+            left, right = transform(left, right)
+
+        if clean_items:
+            left = filter_to_letters(left)
+            right = filter_to_letters(right)
+
+        if not left or not right:
+            continue
+
+        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
+            filtered_pairs.append((left, right))
+
+    if process_output:
+        filtered_pairs = sorted(set(filtered_pairs))
+
+    _write_paired_output(
+        filtered_pairs,
+        output_file,
+        output_format,
+        mode_label,
+        quiet,
+        limit=limit,
+        separator=separator
+    )
+
+    print_processing_stats(
+        raw_count, filtered_pairs, item_label=item_label, start_time=start_time
+    )
+
+
 def pairs_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -3551,41 +3607,18 @@ def pairs_mode(
     limit: int | None = None,
 ) -> None:
     """Processes paired data from input file(s)."""
-    start_time = time.perf_counter()
-
-    raw_pairs = _extract_pairs(input_files, quiet=quiet)
-
-    filtered_pairs = []
-    raw_count = 0
-    for left, right in raw_pairs:
-        raw_count += 1
-        # Clean if requested
-        if clean_items:
-            left = filter_to_letters(left)
-            right = filter_to_letters(right)
-
-        # Skip if either side is empty after cleaning
-        if not left or not right:
-            continue
-
-        # Apply length filtering to both sides to ensure valid data pairs
-        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
-            filtered_pairs.append((left, right))
-
-    if process_output:
-        filtered_pairs = sorted(set(filtered_pairs))
-
-    _write_paired_output(
-        filtered_pairs,
+    _process_pairs(
+        input_files,
         output_file,
-        output_format,
+        min_length,
+        max_length,
+        process_output,
         "Pairs",
+        "pair",
+        output_format,
         quiet,
-        limit=limit
-    )
-
-    print_processing_stats(
-        raw_count, filtered_pairs, item_label="pair", start_time=start_time
+        clean_items,
+        limit
     )
 
 
@@ -3602,42 +3635,19 @@ def align_mode(
     limit: int | None = None,
 ) -> None:
     """Extracts pairs from any supported format and outputs them in aligned columns."""
-    start_time = time.perf_counter()
-
-    raw_pairs = _extract_pairs(input_files, quiet=quiet)
-
-    filtered_pairs = []
-    raw_count = 0
-    for left, right in raw_pairs:
-        raw_count += 1
-        # Clean if requested
-        if clean_items:
-            left = filter_to_letters(left)
-            right = filter_to_letters(right)
-
-        # Skip if either side is empty after cleaning
-        if not left or not right:
-            continue
-
-        # Apply length filtering to both sides to ensure valid data pairs
-        if min_length <= len(left) <= max_length and min_length <= len(right) <= max_length:
-            filtered_pairs.append((left, right))
-
-    if process_output:
-        filtered_pairs = sorted(set(filtered_pairs))
-
-    _write_paired_output(
-        filtered_pairs,
+    _process_pairs(
+        input_files,
         output_file,
-        output_format,
+        min_length,
+        max_length,
+        process_output,
         "Align",
+        "pair",
+        output_format,
         quiet,
-        limit=limit,
+        clean_items,
+        limit,
         separator=separator
-    )
-
-    print_processing_stats(
-        raw_count, filtered_pairs, item_label="pair", start_time=start_time
     )
 
 
@@ -3653,44 +3663,19 @@ def swap_mode(
     limit: int | None = None,
 ) -> None:
     """Reverses the order of pairs in the input file(s)."""
-    start_time = time.perf_counter()
-
-    raw_pairs = _extract_pairs(input_files, quiet=quiet)
-
-    filtered_pairs = []
-    raw_count = 0
-    for left, right in raw_pairs:
-        raw_count += 1
-        # Swap
-        new_left, new_right = right, left
-
-        # Clean if requested
-        if clean_items:
-            new_left = filter_to_letters(new_left)
-            new_right = filter_to_letters(new_right)
-
-        # Skip if either side is empty after cleaning
-        if not new_left or not new_right:
-            continue
-
-        # Apply length filtering
-        if min_length <= len(new_left) <= max_length and min_length <= len(new_right) <= max_length:
-            filtered_pairs.append((new_left, new_right))
-
-    if process_output:
-        filtered_pairs = sorted(set(filtered_pairs))
-
-    _write_paired_output(
-        filtered_pairs,
+    _process_pairs(
+        input_files,
         output_file,
-        output_format,
+        min_length,
+        max_length,
+        process_output,
         "Swap",
+        "swapped-pair",
+        output_format,
         quiet,
-        limit=limit
-    )
-
-    print_processing_stats(
-        raw_count, filtered_pairs, item_label="swapped-pair", start_time=start_time
+        clean_items,
+        limit,
+        transform=lambda l, r: (r, l)
     )
 
 

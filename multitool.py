@@ -2496,6 +2496,12 @@ def similarity_mode(
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
     adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
 
+    # Adjust max_dist if filters are used but default (None) or restrictive dist was kept
+    if transposition and max_dist == 1:
+        max_dist = 2
+    elif keyboard and max_dist == 0:
+        max_dist = 1
+
     filtered_results = []
     stats_items = []
     raw_count = 0

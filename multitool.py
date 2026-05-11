@@ -5399,9 +5399,9 @@ def get_mode_summary_text() -> str:
     header = (
         f"{padding}{c_bold}{c_blue}{'Mode':<{width_mode}}{c_reset} {sep} "
         f"{c_bold}{c_blue}{'Summary':<{width_summary}}{c_reset} {sep} "
-        f"{c_bold}{c_blue}Quick Start / Primary Flags{c_reset}"
+        f"{c_bold}{c_blue}Primary Options{c_reset}"
     )
-    divider = f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{cross}─{'─' * width_summary}─{cross}─{'─' * 27}{c_reset}"
+    divider = f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{cross}─{'─' * width_summary}─{cross}─{'─' * 15}{c_reset}"
 
     lines.append("\n" + header)
     lines.append(divider)
@@ -5427,7 +5427,7 @@ def get_mode_summary_text() -> str:
                 lines.append(row)
 
     # Closing line for the table
-    lines.append(f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{bottom}─{'─' * width_summary}─{bottom}─{'─' * 27}{c_reset}")
+    lines.append(f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{bottom}─{'─' * width_summary}─{bottom}─{'─' * 15}{c_reset}")
 
     # Quick Tips section
     lines.append(f"\n{padding}{c_bold}{c_blue}QUICK TIPS & GLOBAL FLAGS{c_reset}")
@@ -5442,7 +5442,7 @@ def get_mode_summary_text() -> str:
     for flag, desc in tips:
         lines.append(f"{padding}{c_bold}{c_green}{flag:<13}{c_reset} {desc}")
 
-    lines.append(f"\nRun '{c_bold}python multitool.py --mode-help <mode>{c_reset}' for details on a specific mode.\n")
+    lines.append(f"\nRun '{c_bold}python multitool.py help <mode>{c_reset}' for details on a specific mode.\n")
     return "\n".join(lines)
 
 
@@ -5497,23 +5497,39 @@ def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> No
             block.append(f"{label_color}{'DESCRIPTION:':<13}{RESET}{desc}")
 
         flags_str = details.get("flags", "[FILES...]")
-        first_word = flags_str.split()[0] if flags_str else ""
-        # Include the first word in USAGE if it looks like a positional argument
-        # (uppercase word, potentially bracketed) but is not the generic [FILES...]
-        if (first_word and not first_word.startswith('-') and
-            first_word not in ("[FILES...]", "FILES...")):
-            clean_word = first_word.strip('[]().')
-            if clean_word.isupper():
-                usage_line = f"python {parser.prog} {mode_name} {first_word} [FILES...] [FLAGS]"
-            else:
-                usage_line = f"python {parser.prog} {mode_name} [FILES...] [FLAGS]"
-        else:
-            usage_line = f"python {parser.prog} {mode_name} [FILES...] [FLAGS]"
+        all_tokens = flags_str.split()
+
+        # Identify positional arguments (uppercase words not preceded by a flag)
+        pos_args = []
+        for i, token in enumerate(all_tokens):
+            # Positional if it doesn't start with - and is not an argument to a preceding flag
+            if token.startswith('-') or (token.startswith('[') and token[1] == '-'):
+                continue
+            if i > 0:
+                prev = all_tokens[i-1]
+                if prev.startswith('-') or (prev.startswith('[') and prev[1] == '-'):
+                    continue
+
+            clean_token = token.strip('[]().')
+            if clean_token.isupper() and clean_token not in ("FILES...", "FILES"):
+                pos_args.append(token)
+
+        pos_args_str = (" " + " ".join(pos_args)) if pos_args else ""
+        usage_line = f"python {parser.prog} {mode_name}{pos_args_str} [FILES...] [OPTIONS]"
 
         block.append(f"\n{label_color}{'USAGE:':<13}{RESET}{BOLD}{usage_line}{RESET}")
 
         if details.get("flags"):
-            block.append(f"{label_color}{'FLAGS:':<13}{RESET}{YELLOW}{details['flags']}{RESET}")
+            # Filter out positional arguments and generic FILES labels from the options display
+            filtered_tokens = []
+            for token in all_tokens:
+                if token in pos_args or token in ("[FILES...]", "FILES..."):
+                    continue
+                filtered_tokens.append(token)
+
+            if filtered_tokens:
+                options_str = " ".join(filtered_tokens)
+                block.append(f"{label_color}{'OPTIONS:':<13}{RESET}{YELLOW}{options_str}{RESET}")
 
         if details.get("example"):
             block.append(f"\n{label_color}{'EXAMPLE:':<13}{RESET}")

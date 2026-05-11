@@ -5125,9 +5125,9 @@ MODE_DETAILS = {
     },
     "csv": {
         "summary": "Extracts columns from CSV",
-        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, or --column to pick specific numbers.",
-        "example": "python multitool.py csv typos.csv --column 2 -o corrections.txt",
-        "flags": "[--first-column] [-c N]",
+        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, --column to pick specific numbers, or --delimiter to use a custom separator.",
+        "example": "python multitool.py csv typos.csv --column 2 --delimiter ';' -o corrections.txt",
+        "flags": "[--first-column] [-c N] [-d DELIM]",
     },
     "markdown": {
         "summary": "Extracts Markdown list items",

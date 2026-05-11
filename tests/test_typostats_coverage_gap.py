@@ -1,7 +1,4 @@
-import os
 import sys
-import logging
-import pytest
 from unittest.mock import MagicMock, patch
 from typostats import (
     _should_enable_color,

@@ -3775,7 +3775,7 @@ def swap_mode(
         quiet,
         clean_items,
         limit,
-        transform=lambda l, r: (r, l)
+        transform=lambda left, right: (right, left)
     )
 
 

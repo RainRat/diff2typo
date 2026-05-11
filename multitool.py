@@ -2482,6 +2482,8 @@ def similarity_mode(
     min_dist: int = 0,
     max_dist: int | None = None,
     show_dist: bool = False,
+    keyboard: bool = False,
+    transposition: bool = False,
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
@@ -2492,6 +2494,7 @@ def similarity_mode(
     """
     start_time = time.perf_counter()
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
+    adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
 
     filtered_results = []
     stats_items = []
@@ -2515,6 +2518,16 @@ def similarity_mode(
             continue
         if max_dist is not None and dist > max_dist:
             continue
+
+        if keyboard or transposition:
+            label = classify_typo(left, right, adj_keys)
+            matches_filter = False
+            if keyboard and label == "[K]":
+                matches_filter = True
+            if transposition and label == "[T]":
+                matches_filter = True
+            if not matches_filter:
+                continue
 
         if show_dist:
             # Append number of changes to the right side for display
@@ -2551,6 +2564,8 @@ def near_duplicates_mode(
     min_dist: int = 1,
     max_dist: int = 1,
     show_dist: bool = False,
+    keyboard: bool = False,
+    transposition: bool = False,
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
@@ -2577,6 +2592,11 @@ def near_duplicates_mode(
     unique_items = sorted(set(all_unique_items))
     # Sort by length for optimized comparison
     unique_items.sort(key=len)
+    adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
+
+    # Adjust max_dist if transposition filter is used but default dist was kept
+    if transposition and max_dist == 1:
+        max_dist = 2
 
     results = []
     stats_items = []
@@ -2597,6 +2617,16 @@ def near_duplicates_mode(
             dist = levenshtein_distance(word_i, word_j)
 
             if min_dist <= dist <= max_dist:
+                if keyboard or transposition:
+                    label = classify_typo(word_i, word_j, adj_keys)
+                    matches_filter = False
+                    if keyboard and label == "[K]":
+                        matches_filter = True
+                    if transposition and label == "[T]":
+                        matches_filter = True
+                    if not matches_filter:
+                        continue
+
                 if show_dist:
                     results.append((word_i, f"{word_j} (changes: {dist})"))
                 else:
@@ -2632,6 +2662,8 @@ def fuzzymatch_mode(
     min_dist: int = 1,
     max_dist: int = 1,
     show_dist: bool = False,
+    keyboard: bool = False,
+    transposition: bool = False,
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
@@ -2666,6 +2698,11 @@ def fuzzymatch_mode(
 
     # Sort list2 by length for optimized comparison
     list2_unique = sorted(set(list2_unique), key=len)
+    adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
+
+    # Adjust max_dist if transposition filter is used but default dist was kept
+    if transposition and max_dist == 1:
+        max_dist = 2
 
     results = []
     stats_items = []
@@ -2685,6 +2722,16 @@ def fuzzymatch_mode(
             dist = levenshtein_distance(word_i, word_j)
 
             if min_dist <= dist <= max_dist:
+                if keyboard or transposition:
+                    label = classify_typo(word_i, word_j, adj_keys)
+                    matches_filter = False
+                    if keyboard and label == "[K]":
+                        matches_filter = True
+                    if transposition and label == "[T]":
+                        matches_filter = True
+                    if not matches_filter:
+                        continue
+
                 if show_dist:
                     results.append((word_i, f"{word_j} (changes: {dist})"))
                 else:
@@ -2956,6 +3003,8 @@ def discovery_mode(
     min_dist: int = 1,
     max_dist: int = 1,
     show_dist: bool = False,
+    keyboard: bool = False,
+    transposition: bool = False,
     output_format: str = 'arrow',
     quiet: bool = False,
     clean_items: bool = True,
@@ -2983,6 +3032,11 @@ def discovery_mode(
     # Find rare and frequent words
     rare_words = sorted([word for word, count in word_counts.items() if count <= rare_max])
     frequent_words = sorted([word for word, count in word_counts.items() if count >= freq_min], key=len)
+    adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
+
+    # Adjust max_dist if transposition filter is used but default dist was kept
+    if transposition and max_dist == 1:
+        max_dist = 2
 
     results = []
     stats_items = []
@@ -2998,6 +3052,16 @@ def discovery_mode(
 
             dist = levenshtein_distance(rare, freq)
             if min_dist <= dist <= max_dist:
+                if keyboard or transposition:
+                    label = classify_typo(rare, freq, adj_keys)
+                    matches_filter = False
+                    if keyboard and label == "[K]":
+                        matches_filter = True
+                    if transposition and label == "[T]":
+                        matches_filter = True
+                    if not matches_filter:
+                        continue
+
                 if show_dist:
                     results.append((rare, f"{freq} (changes: {dist})"))
                 else:
@@ -3205,6 +3269,8 @@ def search_mode(
     max_length: int,
     process_output: bool,
     max_dist: int = 0,
+    keyboard: bool = False,
+    transposition: bool = False,
     smart: bool = False,
     line_numbers: bool = False,
     quiet: bool = False,
@@ -3221,6 +3287,14 @@ def search_mode(
     total_matches = 0
     matched_files_count = 0
     query_clean = filter_to_letters(query) if clean_items else query.lower()
+    adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
+
+    # If transposition is requested but max_dist is at its default (0 for search), bump it to 2
+    if transposition and max_dist == 0:
+        max_dist = 2
+    # If keyboard slip is requested but max_dist is 0, bump it to 1
+    elif keyboard and max_dist == 0:
+        max_dist = 1
 
     # Safety check for match-all queries
     if clean_items and not query_clean:
@@ -3305,6 +3379,16 @@ def search_mode(
                     max_dist > 0
                     and levenshtein_distance(word_clean, query_clean) <= max_dist
                 ):
+                    if keyboard or transposition:
+                        label = classify_typo(word_clean, query_clean, adj_keys)
+                        matches_filter = False
+                        if keyboard and label == "[K]":
+                            matches_filter = True
+                        if transposition and label == "[T]":
+                            matches_filter = True
+                        if not matches_filter:
+                            continue
+
                     spans.append((word_start, word_end))
                     match_found_in_word = True
 
@@ -3317,6 +3401,16 @@ def search_mode(
 
                         for qp_clean in query_parts_clean:
                             if levenshtein_distance(sp_clean, qp_clean) <= max_dist:
+                                if keyboard or transposition:
+                                    label = classify_typo(sp_clean, qp_clean, adj_keys)
+                                    matches_filter = False
+                                    if keyboard and label == "[K]":
+                                        matches_filter = True
+                                    if transposition and label == "[T]":
+                                        matches_filter = True
+                                    if not matches_filter:
+                                        continue
+
                                 spans.append((word_start, word_end))
                                 match_found_in_word = True
                                 break
@@ -5161,20 +5255,20 @@ MODE_DETAILS = {
     "similarity": {
         "summary": "Filters pairs by changes",
         "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.",
-        "example": "python multitool.py similarity typos.txt --max-dist 2 --show-dist",
-        "flags": "[--max-dist N] [--show-dist]",
+        "example": "python multitool.py similarity typos.txt --keyboard --show-dist",
+        "flags": "[--max-dist N] [-k] [-t] [--show-dist]",
     },
     "near_duplicates": {
         "summary": "Finds similar words in one list",
         "description": "Finds pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
-        "example": "python multitool.py near_duplicates words.txt --max-dist 1 --show-dist",
-        "flags": "[--max-dist N] [--show-dist]",
+        "example": "python multitool.py near_duplicates words.txt --keyboard --show-dist",
+        "flags": "[--max-dist N] [-k] [-t] [--show-dist]",
     },
     "fuzzymatch": {
         "summary": "Finds similar words in two lists",
         "description": "Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
-        "example": "python multitool.py fuzzymatch typos.txt words.csv --max-dist 1 --show-dist",
-        "flags": "[FILE2] [--max-dist N] [--show-dist]",
+        "example": "python multitool.py fuzzymatch typos.txt words.csv --keyboard --show-dist",
+        "flags": "[FILE2] [--max-dist N] [-k] [-t] [--show-dist]",
     },
     "stats": {
         "summary": "Calculates stats for a list",
@@ -5191,8 +5285,8 @@ MODE_DETAILS = {
     "discovery": {
         "summary": "Finds typos in rare words",
         "description": "Automatically finds potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
-        "example": "python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1",
-        "flags": "[--rare-max N] [-S]",
+        "example": "python multitool.py discovery code.py --keyboard --smart",
+        "flags": "[--rare-max N] [-S] [-k] [-t]",
     },
     "casing": {
         "summary": "Finds inconsistent casing",
@@ -5221,8 +5315,8 @@ MODE_DETAILS = {
     "search": {
         "summary": "Searches for words or patterns",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.",
-        "example": "python multitool.py search 'teh' report.txt --max-dist 1 --line-numbers -C 2",
-        "flags": "[QUERY] [FILES...] [-S] [-n] [-B N] [-A N] [-C N]",
+        "example": "python multitool.py search 'teh' report.txt --keyboard --line-numbers",
+        "flags": "[QUERY] [FILES...] [-S] [-k] [-t] [-n] [-B N] [-A N] [-C N]",
     },
     "scan": {
         "summary": "Audits project for known typos",
@@ -5890,6 +5984,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum number of changes to include.",
     )
     similarity_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include typos likely caused by hitting a nearby key.",
+    )
+    similarity_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include typos likely caused by swapping two adjacent letters.",
+    )
+    similarity_options.add_argument(
         '--show-dist',
         action='store_true',
         help="Include the number of character changes in the output.",
@@ -5915,6 +6019,16 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Maximum number of changes to include (default: 1).",
+    )
+    nd_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include typos likely caused by hitting a nearby key.",
+    )
+    nd_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include typos likely caused by swapping two adjacent letters.",
     )
     nd_options.add_argument(
         '--show-dist',
@@ -5948,6 +6062,16 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Maximum number of changes to include (default: 1).",
+    )
+    fm_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include typos likely caused by hitting a nearby key.",
+    )
+    fm_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include typos likely caused by swapping two adjacent letters.",
     )
     fm_options.add_argument(
         '--show-dist',
@@ -6017,6 +6141,16 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Maximum number of changes between typo and correction (default: 1).",
+    )
+    discovery_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include typos likely caused by hitting a nearby key.",
+    )
+    discovery_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include typos likely caused by swapping two adjacent letters.",
     )
     discovery_options.add_argument(
         '--show-dist',
@@ -6099,6 +6233,16 @@ def _build_parser() -> argparse.ArgumentParser:
         '-S', '--smart',
         action='store_true',
         help='Search for subwords using smart splitting (for example, finding "teh" inside "tehWord").',
+    )
+    search_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include matches likely caused by hitting a nearby key.",
+    )
+    search_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include matches likely caused by swapping two adjacent letters.",
     )
     search_options.add_argument(
         '-n', '--line-numbers',
@@ -7036,6 +7180,8 @@ def main() -> None:
                 **common_kwargs,
                 'query': getattr(args, 'query', ''),
                 'max_dist': getattr(args, 'max_dist', 0),
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
                 'smart': getattr(args, 'smart', False),
                 'line_numbers': getattr(args, 'line_numbers', False),
                 'with_filename': getattr(args, 'with_filename', None),
@@ -7185,6 +7331,8 @@ def main() -> None:
                 'min_dist': getattr(args, 'min_dist', 0),
                 'max_dist': getattr(args, 'max_dist', None),
                 'show_dist': getattr(args, 'show_dist', False),
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
                 'output_format': output_format,
             },
         ),
@@ -7195,6 +7343,8 @@ def main() -> None:
                 'min_dist': getattr(args, 'min_dist', 1),
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
                 'output_format': output_format,
             },
         ),
@@ -7206,6 +7356,8 @@ def main() -> None:
                 'min_dist': getattr(args, 'min_dist', 1),
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
                 'output_format': output_format,
             },
         ),
@@ -7226,6 +7378,8 @@ def main() -> None:
                 'min_dist': getattr(args, 'min_dist', 1),
                 'max_dist': getattr(args, 'max_dist', 1),
                 'show_dist': getattr(args, 'show_dist', False),
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
                 'output_format': output_format,
                 'delimiter': delimiter,
                 'smart': getattr(args, 'smart', False),

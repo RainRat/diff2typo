@@ -4065,6 +4065,20 @@ def _scrub_line(
     Replaces words in a line based on a mapping.
     Returns a tuple of (modified_line, replacement_count).
     """
+    def get_replacement(word: str) -> str | None:
+        """Helper to get a replacement for a word from the mapping."""
+        if standardize:
+            key = filter_to_letters(word) if clean_items else word.lower()
+        else:
+            key = filter_to_letters(word) if clean_items else word
+
+        if key in mapping:
+            res = mapping[key]
+            if smart_case:
+                res = _apply_smart_case(word, res)
+            return res
+        return None
+
     parts = pattern.split(line)
     new_parts = []
     replacements = 0
@@ -4074,15 +4088,8 @@ def _scrub_line(
 
         if pattern.match(part):
             # It's a word candidate.
-            if standardize:
-                match_key = filter_to_letters(part) if clean_items else part.lower()
-            else:
-                match_key = filter_to_letters(part) if clean_items else part
-
-            if match_key in mapping:
-                replacement = mapping[match_key]
-                if smart_case:
-                    replacement = _apply_smart_case(part, replacement)
+            replacement = get_replacement(part)
+            if replacement is not None:
                 new_parts.append(replacement)
                 if replacement != part:
                     replacements += 1
@@ -4091,16 +4098,10 @@ def _scrub_line(
                 sub_parts = _smart_split(part)
                 new_sub_parts = []
                 for sp in sub_parts:
-                    if standardize:
-                        sm_key = filter_to_letters(sp) if clean_items else sp.lower()
-                    else:
-                        sm_key = filter_to_letters(sp) if clean_items else sp
-                    if sm_key in mapping:
-                        replacement = mapping[sm_key]
-                        if smart_case:
-                            replacement = _apply_smart_case(sp, replacement)
-                        new_sub_parts.append(replacement)
-                        if replacement != sp:
+                    sub_repl = get_replacement(sp)
+                    if sub_repl is not None:
+                        new_sub_parts.append(sub_repl)
+                        if sub_repl != sp:
                             replacements += 1
                     else:
                         new_sub_parts.append(sp)

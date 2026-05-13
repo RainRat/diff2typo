@@ -73,7 +73,7 @@ def test_near_duplicates_mode_optimizations(tmp_path):
     multitool.near_duplicates_mode([str(f)], str(out), 1, 100, process_output=True, max_dist=1, show_dist=True)
 
     content = out.read_text()
-    assert "cat" in content and "hat (changes: 1)" in content
+    assert "cat" in content and "hat" in content and "[D:1]" in content
     assert "cattle" not in content
 
 def test_fuzzymatch_mode_optimizations(tmp_path):
@@ -86,7 +86,7 @@ def test_fuzzymatch_mode_optimizations(tmp_path):
     multitool.fuzzymatch_mode([str(f1)], str(f2), str(out), 1, 100, process_output=True, max_dist=1, show_dist=True)
 
     content = out.read_text()
-    assert "cat" in content and "bat (changes: 1)" in content
+    assert "cat" in content and "bat" in content and "[D:1]" in content
     assert "doggy" not in content
 
 def test_discovery_mode_optimizations(tmp_path):
@@ -98,8 +98,8 @@ def test_discovery_mode_optimizations(tmp_path):
     multitool.discovery_mode([str(f)], str(out), 1, 100, process_output=True, freq_min=5, max_dist=1, show_dist=True)
 
     content = out.read_text()
-    assert "cat" in content and "bat (changes: 1)" in content
-    assert "cat" in content and "hat (changes: 1)" in content
+    assert "cat" in content and "bat" in content and "[D:1]" in content
+    assert "cat" in content and "hat" in content and "[D:1]" in content
     assert "doggy" not in content
     # Check that 'a' is not a typo/correction pair on its own row
     assert not any(line.strip().startswith("a  │") or line.strip().endswith("│ a") for line in content.splitlines())

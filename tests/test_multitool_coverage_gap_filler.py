@@ -259,8 +259,8 @@ def test_similarity_mode_dist_filters(tmp_path):
     # show_dist=True (line 1438)
     multitool.similarity_mode([str(f)], str(out), 3, 100, False, min_dist=1, show_dist=True)
     content = out.read_text()
-    assert "cat" in content and "bat (changes: 1)" in content
-    assert "doggy (changes: 5)" in content
+    assert "cat" in content and "bat" in content and "[D:1]" in content
+    assert "doggy" in content and "[D:5]" in content
 
     assert "cat -> cat" not in content
 

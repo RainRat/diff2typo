@@ -96,8 +96,8 @@ def test_classify_mode_basic(tmp_path):
     )
 
     content = output_file.read_text()
-    assert "teh" in content and "the [T]" in content
-    assert "helo" in content and "hello [D]" in content
+    assert "teh" in content and "the" in content and "[T]" in content
+    assert "helo" in content and "hello" in content and "[D]" in content
 
 def test_classify_mode_show_dist(tmp_path):
     input_file = tmp_path / "input.txt"
@@ -115,7 +115,7 @@ def test_classify_mode_show_dist(tmp_path):
     )
 
     content = output_file.read_text()
-    assert "teh" in content and "the [T] (dist: 2)" in content
+    assert "teh" in content and "the" in content and "[T] [D:2]" in content
 
 def test_classify_mode_process_output(tmp_path):
     input_file = tmp_path / "input.txt"
@@ -132,7 +132,7 @@ def test_classify_mode_process_output(tmp_path):
     )
 
     content = output_file.read_text()
-    assert content.count("the [T]") == 1
+    assert content.count("[T]") == 1
 
 def test_classify_mode_raw(tmp_path):
     input_file = tmp_path / "input.txt"
@@ -155,7 +155,7 @@ def test_classify_mode_raw(tmp_path):
     )
 
     content = output_file.read_text()
-    assert "TeH" in content and "the [M]" in content
+    assert "TeH" in content and "the" in content and "[M]" in content
 
 def test_classify_mode_empty_sides(tmp_path):
     input_file = tmp_path / "input.txt"
@@ -180,17 +180,19 @@ def test_classify_mode_formats(tmp_path):
     input_file = tmp_path / "input.txt"
     input_file.write_text("teh -> the")
 
-    # JSON
+    # JSON - metadata is appended for parity
     json_out = tmp_path / "output.json"
     multitool.classify_mode([str(input_file)], str(json_out), 2, 100, False, output_format='json')
     assert '"teh": "the [T]"' in json_out.read_text()
 
-    # CSV
+    # CSV - now has three columns with Title Case headers
     csv_out = tmp_path / "output.csv"
     multitool.classify_mode([str(input_file)], str(csv_out), 2, 100, False, output_format='csv')
-    assert "teh,the [T]" in csv_out.read_text()
+    content = csv_out.read_text()
+    assert "Typo,Correction,Attr" in content
+    assert "teh,the,[T]" in content
 
-    # MD-Table
+    # MD-Table - now has three columns
     md_out = tmp_path / "output.md"
     multitool.classify_mode([str(input_file)], str(md_out), 2, 100, False, output_format='md-table')
-    assert "| teh | the [T] |" in md_out.read_text()
+    assert "| teh | the | [T] |" in md_out.read_text()

@@ -812,7 +812,7 @@ def _write_diff_report(
 
 
 def _write_paired_output(
-    pairs: Iterable[Tuple[str, str]],
+    pairs: Iterable[Tuple[str, ...]],
     output_file: str,
     output_format: str,
     mode_label: str,
@@ -824,7 +824,7 @@ def _write_paired_output(
     Writes a collection of paired strings to the output file in the specified format.
 
     Args:
-        pairs: Collection of (left, right) tuples.
+        pairs: Collection of (left, right, [attr]) tuples.
         output_file: Path to the output file or '-' for the main output.
         output_format: Format (arrow, table, csv, markdown, md-table, json, yaml, aligned).
         mode_label: Label for the current mode (used for headers).
@@ -836,12 +836,16 @@ def _write_paired_output(
     if limit is not None:
         pairs_list = pairs_list[:limit]
 
+    # Check if we have additional attribute data
+    has_attr = any(len(p) > 2 for p in pairs_list)
+
     # Determine newline behavior for CSV
     newline = '' if output_format == 'csv' else None
 
     # Determine headers for paired data modes (used in md-table and arrow formats)
     left_header = "Left"
     right_header = "Right"
+    attr_header = "Attr"
     if mode_label == "Conflict":
         left_header = "Typo"
         right_header = "Corrections"
@@ -863,50 +867,85 @@ def _write_paired_output(
 
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
-            json_data = {left: right for left, right in pairs_list}
+            json_data = {}
+            for p in pairs_list:
+                val = p[1]
+                if len(p) > 2 and p[2]:
+                    val = f"{val} {p[2]}"
+                json_data[p[0]] = val
             json.dump(json_data, out_file, indent=2)
             out_file.write('\n')
         elif output_format == 'yaml':
             try:
                 import yaml
-                # Using a dictionary preserves pairs but deduplicates keys.
-                # Since pairs_list is deduplicated if process_output is True,
-                # this is generally safe.
-                yaml_data = dict(pairs_list)
+                yaml_data = {}
+                for p in pairs_list:
+                    val = p[1]
+                    if len(p) > 2 and p[2]:
+                        val = f"{val} {p[2]}"
+                    yaml_data[p[0]] = val
                 yaml.dump(yaml_data, out_file, default_flow_style=False, sort_keys=False)
             except ImportError:
-                # Fallback to simple format if PyYAML not available
-                for left, right in pairs_list:
-                    out_file.write(f"{left}: {right}\n")
+                for p in pairs_list:
+                    val = p[1]
+                    if len(p) > 2 and p[2]:
+                        val = f"{val} {p[2]}"
+                    out_file.write(f"{p[0]}: {val}\n")
         elif output_format == 'csv':
             writer = csv.writer(out_file)
-            for left, right in pairs_list:
-                writer.writerow([left, right])
+            if has_attr:
+                writer.writerow([left_header, right_header, attr_header])
+            for p in pairs_list:
+                if has_attr:
+                    attr = p[2] if len(p) > 2 else ""
+                    writer.writerow([p[0], p[1], attr])
+                else:
+                    writer.writerow([p[0], p[1]])
         elif output_format in ('table', 'toml'):
-            for left, right in pairs_list:
-                out_file.write(f'{left} = "{right}"\n')
+            for p in pairs_list:
+                val = p[1]
+                if len(p) > 2 and p[2]:
+                    val = f"{val} {p[2]}"
+                out_file.write(f'{p[0]} = "{val}"\n')
         elif output_format == 'markdown':
-            for left, right in pairs_list:
-                out_file.write(f"- {left}: {right}\n")
+            for p in pairs_list:
+                val = p[1]
+                if len(p) > 2 and p[2]:
+                    val = f"{val} {p[2]}"
+                out_file.write(f"- {p[0]}: {val}\n")
         elif output_format == 'md-table':
             if pairs_list:
-                out_file.write(f"| {left_header} | {right_header} |\n")
-                out_file.write("| :--- | :--- |\n")
-                for left, right in pairs_list:
-                    out_file.write(f"| {left} | {right} |\n")
+                if has_attr:
+                    out_file.write(f"| {left_header} | {right_header} | {attr_header} |\n")
+                    out_file.write("| :--- | :--- | :--- |\n")
+                    for p in pairs_list:
+                        attr = p[2] if len(p) > 2 else ""
+                        out_file.write(f"| {p[0]} | {p[1]} | {attr} |\n")
+                else:
+                    out_file.write(f"| {left_header} | {right_header} |\n")
+                    out_file.write("| :--- | :--- |\n")
+                    for p in pairs_list:
+                        out_file.write(f"| {p[0]} | {p[1]} |\n")
         elif output_format == 'aligned':
             if pairs_list:
                 # Calculate the maximum width of the left column for alignment
-                max_left = max((len(str(left)) for left, _ in pairs_list), default=0)
-                for left, right in pairs_list:
-                    out_file.write(f"{left:<{max_left}}{separator}{right}\n")
+                max_left = max((len(str(p[0])) for p in pairs_list), default=0)
+                for p in pairs_list:
+                    val = p[1]
+                    if len(p) > 2 and p[2]:
+                        val = f"{val} {p[2]}"
+                    out_file.write(f"{p[0]:<{max_left}}{separator}{val}\n")
         elif output_format == 'arrow':
             if pairs_list:
                 # Dynamic column width calculation for aligned table
-                max_left = max((len(str(left)) for left, _ in pairs_list), default=len(left_header))
+                max_left = max((len(str(p[0])) for p in pairs_list), default=len(left_header))
                 max_left = max(max_left, len(left_header))
-                max_right = max((len(str(right)) for _, right in pairs_list), default=len(right_header))
+                max_right = max((len(str(p[1])) for p in pairs_list), default=len(right_header))
                 max_right = max(max_right, len(right_header))
+                max_attr = 0
+                if has_attr:
+                    max_attr = max((len(str(p[2])) for p in pairs_list if len(p) > 2), default=len(attr_header))
+                    max_attr = max(max_attr, len(attr_header))
 
                 # Colors for table
                 show_color = _should_enable_color(out_file)
@@ -914,6 +953,9 @@ def _write_paired_output(
                 c_blue = BLUE if show_color else ""
                 c_green = GREEN if show_color else ""
                 c_red = RED if show_color else ""
+                c_cyan = CYAN if show_color else ""
+                c_magenta = MAGENTA if show_color else ""
+                c_yellow = YELLOW if show_color else ""
                 c_reset = RESET if show_color else ""
 
                 # Header and divider
@@ -923,17 +965,35 @@ def _write_paired_output(
                 header = f"{padding}{c_bold}{c_blue}{left_header:<{max_left}}{c_reset} {sep} {c_bold}{c_blue}{right_header:<{max_right}}{c_reset}"
                 # 3 chars for the separator " │ "
                 visible_width = max_left + max_right + 3
+                if has_attr:
+                    header += f" {sep} {c_bold}{c_blue}{attr_header:<{max_attr}}{c_reset}"
+                    visible_width += max_attr + 3
+
                 divider = f"{padding}{c_bold}{c_blue}{'─' * visible_width}{c_reset}"
 
                 out_file.write(f"\n{header}\n")
                 out_file.write(f"{divider}\n")
-                for left, right in pairs_list:
+                for p in pairs_list:
+                    left, right = p[0], p[1]
                     # Use red for typos and green for corrections
-                    out_file.write(f"{padding}{c_red}{left:<{max_left}}{c_reset} {sep} {c_green}{right}{c_reset}\n")
+                    row = f"{padding}{c_red}{left:<{max_left}}{c_reset} {sep} {c_green}{right:<{max_right}}{c_reset}"
+                    if has_attr:
+                        attr = p[2] if len(p) > 2 else ""
+                        # Determine color for attribute
+                        attr_color = c_yellow
+                        if "[K]" in str(attr):
+                            attr_color = c_cyan
+                        elif "[T]" in str(attr):
+                            attr_color = c_magenta
+                        row += f" {sep} {attr_color}{attr}{c_reset}"
+                    out_file.write(row + "\n")
                 out_file.write("\n")
         else:  # 'line' or fallback
-            for left, right in pairs_list:
-                out_file.write(f"{left} -> {right}\n")
+            for p in pairs_list:
+                val = p[1]
+                if len(p) > 2 and p[2]:
+                    val = f"{val} {p[2]}"
+                out_file.write(f"{p[0]} -> {val}\n")
 
     logging.info(
         f"[{mode_label} Mode] Processed {len(pairs_list)} pairs. Output written to '{output_file}' in {output_format} format."
@@ -2080,8 +2140,9 @@ def classify_mode(
             label = classify_typo(left_clean, right_clean, adj_keys)
             if show_dist:
                 dist = levenshtein_distance(left_clean, right_clean)
-                label = f"{label} (dist: {dist})"
-            results.append((left, f"{right} {label}"))
+                results.append((left, right, f"{label} [D:{dist}]"))
+            else:
+                results.append((left, right, label))
             stats_items.append((left, right))
 
     if process_output:
@@ -2536,8 +2597,8 @@ def similarity_mode(
                 continue
 
         if show_dist:
-            # Append number of changes to the right side for display
-            filtered_results.append((left, f"{right} (changes: {dist})"))
+            # Pass distance as a separate attribute
+            filtered_results.append((left, right, f"[D:{dist}]"))
         else:
             filtered_results.append((left, right))
         stats_items.append((left, right))
@@ -2634,7 +2695,7 @@ def near_duplicates_mode(
                         continue
 
                 if show_dist:
-                    results.append((word_i, f"{word_j} (changes: {dist})"))
+                    results.append((word_i, word_j, f"[D:{dist}]"))
                 else:
                     results.append((word_i, word_j))
                 stats_items.append((word_i, word_j))
@@ -2739,7 +2800,7 @@ def fuzzymatch_mode(
                         continue
 
                 if show_dist:
-                    results.append((word_i, f"{word_j} (changes: {dist})"))
+                    results.append((word_i, word_j, f"[D:{dist}]"))
                 else:
                     results.append((word_i, word_j))
                 stats_items.append((word_i, word_j))
@@ -3069,7 +3130,7 @@ def discovery_mode(
                         continue
 
                 if show_dist:
-                    results.append((rare, f"{freq} (changes: {dist})"))
+                    results.append((rare, freq, f"[D:{dist}]"))
                 else:
                     results.append((rare, freq))
                 stats_items.append((rare, freq))

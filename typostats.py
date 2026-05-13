@@ -875,7 +875,7 @@ def generate_report(
                     # Frequency table header
                     table_title = f"{padding}{c_bold}{c_blue}LETTER REPLACEMENTS{c_reset}"
                     sys.stderr.write(f"\n{table_title}\n")
-                    sys.stderr.write(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}\n")
+                    sys.stderr.write(f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}\n")
                     sys.stderr.write(f"{header_row}\n")
                     sys.stderr.write(f"{divider}\n")
                 sys.stderr.flush()
@@ -884,7 +884,7 @@ def generate_report(
             report_lines = summary_lines[:]
             if sorted_replacements:
                 table_title = f"{padding}LETTER REPLACEMENTS"
-                report_lines.extend(["", table_title, f"{padding}───────────────────────────────────────────────────────", header_row, divider])
+                report_lines.extend(["", table_title, f"{padding}{'─' * visible_header_len}", header_row, divider])
 
         if not sorted_replacements:
             no_results = f"{padding}{c_yellow}No replacements found matching the criteria.{c_reset}"
@@ -926,12 +926,14 @@ def generate_report(
                     marker_color = c_magenta
                 elif len(correct_char) < len(typo_char):
                     # Typo is longer: Insertion [Ins] or 1-to-2 replacement [1:2]
+                    marker_color = c_green
                     if correct_char in typo_char:
                         marker_text = "[Ins]"
                     else:
                         marker_text = "[1:2]"
                 elif len(correct_char) > len(typo_char):
                     # Typo is shorter: Deletion [Del] or 2-to-1 replacement [2:1]
+                    marker_color = c_red
                     if typo_char in correct_char:
                         marker_text = "[Del]"
                     else:

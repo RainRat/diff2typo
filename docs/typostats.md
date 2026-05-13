@@ -19,11 +19,14 @@ git diff | python diff2typo.py | python typostats.py
 
 ## Input Format
 
-The tool automatically recognizes four common ways of listing typos:
+The tool automatically recognizes several common ways of listing typos:
 1. **Arrow (Default):** `typo -> correction`
 2. **CSV:** `typo, correction`
 3. **Table:** `typo = "correction"`
 4. **Colon:** `typo: correction`
+5. **JSON:** Supports standard key-value pairs or structured `replacements` lists.
+6. **YAML:** Supports key-value pairs or lists of typo-correction objects.
+7. **Markdown:** Extracts items from bulleted lists and tables.
 
 > **Tip:** You can send the output from `diff2typo.py` directly into `typostats.py`.
 

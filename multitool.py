@@ -11,7 +11,7 @@ import sys
 import re
 import time
 from textwrap import dedent
-from typing import Any, Callable, Iterable, List, Mapping, Sequence, Tuple, TextIO
+from typing import Any, Callable, Iterable, List, Mapping, Sequence, Tuple, TextIO, Optional
 from tqdm import tqdm
 import logging
 import json
@@ -809,6 +809,45 @@ def _write_diff_report(
                 out.write(f"{line}\n")
         else:
             out.write(f"{line}\n")
+
+
+def _write_file_in_place(
+    input_file: str,
+    modified_lines: List[str],
+    replacements: int,
+    in_place_ext: Optional[str] = None,
+    dry_run: bool = False,
+) -> None:
+    """Handles in-place file modification with optional backup and dry-run reporting."""
+    if replacements == 0:
+        logging.info(f"No changes needed for '{input_file}'.")
+        return
+
+    if dry_run:
+        logging.warning(f"[Dry Run] Would make {replacements} replacement(s) in '{input_file}'.")
+        return
+
+    # Backup if extension is provided
+    if in_place_ext:
+        backup_path = input_file + in_place_ext
+        try:
+            shutil.copy2(input_file, backup_path)
+            logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
+        except Exception as e:
+            logging.error(f"Failed to create backup of '{input_file}': {e}")
+            sys.exit(1)
+
+    # Write in-place
+    try:
+        with open(input_file, 'w', encoding='utf-8') as f:
+            for line in modified_lines:
+                f.write(line)
+                if not line.endswith('\n'):
+                    f.write('\n')
+        logging.info(f"Updated '{input_file}' in-place ({replacements} replacement(s)).")
+    except Exception as e:
+        logging.error(f"Failed to write to '{input_file}': {e}")
+        sys.exit(1)
 
 
 def _write_paired_output(
@@ -4243,31 +4282,13 @@ def standardize_mode(
                 _write_diff_report(input_file, original_lines, modified_lines, diff_out)
 
             if in_place is not None and input_file != '-':
-                if file_replacements > 0:
-                    if dry_run:
-                        logging.warning(f"[Dry Run] Would make {file_replacements} replacement(s) in '{input_file}'.")
-                    else:
-                        if in_place:
-                            backup_path = input_file + in_place
-                            try:
-                                shutil.copy2(input_file, backup_path)
-                                logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
-                            except Exception as e:
-                                logging.error(f"Failed to create backup of '{input_file}': {e}")
-                                sys.exit(1)
-
-                        try:
-                            with open(input_file, 'w', encoding='utf-8') as f:
-                                for line in modified_lines:
-                                    f.write(line)
-                                    if not line.endswith('\n'):
-                                        f.write('\n')
-                            logging.info(f"Updated '{input_file}' in-place ({file_replacements} replacement(s)).")
-                        except Exception as e:
-                            logging.error(f"Failed to write to '{input_file}': {e}")
-                            sys.exit(1)
-                else:
-                    logging.info(f"No changes needed for '{input_file}'.")
+                _write_file_in_place(
+                    input_file,
+                    modified_lines,
+                    file_replacements,
+                    in_place_ext=in_place,
+                    dry_run=dry_run
+                )
             else:
                 accumulated_lines.extend(modified_lines)
 
@@ -4357,33 +4378,13 @@ def scrub_mode(
                 _write_diff_report(input_file, original_lines, modified_lines, diff_out)
 
             if in_place is not None and input_file != '-':
-                if file_replacements > 0:
-                    if dry_run:
-                        logging.warning(f"[Dry Run] Would make {file_replacements} replacement(s) in '{input_file}'.")
-                    else:
-                        # Backup if extension is provided
-                        if in_place:
-                            backup_path = input_file + in_place
-                            try:
-                                shutil.copy2(input_file, backup_path)
-                                logging.info(f"Created backup of '{input_file}' at '{backup_path}'.")
-                            except Exception as e:
-                                logging.error(f"Failed to create backup of '{input_file}': {e}")
-                                sys.exit(1)
-
-                        # Write in-place
-                        try:
-                            with open(input_file, 'w', encoding='utf-8') as f:
-                                for line in modified_lines:
-                                    f.write(line)
-                                    if not line.endswith('\n'):
-                                        f.write('\n')
-                            logging.info(f"Updated '{input_file}' in-place ({file_replacements} replacement(s)).")
-                        except Exception as e:
-                            logging.error(f"Failed to write to '{input_file}': {e}")
-                            sys.exit(1)
-                else:
-                    logging.info(f"No changes needed for '{input_file}'.")
+                _write_file_in_place(
+                    input_file,
+                    modified_lines,
+                    file_replacements,
+                    in_place_ext=in_place,
+                    dry_run=dry_run
+                )
             else:
                 accumulated_lines.extend(modified_lines)
 

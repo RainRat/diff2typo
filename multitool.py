@@ -426,6 +426,23 @@ def _load_and_clean_file(
     return raw_items, cleaned_items, unique_items
 
 
+def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
+    """
+    Renders a high-resolution visual bar using Unicode block characters.
+    """
+    total_blocks = (percentage * max_bar) / 100
+    full_blocks = int(total_blocks)
+    fraction = total_blocks - full_blocks
+    blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+    frac_idx = int(fraction * 8)
+
+    bar = "█" * full_blocks
+    if full_blocks < max_bar:
+        bar += blocks[frac_idx]
+        bar += " " * (max_bar - full_blocks - 1)
+    return bar
+
+
 def _format_analysis_summary(
     raw_count: int,
     filtered_items: Sequence[Any],
@@ -464,18 +481,7 @@ def _format_analysis_summary(
 
     if raw_count > 0:
         retention = (filtered_count / raw_count) * 100
-        # High-res visual bar for retention
-        max_bar = 20
-        total_blocks = (retention * max_bar) / 100
-        full_blocks = int(total_blocks)
-        fraction = total_blocks - full_blocks
-        blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
-        frac_idx = int(fraction * 8)
-
-        bar = "█" * full_blocks
-        if full_blocks < max_bar:
-            bar += blocks[frac_idx]
-            bar += " " * (max_bar - full_blocks - 1)
+        bar = _render_visual_bar(retention)
 
         report.append(
             f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_blue}{bar}{c_reset}"
@@ -2064,18 +2070,7 @@ def count_mode(
 
             for item, count in final_results:
                 percent = (count / total_for_pct * 100) if total_for_pct > 0 else 0
-
-                # High-res visual bar
-                total_blocks = (percent * max_bar) / 100
-                full_blocks = int(total_blocks)
-                fraction = total_blocks - full_blocks
-                blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
-                frac_idx = int(fraction * 8)
-
-                bar = "█" * full_blocks
-                if full_blocks < max_bar:
-                    bar += blocks[frac_idx]
-                    bar += " " * (max_bar - full_blocks - 1)
+                bar = _render_visual_bar(percent, max_bar)
 
                 if pairs:
                     row = (

@@ -33,15 +33,25 @@ except ImportError:  # pragma: no cover - optional dependency
 # Cache for standard input to allow multiple passes
 _STDIN_CACHE: List[str] | None = None
 
-# ANSI Color Codes
-BLUE = "\033[1;34m"
-GREEN = "\033[1;32m"
-RED = "\033[1;31m"
-YELLOW = "\033[1;33m"
-MAGENTA = "\033[1;35m"
-CYAN = "\033[1;36m"
-RESET = "\033[0m"
-BOLD = "\033[1m"
+# ANSI Color Codes (Internal constants)
+_BLUE = "\033[1;34m"
+_GREEN = "\033[1;32m"
+_RED = "\033[1;31m"
+_YELLOW = "\033[1;33m"
+_MAGENTA = "\033[1;35m"
+_CYAN = "\033[1;36m"
+_RESET = "\033[0m"
+_BOLD = "\033[1m"
+
+# Global color constants for general use (legacy support)
+BLUE = _BLUE
+GREEN = _GREEN
+RED = _RED
+YELLOW = _YELLOW
+MAGENTA = _MAGENTA
+CYAN = _CYAN
+RESET = _RESET
+BOLD = _BOLD
 
 # Global color constants are initialized based on stdout.
 # Specific functions (like generate_report) may use _should_enable_color
@@ -54,9 +64,9 @@ class MinimalFormatter(logging.Formatter):
     """A logging formatter that removes prefixes for INFO level messages."""
 
     LEVEL_COLORS = {
-        logging.WARNING: YELLOW,
-        logging.ERROR: RED,
-        logging.CRITICAL: RED,
+        logging.WARNING: _YELLOW,
+        logging.ERROR: _RED,
+        logging.CRITICAL: _RED,
     }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -65,10 +75,10 @@ class MinimalFormatter(logging.Formatter):
 
         levelname = record.levelname
         # Colorize the level name if stderr is a terminal and color is available
-        if sys.stderr.isatty() and levelname:
+        if _should_enable_color(sys.stderr) and levelname:
             color = self.LEVEL_COLORS.get(record.levelno)
             if color:
-                levelname = f"{color}{levelname}{RESET}"
+                levelname = f"{color}{levelname}{_RESET}"
 
         return f"{levelname}: {record.getMessage()}"
 
@@ -144,11 +154,14 @@ def _format_analysis_summary(
     Returns a list of formatted lines.
     """
     item_label_plural = f"{item_label}s"
-    c_bold = BOLD if use_color else ""
-    c_blue = BLUE if use_color else ""
-    c_green = GREEN if use_color else ""
-    c_yellow = YELLOW if use_color else ""
-    c_reset = RESET if use_color else ""
+    c_bold = _BOLD if use_color else ""
+    c_blue = _BLUE if use_color else ""
+    c_green = _GREEN if use_color else ""
+    c_yellow = _YELLOW if use_color else ""
+    c_red = _RED if use_color else ""
+    c_cyan = _CYAN if use_color else ""
+    c_magenta = _MAGENTA if use_color else ""
+    c_reset = _RESET if use_color else ""
 
     padding = "  "
     label_width = 35
@@ -742,14 +755,21 @@ def generate_report(
     # If output_file is set, we avoid colors in headers that might be written to the file
     show_color_err = not output_file and _should_enable_color(sys.stderr)
 
-    c_bold = BOLD if show_color_out else ""
-    c_blue = BLUE if show_color_out else ""
-    c_green = GREEN if show_color_out else ""
-    c_yellow = YELLOW if show_color_out else ""
-    c_magenta = MAGENTA if show_color_out else ""
-    c_cyan = CYAN if show_color_out else ""
-    c_red = RED if show_color_out else ""
-    c_reset = RESET if show_color_out else ""
+    c_bold = _BOLD if show_color_out else ""
+    c_blue = _BLUE if show_color_out else ""
+    c_green = _GREEN if show_color_out else ""
+    c_yellow = _YELLOW if show_color_out else ""
+    c_magenta = _MAGENTA if show_color_out else ""
+    c_cyan = _CYAN if show_color_out else ""
+    c_red = _RED if show_color_out else ""
+    c_reset = _RESET if show_color_out else ""
+
+    # Error-specific colors for the summary section
+    c_err_cyan = _CYAN if show_color_err else ""
+    c_err_magenta = _MAGENTA if show_color_err else ""
+    c_err_green = _GREEN if show_color_err else ""
+    c_err_red = _RED if show_color_err else ""
+    c_err_reset = _RESET if show_color_err else ""
 
     if output_format == 'arrow':
         # arrow
@@ -786,7 +806,7 @@ def generate_report(
 
             if total_single_char > 0:
                 percent = (adjacent_count / total_single_char) * 100
-                extra_metrics["Keyboard Adjacency [K]"] = f"{adjacent_count}/{total_single_char} ({percent:.1f}%)"
+                extra_metrics["Keyboard Adjacency [K]"] = f"{c_err_cyan}{adjacent_count}/{total_single_char} ({percent:.1f}%){c_err_reset}"
 
         if kwargs.get('allow_transposition'):
             trans_count = 0
@@ -795,10 +815,16 @@ def generate_report(
                     trans_count += count
             if trans_count > 0:
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
-                extra_metrics["Transpositions [T]"] = f"{trans_count}/{total_typos} ({percent:.1f}%)"
+                extra_metrics["Transpositions [T]"] = f"{c_err_magenta}{trans_count}/{total_typos} ({percent:.1f}%){c_err_reset}"
 
         if any([kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions')]):
             counts = defaultdict(int)
+            color_map = {
+                "Insertions [Ins]": c_err_green,
+                "1-to-2 replacements [1:2]": c_err_green,
+                "Deletions [Del]": c_err_red,
+                "2-to-1 replacements [2:1]": c_err_red,
+            }
             for (c, t), count in replacement_counts.items():
                 if len(c) < len(t):
                     if c in t:
@@ -814,7 +840,8 @@ def generate_report(
             for label, count in counts.items():
                 if count > 0:
                     percent = (count / total_typos) * 100 if total_typos > 0 else 0
-                    extra_metrics[label] = f"{count}/{total_typos} ({percent:.1f}%)"
+                    color = color_map.get(label, "")
+                    extra_metrics[label] = f"{color}{count}/{total_typos} ({percent:.1f}%){c_err_reset}"
 
         if unique_filtered != unique_total:
             extra_metrics["Patterns matching criteria"] = unique_filtered
@@ -897,6 +924,37 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             percent = (count / total_typos * 100) if total_typos > 0 else 0
 
+            # Determine error type and color
+            marker_text = "     "
+            marker_color = c_yellow
+            if len(correct_char) == 1 and len(typo_char) == 1:
+                if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+                    marker_text = "[K]"
+                    marker_color = c_cyan
+            elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
+                marker_text = "[T]"
+                marker_color = c_magenta
+            elif len(correct_char) < len(typo_char):
+                # Typo is longer: Insertion [Ins] or 1-to-2 replacement [1:2]
+                marker_color = c_green
+                if correct_char in typo_char:
+                    marker_text = "[Ins]"
+                else:
+                    marker_text = "[1:2]"
+            elif len(correct_char) > len(typo_char):
+                # Typo is shorter: Deletion [Del] or 2-to-1 replacement [2:1]
+                marker_color = c_red
+                if typo_char in correct_char:
+                    marker_text = "[Del]"
+                else:
+                    marker_text = "[2:1]"
+
+            if marker_text == "     ":
+                # If no specific classification, use neutral blue for the bar
+                marker_color_for_bar = c_blue
+            else:
+                marker_color_for_bar = marker_color
+
             # Create a high-resolution visual bar
             total_blocks = (percent * max_bar) / 100
             full_blocks = int(total_blocks)
@@ -915,34 +973,10 @@ def generate_report(
                 f"{c_green}{percent:>5.1f}%{c_reset}"
             )
             if show_attr:
-                marker_text = "     "
-                marker_color = c_yellow
-                if len(correct_char) == 1 and len(typo_char) == 1:
-                    if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                        marker_text = "[K]"
-                        marker_color = c_cyan
-                elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
-                    marker_text = "[T]"
-                    marker_color = c_magenta
-                elif len(correct_char) < len(typo_char):
-                    # Typo is longer: Insertion [Ins] or 1-to-2 replacement [1:2]
-                    marker_color = c_green
-                    if correct_char in typo_char:
-                        marker_text = "[Ins]"
-                    else:
-                        marker_text = "[1:2]"
-                elif len(correct_char) > len(typo_char):
-                    # Typo is shorter: Deletion [Del] or 2-to-1 replacement [2:1]
-                    marker_color = c_red
-                    if typo_char in correct_char:
-                        marker_text = "[Del]"
-                    else:
-                        marker_text = "[2:1]"
-
                 marker = f"{marker_color}{marker_text:<5}{c_reset}"
                 row += f" {sep} {marker}"
 
-            row += f" {sep} {c_blue}{bar}{c_reset}"
+            row += f" {sep} {marker_color_for_bar}{bar}{c_reset}"
             report_lines.append(row)
         report_content = "\n".join(report_lines)
     elif output_format == 'json':

@@ -55,7 +55,7 @@ def test_similarity_mode_basic(tmp_path):
     f.write_text("cat -> bat\n")
     out = tmp_path / "out.txt"
     multitool.similarity_mode([str(f)], str(out), 1, 100, False, min_dist=1, max_dist=1, output_format='line')
-    assert out.read_text().strip() == "cat -> bat"
+    assert out.read_text().strip() == "cat -> bat [R]"
 
 # FUZZYMATCH MODE
 def test_fuzzymatch_mode_basic(tmp_path):
@@ -65,7 +65,7 @@ def test_fuzzymatch_mode_basic(tmp_path):
     f2.write_text("bat\n")
     out = tmp_path / "out.txt"
     multitool.fuzzymatch_mode([str(f1)], str(f2), str(out), 1, 100, False, min_dist=1, max_dist=1, output_format='line')
-    assert out.read_text().strip() == "cat -> bat"
+    assert out.read_text().strip() == "cat -> bat [R]"
 
 # NEAR DUPLICATES MODE
 def test_near_duplicates_mode_basic(tmp_path):
@@ -74,4 +74,4 @@ def test_near_duplicates_mode_basic(tmp_path):
     out = tmp_path / "out.txt"
     multitool.near_duplicates_mode([str(f)], str(out), 1, 100, False, min_dist=1, max_dist=1, output_format='line')
     content = out.read_text().strip()
-    assert content == "cat -> bat" or content == "bat -> cat"
+    assert content == "cat -> bat [R]" or content == "bat -> cat [R]"

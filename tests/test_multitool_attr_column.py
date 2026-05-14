@@ -1,5 +1,4 @@
 import json
-import pytest
 from multitool import classify_mode, similarity_mode, near_duplicates_mode, fuzzymatch_mode, discovery_mode
 
 def test_classify_mode_attr_arrow(capsys, tmp_path):

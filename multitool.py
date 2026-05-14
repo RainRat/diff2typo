@@ -2613,11 +2613,11 @@ def similarity_mode(
             if not matches_filter:
                 continue
 
+        attr = label
         if show_dist:
             attr = f"{label} [D:{dist}]"
-            filtered_results.append((left, right, attr))
-        else:
-            filtered_results.append((left, right))
+        
+        filtered_results.append((left, right, attr))
         stats_items.append((left, right))
 
     if process_output:
@@ -2710,11 +2710,10 @@ def near_duplicates_mode(
                     if not matches_filter:
                         continue
 
+                attr = label
                 if show_dist:
                     attr = f"{label} [D:{dist}]"
-                    results.append((word_i, word_j, attr))
-                else:
-                    results.append((word_i, word_j))
+                results.append((word_i, word_j, attr))
                 stats_items.append((word_i, word_j))
 
     if process_output:
@@ -2815,11 +2814,10 @@ def fuzzymatch_mode(
                     if not matches_filter:
                         continue
 
+                attr = label
                 if show_dist:
                     attr = f"{label} [D:{dist}]"
-                    results.append((word_i, word_j, attr))
-                else:
-                    results.append((word_i, word_j))
+                results.append((word_i, word_j, attr))
                 stats_items.append((word_i, word_j))
 
     if process_output:
@@ -3149,7 +3147,7 @@ def discovery_mode(
                     attr = f"{label} [D:{dist}]"
                     results.append((rare, freq, attr))
                 else:
-                    results.append((rare, freq))
+                    results.append((rare, freq, label))
                 stats_items.append((rare, freq))
 
     if process_output:

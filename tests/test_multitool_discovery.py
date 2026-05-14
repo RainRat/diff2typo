@@ -21,8 +21,8 @@ def test_discovery_mode_basic(tmp_path):
     )
 
     content = output_file.read_text().splitlines()
-    assert "helo -> hello" in content
-    assert "worldd -> world" in content
+    assert "helo -> hello [D]" in content
+    assert "worldd -> world [I]" in content
     assert len(content) == 2
 
 def test_discovery_mode_json_format(tmp_path):
@@ -46,7 +46,7 @@ def test_discovery_mode_json_format(tmp_path):
 
     with open(output_file) as f:
         data = json.load(f)
-    assert data == {"aple": "apple"}
+    assert data == {"aple": "apple [D]"}
 
 def test_discovery_mode_thresholds(tmp_path):
     input_file = tmp_path / "input.txt"
@@ -109,7 +109,7 @@ def test_discovery_mode_distance(tmp_path):
         output_format='line'
     )
     content = output_file.read_text().splitlines()
-    assert "distnce -> distance" in content
+    assert "distnce -> distance [D]" in content
     assert "distnc -> distance" not in content
 
     # Max distance 2
@@ -126,8 +126,8 @@ def test_discovery_mode_distance(tmp_path):
         output_format='line'
     )
     content = output_file.read_text().splitlines()
-    assert "distnce -> distance" in content
-    assert "distnc -> distance" in content
+    assert "distnce -> distance [D]" in content
+    assert "distnc -> distance [M]" in content
 
 def test_discovery_mode_smart_splitting(tmp_path):
     input_file = tmp_path / "input.txt"

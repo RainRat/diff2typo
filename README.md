@@ -17,6 +17,7 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
   - `pyahocorasick`: Performs fast string matching.
   - `tqdm`: Displays progress bars for long tasks.
   - `chardet`: Automatically detects file text encodings.
+  - `toml`: Parses TOML configuration files.
   - `pytest`: Runs the project's test suite.
 - **(Optional) The `typos` tool:** We recommend installing the [typos](https://github.com/crate-ci/typos) command-line tool. The suite uses it to automatically filter out known typos.
 
@@ -45,27 +46,27 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 
 ## 🚀 Quick Start
 
-Follow these steps to find typos you have fixed recently and see your common mistakes.
+Follow these steps to find typos you have fixed recently, see your common mistakes, and fix them in your project.
 
 ### 1. Create a Large Dictionary
 The tools work best when they know which words are correct. Create a file named `words.csv` and add words you use often (like project names or technical terms), one per line. This is your "large dictionary." If you skip this, the tools will still work, but they might flag some correct words as typos.
 
-### 2. Get Your Recent Changes
-Save your recent Git changes to a file. For example, to see your last 5 changes:
+### 2. Find Your Recent Typos
+Run `diff2typo.py` to find typos you fixed in your recent Git history. For example, to check your last 5 changes and save them to a CSV file:
 ```bash
-git diff HEAD~5 HEAD > changes.diff
+python diff2typo.py --git "HEAD~5" --output my_typos.txt --mode typos --format csv
 ```
 
-### 3. Find the Typos
-Run `diff2typo.py` on your changes. It will find words you corrected and save them to a list.
-```bash
-python diff2typo.py changes.diff --output my_typos.txt --mode typos --format csv
-```
-
-### 4. See Your Patterns
+### 3. See Your Patterns
 Use `typostats.py` to see which keys you hit by mistake most often.
 ```bash
 python typostats.py my_typos.txt --sort count
+```
+
+### 4. Fix Your Project
+Use `multitool.py` to fix the found typos in your current project files. The `--diff` flag lets you review the changes before they are applied.
+```bash
+python multitool.py scrub . --mapping my_typos.txt --in-place --diff
 ```
 
 ## 📄 License

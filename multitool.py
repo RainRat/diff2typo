@@ -5522,14 +5522,14 @@ def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> No
         label_color = f"{BLUE}{BOLD}"
         block = [
             divider,
-            f"{label_color}{'MODE:':<13}{RESET}{GREEN}{mode_name.upper()}{RESET}",
+            f"{label_color}{'MODE:':<15}{RESET}{GREEN}{mode_name.upper()}{RESET}",
             divider,
-            f"{label_color}{'SUMMARY:':<13}{RESET}{details['summary']}",
+            f"{label_color}{'SUMMARY:':<15}{RESET}{details['summary']}",
         ]
 
         if details.get("description"):
             desc = details['description']
-            block.append(f"{label_color}{'DESCRIPTION:':<13}{RESET}{desc}")
+            block.append(f"{label_color}{'DESCRIPTION:':<15}{RESET}{desc}")
 
         flags_str = details.get("flags", "[FILES...]")
         all_tokens = flags_str.split()
@@ -5552,22 +5552,67 @@ def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> No
         pos_args_str = (" " + " ".join(pos_args)) if pos_args else ""
         usage_line = f"python {parser.prog} {mode_name}{pos_args_str} [FILES...] [OPTIONS]"
 
-        block.append(f"\n{label_color}{'USAGE:':<13}{RESET}{BOLD}{usage_line}{RESET}")
+        block.append(f"\n{label_color}{'USAGE:':<15}{RESET}{BOLD}{usage_line}{RESET}")
 
-        if details.get("flags"):
-            # Filter out positional arguments and generic FILES labels from the options display
-            filtered_tokens = []
-            for token in all_tokens:
-                if token in pos_args or token in ("[FILES...]", "FILES..."):
-                    continue
-                filtered_tokens.append(token)
+        # Extract detailed option information from the subparser
+        subparser = None
+        for action in parser._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                subparser = action.choices.get(mode_name)
+                break
 
-            if filtered_tokens:
-                options_str = " ".join(filtered_tokens)
-                block.append(f"{label_color}{'OPTIONS:':<13}{RESET}{YELLOW}{options_str}{RESET}")
+        if subparser:
+            # We want to show mode-specific options first, then general processing, then I/O
+            # Sort groups: Mode-specific first, then general ones
+            ordered_groups = []
+            # First pass: Mode-specific groups
+            for group in subparser._action_groups:
+                if group.title and 'OPTIONS' in group.title and 'INPUT/OUTPUT' not in group.title and 'PROCESSING' not in group.title:
+                    ordered_groups.append(group)
+            # Second pass: PROCESSING OPTIONS
+            for group in subparser._action_groups:
+                if group.title == 'PROCESSING OPTIONS':
+                    ordered_groups.append(group)
+            # Third pass: INPUT/OUTPUT OPTIONS
+            for group in subparser._action_groups:
+                if group.title == 'INPUT/OUTPUT OPTIONS':
+                    ordered_groups.append(group)
+
+            for group in ordered_groups:
+                group_actions = []
+                for action in group._group_actions:
+                    if action.help == argparse.SUPPRESS:
+                        continue
+
+                    # Format flags and metavar
+                    option_flags = ", ".join(action.option_strings)
+                    metavar = ""
+                    if action.metavar:
+                        metavar = f" {action.metavar}"
+                    elif action.choices:
+                        metavar = f" {{{','.join(map(str, action.choices))}}}"
+
+                    option_help = action.help or ""
+                    group_actions.append((option_flags + metavar, option_help))
+
+                if group_actions:
+                    block.append(f"\n{label_color}{group.title + ':':<15}{RESET}")
+
+                    flag_col_width = 30
+                    help_indent_width = 35 # 2 (initial indent) + 30 (flag_col) + 3 (gap)
+                    help_indent = ' ' * help_indent_width
+
+                    for flags, help_text in group_actions:
+                        wrapped_help = help_text.replace('\n', '\n' + help_indent)
+
+                        if len(flags) > flag_col_width:
+                            block.append(f"  {YELLOW}{flags}{RESET}")
+                            block.append(f"{help_indent}{wrapped_help}")
+                        else:
+                            block.append(f"  {YELLOW}{flags:<{flag_col_width}}{RESET}   {wrapped_help}")
 
         if details.get("example"):
-            block.append(f"\n{label_color}{'EXAMPLE:':<13}{RESET}")
+            block.append(f"\n{label_color}{'EXAMPLE:':<15}{RESET}")
             block.append(f"  {GREEN}{details['example']}{RESET}")
 
         block.append(divider)

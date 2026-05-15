@@ -6,7 +6,7 @@ Purpose:
     This helps ensure that typos you find are caught in future changes.
 
 Features:
-    - Finds typo corrections in Git diffs.
+    - Finds typo corrections in Git diffs and file renames or copies.
     - Splits compound words based on spaces, underscores, and capital letters.
     - Skips corrections where the "before" word is in the large dictionary.
     - Works with the `typos` tool to avoid duplicate entries.
@@ -311,6 +311,20 @@ def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = No
     additions: List[str] = []
 
     for line in lines:
+        # Handle file renames and copies
+        if line.startswith('rename from ') or line.startswith('copy from '):
+            path = line.split(' from ', 1)[1].strip()
+            removals.append(path)
+            continue
+        if line.startswith('rename to ') or line.startswith('copy to '):
+            path = line.split(' to ', 1)[1].strip()
+            additions.append(path)
+            # Renames/copies are typically paired immediately in the diff header
+            typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+            removals = []
+            additions = []
+            continue
+
         if line.startswith('---') or line.startswith('+++'):
             continue
         if line.startswith('-'):
@@ -613,7 +627,7 @@ def main():
 
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Process a Git diff to find typos for the `typos` tool.{RESET}",
+        description=f"{BOLD}Process a Git diff (including file renames) to find typos for the `typos` tool.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python diff2typo.py diff.txt --output typos.txt --mode typos{RESET}

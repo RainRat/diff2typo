@@ -464,6 +464,47 @@ def test_filter_known_typos_cleans_temp_directory(monkeypatch, tmp_path):
     assert result == candidates
     assert created_paths and not created_paths[0].exists()
 
+def test_find_typos_rename_and_copy():
+    # Test rename
+    diff_rename = (
+        "diff --git a/registre.py b/register.py\n"
+        "similarity index 100%\n"
+        "rename from registre.py\n"
+        "rename to register.py\n"
+    )
+    assert diff2typo.find_typos(diff_rename) == ['registre -> register']
+
+    # Test copy
+    diff_copy = (
+        "diff --git a/src/util.py b/src/utils.py\n"
+        "similarity index 100%\n"
+        "copy from src/util.py\n"
+        "copy to src/utils.py\n"
+    )
+    assert diff2typo.find_typos(diff_copy) == ['util -> utils']
+
+    # Test nested paths
+    diff_nested = (
+        "rename from project/modul/file.py\n"
+        "rename to project/module/file.py\n"
+    )
+    assert diff2typo.find_typos(diff_nested) == ['modul -> module']
+
+    # Test combined content and rename
+    diff_combined = (
+        "rename from old.py\n"
+        "rename to new.py\n"
+        "--- a/old.py\n"
+        "+++ b/new.py\n"
+        "@@\n"
+        "-content typo\n"
+        "+content type\n"
+    )
+    results = diff2typo.find_typos(diff_combined)
+    assert 'old -> new' in results
+    assert 'typo -> type' in results
+
+
 def test_main_default_values_preserved(monkeypatch):
     """Verify that default values are correctly preserved when no flags are passed."""
     monkeypatch.setattr(sys, 'argv', ['diff2typo.py'])

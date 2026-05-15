@@ -14,7 +14,7 @@ git diff | python diff2typo.py [OPTIONS]
 
 ## Core Features
 
-1. **Find typos in diffs:** Reads Git diff files or data sent directly from other commands to find words you have corrected.
+1. **Find typos in diffs:** Reads Git diff files or data sent directly from other commands to find words you have corrected. This includes finding typos corrected by renaming or copying files.
 2. **Variable Support:** Automatically splits compound words like `camelCase` and `snake_case` to find typos hidden inside variable names.
 3. **Smart Filtering:** Uses a large dictionary of correct words and a list of "allowed" words to prevent the tool from reporting correct words as typos.
 4. **Integration:** Can check your findings against the external `typos` tool to ensure your list only contains mistakes.

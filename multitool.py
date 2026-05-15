@@ -5348,7 +5348,7 @@ MODE_DETAILS = {
         "flags": "[QUERY] [-Q QUERY] [FILES...] [-S] [-k] [-t] [-n] [-B N] [-A N] [-C N]",
     },
     "scan": {
-        "summary": "Audits project for known typos",
+        "summary": "Scans project for known typos",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. It also supports context lines.",
         "example": "python multitool.py scan . --add teh:the --smart -A 1",
         "flags": "[MAPPING] [-s MAPPING] [FILES...] [-a K:V] [-S] [-B N] [-A N] [-C N]",
@@ -5402,8 +5402,8 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "line", "words", "ngrams", "regex"],
-        "CHANGING DATA": ["combine", "unique", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
-        "AUDIT & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
+        "CHANGE DATA": ["combine", "unique", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
     use_color = _should_enable_color(sys.stdout)

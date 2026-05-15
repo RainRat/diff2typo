@@ -23,7 +23,7 @@ Most modes default to reading from **standard input** if you do not specify an i
 
 Multitool operates in different "modes," each designed for a specific task.
 
-### 1. GETTING DATA
+### 1. GET DATA
 
 These modes help you pull specific data out of a messy file.
 
@@ -89,7 +89,7 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Finds and gets text that matches a Python regular expression pattern. Unlike other modes, it **keeps the original text** (it does not convert to lowercase or remove punctuation) by default.
   - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`
 
-### 2. CHANGING DATA
+### 2. CHANGE DATA
 
 These modes help you transform or combine your data.
 
@@ -192,7 +192,7 @@ These modes help you transform or combine your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py pairs typos.json --output-format csv`
 
-### 3. CHECKING DATA
+### 3. CHECK & ANALYZE
 
 These modes help you analyze your data.
 
@@ -221,7 +221,7 @@ These modes help you analyze your data.
     - `-l`, `--lines`: Count frequencies of raw lines instead of individual words.
     - `-c`, `--chars`: Count frequencies of individual characters.
     - `-B`, `--by-file`: Count how many files contain each item instead of total matches. This is useful for finding words that are common across your entire project.
-    - **Auditing:** Use the `--mapping` flag or `--add` to count matches of specific typos across your files.
+    - **Checking:** Use the `--mapping` flag or `--add` to count matches of specific typos across your files.
   - **Visual Report:** Use `--output-format arrow` to generate a rich visual report. This includes an **ANALYSIS SUMMARY** dashboard with metrics like retention rate, an aligned frequency table, and high-resolution bar charts.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, and `line`.
   - **Note:** This mode has built-in sorting; the `--process-output` flag is not needed.

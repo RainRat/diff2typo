@@ -2575,9 +2575,9 @@ def similarity_mode(
     adj_keys = get_adjacent_keys()
 
     # Adjust max_dist if filters are used but default (None) or restrictive dist was kept
-    if transposition and max_dist == 1:
+    if transposition and (max_dist is None or max_dist < 2):
         max_dist = 2
-    elif keyboard and max_dist == 0:
+    if keyboard and (max_dist is None or max_dist < 1):
         max_dist = 1
 
     filtered_results = []
@@ -2677,9 +2677,11 @@ def near_duplicates_mode(
     unique_items.sort(key=len)
     adj_keys = get_adjacent_keys()
 
-    # Adjust max_dist if transposition filter is used but default dist was kept
-    if transposition and max_dist == 1:
+    # Adjust max_dist if filters are used but default or restrictive dist was kept
+    if transposition and (max_dist is None or max_dist < 2):
         max_dist = 2
+    if keyboard and (max_dist is None or max_dist < 1):
+        max_dist = 1
 
     results = []
     stats_items = []
@@ -2782,9 +2784,11 @@ def fuzzymatch_mode(
     list2_unique = sorted(set(list2_unique), key=len)
     adj_keys = get_adjacent_keys()
 
-    # Adjust max_dist if transposition filter is used but default dist was kept
-    if transposition and max_dist == 1:
+    # Adjust max_dist if filters are used but default or restrictive dist was kept
+    if transposition and (max_dist is None or max_dist < 2):
         max_dist = 2
+    if keyboard and (max_dist is None or max_dist < 1):
+        max_dist = 1
 
     results = []
     stats_items = []
@@ -3115,9 +3119,11 @@ def discovery_mode(
     frequent_words = sorted([word for word, count in word_counts.items() if count >= freq_min], key=len)
     adj_keys = get_adjacent_keys()
 
-    # Adjust max_dist if transposition filter is used but default dist was kept
-    if transposition and max_dist == 1:
+    # Adjust max_dist if filters are used but default or restrictive dist was kept
+    if transposition and (max_dist is None or max_dist < 2):
         max_dist = 2
+    if keyboard and (max_dist is None or max_dist < 1):
+        max_dist = 1
 
     results = []
     stats_items = []

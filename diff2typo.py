@@ -42,31 +42,46 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Dict, Iterable, List, Optional, Sequence, Set, TextIO
+import time
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, TextIO
 
 from tqdm import tqdm
 
 
-# ANSI Color Codes
-BLUE = "\033[1;34m"
-GREEN = "\033[1;32m"
-RED = "\033[1;31m"
-YELLOW = "\033[1;33m"
-RESET = "\033[0m"
-BOLD = "\033[1m"
+# ANSI Color Codes (Internal constants)
+_BLUE = "\033[1;34m"
+_GREEN = "\033[1;32m"
+_RED = "\033[1;31m"
+_YELLOW = "\033[1;33m"
+_MAGENTA = "\033[1;35m"
+_CYAN = "\033[1;36m"
+_RESET = "\033[0m"
+_BOLD = "\033[1m"
 
-# Disable colors if not running in a terminal or if NO_COLOR is set
-if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
-    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+# Global color constants for general use (legacy support)
+BLUE = _BLUE
+GREEN = _GREEN
+RED = _RED
+YELLOW = _YELLOW
+MAGENTA = _MAGENTA
+CYAN = _CYAN
+RESET = _RESET
+BOLD = _BOLD
+
+# Global color constants are initialized based on stdout.
+# Specific functions (like _format_analysis_summary) use _should_enable_color
+# for more granular stream-based color detection.
+if (not sys.stdout.isatty() and 'FORCE_COLOR' not in os.environ) or 'NO_COLOR' in os.environ:
+    BLUE = GREEN = RED = YELLOW = MAGENTA = CYAN = RESET = BOLD = ""
 
 
 class MinimalFormatter(logging.Formatter):
     """A logging formatter that removes prefixes for INFO level messages."""
 
     LEVEL_COLORS = {
-        logging.WARNING: YELLOW,
-        logging.ERROR: RED,
-        logging.CRITICAL: RED,
+        logging.WARNING: _YELLOW,
+        logging.ERROR: _RED,
+        logging.CRITICAL: _RED,
     }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -75,12 +90,117 @@ class MinimalFormatter(logging.Formatter):
 
         levelname = record.levelname
         # Colorize the level name if stderr is a terminal and color is available
-        if sys.stderr.isatty() and levelname:
+        if _should_enable_color(sys.stderr) and levelname:
             color = self.LEVEL_COLORS.get(record.levelno)
             if color:
-                levelname = f"{color}{levelname}{RESET}"
+                levelname = f"{color}{levelname}{_RESET}"
 
         return f"{levelname}: {record.getMessage()}"
+
+
+def _should_enable_color(stream: Any) -> bool:
+    """Check if color should be enabled for a given stream."""
+    if os.environ.get('NO_COLOR'):
+        return False
+    if os.environ.get('FORCE_COLOR'):
+        return True
+    return hasattr(stream, 'isatty') and stream.isatty()
+
+
+def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
+    """
+    Creates a high-resolution visual bar using Unicode block characters.
+    """
+    total_blocks = (percentage * max_bar) / 100
+    full_blocks = int(total_blocks)
+    fraction = total_blocks - full_blocks
+    blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+    frac_idx = int(fraction * 8)
+
+    bar = "█" * full_blocks
+    if full_blocks < max_bar:
+        bar += blocks[frac_idx]
+        bar += " " * (max_bar - full_blocks - 1)
+    return bar
+
+
+def _format_analysis_summary(
+    raw_count: int,
+    filtered_items: Sequence[Any],
+    item_label: str = "item",
+    start_time: Optional[float] = None,
+    use_color: bool = False,
+    extra_metrics: Optional[Mapping[str, Any]] = None,
+    title: str = "ANALYSIS SUMMARY",
+    total_input_items: Optional[int] = None,
+) -> List[str]:
+    """
+    Standardizes the "ANALYSIS SUMMARY" block with consistent colors and a visual retention bar.
+    Returns a list of formatted lines.
+    """
+    item_label_plural = f"{item_label}s"
+    c_bold = _BOLD if use_color else ""
+    c_blue = _BLUE if use_color else ""
+    c_green = _GREEN if use_color else ""
+    c_yellow = _YELLOW if use_color else ""
+    c_reset = _RESET if use_color else ""
+
+    padding = "  "
+    label_width = 35
+    report = []
+
+    report.append(f"\n{padding}{c_bold}{c_blue}{title}{c_reset}")
+    report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
+
+    if total_input_items is not None:
+        report.append(
+            f"  {c_bold}{c_blue}{'Total word pairs in diff:':<{label_width}}{c_reset} {c_yellow}{total_input_items}{c_reset}"
+        )
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ' found:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
+    )
+
+    filtered_count = len(filtered_items)
+    report.append(
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
+    )
+
+    if raw_count > 0:
+        retention = (filtered_count / raw_count) * 100
+        # High-res visual bar for retention
+        max_bar = 20
+        bar = _render_visual_bar(retention, max_bar)
+
+        report.append(
+            f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_blue}{bar}{c_reset}"
+        )
+
+    # Unique Items
+    try:
+        # Check if items are hashable (like strings or tuples of strings)
+        unique_count = len(set(filtered_items))
+    except (TypeError, ValueError):
+        unique_count = len(filtered_items)
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
+    )
+
+    # Extra metrics
+    if extra_metrics:
+        for label, value in extra_metrics.items():
+            report.append(f"  {c_bold}{c_blue}{label + ':':<{label_width}}{c_reset} {value}")
+
+    # Processing Time
+    if start_time is not None:
+        duration = time.perf_counter() - start_time
+        report.append(
+            f"  {c_bold}{c_blue}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+        )
+
+    report.append("")
+    return report
 
 
 def filter_to_letters(text: str) -> str:
@@ -767,6 +887,7 @@ def main():
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
     logging.basicConfig(level=log_level, handlers=[handler])
 
+    start_time = time.perf_counter()
     logging.info("Starting typo search...")
 
     # Combine positional and flag inputs
@@ -802,9 +923,10 @@ def main():
 
     # Find candidate typo corrections from the diff.
     logging.info("Finding typo corrections from the diff...")
-    candidates = find_typos(diff_text, min_length=args.min_length, max_dist=args.max_dist)
-    candidates = sorted(set(candidates))
-    logging.info(f"Found {len(candidates)} candidate typo correction(s).")
+    candidates_raw = find_typos(diff_text, min_length=args.min_length, max_dist=args.max_dist)
+    candidates = sorted(set(candidates_raw))
+    raw_count = len(candidates)
+    total_occurrences = len(candidates_raw)
 
     # Prepare lists to hold results.
     typos_result = []
@@ -815,51 +937,77 @@ def main():
     if args.mode in ['typos', 'both']:
         logging.info("Processing typos (filtering out known typos)...")
         typos_result = process_typos_mode(candidates, args, large_dictionary, allowed_words)
-        logging.info(f"Found {len(typos_result)} typo(s).")
 
     # Process corrections if requested.
     if args.mode in ['corrections', 'both']:
         logging.info("Processing corrections to typos...")
         corrections_raw = process_corrections_mode(candidates, large_dictionary_mapping, quiet=args.quiet)
         corrections_result = format_typos(corrections_raw, args.output_format)
-        logging.info(f"Found {len(corrections_result)} correction(s).")
 
     # Check for correct words changed into typos if requested.
     if args.mode == 'audit':
         logging.info("Checking for cases where correct words were changed into typos...")
         audit_result = process_audit_typos(candidates, args, large_dictionary, allowed_words)
-        logging.info(f"Found {len(audit_result)} case(s) where a correct word was changed to a typo.")
 
     # Combine results if needed.
     final_output = []
+    filtered_items = []
     if args.mode == 'both':
         if typos_result:
             final_output.append("=== Typos ===")
             final_output.extend(typos_result)
             final_output.append("")  # Blank line for separation.
+            filtered_items.extend(typos_result)
         if corrections_result:
             final_output.append("=== Corrections ===")
             final_output.extend(corrections_result)
+            filtered_items.extend(corrections_result)
     elif args.mode == 'typos':
         final_output = typos_result
+        filtered_items = typos_result
     elif args.mode == 'corrections':
         final_output = corrections_result
+        filtered_items = corrections_result
     elif args.mode == 'audit':
         final_output = audit_result
+        filtered_items = audit_result
 
     # Write the final output to the specified file.
     try:
         with smart_open_output(args.output_file, encoding='utf-8') as f:
             for line in final_output:
                 f.write(f"{line}\n")
-        logging.info(
-            f"Wrote {len(final_output)} line(s) to '{args.output_file}'."
-        )
     except Exception as e:
         logging.error(f"Error writing to output file '{args.output_file}': {e}")
         sys.exit(1)
 
-    logging.info("Processing complete.")
+    # Display analysis summary to stderr
+    if not args.quiet:
+        use_color = _should_enable_color(sys.stderr)
+        item_label = "typo" if args.mode != "corrections" else "correction"
+        if args.mode == "audit":
+            item_label = "audit-item"
+
+        extra_metrics = {}
+        if args.mode == "both":
+            extra_metrics["Typos found"] = len(typos_result)
+            extra_metrics["Corrections found"] = len(corrections_result)
+
+        summary = _format_analysis_summary(
+            raw_count,
+            filtered_items,
+            item_label=item_label,
+            start_time=start_time,
+            use_color=use_color,
+            extra_metrics=extra_metrics,
+            total_input_items=total_occurrences
+        )
+        sys.stderr.write("\n".join(summary))
+
+        dest_label = "the screen" if args.output_file == "-" else f"'{args.output_file}'"
+        c_blue = (BOLD + _BLUE) if use_color else ""
+        c_reset = _RESET if use_color else ""
+        logging.info(f"{c_blue}[diff2typo]{c_reset} Wrote {len(final_output)} line(s) to {dest_label}.\n")
 
 if __name__ == "__main__":
     main()

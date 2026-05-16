@@ -9,6 +9,8 @@ import re
 import time
 from typing import Any, Iterable, List, Mapping, Sequence, Tuple
 
+VERSION = "1.1.0"
+
 try:
     from tqdm import tqdm
     _TQDM_AVAILABLE = True
@@ -1075,6 +1077,12 @@ def main() -> None:
   {GREEN}python typostats.py typos.txt -k -n 20{RESET}       # Find top 20 keyboard slips
   {GREEN}python typostats.py typos.txt -a{RESET}             # Run all analysis modes at once
 """,
+    )
+
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {VERSION}'
     )
 
     # Input/Output Group

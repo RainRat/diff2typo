@@ -38,6 +38,9 @@ from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Option
 from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 
 
+VERSION = "1.1.0"
+
+
 # ANSI Color Codes
 BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
@@ -822,6 +825,12 @@ def main() -> None:
   {GREEN}python gentypos.py --config my_config.yaml --output typos.txt{RESET}
   {GREEN}python gentypos.py word1 word2 --format csv --no-filter{RESET}
 """,
+    )
+
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {VERSION}'
     )
 
     # Input/Output Options

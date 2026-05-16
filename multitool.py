@@ -16,6 +16,8 @@ from tqdm import tqdm
 import logging
 import json
 
+VERSION = "1.1.0"
+
 try:
     import ahocorasick
     _AHOCORASICK_AVAILABLE = True
@@ -5656,6 +5658,11 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="mode",
         action=ModeHelpAction,
         help="Display extended documentation for a specific mode or all modes.",
+    )
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {VERSION}'
     )
 
     # Input/Output Group

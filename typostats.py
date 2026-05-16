@@ -522,7 +522,7 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
 
         # Text formats
         lines = _read_file_lines_robust(input_file)
-        if not quiet:
+        if not quiet and _TQDM_AVAILABLE:
             iterator = tqdm(lines, desc=f'Processing {input_file}', unit=' lines', leave=False)
         else:
             iterator = lines

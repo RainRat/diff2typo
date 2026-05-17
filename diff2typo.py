@@ -880,7 +880,7 @@ def main():
     analysis_group.add_argument(
         '--quiet', '-q',
         action='store_true',
-        help='Suppress progress bars and other non-essential output.'
+        help='Hide progress bars and status messages.'
     )
 
     args = parser.parse_args()

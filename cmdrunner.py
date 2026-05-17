@@ -190,7 +190,7 @@ def parse_arguments() -> argparse.Namespace:
     options_group.add_argument(
         '--quiet',
         action='store_true',
-        help='Hide progress bars and show fewer log messages.'
+        help='Hide progress bars and status messages.'
     )
 
     return parser.parse_args()

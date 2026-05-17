@@ -895,7 +895,7 @@ def main() -> None:
     gen_group.add_argument(
         '-q', '--quiet',
         action='store_true',
-        help="Hide progress bars and show fewer log messages.",
+        help="Hide progress bars and status messages.",
     )
 
     args = parser.parse_args()

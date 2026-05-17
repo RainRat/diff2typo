@@ -1101,7 +1101,7 @@ def main() -> None:
         default=None,
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
     )
-    io_group.add_argument('-q', '--quiet', action='store_true', help="Suppress informational log output.")
+    io_group.add_argument('-q', '--quiet', action='store_true', help="Hide progress bars and status messages.")
 
     # Analysis Options Group
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")

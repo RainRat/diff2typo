@@ -4936,7 +4936,7 @@ def _add_common_mode_arguments(
         '-q', '--quiet',
         action='store_true',
         default=argparse.SUPPRESS,
-        help='Suppress progress bars and informational log output.',
+        help='Hide progress bars and status messages.',
     )
 
     # Processing Configuration Group
@@ -5684,7 +5684,7 @@ def _build_parser() -> argparse.ArgumentParser:
     io_group.add_argument(
         '-q', '--quiet',
         action='store_true',
-        help='Suppress progress bars and informational log output.',
+        help='Hide progress bars and status messages.',
     )
 
     # Processing Options Group

@@ -73,7 +73,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py toml pyproject.toml --key tool.poetry.dependencies`
 
 - **`line`**
-  - **What it does:** Reads a file line by line. Use this to simply clean or filter a text file without special getting logic.
+  - **What it does:** Extracts every line from a file. Use this to simply clean or filter a text file without special getting logic.
   - **Example:** `python multitool.py line raw_words.txt`
 
 - **`words`**
@@ -86,7 +86,7 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py ngrams report.txt -n 2 --smart`
 
 - **`regex`**
-  - **What it does:** Finds and gets text that matches a Python regular expression pattern. Unlike other modes, it **keeps the original text** (it does not convert to lowercase or remove punctuation) by default.
+  - **What it does:** Extracts text matching a pattern. Finds and gets all text that matches a Python regular expression pattern. Unlike other modes, it **keeps the original text** (it does not convert to lowercase or remove punctuation) by default.
   - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`
 
 ### 2. CHANGE DATA
@@ -120,7 +120,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py rename src/ --mapping corrections.csv --in-place`
 
 - **`diff`**
-  - **What it does:** Finds added, removed, and changed items between two files. It can compare simple lists of words or (with the `--pairs` flag) find changes in typo-correction mappings.
+  - **What it does:** Shows differences between files. Finds added, removed, and changed items between two files. It can compare simple lists of words or (with the `--pairs` flag) find changes in typo-correction mappings.
   - **Supported Formats:** Color-coded terminal output (default) and structured JSON output.
   - **Example:** `python multitool.py diff old_list.txt new_list.txt`
   - **Pairs Example:** `python multitool.py diff old_typos.csv new_typos.csv --pairs`
@@ -197,7 +197,7 @@ These modes help you transform or combine your data.
 These modes help you analyze your data.
 
 - **`check`**
-  - **What it does:** Finds words that appear as both a typo *and* a correction. This is useful for spotting errors in your typo database (loops).
+  - **What it does:** Finds words used as both typos and fixes. Checks for words that appear in both the typo and correction columns of a file. This is useful for spotting errors in your typo database (loops).
   - **Example:** `python multitool.py check mappings.csv`
 
 - **`classify`**
@@ -252,7 +252,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py similarity typos.txt --max-dist 2 --show-dist`
 
 - **`stats`**
-  - **What it does:** Shows a high-level summary of your dataset. It reports counts, unique items, and statistics. If the `--pairs` flag is used, it additionally analyzes the file as paired data (typos/corrections) and reports conflicts (one typo to multiple corrections), overlaps (words that are both typos and corrections), and character change statistics.
+  - **What it does:** Shows statistics for a list. Provides a detailed overview of your dataset. It reports counts, unique items, and statistics. If the `--pairs` flag is used, it additionally analyzes the file as paired data (typos/corrections) and reports conflicts (one typo to multiple corrections), overlaps (words that are both typos and corrections), and character change statistics.
   - **Supported Formats:** `json`, `yaml`, `markdown`, `md-table`, and `line` (human-readable).
   - **Example:** `python multitool.py stats typos.csv --pairs`
 

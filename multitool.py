@@ -4916,7 +4916,7 @@ def _add_common_mode_arguments(
         type=str,
         nargs='+',
         metavar='FILE',
-        help="Path(s) to the input file(s) (legacy flag, supports multiple).",
+        help="Path(s) to the input file(s). Supports multiple files.",
     )
     io_group.add_argument(
         '-o', '--output',
@@ -5205,7 +5205,7 @@ MODE_DETAILS = {
         "flags": "[-k KEY]",
     },
     "line": {
-        "summary": "Reads a file line by line",
+        "summary": "Extracts every line from a file",
         "description": "Reads every line from a file, cleans the text, and writes it to the output. Useful for simple cleaning and filtering.",
         "example": "python multitool.py line raw_words.txt --output filtered.txt",
         "flags": "",
@@ -5235,7 +5235,7 @@ MODE_DETAILS = {
         "flags": "[FILE2]",
     },
     "check": {
-        "summary": "Finds words that are typos & fixes",
+        "summary": "Finds words used as both typos and fixes",
         "description": "Checks for words that appear in both the typo and correction columns of a file. Use this to find errors in your typo lists.",
         "example": "python multitool.py check typos.csv --output duplicates.txt",
         "flags": "",
@@ -5253,7 +5253,7 @@ MODE_DETAILS = {
         "flags": "[-n N|--percent P]",
     },
     "regex": {
-        "summary": "Finds text matching a pattern",
+        "summary": "Extracts text matching a pattern",
         "description": "Finds and gets all text that matches a Python regular expression pattern.",
         "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
         "flags": "[-r PATTERN]",
@@ -5307,7 +5307,7 @@ MODE_DETAILS = {
         "flags": "[FILE2] [--max-dist N] [-k] [-t] [--show-dist]",
     },
     "stats": {
-        "summary": "Calculates stats for a list",
+        "summary": "Shows statistics for a list",
         "description": "Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
         "example": "python multitool.py stats typos.csv --pairs --output-format json",
         "flags": "[-p]",
@@ -5385,7 +5385,7 @@ MODE_DETAILS = {
         "flags": "[MAPPING] [-s MAPPING] [FILES...] [-a K:V] [--in-place] [--dry-run] [--smart-case]",
     },
     "diff": {
-        "summary": "Finds differences between files",
+        "summary": "Shows differences between files",
         "description": "Finds differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what is added (+), what is removed (-), and what changed (~).",
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
         "flags": "[FILE2] [-p]",

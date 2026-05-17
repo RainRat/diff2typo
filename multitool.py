@@ -993,6 +993,8 @@ def _write_paired_output(
                 c_green = GREEN if show_color else ""
                 c_red = RED if show_color else ""
                 c_cyan = CYAN if show_color else ""
+                c_magenta = MAGENTA if show_color else ""
+                c_yellow = YELLOW if show_color else ""
                 c_reset = RESET if show_color else ""
 
                 # Header and divider
@@ -1016,7 +1018,20 @@ def _write_paired_output(
                     row = f"{padding}{c_red}{left:<{max_left}}{c_reset} {sep} {c_green}{right:<{max_right}}{c_reset}"
                     if has_attr:
                         attr = p[2]
-                        row += f" {sep} {c_cyan}{attr:<{max_attr}}{c_reset}"
+                        # Apply semantic coloring to the attribute column
+                        attr_color = c_cyan
+                        if "[K]" in attr:
+                            attr_color = c_cyan
+                        elif "[T]" in attr:
+                            attr_color = c_magenta
+                        elif "[D]" in attr:
+                            attr_color = c_red
+                        elif "[I]" in attr:
+                            attr_color = c_green
+                        elif "[R]" in attr or "[M]" in attr:
+                            attr_color = c_yellow
+
+                        row += f" {sep} {attr_color}{attr:<{max_attr}}{c_reset}"
                     out_file.write(row + "\n")
                 out_file.write("\n")
         else:  # 'line' or fallback

@@ -31,6 +31,7 @@ Output Formats:
 '''
 
 import argparse
+from collections import Counter
 import contextlib
 import csv
 import glob
@@ -664,7 +665,7 @@ def process_typos_mode(candidates, args, large_dictionary, allowed_words):
     Uses allowed words and the large dictionary to filter the results.
     The large dictionary can be a simple word list (one word per line) or a
     CSV file where the first word is a typo and the rest are corrections.
-    Returns the formatted list of typos.
+    Returns a sorted list of unique typo strings "before -> after".
     """
     candidates = filter_known_typos(candidates, typos_tool_path=args.typos_tool_path)
     candidates = _filter_candidates_by_set(
@@ -681,10 +682,7 @@ def process_typos_mode(candidates, args, large_dictionary, allowed_words):
     )
 
     # Deduplicate and sort.
-    filtered_candidates = sorted(set(filtered_candidates))
-    # Format the output according to the requested output format.
-    formatted = format_typos(filtered_candidates, args.output_format)
-    return formatted
+    return sorted(set(filtered_candidates))
 
 
 def process_corrections_mode(candidates, words_mapping, quiet=False):
@@ -731,6 +729,7 @@ def process_audit_typos(candidates, args, large_dictionary, allowed_words):
     Find cases where a correct word was changed into a typo.
     Finds cases where a word that used to be valid
     was changed to a word that is not in the large dictionary.
+    Returns a sorted list of unique typo strings "before -> after".
     """
     audit_candidates = []
     for candidate in candidates:
@@ -741,9 +740,7 @@ def process_audit_typos(candidates, args, large_dictionary, allowed_words):
                 if after not in large_dictionary and after not in allowed_words:
                     audit_candidates.append(candidate)
 
-    audit_candidates = sorted(set(audit_candidates))
-    formatted = format_typos(audit_candidates, args.output_format)
-    return formatted
+    return sorted(set(audit_candidates))
 
 
 def main():
@@ -847,6 +844,27 @@ def main():
     )
 
     analysis_group.add_argument(
+        '--min-count',
+        type=int,
+        default=1,
+        help='Minimum occurrences of a typo in the diff to include it in the output (default: 1).',
+    )
+
+    analysis_group.add_argument(
+        '--sort',
+        choices=['count', 'alpha'],
+        default='alpha',
+        help="How to sort the results: 'count' (most frequent first) or 'alpha' (alphabetical, default).",
+    )
+
+    analysis_group.add_argument(
+        '--limit',
+        '-L',
+        type=int,
+        help='Limit the number of typos in the output.',
+    )
+
+    analysis_group.add_argument(
         '--dictionary',
         '-d',
         dest='dictionary_file',
@@ -933,53 +951,73 @@ def main():
     # Find candidate typo corrections from the diff.
     logging.info("Finding typo corrections from the diff...")
     candidates_raw = find_typos(diff_text, min_length=args.min_length, max_dist=args.max_dist)
-    candidates = sorted(set(candidates_raw))
-    raw_count = len(candidates)
+    counts = Counter(candidates_raw)
+
+    unique_candidates = sorted(counts.keys())
+    candidates = [item for item in unique_candidates if counts[item] >= args.min_count]
+
+    raw_count = len(unique_candidates)
     total_occurrences = len(candidates_raw)
 
     # Prepare lists to hold results.
-    typos_result = []
-    corrections_result = []
-    audit_result = []
+    typos_list = []
+    corrections_list = []
+    audit_list = []
 
     # Process typos if requested.
     if args.mode in ['typos', 'both']:
         logging.info("Processing typos (filtering out known typos)...")
-        typos_result = process_typos_mode(candidates, args, large_dictionary, allowed_words)
+        typos_list = process_typos_mode(candidates, args, large_dictionary, allowed_words)
 
     # Process corrections if requested.
     if args.mode in ['corrections', 'both']:
         logging.info("Processing corrections to typos...")
-        corrections_raw = process_corrections_mode(candidates, large_dictionary_mapping, quiet=args.quiet)
-        corrections_result = format_typos(corrections_raw, args.output_format)
+        corrections_list = process_corrections_mode(candidates, large_dictionary_mapping, quiet=args.quiet)
 
     # Check for correct words changed into typos if requested.
     if args.mode == 'audit':
         logging.info("Checking for cases where correct words were changed into typos...")
-        audit_result = process_audit_typos(candidates, args, large_dictionary, allowed_words)
+        audit_list = process_audit_typos(candidates, args, large_dictionary, allowed_words)
+
+    # Helper to sort and limit results
+    def sort_and_limit(items):
+        if args.sort == 'count':
+            # Sort by frequency descending, then alphabetically
+            items.sort(key=lambda x: (-counts.get(x, 0), x))
+        else:
+            items.sort()
+        if args.limit:
+            return items[:args.limit]
+        return items
 
     # Combine results if needed.
     final_output = []
     filtered_items = []
     if args.mode == 'both':
-        if typos_result:
+        typos_final = sort_and_limit(typos_list)
+        corrections_final = sort_and_limit(corrections_list)
+
+        if typos_final:
             final_output.append("=== Typos ===")
-            final_output.extend(typos_result)
+            final_output.extend(format_typos(typos_final, args.output_format))
             final_output.append("")  # Blank line for separation.
-            filtered_items.extend(typos_result)
-        if corrections_result:
+            filtered_items.extend(typos_final)
+        if corrections_final:
             final_output.append("=== Corrections ===")
-            final_output.extend(corrections_result)
-            filtered_items.extend(corrections_result)
-    elif args.mode == 'typos':
-        final_output = typos_result
-        filtered_items = typos_result
-    elif args.mode == 'corrections':
-        final_output = corrections_result
-        filtered_items = corrections_result
-    elif args.mode == 'audit':
-        final_output = audit_result
-        filtered_items = audit_result
+            final_output.extend(format_typos(corrections_final, args.output_format))
+            filtered_items.extend(corrections_final)
+    else:
+        results_list = []
+        if args.mode == 'typos':
+            results_list = typos_list
+        elif args.mode == 'corrections':
+            results_list = corrections_list
+        elif args.mode == 'audit':
+            results_list = audit_list
+
+        results_final = sort_and_limit(results_list)
+        final_output = format_typos(results_final, args.output_format)
+        filtered_items = results_final
 
     # Write the final output to the specified file.
     try:
@@ -998,9 +1036,14 @@ def main():
             item_label = "audit-item"
 
         extra_metrics = {}
+        if args.min_count > 1:
+            extra_metrics[f"Min occurrences (--min-count)"] = args.min_count
+        if args.limit:
+            extra_metrics["Output limit (--limit)"] = args.limit
+
         if args.mode == "both":
-            extra_metrics["Typos found"] = len(typos_result)
-            extra_metrics["Corrections found"] = len(corrections_result)
+            extra_metrics["Typos found"] = len(typos_list)
+            extra_metrics["Corrections found"] = len(corrections_list)
 
         summary = _format_analysis_summary(
             raw_count,

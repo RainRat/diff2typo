@@ -48,6 +48,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, 
 from tqdm import tqdm
 
 
+VERSION = "1.1.0"
+
+
 # ANSI Color Codes (Internal constants)
 _BLUE = "\033[1;34m"
 _GREEN = "\033[1;32m"
@@ -753,6 +756,12 @@ def main():
   {GREEN}python diff2typo.py diff.txt --output typos.txt --mode typos{RESET}
   {GREEN}git diff | python diff2typo.py -o found.txt -f csv{RESET}
 """,
+    )
+
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {VERSION}'
     )
 
     # Input/Output Options

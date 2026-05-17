@@ -13,6 +13,9 @@ from typing import List, Dict, Any, Optional
 from tqdm import tqdm
 
 
+VERSION = "1.1.0"
+
+
 # ANSI Color Codes
 BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
@@ -160,6 +163,12 @@ def parse_arguments() -> argparse.Namespace:
   {GREEN}python cmdrunner.py config.yaml{RESET}
   {GREEN}python cmdrunner.py my_setup.yaml --dry-run{RESET}
 """,
+    )
+
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {VERSION}'
     )
 
     # Configuration Group

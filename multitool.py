@@ -4226,20 +4226,16 @@ def standardize_mode(
         for line in tqdm(file_lines, desc=f"Analyzing {input_file}", unit=" lines", disable=quiet):
             parts = pattern.findall(line)
             for part in parts:
-                # Full word analysis
-                norm = filter_to_letters(part) if clean_items else part.lower()
-                if norm:
-                    if min_length <= len(norm) <= max_length:
-                        variation_counts[norm][part] += 1
-
-                # Sub-word analysis for CamelCase/snake_case consistency
+                # Identify candidates: the word itself and any sub-parts (CamelCase/snake_case)
+                candidates = [part]
                 sub_parts = _smart_split(part)
                 if len(sub_parts) > 1:
-                    for sp in sub_parts:
-                        sp_norm = filter_to_letters(sp) if clean_items else sp.lower()
-                        if sp_norm:
-                            if min_length <= len(sp_norm) <= max_length:
-                                variation_counts[sp_norm][sp] += 1
+                    candidates.extend(sub_parts)
+
+                for cand in candidates:
+                    norm = filter_to_letters(cand) if clean_items else cand.lower()
+                    if norm and min_length <= len(norm) <= max_length:
+                        variation_counts[norm][cand] += 1
 
     # Pass 2: Find "winners" and build mapping
     mapping = {}

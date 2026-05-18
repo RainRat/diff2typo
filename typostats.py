@@ -123,6 +123,23 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
     return default
 
 
+def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
+    """
+    Creates a high-resolution visual bar using Unicode block characters.
+    """
+    total_blocks = (percentage * max_bar) / 100
+    full_blocks = int(total_blocks)
+    fraction = total_blocks - full_blocks
+    blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+    frac_idx = int(fraction * 8)
+
+    bar = "█" * full_blocks
+    if full_blocks < max_bar:
+        bar += blocks[frac_idx]
+        bar += " " * (max_bar - full_blocks - 1)
+    return bar
+
+
 def levenshtein_distance(s1: str, s2: str) -> int:
     """Calculate the number of character changes needed to turn one string into another."""
     if len(s1) < len(s2):
@@ -193,17 +210,7 @@ def _format_analysis_summary(
     if raw_count > 0:
         retention = (filtered_count / raw_count) * 100
         # High-res visual bar for retention
-        max_bar = 20
-        total_blocks = (retention * max_bar) / 100
-        full_blocks = int(total_blocks)
-        fraction = total_blocks - full_blocks
-        blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
-        frac_idx = int(fraction * 8)
-
-        bar = "█" * full_blocks
-        if full_blocks < max_bar:
-            bar += blocks[frac_idx]
-            bar += " " * (max_bar - full_blocks - 1)
+        bar = _render_visual_bar(retention, 20)
 
         report.append(
             f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_blue}{bar}{c_reset}"
@@ -958,16 +965,7 @@ def generate_report(
                 marker_color_for_bar = marker_color
 
             # Create a high-resolution visual bar
-            total_blocks = (percent * max_bar) / 100
-            full_blocks = int(total_blocks)
-            fraction = total_blocks - full_blocks
-            blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
-            frac_idx = int(fraction * 8)
-
-            bar = "█" * full_blocks
-            if full_blocks < max_bar:
-                bar += blocks[frac_idx]
-                bar += " " * (max_bar - full_blocks - 1)
+            bar = _render_visual_bar(percent, max_bar)
             row = (
                 f"{padding}{c_red}{typo_char:<{max_t}}{c_reset} {sep} "
                 f"{c_green}{correct_char:<{max_c}}{c_reset} {sep} "

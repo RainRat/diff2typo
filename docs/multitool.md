@@ -23,53 +23,53 @@ Most modes default to reading from **standard input** if you do not specify an i
 
 Multitool operates in different "modes," each designed for a specific task.
 
-### 1. GET DATA
+### GET DATA
 
 These modes help you pull specific data out of a messy file.
 
 - **`arrow`**
-  - **What it does:** Gets text from lines that use arrows (for example, `typo -> correction`). Useful for getting a clean list of typos from a log. It saves the left side by default. You can also get the right side (the correction) by adding the `--right` flag.
+  - **What it does:** Extracts text from arrow lines (for example, `typo -> correction`). Useful for getting a clean list of typos from a log. It saves the left side by default. You can also get the right side (the correction) by adding the `--right` flag.
   - **Example:** `python multitool.py arrow typos.log --right`
 
 - **`table`**
-  - **What it does:** Gets keys or values from entries like `key = "value"`. It saves the key by default. Use the `--right` flag to get the quoted value instead.
+  - **What it does:** Extracts text from key=value entries like `key = "value"`. It saves the key by default. Use the `--right` flag to get the quoted value instead.
   - **Example:** `python multitool.py table typos.toml --right`
 
 - **`backtick`**
-  - **What it does:** Gets text found inside backticks (for example, \`code\`). It picks items near words like 'error' or 'warning' to find the most useful data.
+  - **What it does:** Extracts text inside backticks (for example, \`code\`). It picks items near words like 'error' or 'warning' to find the most useful data.
   - **Example:** `python multitool.py backtick build.log`
 
 - **`quoted`**
-  - **What it does:** Gets text found inside double (`"`) or single (`'`) quotes. It handles backslash escaping (like `\"` or `\'`) to correctly extract strings from code or data files.
+  - **What it does:** Extracts text inside quotes. Finds text inside double (`"`) or single (`'`) quotes. It handles backslash escaping (like `\"` or `\'`) to correctly extract strings from code or data files.
   - **Example:** `python multitool.py quoted source.py`
 
 - **`between`**
-  - **What it does:** Gets text found between two markers. It is useful for extracting data from templating languages, logs, or custom file formats. You can use the `--multi-line` flag to capture content that spans multiple lines.
+  - **What it does:** Extracts text between markers. Finds text between a starting marker and an ending marker. It is useful for extracting data from templating languages, logs, or custom file formats. You can use the `--multi-line` flag to capture content that spans multiple lines.
   - **Options:** Requires `--start` and `--end` to define the markers.
   - **Example:** `python multitool.py between input.txt --start '{{' --end '}}'`
 
 - **`csv`**
-  - **What it does:** Gets columns from a CSV file. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) followed by one or more numbers to get specific columns. Use `--delimiter` (or `-d`) to pick a different column separator (for example, `;`).
+  - **What it does:** Extracts columns from CSV. Gets data from CSV files. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) followed by one or more numbers to get specific columns. Use `--delimiter` (or `-d`) to pick a different column separator (for example, `;`).
   - **Example:** `python multitool.py csv data.csv --column 2`
 
 - **`markdown`**
-  - **What it does:** Gets items from Markdown bulleted lists (lines starting with `- `, `* `, or `+ `). It can also split items by `:` or `->` to get one side of a pair (use the `--right` flag for the second part).
+  - **What it does:** Extracts Markdown list items. Finds text in lines starting with `- `, `* `, or `+ `. It can also split items by `:` or `->` to get one side of a pair (use the `--right` flag for the second part).
   - **Example:** `python multitool.py markdown notes.md --right`
 
 - **`md-table`**
-  - **What it does:** Gets text from Markdown tables. It saves the first column by default. Use the `--right` flag to save the second column instead, or `--column` (or `-c`) followed by one or more numbers to get specific columns. It automatically skips header and divider rows.
+  - **What it does:** Extracts Markdown table items. Finds text in cells of a Markdown table. It saves the first column by default. Use the `--right` flag to save the second column instead, or `--column` (or `-c`) followed by one or more numbers to get specific columns. It automatically skips header and divider rows.
   - **Example:** `python multitool.py md-table readme.md --column 2`
 
 - **`json`**
-  - **What it does:** Gets values from a JSON file using a specific key. You can use dots for keys inside other keys (for example, `user.name`). If you do not provide a key, it gets items from the top level. It automatically handles lists and objects.
+  - **What it does:** Extracts JSON values by key. Finds values for a specific key in a JSON file. You can use dots for keys inside other keys (for example, `user.name`). If you do not provide a key, it gets items from the top level. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`
 
 - **`yaml`**
-  - **What it does:** Gets values from a YAML file using a key path. Like JSON mode, it supports dot notation (for example, `config.items`). If you do not provide a key, it gets items from the top level.
+  - **What it does:** Extracts YAML values by key. Finds values for a specific key in a YAML file using a key path. Like JSON mode, it supports dot notation (for example, `config.items`). If you do not provide a key, it gets items from the top level.
   - **Example:** `python multitool.py yaml config.yaml --key config.items`
 
 - **`toml`**
-  - **What it does:** Gets values from a TOML file using a key path. Like JSON and YAML modes, it supports dot notation (for example, `tool.poetry.dependencies`). If you do not provide a key, it gets items from the top level. It automatically handles nested tables.
+  - **What it does:** Extracts TOML values by key. Finds values for a specific key in a TOML file using a key path. Like JSON and YAML modes, it supports dot notation (for example, `tool.poetry.dependencies`). If you do not provide a key, it gets items from the top level. It automatically handles nested tables.
   - **Example:** `python multitool.py toml pyproject.toml --key tool.poetry.dependencies`
 
 - **`line`**
@@ -77,11 +77,11 @@ These modes help you pull specific data out of a messy file.
   - **Example:** `python multitool.py line raw_words.txt`
 
 - **`words`**
-  - **What it does:** Gets individual words from a file. It splits lines by whitespace by default, but you can pick a custom character using `--delimiter` (or `-d`). Use the `--smart` (or `-S`) flag to also split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
+  - **What it does:** Extracts words from a file. Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use the `--smart` (or `-S`) flag to also split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
   - **Example:** `python multitool.py words report.txt --smart`
 
 - **`ngrams`**
-  - **What it does:** Gets sequences of N words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.
+  - **What it does:** Extracts sequences of words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.
   - **Options:** Use `-n` to pick the number of words in each sequence (default is 2). Like the `words` mode, it supports custom delimiters and smart word splitting.
   - **Example:** `python multitool.py ngrams report.txt -n 2 --smart`
 
@@ -89,30 +89,30 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Extracts text matching a pattern. Finds and gets all text that matches a Python regular expression pattern. Unlike other modes, it **keeps the original text** (it does not convert to lowercase or remove punctuation) by default.
   - **Example:** `python multitool.py regex inputs.txt --pattern 'user_\w+'`
 
-### 2. CHANGE DATA
+### CHANGE DATA
 
 These modes help you transform or combine your data.
 
 - **`combine`**
-  - **What it does:** Merges multiple files (or standard input) into one list, removes duplicates, and sorts the result alphabetically.
+  - **What it does:** Merges multiple files into one. Merges multiple files (or standard input) into one list, removes duplicates, and sorts the result alphabetically.
   - **Note:** This mode has built-in sorting and deduplication; the `--process-output` flag is not needed.
   - **Example:** `python multitool.py combine file1.txt file2.txt`
 
 - **`unique`**
-  - **What it does:** Removes duplicate items from your list while **keeping the original order**. This is useful when the sequence of items is important.
+  - **What it does:** Removes duplicates, keeps order. Removes duplicate items from your list while **keeping the original order**. This is useful when the sequence of items is important.
   - **Example:** `python multitool.py unique raw_typos.txt`
 
 - **`resolve`**
-  - **What it does:** Finds and shortens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`. This ensures that your mappings always point directly to the final correct word, making them more efficient for fixing typos and analysis.
+  - **What it does:** Shortens typo correction chains. Finds and shortens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of fixing typos and analysis.
   - **Example:** `python multitool.py resolve mappings.csv`
 
 - **`align`**
-  - **What it does:** Extracts typo-correction pairs from any supported format (CSV, Arrow, Markdown lists/tables, JSON, YAML, TOML) and outputs them in perfectly aligned columns by automatically calculating the maximum width of the left column. This is the recommended way to "beautify" your typo lists for human readability.
+  - **What it does:** Aligns typo-correction pairs. Extracts typo-correction pairs from any supported format (CSV, Arrow, Markdown lists/tables) and outputs them in perfectly aligned columns by automatically calculating the maximum width of the left column. This is the recommended way to "beautify" your typo lists for human readability.
   - **Options:** Use the `--sep` flag to customize the separator string between columns (default is ` -> `).
   - **Example:** `python multitool.py align typos.csv --sep ' | '`
 
 - **`rename`**
-  - **What it does:** Changes file and folder names using a mapping file or extra pairs. It is useful for fixing typos in filenames across your entire project. It handles nested renames by processing files before their parent folders.
+  - **What it does:** Batch renames files and folders. Renames files or directories based on a typo mapping or extra pairs provided via --add. It is useful for fixing typos in filenames across your entire project. It handles nested renames by processing files before their parent folders.
   - **Options:**
     - Supports `--in-place` renaming and `--dry-run` preview.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add old_name:new_name`) directly on the command line.
@@ -126,21 +126,21 @@ These modes help you transform or combine your data.
   - **Pairs Example:** `python multitool.py diff old_typos.csv new_typos.csv --pairs`
 
 - **`filterfragments`**
-  - **What it does:** Removes words from your input file if they appear anywhere inside a second file (`--file2`).
+  - **What it does:** Removes words found inside others. Removes words from your input file if they appear anywhere inside a second file (`--file2`).
   - **Example:** `python multitool.py filterfragments candidates.txt --file2 dictionary.txt`
 
 - **`map`**
-  - **What it does:** Changes items in your list using values from a mapping file or extra pairs. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, YAML, and TOML formats. By default, it keeps items that are not in the mapping. The `--min-length` and `--max-length` filters are **re-applied** to items after they are changed. Use `--drop-missing` to remove unmatched items.
+  - **What it does:** Replaces items using a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table (`typo = "correction"`), JSON, YAML, and TOML formats. By default, it keeps items that are not in the mapping. The `--min-length` and `--max-length` filters are **re-applied** to items after they are changed. Use `--drop-missing` to remove unmatched items.
   - **Options:**
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
   - **Example:** `python multitool.py map input.txt --add teh:the`
 
 - **`sample`**
-  - **What it does:** Picks a random set of lines from a file. You can pick a specific number (`--n 100`) or a percentage (`--percent 10`).
+  - **What it does:** Picks a random set of lines. Picks a random set of lines from a file. You can pick a specific number (`--n 100`) or a percentage (`--percent 10`).
   - **Example:** `python multitool.py sample big_log.txt --n 50`
 
 - **`set_operation`**
-  - **What it does:** Compares two files using standard set logic:
+  - **What it does:** Compares files using set logic. Compares two files using standard set logic:
     - `intersection`: Finds lines common to both files.
     - `union`: Combines all lines from both files.
     - `difference`: Finds lines in the first file that are not in the second.
@@ -148,18 +148,18 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation symmetric_difference`
 
 - **`zip`**
-  - **What it does:** Joins two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**. If the files have a different number of lines, the output will stop at the end of the shortest file.
+  - **What it does:** Pairs lines from two files. Joins two files line-by-line into a paired format. It applies `--min-length` and `--max-length` filters to **both items in each pair**. If the files have a different number of lines, the output will stop at the end of the shortest file.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
 - **`swap`**
-  - **What it does:** Flips the order of elements in paired data (for example, `typo -> correction` becomes `correction -> typo`).
+  - **What it does:** Reverses the order of pairs (for example, `typo -> correction` becomes `correction -> typo`).
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
 
 - **`scrub`**
-  - **What it does:** Fixes typos in your text files using a mapping file or extra pairs. It tries to keep the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like `CamelCase` and `snake_case` variables.
-  - **Supported Formats:** Supports CSV, Arrow, Table, JSON, YAML, and TOML mapping formats.
+  - **What it does:** Fixes typos in text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables.
+  - **Supported Formats:** CSV, Arrow, Table, JSON, YAML, and TOML mapping formats.
   - **Options:**
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
   - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (for example, `--in-place .bak`), the tool will create a backup of each file before modifying it.
@@ -170,7 +170,7 @@ These modes help you transform or combine your data.
   - **In-Place Example:** `python multitool.py scrub file1.txt file2.txt --mapping corrections.csv --in-place`
 
 - **`standardize`**
-  - **What it does:** Fixes inconsistent casing or spelling by using the most frequent form. It analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures consistency without needing a manual mapping file.
+  - **What it does:** Fixes casing/spelling project-wide. Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. This ensures consistency without needing a manual mapping file.
   - **Options:**
     - Supports `--in-place` editing and `--dry-run` preview.
     - **Similar Word Matching:** Use `--fuzzy` to set the maximum character distance for matching similar words.
@@ -180,7 +180,7 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py standardize . --diff --min-length 4 --fuzzy 1`
 
 - **`highlight`**
-  - **What it does:** Searches for words from a list, mapping, or extra pairs and colors them in the output. This is useful as a preview before using the `scrub` mode to make permanent changes.
+  - **What it does:** Color-codes words from a list. Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. This is useful as a non-destructive preview before using 'scrub'.
   - **Options:**
     - Use the `--mapping` flag to provide a file with typos or words to find.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.
@@ -188,31 +188,31 @@ These modes help you transform or combine your data.
   - **Example:** `python multitool.py highlight input.txt --add teh:the`
 
 - **`pairs`**
-  - **What it does:** Works with and converts paired data (like `typo -> correction`) from any supported format and writes it to the specified output format. This is the primary way to convert between paired formats (for example, from JSON to CSV) while applying cleaning and length filters.
+  - **What it does:** Converts paired data formats. Reads pairs (like 'typo -> correction') from any supported format and writes them to the specified output format. Useful for cleaning, filtering, and format conversion.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py pairs typos.json --output-format csv`
 
-### 3. CHECK & ANALYZE
+### CHECK & ANALYZE
 
 These modes help you analyze your data.
 
 - **`check`**
-  - **What it does:** Finds words used as both typos and fixes. Checks for words that appear in both the typo and correction columns of a file. This is useful for spotting errors in your typo database (loops).
+  - **What it does:** Finds words used as both typos and fixes. Checks for words that appear in both the typo and correction columns of a file. Use this to find errors in your typo lists.
   - **Example:** `python multitool.py check mappings.csv`
 
 - **`classify`**
-  - **What it does:** Groups typo corrections based on their error type. It labels each pair with a code like `[K]` (Keyboard), `[T]` (Transposition), `[D]` (Deletion), `[I]` (Insertion), `[R]` (Replacement), or `[M]` (Multiple letters).
+  - **What it does:** Groups typos by error type. Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, and [M] Multiple letters.
   - **Options:** Use `--show-dist` to include the number of character changes in the output labels.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py classify typos.txt --show-dist --output labeled.txt`
 
 - **`conflict`**
-  - **What it does:** Finds typos that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.
+  - **What it does:** Finds typos with multiple fixes. Finds typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py conflict mappings.csv`
 
 - **`count`**
-  - **What it does:** Counts how often each word, pair, line, or character appears in a file and sorts them by frequency (most frequent first).
+  - **What it does:** Counts how often items appear. Counts how often each word, pair, line, or character appears and sorts the list by frequency.
   - **Options:**
     - `--min-count` and `--max-count`: Filter results by their frequency.
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
@@ -230,34 +230,34 @@ These modes help you analyze your data.
   - **Pairs Example:** `python multitool.py count typos.log --pairs --output-format arrow`
 
 - **`cycles`**
-  - **What it does:** Finds loops in typo-correction pairs (for example, "A" maps to "B" and "B" maps back to "A"). These repeated loops can cause issues when automatically fixing text and often indicate errors in your data.
+  - **What it does:** Finds loops in typo pairs (for example, "A" maps to "B" and "B" maps back to "A"). Repeated loops can cause issues when automatically fixing typos and represent logic errors in your data.
   - **Example:** `python multitool.py cycles typos.csv --output-format arrow`
 
 - **`fuzzymatch`**
-  - **What it does:** Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos.
+  - **What it does:** Finds similar words in two lists. Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos.
   - **Options:** Use `--min-dist` and `--max-dist` to control the number of changes allowed, and `--show-dist` to see the number of changes in the output.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py fuzzymatch typos.txt words.csv --max-dist 1 --show-dist`
 
 - **`near_duplicates`**
-  - **What it does:** Finds pairs of words in your list that are very similar (only a few characters are different). This is useful for finding potential typos or unintended duplicates.
+  - **What it does:** Finds similar words in one list. Finds pairs of words in your list that are very similar (only a few characters are different). Use this to find potential typos or unintended duplicates in a project.
   - **Options:** Use `--min-dist` and `--max-dist` to control the number of changes allowed, and `--show-dist` to see the number of changes in the output.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py near_duplicates words.txt --max-dist 1 --show-dist`
 
 - **`similarity`**
-  - **What it does:** Filters paired data (like `typo -> correction`) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.
+  - **What it does:** Filters pairs by changes. Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.
   - **Options:** Use `--min-dist` and `--max-dist` to set the range of allowed changes, and `--show-dist` to include the number of changes in the output.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, and `toml`.
   - **Example:** `python multitool.py similarity typos.txt --max-dist 2 --show-dist`
 
 - **`stats`**
-  - **What it does:** Shows statistics for a list. Provides a detailed overview of your dataset. It reports counts, unique items, and statistics. If the `--pairs` flag is used, it additionally analyzes the file as paired data (typos/corrections) and reports conflicts (one typo to multiple corrections), overlaps (words that are both typos and corrections), and character change statistics.
+  - **What it does:** Shows statistics for a list. Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.
   - **Supported Formats:** `json`, `yaml`, `markdown`, `md-table`, and `line` (human-readable).
   - **Example:** `python multitool.py stats typos.csv --pairs`
 
 - **`discovery`**
-  - **What it does:** Automatically finds potential typos in a text by finding rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare versions are likely typos. This is a powerful way to find errors in a dataset without needing a dictionary.
+  - **What it does:** Finds typos in rare words. Automatically finds potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.
   - **Options:**
     - `--rare-max`: Maximum frequency for a word to be considered a potential typo (default: 1).
     - `--freq-min`: Minimum frequency for a word to be considered a potential correction (default: 5).
@@ -269,7 +269,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py discovery code.py --smart --rare-max 2 --freq-min 10 --max-dist 1`
 
 - **`casing`**
-  - **What it does:** Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for seeing inconsistent naming or typos that differ only by case.
+  - **What it does:** Finds inconsistent casing. Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for seeing inconsistent naming or typos that differ only by case.
   - **Options:**
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
@@ -277,7 +277,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py casing report.txt --smart --output-format arrow`
 
 - **`repeated`**
-  - **What it does:** Finds consecutive identical words (for example, "the the"). It's a common typing error that is often missed by standard spell-checkers.
+  - **What it does:** Finds doubled words. Finds doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.
   - **Options:**
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
@@ -285,7 +285,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
 
 - **`search`**
-  - **What it does:** A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches.
+  - **What it does:** Searches for words or patterns. A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.
   - **Options:**
     - `-Q`, `--query`: The word or pattern to search for.
     - `--max-dist`: Maximum number of character changes for similar word matching (default: 0).
@@ -294,7 +294,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers`
 
 - **`scan`**
-  - **What it does:** Like a batch version of the `search` mode. It searches for every word in a mapping file, list, or extra pairs and reports all matches with filename, line number, and highlighting. This is the recommended way to check your project for a set of known typos before performing replacements.
+  - **What it does:** Scans project for known typos. Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. It also supports context lines.
   - **Options:**
     - Use the `--mapping` flag to provide a file with typos or words to find.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.
@@ -302,7 +302,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py scan . --add teh:the --smart`
 
 - **`verify`**
-  - **What it does:** Finds which entries in a mapping file or extra pairs are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
+  - **What it does:** Checks if typos exist in project. Finds which entries in a mapping file or extra pairs are present in the provided input files. It provides a high-level summary of which typos were found and which were missing.
   - **Options:**
     - Use the `--mapping` flag to provide the file containing typos to check.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.

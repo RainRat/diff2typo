@@ -54,11 +54,11 @@ def test_classify_typo_logic():
     # [T] Transposition
     assert multitool.classify_typo("teh", "the", adj) == "[T]"
 
-    # [D] Deletion
-    assert multitool.classify_typo("helo", "hello", adj) == "[D]"
+    # [Del] Deletion
+    assert multitool.classify_typo("helo", "hello", adj) == "[Del]"
 
-    # [I] Insertion
-    assert multitool.classify_typo("helloo", "hello", adj) == "[I]"
+    # [Ins] Insertion
+    assert multitool.classify_typo("helloo", "hello", adj) == "[Ins]"
 
     # [K] Keyboard
     assert multitool.classify_typo("helko", "hello", adj) == "[K]"
@@ -97,7 +97,7 @@ def test_classify_mode_basic(tmp_path):
 
     content = output_file.read_text()
     assert "teh" in content and "the" in content and "[T]" in content
-    assert "helo" in content and "hello" in content and "[D]" in content
+    assert "helo" in content and "hello" in content and "[Del]" in content
 
 def test_classify_mode_show_dist(tmp_path):
     input_file = tmp_path / "input.txt"

@@ -231,7 +231,8 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
 def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> str:
     """
     Groups a typo based on its relationship to the correction.
-    Returns a code: [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, [M] Multiple letters.
+    Returns a code: [K] Keyboard, [T] Transposition, [Del] Deletion, [Ins] Insertion,
+    [1:2] 1-to-2 replacement, [2:1] 2-to-1 replacement, [R] Replacement, [M] Multiple letters.
     """
     if not typo or not correction or typo == correction:
         return "[?]"
@@ -257,18 +258,26 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
 
         return "[M]"
 
-    # 2. Deletion [D] - Typo is shorter (a character was removed)
+    # 2. Deletion [Del] or [2:1] - Typo is shorter
     if len_diff == -1:
         for i in range(c_len):
             if correction[:i] + correction[i+1:] == typo:
-                return "[D]"
+                return "[Del]"
+        # Check for 2-to-1 replacement
+        for i in range(t_len):
+            if correction[:i] == typo[:i] and correction[i+2:] == typo[i+1:]:
+                return "[2:1]"
         return "[M]"
 
-    # 3. Insertion [I] - Typo is longer (a character was added)
+    # 3. Insertion [Ins] or [1:2] - Typo is longer
     if len_diff == 1:
         for i in range(t_len):
             if typo[:i] + typo[i+1:] == correction:
-                return "[I]"
+                return "[Ins]"
+        # Check for 1-to-2 replacement
+        for i in range(c_len):
+            if typo[:i] == correction[:i] and typo[i+2:] == correction[i+1:]:
+                return "[1:2]"
         return "[M]"
 
     # 5. Multiple letters [M] - Fallback for any other length difference or non-match
@@ -992,6 +1001,8 @@ def _write_paired_output(
                 c_blue = BLUE if show_color else ""
                 c_green = GREEN if show_color else ""
                 c_red = RED if show_color else ""
+                c_yellow = YELLOW if show_color else ""
+                c_magenta = MAGENTA if show_color else ""
                 c_cyan = CYAN if show_color else ""
                 c_reset = RESET if show_color else ""
 
@@ -1015,8 +1026,20 @@ def _write_paired_output(
                     left, right = p[0], p[1]
                     row = f"{padding}{c_red}{left:<{max_left}}{c_reset} {sep} {c_green}{right:<{max_right}}{c_reset}"
                     if has_attr:
-                        attr = p[2]
-                        row += f" {sep} {c_cyan}{attr:<{max_attr}}{c_reset}"
+                        attr = str(p[2])
+                        marker_color = c_reset
+                        if "[K]" in attr:
+                            marker_color = c_cyan
+                        elif "[T]" in attr:
+                            marker_color = c_magenta
+                        elif "[Del]" in attr or "[2:1]" in attr:
+                            marker_color = c_red
+                        elif "[Ins]" in attr or "[1:2]" in attr:
+                            marker_color = c_green
+                        elif "[R]" in attr or "[M]" in attr:
+                            marker_color = c_yellow
+
+                        row += f" {sep} {marker_color}{attr:<{max_attr}}{c_reset}"
                     out_file.write(row + "\n")
                 out_file.write("\n")
         else:  # 'line' or fallback
@@ -1994,6 +2017,8 @@ def count_mode(
             c_out_green = GREEN if use_color_out else ""
             c_out_red = RED if use_color_out else ""
             c_out_yellow = YELLOW if use_color_out else ""
+            c_out_magenta = MAGENTA if use_color_out else ""
+            c_out_cyan = CYAN if use_color_out else ""
             c_out_reset = RESET if use_color_out else ""
 
             # Header and divider elements
@@ -2004,20 +2029,24 @@ def count_mode(
             if pairs:
                 item_header_left = "Typo"
                 item_header_right = "Correction"
+                attr_header = "Attr"
                 max_left = max((len(str(item[0])) for item, _ in final_results), default=len(item_header_left))
                 max_left = max(max_left, len(item_header_left))
                 max_right = max((len(str(item[1])) for item, _ in final_results), default=len(item_header_right))
                 max_right = max(max_right, len(item_header_right))
+                max_attr = 5
 
                 header = (
                     f"{padding}{c_out_bold}{c_out_blue}{item_header_left:<{max_left}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{item_header_right:<{max_right}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{count_header_label:>{max_count_len}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{attr_header:<{max_attr}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{'Visual':<{max_bar}}{c_out_reset}"
                 )
-                # 3 chars for each " │ " (total 4 * 3 = 12)
-                visible_header_len = max_left + max_right + max_count_len + max_pct + max_bar + 12
+                # 3 chars for each " │ " (total 5 * 3 = 15)
+                visible_header_len = max_left + max_right + max_count_len + max_pct + max_attr + max_bar + 15
+                adj_keys = get_adjacent_keys()
             else:
                 if lines:
                     item_header = "Line"
@@ -2079,12 +2108,27 @@ def count_mode(
                 bar = _render_visual_bar(percent, max_bar)
 
                 if pairs:
+                    # Determine error type and color for rich reporting
+                    attr = classify_typo(item[0], item[1], adj_keys)
+                    marker_color = c_out_yellow
+                    if attr == "[K]":
+                        marker_color = c_out_cyan
+                    elif attr == "[T]":
+                        marker_color = c_out_magenta
+                    elif attr in ("[Del]", "[2:1]"):
+                        marker_color = c_out_red
+                    elif attr in ("[Ins]", "[1:2]"):
+                        marker_color = c_out_green
+
+                    bar_color = c_out_blue if attr == "[M]" or attr == "[?]" else marker_color
+
                     row = (
                         f"{padding}{c_out_red}{item[0]:<{max_left}}{c_out_reset} {sep} "
                         f"{c_out_green}{item[1]:<{max_right}}{c_out_reset} {sep} "
                         f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
                         f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
-                        f"{c_out_blue}{bar}{c_out_reset}"
+                        f"{marker_color}{attr:<{max_attr}}{c_out_reset} {sep} "
+                        f"{bar_color}{bar}{c_out_reset}"
                     )
                 else:
                     row = (

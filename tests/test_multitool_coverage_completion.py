@@ -14,11 +14,12 @@ def strip_ansi(text):
     return ansi_escape.sub('', text)
 
 def test_classify_typo_multiple_letters_gaps():
-    # Line 191: Deletion-length-diff-1 but not a simple deletion
+    # Deletion-length-diff-1 but not a simple deletion
     # 'abc' (len 3) -> 'ax' (len 2)
-    assert multitool.classify_typo("ax", "abc", {}) == "[M]"
+    # This is now identified as a 2-to-1 replacement
+    assert multitool.classify_typo("ax", "abc", {}) == "[2:1]"
 
-    # Line 198: Insertion-length-diff-1 but not a simple insertion
+    # Insertion-length-diff-1 but not a simple insertion
     # 'abc' (len 3) -> 'axby' (len 4)
     assert multitool.classify_typo("axby", "abc", {}) == "[M]"
 

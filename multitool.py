@@ -4314,6 +4314,8 @@ def standardize_mode(
     dry_run: bool = False,
     fuzzy: int = 0,
     threshold: float = 10.0,
+    keyboard: bool = False,
+    transposition: bool = False,
     diff: bool = False,
 ) -> None:
     """
@@ -4354,10 +4356,18 @@ def standardize_mode(
         norm_totals[norm] = sum(counts.values())
 
     # 2b: If similar word matching is enabled, group similar normalized words
-    if fuzzy > 0:
+    # Adjust effective distance if filters are used but default or restrictive dist was kept
+    effective_fuzzy = fuzzy
+    if transposition and effective_fuzzy < 2:
+        effective_fuzzy = 2
+    if keyboard and effective_fuzzy < 1:
+        effective_fuzzy = 1
+
+    if effective_fuzzy > 0:
         # Sort normalized words by total frequency descending to find "anchors"
         sorted_norms = sorted(norm_totals.keys(), key=lambda n: norm_totals[n], reverse=True)
         fuzzy_groups = {}  # rare_norm -> frequent_norm
+        adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
 
         for i, frequent in enumerate(sorted_norms):
             f_count = norm_totals[frequent]
@@ -4371,7 +4381,17 @@ def standardize_mode(
 
                 # Only consider if the frequent word is significantly more common
                 if f_count >= r_count * threshold:
-                    if levenshtein_distance(frequent, rare) <= fuzzy:
+                    if levenshtein_distance(frequent, rare) <= effective_fuzzy:
+                        if keyboard or transposition:
+                            label = classify_typo(rare, frequent, adj_keys)
+                            matches_filter = False
+                            if keyboard and label == "[K]":
+                                matches_filter = True
+                            if transposition and label == "[T]":
+                                matches_filter = True
+                            if not matches_filter:
+                                continue
+
                         fuzzy_groups[rare] = frequent
                         logging.info(f"[Fuzzy] Identified likely typo: '{rare}' ({r_count}) -> '{frequent}' ({f_count})")
 
@@ -5452,9 +5472,9 @@ MODE_DETAILS = {
     },
     "standardize": {
         "summary": "Fixes casing/spelling project-wide",
-        "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching based on your project's dominant patterns.",
-        "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1",
-        "flags": "[FILES...] [--in-place] [--dry-run] [--fuzzy N] [--threshold RATIO] [--diff]",
+        "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
+        "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --transposition",
+        "flags": "[FILES...] [--in-place] [--dry-run] [--fuzzy N] [-k] [-t] [--threshold RATIO] [--diff]",
     },
     "search": {
         "summary": "Searches for words or patterns",
@@ -6766,6 +6786,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum distance for similar word matching (for example, --fuzzy 1 to fix 'teh' -> 'the'). Set to 0 to only fix casing (default: 0).",
     )
     standardize_options.add_argument(
+        '-k', '--keyboard',
+        action='store_true',
+        help="Only include matches likely caused by hitting a nearby key.",
+    )
+    standardize_options.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Only include matches likely caused by swapping two adjacent letters.",
+    )
+    standardize_options.add_argument(
         '--threshold',
         type=float,
         default=10.0,
@@ -7506,6 +7536,8 @@ def main() -> None:
                 'dry_run': getattr(args, 'dry_run', False),
                 'fuzzy': getattr(args, 'fuzzy', 0),
                 'threshold': getattr(args, 'threshold', 10.0),
+                'keyboard': getattr(args, 'keyboard', False),
+                'transposition': getattr(args, 'transposition', False),
                 'diff': getattr(args, 'diff', False),
             }
         ),

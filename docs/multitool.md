@@ -170,10 +170,12 @@ These modes help you transform or combine your data.
   - **Options:**
     - Supports `--in-place` editing and `--dry-run` preview.
     - **Similar Word Matching:** Use `--fuzzy` to set the maximum character distance for matching similar words.
+      - **Keyboard Filter:** Use `--keyboard` (or `-k`) to only match words likely caused by hitting a nearby key.
+      - **Transposition Filter:** Use `--transposition` (or `-t`) to only match words likely caused by swapping two adjacent letters.
     - **Frequency Ratio:** Use `--threshold` to set the minimum frequency ratio required to consider a rare word a typo (default: 10.0).
     - **Diff Preview:** Use the `--diff` flag to see a unified diff of the changes that would be made.
     - Works with standard filters like `--min-length` and `--max-length`.
-  - **Example:** `python multitool.py standardize . --diff --min-length 4 --fuzzy 1`
+    - **Example:** `python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --keyboard`
 
 - **`highlight`**
   - **What it does:** Color-codes words from a list. It searches for words from a list, mapping, or extra pairs and colors them in the output. This is useful as a preview before using the `scrub` mode.

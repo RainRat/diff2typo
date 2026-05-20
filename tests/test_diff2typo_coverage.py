@@ -47,7 +47,7 @@ def test_split_into_subwords_no_match():
 
 def test_format_typos_malformed():
     assert diff2typo.format_typos(["eror"], "arrow") == ["eror"]
-    assert diff2typo.format_typos(["eror123"], "arrow") == ["eror"]
+    assert diff2typo.format_typos(["eror123"], "arrow") == ["eror123"]
 
 def test_decode_with_fallback_latin1(caplog):
     latin1_data = "héllo".encode("latin-1")

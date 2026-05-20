@@ -13,7 +13,7 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
              patch('diff2typo.read_words_mapping', return_value={}), \
              patch('diff2typo.read_allowed_words', return_value=set()), \
              patch('diff2typo.process_typos_mode', return_value=[]), \
-             patch('diff2typo.process_corrections_mode', return_value=[]), \
+             patch('diff2typo.process_corrections_mode', return_value=['corr']), \
              patch('diff2typo.format_typos', return_value=['correction1']), \
              patch('diff2typo.smart_open_output') as mock_open:
 
@@ -28,7 +28,10 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
                 allowed_file='allowed.txt',
                 min_length=2,
                 max_dist=2,
-                typos_tool_path='typos'
+                typos_tool_path='typos',
+                min_count=1,
+                limit=None,
+                sort='alpha'
             )
 
             f = io.StringIO()
@@ -62,7 +65,10 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
                 allowed_file='allowed.txt',
                 min_length=2,
                 max_dist=2,
-                typos_tool_path='typos'
+                typos_tool_path='typos',
+                min_count=1,
+                limit=None,
+                sort='alpha'
             )
 
             f = io.StringIO()
@@ -123,7 +129,10 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
                 dictionary_file='words.csv',
                 allowed_file='allowed.txt',
                 min_length=2,
-                max_dist=2
+                max_dist=2,
+                min_count=1,
+                limit=None,
+                sort='alpha'
             )
 
             f = io.StringIO()
@@ -154,7 +163,10 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
                 allowed_file='allowed.txt',
                 min_length=2,
                 max_dist=2,
-                typos_tool_path='typos'
+                typos_tool_path='typos',
+                min_count=1,
+                limit=None,
+                sort='alpha'
             )
 
             f = io.StringIO()
@@ -183,7 +195,10 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
                 dictionary_file='words.csv',
                 allowed_file='allowed.txt',
                 min_length=2,
-                max_dist=2
+                max_dist=2,
+                min_count=1,
+                limit=None,
+                sort='alpha'
             )
 
             f = io.StringIO()
@@ -212,7 +227,10 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
                 dictionary_file='words.csv',
                 allowed_file='allowed.txt',
                 min_length=2,
-                max_dist=2
+                max_dist=2,
+                min_count=1,
+                limit=None,
+                sort='alpha'
             )
 
             f = io.StringIO()
@@ -249,7 +267,7 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
         # Target 335->326: output_format is not 'list' (and not 'arrow', 'csv', 'table')
         typos = ["teh -> the"]
         result = diff2typo.format_typos(typos, 'invalid')
-        self.assertEqual(result, [])
+        self.assertEqual(result, ["teh -> the"])
 
     def test_compare_word_lists_min_length_filter(self):
         # Target 220->210: words shorter than min_length

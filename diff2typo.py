@@ -493,17 +493,21 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     for typo in typos:
         if ' -> ' in typo:
             before, after = typo.split(' -> ')
-            if output_format == 'arrow':
-                formatted.append(f"{before} -> {after}")
-            elif output_format == 'csv':
+            if output_format == 'csv':
                 formatted.append(f"{before},{after}")
             elif output_format == 'table':
                 formatted.append(f'{before} = "{after}"')
             elif output_format == 'list':
                 formatted.append(f"{before}")
+            else:
+                # Default to arrow format for 'arrow' or unknown formats
+                formatted.append(f"{before} -> {after}")
         else:
-            # In case the typo does not follow the expected format
-            formatted.append(filter_to_letters(typo))
+            # If it's just a single word, return it as is or filtered if it's meant to be a typo
+            if output_format in ['csv', 'table', 'list']:
+                formatted.append(filter_to_letters(typo))
+            else:
+                formatted.append(typo)
     return formatted
 
 

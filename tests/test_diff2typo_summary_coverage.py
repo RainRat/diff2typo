@@ -77,7 +77,9 @@ def test_main_summary_labels_audit_mode(tmp_path, monkeypatch):
         args.allowed_file = "allowed.csv"
         args.git = None
         args.input_files = []
-
+        args.min_count = 1
+        args.limit = None
+        args.sort = 'alpha'
         with patch("argparse.ArgumentParser.parse_args", return_value=args), \
              patch("diff2typo._format_analysis_summary") as mock_summary:
 
@@ -109,7 +111,9 @@ def test_main_summary_metrics_both_mode(tmp_path, monkeypatch):
         args.allowed_file = "allowed.csv"
         args.git = None
         args.input_files = []
-
+        args.min_count = 1
+        args.limit = None
+        args.sort = 'alpha'
         with patch("argparse.ArgumentParser.parse_args", return_value=args), \
              patch("diff2typo._format_analysis_summary") as mock_summary:
 

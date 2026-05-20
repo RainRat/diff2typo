@@ -15,6 +15,8 @@ from typing import Any, Callable, Iterable, List, Mapping, Sequence, Tuple, Text
 from tqdm import tqdm
 import logging
 import json
+import xml.etree.ElementTree as ET
+import xml.dom.minidom
 
 VERSION = "1.1.0"
 
@@ -147,6 +149,7 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
         'toml': 'toml',
         'arrow': 'arrow',
         'table': 'table',
+        'xml': 'xml',
     }
 
     detected = mapping.get(ext)
@@ -656,6 +659,14 @@ def write_output(
             # Alias for table format for simple lists
             for item in items_list:
                 outfile.write(f'{item} = ""\n')
+        elif output_format == 'xml':
+            root = ET.Element("items")
+            for item in items_list:
+                elem = ET.SubElement(root, "item")
+                elem.text = str(item)
+            xml_str = ET.tostring(root, encoding='utf-8')
+            pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
+            outfile.write(pretty_xml)
         else:  # 'line' or fallback
             for item in items_list:
                 outfile.write(item + '\n')
@@ -1019,6 +1030,20 @@ def _write_paired_output(
                         row += f" {sep} {c_cyan}{attr:<{max_attr}}{c_reset}"
                     out_file.write(row + "\n")
                 out_file.write("\n")
+        elif output_format == 'xml':
+            root = ET.Element("pairs")
+            for p in pairs_list:
+                pair_elem = ET.SubElement(root, "pair")
+                left_elem = ET.SubElement(pair_elem, "left")
+                left_elem.text = str(p[0])
+                right_elem = ET.SubElement(pair_elem, "right")
+                right_elem.text = str(p[1])
+                if len(p) == 3:
+                    attr_elem = ET.SubElement(pair_elem, "attr")
+                    attr_elem.text = str(p[2])
+            xml_str = ET.tostring(root, encoding='utf-8')
+            pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
+            out_file.write(pretty_xml)
         else:  # 'line' or fallback
             for p in pairs_list:
                 left, right = p[0], p[1]
@@ -1225,6 +1250,32 @@ def _extract_yaml_items(input_file: str, key_path: str, quiet: bool = False) -> 
     except yaml.YAMLError as e:
         logging.error(f"Failed to parse YAML in '{input_file}': {e}")
         return
+
+
+def _extract_xml_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:
+    """Yield text from XML elements based on a tag name or XPath."""
+    lines = _read_file_lines_robust(input_file)
+    content = "".join(lines)
+    try:
+        if not content.strip():
+            return
+        root = ET.fromstring(content)
+        # Handle simple tag name or XPath
+        if not key_path:
+            # Yield all text from all elements if no key provided
+            for elem in root.iter():
+                if elem.text and elem.text.strip():
+                    yield elem.text.strip()
+        else:
+            for elem in root.findall(key_path):
+                # Get all text inside the element, including sub-elements
+                text = "".join(elem.itertext()).strip()
+                if text:
+                    yield text
+    except ET.ParseError as e:
+        logging.error(f"Failed to parse XML in '{input_file}': {e}")
+    except Exception as e:
+        logging.error(f"Error processing XML in '{input_file}': {e}")
 
 
 def _extract_toml_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:
@@ -1525,6 +1576,37 @@ def arrow_mode(
         process_output,
         'Arrow',
         'File(s) processed successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+    )
+
+
+def xml_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    key: str,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Wrapper for getting fields from XML files."""
+    def extractor(f, quiet=False):
+        return _extract_xml_items(f, key, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'XML',
+        'Successfully got XML values.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -4927,10 +5009,10 @@ def _add_common_mode_arguments(
     io_group.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml'],
+        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml'],
         metavar='FORMAT',
         default=argparse.SUPPRESS,
-        help="Choose the format for the output. If not provided, it is automatically detected from the output file extension. Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml.",
+        help="Choose the format for the output. If not provided, it is automatically detected from the output file extension. Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml, xml.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -5204,6 +5286,12 @@ MODE_DETAILS = {
         "example": "python multitool.py toml pyproject.toml -k tool.poetry.dependencies --output-format toml",
         "flags": "[-k KEY]",
     },
+    "xml": {
+        "summary": "Extracts XML values by tag/XPath",
+        "description": "Finds text from elements in an XML file matching a tag name or XPath expression. If no key is provided, it extracts text from every element in the file.",
+        "example": "python multitool.py xml data.xml -k './/item/name' --output names.txt",
+        "flags": "[-k KEY]",
+    },
     "line": {
         "summary": "Extracts every line from a file",
         "description": "Reads every line from a file, cleans the text, and writes it to the output. Useful for simple cleaning and filtering.",
@@ -5408,7 +5496,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -5676,10 +5764,10 @@ def _build_parser() -> argparse.ArgumentParser:
     io_group.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml'],
+        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml'],
         metavar='FORMAT',
         default=None,
-        help="Choose the format for the output. If not provided, it is automatically detected from the output file extension. Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml.",
+        help="Choose the format for the output. If not provided, it is automatically detected from the output file extension. Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml, xml.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -5913,6 +6001,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The key path to get (for example 'config.items'). If not provided, gets from the top level.",
     )
     _add_common_mode_arguments(yaml_parser)
+
+    xml_parser = subparsers.add_parser(
+        'xml',
+        help=MODE_DETAILS['xml']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['xml']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['xml']['example']}{RESET}",
+    )
+    xml_options = xml_parser.add_argument_group(f"{BLUE}XML OPTIONS{RESET}")
+    xml_options.add_argument(
+        '-k', '--key',
+        type=str,
+        default='',
+        help="The tag name or XPath expression to match (for example './/item/name').",
+    )
+    _add_common_mode_arguments(xml_parser)
 
     toml_parser = subparsers.add_parser(
         'toml',
@@ -7056,7 +7160,7 @@ def main() -> None:
     limit = getattr(args, 'limit', None)
     output_format = getattr(args, 'output_format', None)
     if output_format is None:
-        allowed_formats = ['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml']
+        allowed_formats = ['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml']
         output_format = _detect_format_from_extension(args.output, allowed_formats, 'line')
 
     clean_items = not getattr(args, 'raw', False)
@@ -7187,6 +7291,14 @@ def main() -> None:
         ),
         'yaml': (
             yaml_mode,
+            {
+                **common_kwargs,
+                'key': getattr(args, 'key', ''),
+                'output_format': output_format,
+            },
+        ),
+        'xml': (
+            xml_mode,
             {
                 **common_kwargs,
                 'key': getattr(args, 'key', ''),

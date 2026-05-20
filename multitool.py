@@ -231,7 +231,8 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
 def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> str:
     """
     Groups a typo based on its relationship to the correction.
-    Returns a code: [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, [M] Multiple letters.
+    Returns a code: [K] Keyboard, [T] Transposition, [Del] Deletion, [Ins] Insertion,
+    [1:2] 1-to-2 replacement, [2:1] 2-to-1 replacement, [R] Replacement, [M] Multiple.
     """
     if not typo or not correction or typo == correction:
         return "[?]"
@@ -257,21 +258,31 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
 
         return "[M]"
 
-    # 2. Deletion [D] - Typo is shorter (a character was removed)
-    if len_diff == -1:
-        for i in range(c_len):
-            if correction[:i] + correction[i+1:] == typo:
-                return "[D]"
-        return "[M]"
-
-    # 3. Insertion [I] - Typo is longer (a character was added)
+    # Typo is longer (Insertion or 1-to-2 replacement)
     if len_diff == 1:
-        for i in range(t_len):
-            if typo[:i] + typo[i+1:] == correction:
-                return "[I]"
-        return "[M]"
+        # Check for 1-to-2 replacement or Insertion
+        for i in range(c_len):
+            if typo[:i] == correction[:i] and typo[i+2:] == correction[i+1:]:
+                if correction[i] in typo[i:i+2]:
+                    return "[Ins]"
+                return "[1:2]"
+        # Insertion at the end
+        if typo[:-1] == correction:
+            return "[Ins]"
 
-    # 5. Multiple letters [M] - Fallback for any other length difference or non-match
+    # Typo is shorter (Deletion or 2-to-1 replacement)
+    if len_diff == -1:
+        # Check for 2-to-1 replacement or Deletion
+        for i in range(t_len):
+            if correction[:i] == typo[:i] and correction[i+2:] == typo[i+1:]:
+                if typo[i] in correction[i:i+2]:
+                    return "[Del]"
+                return "[2:1]"
+        # Deletion at the end
+        if correction[:-1] == typo:
+            return "[Del]"
+
+    # Fallback for any other length difference or non-match
     return "[M]"
 
 
@@ -993,6 +1004,8 @@ def _write_paired_output(
                 c_green = GREEN if show_color else ""
                 c_red = RED if show_color else ""
                 c_cyan = CYAN if show_color else ""
+                c_magenta = MAGENTA if show_color else ""
+                c_yellow = YELLOW if show_color else ""
                 c_reset = RESET if show_color else ""
 
                 # Header and divider
@@ -1016,7 +1029,18 @@ def _write_paired_output(
                     row = f"{padding}{c_red}{left:<{max_left}}{c_reset} {sep} {c_green}{right:<{max_right}}{c_reset}"
                     if has_attr:
                         attr = p[2]
-                        row += f" {sep} {c_cyan}{attr:<{max_attr}}{c_reset}"
+                        # Semantic coloring for the attribute column
+                        c_attr = c_cyan
+                        if "[T]" in attr:
+                            c_attr = c_magenta
+                        elif any(tag in attr for tag in ("[Del]", "[2:1]")):
+                            c_attr = c_red
+                        elif any(tag in attr for tag in ("[Ins]", "[1:2]")):
+                            c_attr = c_green
+                        elif any(tag in attr for tag in ("[R]", "[M]")):
+                            c_attr = c_yellow
+
+                        row += f" {sep} {c_attr}{attr:<{max_attr}}{c_reset}"
                     out_file.write(row + "\n")
                 out_file.write("\n")
         else:  # 'line' or fallback
@@ -5314,7 +5338,7 @@ MODE_DETAILS = {
     },
     "classify": {
         "summary": "Groups typos by error type",
-        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, and [M] Multiple letters. Use --show-dist to include the number of character changes.",
+        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [Del] Deletion, [Ins] Insertion, [1:2] 1-to-2, [2:1] 2-to-1, [R] Replacement, and [M] Multiple. Use --show-dist to include the number of character changes.",
         "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
         "flags": "[--show-dist]",
     },

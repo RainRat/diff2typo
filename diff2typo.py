@@ -1041,7 +1041,7 @@ def main():
 
         extra_metrics = {}
         if args.min_count > 1:
-            extra_metrics[f"Min occurrences (--min-count)"] = args.min_count
+            extra_metrics["Min occurrences (--min-count)"] = args.min_count
         if args.limit:
             extra_metrics["Output limit (--limit)"] = args.limit
 

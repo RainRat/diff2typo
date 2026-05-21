@@ -1,7 +1,6 @@
 import multitool
 from unittest.mock import patch
 import io
-import pytest
 import logging
 
 def test_toml_replacements_list_of_tables(tmp_path):

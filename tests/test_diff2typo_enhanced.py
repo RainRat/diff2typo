@@ -1,9 +1,6 @@
-import io
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
-import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import diff2typo

@@ -177,9 +177,6 @@ def _format_analysis_summary(
     c_blue = _BLUE if use_color else ""
     c_green = _GREEN if use_color else ""
     c_yellow = _YELLOW if use_color else ""
-    c_red = _RED if use_color else ""
-    c_cyan = _CYAN if use_color else ""
-    c_magenta = _MAGENTA if use_color else ""
     c_reset = _RESET if use_color else ""
 
     padding = "  "

@@ -64,7 +64,7 @@ def test_main_summary_labels_audit_mode(tmp_path, monkeypatch):
          patch("diff2typo.read_words_mapping", return_value={}), \
          patch("diff2typo.read_allowed_words", return_value=set()), \
          patch("diff2typo.process_audit_typos", return_value=["item1"]), \
-         patch("diff2typo.smart_open_output") as mock_open:
+         patch("diff2typo.smart_open_output"):
 
         args = MagicMock()
         args.mode = "audit"
@@ -98,7 +98,7 @@ def test_main_summary_metrics_both_mode(tmp_path, monkeypatch):
          patch("diff2typo.read_allowed_words", return_value=set()), \
          patch("diff2typo.process_typos_mode", return_value=["typo1"]), \
          patch("diff2typo.process_corrections_mode", return_value=["corr1"]), \
-         patch("diff2typo.smart_open_output") as mock_open:
+         patch("diff2typo.smart_open_output"):
 
         args = MagicMock()
         args.mode = "both"

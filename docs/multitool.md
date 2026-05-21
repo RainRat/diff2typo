@@ -219,7 +219,7 @@ These modes help you analyze your data.
     - `--min-count` and `--max-count`: Filter results by their frequency.
     - `-d`, `--delimiter`: The character to split words by (default: whitespace).
     - `-S`, `--smart`: Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").
-    - `-p`, `--pairs`: Count frequencies of word pairs (for example, `typo -> correction`) instead of single words.
+    - `-p`, `--pairs`: Count frequencies of word pairs (for example, `typo -> correction`) instead of single words. When this is used, the tool automatically classifies each pair (for example, `[T]` for Transposition, `[K]` for Keyboard slip).
     - `-l`, `--lines`: Count frequencies of raw lines instead of individual words.
     - `-c`, `--chars`: Count frequencies of individual characters.
     - `-B`, `--by-file`: Count how many files contain each item instead of total matches. This is useful for finding words that are common across your entire project.

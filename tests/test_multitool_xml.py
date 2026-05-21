@@ -1,7 +1,4 @@
-import os
 import xml.etree.ElementTree as ET
-from pathlib import Path
-import pytest
 from multitool import _extract_xml_items, xml_mode, write_output, _write_paired_output, _detect_format_from_extension
 
 def test_extract_xml_items_basic(tmp_path):

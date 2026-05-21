@@ -25,8 +25,8 @@ def test_count_mode_pairs_md_table(tmp_path):
     )
 
     content = output_file.read_text()
-    assert "| Typo | Correction | Count |" in content
-    assert "| teh | the | 2 |" in content
+    assert "| Typo | Correction | Count | Attr |" in content
+    assert "| teh | the | 2 | [T] |" in content
 
 def test_count_mode_pairs_empty_after_cleaning(tmp_path):
     input_file = tmp_path / "input.txt"
@@ -39,7 +39,7 @@ def test_count_mode_pairs_empty_after_cleaning(tmp_path):
     )
 
     content = output_file.read_text()
-    assert "teh -> the: 1" in content
+    assert "teh -> the [T]: 1" in content
     assert "!!! -> !!!" not in content
 
 def test_similarity_mode_empty_after_cleaning(tmp_path):

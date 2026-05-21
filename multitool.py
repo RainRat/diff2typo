@@ -2028,12 +2028,17 @@ def count_mode(
 
     # Apply frequency filtering
     final_results = []
+    adj_keys = get_adjacent_keys() if pairs else {}
     for item, count in sorted_words:
         if count < min_count:
             continue
         if max_count is not None and count > max_count:
             continue
-        final_results.append((item, count))
+        if pairs:
+            attr = classify_typo(item[0], item[1], adj_keys)
+            final_results.append((item, count, attr))
+        else:
+            final_results.append((item, count))
 
     if limit is not None:
         final_results = final_results[:limit]
@@ -2044,7 +2049,7 @@ def count_mode(
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
             if pairs:
-                json_data = [{"typo": item[0], "correction": item[1], "count": count} for item, count in final_results]
+                json_data = [{"typo": item[0], "correction": item[1], "count": count, "attr": attr} for item, count, attr in final_results]
             else:
                 json_data = [{"item": item, "count": count} for item, count in final_results]
             json.dump(json_data, out_file, indent=2)
@@ -2053,25 +2058,30 @@ def count_mode(
             writer = csv.writer(out_file)
             count_label = "files" if by_file else "count"
             if pairs:
-                writer.writerow(["typo", "correction", count_label])
-                for item, count in final_results:
-                    writer.writerow([item[0], item[1], count])
+                writer.writerow(["typo", "correction", count_label, "attr"])
+                for item, count, attr in final_results:
+                    writer.writerow([item[0], item[1], count, attr])
             else:
                 if by_file:
                     writer.writerow(["item", count_label])
                 for item, count in final_results:
                     writer.writerow([item, count])
         elif output_format == 'markdown':
-            for item, count in final_results:
-                label = f"{item[0]} -> {item[1]}" if pairs else item
+            for res_item in final_results:
+                if pairs:
+                    item, count, attr = res_item
+                    label = f"{item[0]} -> {item[1]} {attr}"
+                else:
+                    item, count = res_item
+                    label = str(item)
                 out_file.write(f"- {label}: {count}\n")
         elif output_format == 'md-table':
             count_label = "Files" if by_file else "Count"
             if pairs:
-                out_file.write(f"| Typo | Correction | {count_label} |\n")
-                out_file.write("| :--- | :--- | :--- |\n")
-                for item, count in final_results:
-                    out_file.write(f"| {item[0]} | {item[1]} | {count} |\n")
+                out_file.write(f"| Typo | Correction | {count_label} | Attr |\n")
+                out_file.write("| :--- | :--- | :--- | :--- |\n")
+                for item, count, attr in final_results:
+                    out_file.write(f"| {item[0]} | {item[1]} | {count} | {attr} |\n")
             else:
                 out_file.write(f"| Item | {count_label} |\n")
                 out_file.write("| :--- | :--- |\n")
@@ -2084,7 +2094,10 @@ def count_mode(
             total_for_pct = len(input_files) if by_file else total_count
 
             # Find max width for common columns
-            max_count_len = max((len(str(count)) for item, count in final_results), default=5)
+            if pairs:
+                max_count_len = max((len(str(count)) for _, count, _ in final_results), default=5)
+            else:
+                max_count_len = max((len(str(count)) for _, count in final_results), default=5)
             count_header_label = "Files" if by_file else "Count"
             max_count_len = max(max_count_len, len(count_header_label))
             max_pct = 6  # "100.0%"
@@ -2100,6 +2113,8 @@ def count_mode(
             c_out_green = GREEN if use_color_out else ""
             c_out_red = RED if use_color_out else ""
             c_out_yellow = YELLOW if use_color_out else ""
+            c_out_cyan = CYAN if use_color_out else ""
+            c_out_magenta = MAGENTA if use_color_out else ""
             c_out_reset = RESET if use_color_out else ""
 
             # Header and divider elements
@@ -2110,20 +2125,24 @@ def count_mode(
             if pairs:
                 item_header_left = "Typo"
                 item_header_right = "Correction"
-                max_left = max((len(str(item[0])) for item, _ in final_results), default=len(item_header_left))
+                item_header_attr = "Attr"
+                max_left = max((len(str(item[0])) for item, _, _ in final_results), default=len(item_header_left))
                 max_left = max(max_left, len(item_header_left))
-                max_right = max((len(str(item[1])) for item, _ in final_results), default=len(item_header_right))
+                max_right = max((len(str(item[1])) for item, _, _ in final_results), default=len(item_header_right))
                 max_right = max(max_right, len(item_header_right))
+                max_attr = max((len(str(attr)) for _, _, attr in final_results), default=len(item_header_attr))
+                max_attr = max(max_attr, len(item_header_attr))
 
                 header = (
                     f"{padding}{c_out_bold}{c_out_blue}{item_header_left:<{max_left}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{item_header_right:<{max_right}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{count_header_label:>{max_count_len}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{'%':>{max_pct}}{c_out_reset} {sep} "
+                    f"{c_out_bold}{c_out_blue}{item_header_attr:<{max_attr}}{c_out_reset} {sep} "
                     f"{c_out_bold}{c_out_blue}{'Visual':<{max_bar}}{c_out_reset}"
                 )
-                # 3 chars for each " │ " (total 4 * 3 = 12)
-                visible_header_len = max_left + max_right + max_count_len + max_pct + max_bar + 12
+                # 3 chars for each " │ " (total 5 * 3 = 15)
+                visible_header_len = max_left + max_right + max_count_len + max_pct + max_attr + max_bar + 15
             else:
                 if lines:
                     item_header = "Line"
@@ -2178,18 +2197,35 @@ def count_mode(
                     out_file.write(summary_text)
                     out_file.write(header_block)
 
-            for item, count in final_results:
+            for res_item in final_results:
+                if pairs:
+                    item, count, attr = res_item
+                else:
+                    item, count = res_item
+
                 percent = (count / total_for_pct * 100) if total_for_pct > 0 else 0
 
                 # High-res visual bar
                 bar = _render_visual_bar(percent, max_bar)
 
                 if pairs:
+                    # Semantic coloring for the attribute column
+                    c_attr = c_out_cyan
+                    if "[T]" in attr:
+                        c_attr = c_out_magenta
+                    elif any(tag in attr for tag in ("[Del]", "[2:1]")):
+                        c_attr = c_out_red
+                    elif any(tag in attr for tag in ("[Ins]", "[1:2]")):
+                        c_attr = c_out_green
+                    elif any(tag in attr for tag in ("[R]", "[M]")):
+                        c_attr = c_out_yellow
+
                     row = (
                         f"{padding}{c_out_red}{item[0]:<{max_left}}{c_out_reset} {sep} "
                         f"{c_out_green}{item[1]:<{max_right}}{c_out_reset} {sep} "
                         f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
                         f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
+                        f"{c_attr}{attr:<{max_attr}}{c_out_reset} {sep} "
                         f"{c_out_blue}{bar}{c_out_reset}"
                     )
                 else:
@@ -2202,8 +2238,13 @@ def count_mode(
                 out_file.write(f"{row}\n")
             out_file.write("\n")
         else:  # 'line' or fallback
-            for item, count in final_results:
-                label = f"{item[0]} -> {item[1]}" if pairs else item
+            for res_item in final_results:
+                if pairs:
+                    item, count, attr = res_item
+                    label = f"{item[0]} -> {item[1]} {attr}"
+                else:
+                    item, count = res_item
+                    label = str(item)
                 out_file.write(f"{label}: {count}\n")
 
     if output_format != 'arrow':

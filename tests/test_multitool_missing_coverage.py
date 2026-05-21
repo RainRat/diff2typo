@@ -40,9 +40,9 @@ def test_count_mode_audit_by_file(tmp_path):
 
     content = output_file.read_text().splitlines()
     # apple is in 2 files, banana in 1 file, cherry in 1 file. 'x' is filtered by length.
-    assert "apple -> fruit1: 2" in content
-    assert "banana -> fruit2: 1" in content
-    assert "cherry -> fruit3: 1" in content
+    assert "apple -> fruit1 [M]: 2" in content
+    assert "banana -> fruit2 [M]: 1" in content
+    assert "cherry -> fruit3 [M]: 1" in content
     assert "x -> ignore" not in output_file.read_text()
 
 def test_count_mode_pairs_by_file(tmp_path):
@@ -68,9 +68,9 @@ def test_count_mode_pairs_by_file(tmp_path):
     )
 
     content = output_file.read_text().splitlines()
-    assert "apple -> fruit: 2" in content
-    assert "banana -> fruit: 1" in content
-    assert "cherry -> fruit: 1" in content
+    assert "apple -> fruit [M]: 2" in content
+    assert "banana -> fruit [M]: 1" in content
+    assert "cherry -> fruit [M]: 1" in content
 
 def test_resolve_mode_filtering_and_raw(tmp_path):
     """

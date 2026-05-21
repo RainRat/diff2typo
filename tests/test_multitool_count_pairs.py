@@ -32,10 +32,10 @@ recieve -> receive
     )
 
     content = output_file.read_text().splitlines()
-    assert content[0] == "typo,correction,count"
+    assert content[0] == "typo,correction,count,attr"
     # Result should be sorted by count
-    assert "teh,the,3" in content[1]
-    assert "recieve,receive,2" in content[2]
+    assert "teh,the,3,[T]" in content[1]
+    assert "recieve,receive,2,[T]" in content[2]
 
 def test_count_mode_pairs_json(tmp_path):
     input_file = tmp_path / "typos.txt"
@@ -61,6 +61,7 @@ def test_count_mode_pairs_json(tmp_path):
     assert data[0]["typo"] == "teh"
     assert data[0]["correction"] == "the"
     assert data[0]["count"] == 2
+    assert data[0]["attr"] == "[T]"
 
 def test_count_mode_pairs_arrow_visual(tmp_path):
     input_file = tmp_path / "typos.txt"

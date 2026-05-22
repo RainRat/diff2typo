@@ -269,10 +269,6 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
                 if correction[i] in typo[i:i+2]:
                     return "[Ins]"
                 return "[1:2]"
-        # Insertion at the end
-        if typo[:-1] == correction:
-            return "[Ins]"
-
     # Typo is shorter (Deletion or 2-to-1 replacement)
     if len_diff == -1:
         # Check for 2-to-1 replacement or Deletion
@@ -281,10 +277,6 @@ def classify_typo(typo: str, correction: str, adj_keys: dict[str, set[str]]) -> 
                 if typo[i] in correction[i:i+2]:
                     return "[Del]"
                 return "[2:1]"
-        # Deletion at the end
-        if correction[:-1] == typo:
-            return "[Del]"
-
     # Fallback for any other length difference or non-match
     return "[M]"
 

@@ -106,6 +106,11 @@ These modes help you transform or combine your data.
   - **What it does:** Removes duplicates, keeps order. It removes duplicate items from your list while **keeping the original order** in which they first appeared.
   - **Example:** `python multitool.py unique raw_typos.txt`
 
+- **`sort`**
+  - **What it does:** Sorts items by length or alpha. Orders your list of words or lines. You can sort alphabetically, by the number of characters (length), or numerically. This is great for finding the longest or shortest typos in a dataset.
+  - **Options:** Use `--by` to choose the criteria (`alpha`, `length`, or `numeric`). Use `--reverse` to flip the order and `-u` to remove duplicates.
+  - **Example:** `python multitool.py sort typos.txt --by length --reverse`
+
 - **`resolve`**
   - **What it does:** Shortens typo correction chains. It finds and shortens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`.
   - **Example:** `python multitool.py resolve mappings.csv`

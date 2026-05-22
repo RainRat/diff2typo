@@ -4071,6 +4071,55 @@ def resolve_mode(
     )
 
 
+def sort_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    by: str = 'alpha',
+    reverse: bool = False,
+    unique: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Sorts lines or items based on alphabetical, length, or numeric criteria."""
+    start_time = time.perf_counter()
+
+    raw_items = []
+    for input_file in input_files:
+        raw_items.extend(_extract_line_items(input_file, quiet=quiet))
+
+    filtered_items = clean_and_filter(raw_items, min_length, max_length, clean=clean_items)
+
+    if unique or process_output:
+        filtered_items = list(dict.fromkeys(filtered_items))
+
+    if by == 'length':
+        sort_key = lambda x: (len(x), x)
+    elif by == 'numeric':
+        def _to_num(s):
+            try:
+                num_str = re.sub(r'[^-0-9.]', '', s)
+                return float(num_str) if num_str else 0
+            except (ValueError, TypeError):
+                return 0
+        sort_key = _to_num
+    else:  # alpha
+        sort_key = str.lower
+
+    filtered_items.sort(key=sort_key, reverse=reverse)
+
+    write_output(filtered_items, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(len(raw_items), filtered_items, start_time=start_time)
+    logging.info(
+        f"[Sort Mode] Successfully sorted {len(filtered_items)} items by {by}. Output written to '{output_file}'."
+    )
+
+
 def sample_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -5313,6 +5362,12 @@ MODE_DETAILS = {
         "example": "python multitool.py unique raw_typos.txt --output clean_typos.txt",
         "flags": "",
     },
+    "sort": {
+        "summary": "Sorts items by length or alpha",
+        "description": "Orders your list of words or lines. You can sort alphabetically, by the number of characters (length), or numerically. This is great for finding the longest or shortest typos in a dataset.",
+        "example": "python multitool.py sort typos.txt --by length --reverse",
+        "flags": "[--by {alpha,length,numeric}] [--reverse] [-u]",
+    },
     "backtick": {
         "summary": "Extracts text inside backticks",
         "description": "Finds text inside backticks (like `code`). It prioritizes items near words like 'error' or 'warning' to find the most relevant data.",
@@ -5578,7 +5633,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "line", "words", "ngrams", "regex"],
-        "CHANGE DATA": ["combine", "unique", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGE DATA": ["combine", "unique", "sort", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -6132,6 +6187,32 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['unique']['example']}{RESET}",
     )
     _add_common_mode_arguments(unique_parser)
+
+    sort_parser = subparsers.add_parser(
+        'sort',
+        help=MODE_DETAILS['sort']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['sort']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['sort']['example']}{RESET}",
+    )
+    sort_options = sort_parser.add_argument_group(f"{BLUE}SORT OPTIONS{RESET}")
+    sort_options.add_argument(
+        '--by',
+        choices=['alpha', 'length', 'numeric'],
+        default='alpha',
+        help="Criteria to sort by: 'alpha' (alphabetical, default), 'length' (word length), or 'numeric'.",
+    )
+    sort_options.add_argument(
+        '--reverse',
+        action='store_true',
+        help="Reverse the sorting order (e.g., longest words first).",
+    )
+    sort_options.add_argument(
+        '-u', '--unique',
+        action='store_true',
+        help="Remove duplicate items before sorting.",
+    )
+    _add_common_mode_arguments(sort_parser)
 
     line_parser = subparsers.add_parser(
         'line',
@@ -7468,6 +7549,16 @@ def main() -> None:
                 'output_format': output_format,
                 'clean_items': clean_items,
                 'limit': limit,
+            },
+        ),
+        'sort': (
+            sort_mode,
+            {
+                **common_kwargs,
+                'by': getattr(args, 'by', 'alpha'),
+                'reverse': getattr(args, 'reverse', False),
+                'unique': getattr(args, 'unique', False),
+                'output_format': output_format,
             },
         ),
         'diff': (

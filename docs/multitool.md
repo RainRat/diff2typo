@@ -106,6 +106,15 @@ These modes help you transform or combine your data.
   - **What it does:** Removes duplicates, keeps order. It removes duplicate items from your list while **keeping the original order** in which they first appeared.
   - **Example:** `python multitool.py unique raw_typos.txt`
 
+- **`sort`**
+  - **What it does:** Sorts items in a list. It sorts items from input file(s) by alphabetical order, length, or numeric value. It supports reverse sorting and deduplication.
+  - **Options:**
+    - Use `--by` to choose the sorting method: `alpha` (alphabetical, default), `length` (string length), or `numeric` (numeric value).
+    - Use `--reverse` to sort in descending order.
+    - Use the `-u` (or `--unique`) flag to remove duplicate items before sorting.
+  - **Note:** For numeric sorting, the tool extracts the first number found in each item for comparison. Numeric sorting works best with the `--raw` flag to prevent digits from being stripped.
+  - **Example:** `python multitool.py sort wordlist.txt --by length --reverse`
+
 - **`resolve`**
   - **What it does:** Shortens typo correction chains. It finds and shortens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`.
   - **Example:** `python multitool.py resolve mappings.csv`

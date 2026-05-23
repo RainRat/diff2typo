@@ -3805,6 +3805,64 @@ def unique_mode(
     )
 
 
+def sort_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    by: str = 'alpha',
+    reverse: bool = False,
+    unique: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Sorts items from input file(s) by alphabetical order, length, or numeric value."""
+    start_time = time.perf_counter()
+
+    if by == 'numeric' and clean_items:
+        logging.warning("Numeric sorting works best with the --raw (-R) flag. Default cleaning might remove digits.")
+
+    all_raw_count = 0
+    all_items = []
+    for file_path in input_files:
+        raw, cleaned, _ = _load_and_clean_file(
+            file_path,
+            min_length,
+            max_length,
+            clean_items=clean_items,
+        )
+        all_raw_count += len(raw)
+        all_items.extend(cleaned)
+
+    if unique or process_output:
+        all_items = list(dict.fromkeys(all_items))
+
+    def numeric_key(s):
+        match = re.search(r'\d+', s)
+        return int(match.group()) if match else 0
+
+    if by == 'length':
+        sort_key = len
+    elif by == 'numeric':
+        sort_key = numeric_key
+    else:  # 'alpha'
+        sort_key = str.lower
+
+    final_items = sorted(all_items, key=sort_key, reverse=reverse)
+
+    write_output(final_items, output_file, output_format, quiet, limit=limit)
+    print_processing_stats(all_raw_count, final_items, start_time=start_time)
+    logging.info(
+        "[Sort Mode] Sorted %d items by %s. Output written to '%s'.",
+        len(final_items),
+        by,
+        output_file,
+    )
+
+
 def zip_mode(
     input_files: Sequence[str],
     file2: str,
@@ -5571,6 +5629,12 @@ MODE_DETAILS = {
         "example": "python multitool.py resolve mappings.csv --output resolved.csv",
         "flags": "",
     },
+    "sort": {
+        "summary": "Sorts items in a list",
+        "description": "Sorts items from input file(s) by alphabetical order, length, or numeric value. It supports reverse sorting and deduplication. Numeric sorting extracts the first number found in each item for comparison.",
+        "example": "python multitool.py sort wordlist.txt --by length --reverse",
+        "flags": "[--by {alpha,length,numeric}] [--reverse] [-u]",
+    },
 }
 
 
@@ -5578,7 +5642,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "line", "words", "ngrams", "regex"],
-        "CHANGE DATA": ["combine", "unique", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGE DATA": ["combine", "unique", "sort", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -7040,6 +7104,32 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(resolve_parser)
 
+    sort_parser = subparsers.add_parser(
+        'sort',
+        help=MODE_DETAILS['sort']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['sort']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['sort']['example']}{RESET}",
+    )
+    sort_options = sort_parser.add_argument_group(f"{BLUE}SORT OPTIONS{RESET}")
+    sort_options.add_argument(
+        '--by',
+        choices=['alpha', 'length', 'numeric'],
+        default='alpha',
+        help="How to sort the items: 'alpha' (alphabetical), 'length' (string length), or 'numeric' (numeric value).",
+    )
+    sort_options.add_argument(
+        '--reverse',
+        action='store_true',
+        help="Sort in reverse order.",
+    )
+    sort_options.add_argument(
+        '-u', '--unique',
+        action='store_true',
+        help="Remove duplicate items before sorting.",
+    )
+    _add_common_mode_arguments(sort_parser)
+
     align_parser = subparsers.add_parser(
         'align',
         help=MODE_DETAILS['align']['summary'],
@@ -7288,6 +7378,16 @@ def main() -> None:
             resolve_mode,
             {
                 **common_kwargs,
+                'output_format': output_format,
+            },
+        ),
+        'sort': (
+            sort_mode,
+            {
+                **common_kwargs,
+                'by': getattr(args, 'by', 'alpha'),
+                'reverse': getattr(args, 'reverse', False),
+                'unique': getattr(args, 'unique', False),
                 'output_format': output_format,
             },
         ),

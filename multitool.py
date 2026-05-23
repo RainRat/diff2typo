@@ -12,7 +12,20 @@ import re
 import time
 from textwrap import dedent
 from typing import Any, Callable, Iterable, List, Mapping, Sequence, Tuple, TextIO, Optional
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ImportError:
+    class tqdm:
+        def __init__(self, iterable=None, *args, **kwargs):
+            self.iterable = iterable
+        def __iter__(self):
+            return iter(self.iterable) if self.iterable is not None else iter([])
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def update(self, n=1): pass
+        def close(self): pass
+        def set_description(self, desc=None, refresh=True): pass
+        def set_postfix(self, *args, **kwargs): pass
 import logging
 import json
 import xml.etree.ElementTree as ET
@@ -5423,7 +5436,7 @@ MODE_DETAILS = {
         "summary": "Replaces items using a mapping",
         "description": "Replaces items in your list with values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
-        "flags": "[MAPPING] [-s MAPPING] [FILES...] [-a K:V] [--smart-case] [-p]",
+        "flags": "[-s MAPPING] [-a K:V] [--smart-case] [-p]",
     },
     "zip": {
         "summary": "Pairs lines from two files",
@@ -5507,7 +5520,7 @@ MODE_DETAILS = {
         "summary": "Fixes casing/spelling project-wide",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
         "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --transposition",
-        "flags": "[FILES...] [--in-place] [--dry-run] [--fuzzy N] [-k] [-t] [--threshold RATIO] [--diff]",
+        "flags": "[--in-place] [--dry-run] [--fuzzy N] [-k] [-t] [--threshold RATIO] [--diff]",
     },
     "search": {
         "summary": "Searches for words or patterns",
@@ -5519,19 +5532,19 @@ MODE_DETAILS = {
         "summary": "Scans project for known typos",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. It also supports context lines.",
         "example": "python multitool.py scan . --add teh:the --smart -A 1",
-        "flags": "[MAPPING] [-s MAPPING] [FILES...] [-a K:V] [-S] [-B N] [-A N] [-C N]",
+        "flags": "[-s MAPPING] [-a K:V] [-S] [-B N] [-A N] [-C N]",
     },
     "verify": {
         "summary": "Checks if typos exist in project",
         "description": "Checks a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
         "example": "python multitool.py verify . --mapping typos.csv --prune",
-        "flags": "[MAPPING] [-s MAPPING] [FILES...] [-a K:V] [-S] [--prune]",
+        "flags": "[-s MAPPING] [-a K:V] [-S] [--prune]",
     },
     "scrub": {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --diff",
-        "flags": "[MAPPING] [-s MAPPING] [FILES...] [-a K:V] [--in-place] [--smart-case] [--diff]",
+        "flags": "[-s MAPPING] [-a K:V] [--in-place] [--smart-case] [--diff]",
     },
     "align": {
         "summary": "Aligns typo-correction pairs",
@@ -5543,19 +5556,19 @@ MODE_DETAILS = {
         "summary": "Batch renames files and folders",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
         "example": "python multitool.py rename src/ --add teh:the --in-place",
-        "flags": "[MAPPING] [-s MAPPING] [FILES...] [-a K:V] [--in-place] [--dry-run] [--smart-case]",
+        "flags": "[-s MAPPING] [-a K:V] [--in-place] [--dry-run] [--smart-case]",
     },
     "diff": {
         "summary": "Shows differences between files",
         "description": "Finds differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what is added (+), what is removed (-), and what changed (~).",
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
-        "flags": "[FILE2] [-p]",
+        "flags": "[-p]",
     },
     "highlight": {
         "summary": "Color-codes words from a list",
         "description": "Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the typo-fixing tool.",
         "example": "python multitool.py highlight input.txt --add teh:the",
-        "flags": "[MAPPING] [-s MAPPING] [FILES...] [-a K:V] [-S]",
+        "flags": "[-s MAPPING] [-a K:V] [-S]",
     },
     "resolve": {
         "summary": "Shortens typo correction chains",
@@ -5584,8 +5597,16 @@ def get_mode_summary_text() -> str:
     lines = []
     lines.append(f"{c_bold}Available Modes:{c_reset}")
 
-    width_mode = 15
-    width_summary = 33 # Adjusted for alignment with vertical bars
+    # Calculate dynamic column widths
+    all_modes = [m for cat in categories.values() for m in cat if m in MODE_DETAILS]
+    width_mode = max((len(m) for m in all_modes), default=15)
+
+    # Summary width - we allow some growth but cap it to keep the table readable
+    width_summary = 33
+
+    # Flags width - dynamic based on content
+    width_flags = max((len(MODE_DETAILS[m].get('flags', '')) for m in all_modes), default=15)
+    width_flags = min(max(width_flags, 15), 50)
 
     # Header and divider elements
     padding = "  "
@@ -5596,15 +5617,20 @@ def get_mode_summary_text() -> str:
     header = (
         f"{padding}{c_bold}{c_blue}{'Mode':<{width_mode}}{c_reset} {sep} "
         f"{c_bold}{c_blue}{'Summary':<{width_summary}}{c_reset} {sep} "
-        f"{c_bold}{c_blue}Primary Options{c_reset}"
+        f"{c_bold}{c_blue}{'Primary Options':<{width_flags}}{c_reset}"
     )
-    divider = f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{cross}─{'─' * width_summary}─{cross}─{'─' * 15}{c_reset}"
+    divider = f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{cross}─{'─' * width_summary}─{cross}─{'─' * width_flags}{c_reset}"
 
     lines.append("\n" + header)
     lines.append(divider)
 
     for category, modes in categories.items():
-        cat_header = f"{padding}{c_bold}{c_blue}{category}{c_reset}"
+        # Category header aligned with table columns
+        cat_header = (
+            f"{padding}{c_bold}{c_blue}{category:<{width_mode}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{' ' * width_summary}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{' ' * width_flags}{c_reset}"
+        )
         lines.append(cat_header)
         lines.append(divider)
 
@@ -5613,18 +5639,25 @@ def get_mode_summary_text() -> str:
                 details = MODE_DETAILS[mode]
                 summary = details['summary'].rstrip('.')
                 flags = details.get('flags', '')
+
+                # Truncate summary if it exceeds the calculated width
                 if len(summary) > width_summary:
                     summary = summary[:width_summary-3] + "..."
+
+                # Truncate flags if they exceed the calculated width
+                display_flags = flags
+                if len(display_flags) > width_flags:
+                    display_flags = display_flags[:width_flags-3] + "..."
 
                 row = (
                     f"{padding}{c_bold}{c_green}{mode:<{width_mode}}{c_reset} {sep} "
                     f"{summary:<{width_summary}} {sep} "
-                    f"{c_yellow}{flags}{c_reset}"
+                    f"{c_yellow}{display_flags:<{width_flags}}{c_reset}"
                 )
                 lines.append(row)
 
     # Closing line for the table
-    lines.append(f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{bottom}─{'─' * width_summary}─{bottom}─{'─' * 15}{c_reset}")
+    lines.append(f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{bottom}─{'─' * width_summary}─{bottom}─{'─' * width_flags}{c_reset}")
 
     # Quick Tips section
     lines.append(f"\n{padding}{c_bold}{c_blue}QUICK TIPS & GLOBAL FLAGS{c_reset}")

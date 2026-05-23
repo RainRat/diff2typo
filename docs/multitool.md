@@ -287,21 +287,30 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
 
 - **`search`**
-  - **What it does:** Searches for words or patterns. It is a typo-aware search tool that searches for a query in your files and can find similar words or subword matches.
+  - **What it does:** Searches for words or patterns. It is a typo-aware search tool that searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.
   - **Options:**
-    - `-Q`, `--query`: The word or pattern to search for.
+    - `QUERY`: The word or pattern to search for. Can also be provided via `-Q` or `--query`.
     - `--max-dist`: Maximum number of character changes for similar word matching (default: 0).
     - `-S`, `--smart`: Search for subwords within larger items (for example, finding "teh" inside "tehWord").
-    - `--line-numbers`: Show the filename and line number for each match.
-  - **Example:** `python multitool.py search report.txt -Q 'teh' --max-dist 1 --line-numbers`
+    - `-k`, `--keyboard`: Only include matches likely caused by hitting a nearby key.
+    - `-t`, `--transposition`: Only include matches likely caused by swapping two adjacent letters.
+    - `-n`, `--line-numbers`: Show the line number for each match.
+    - `-B`, `--before-context N`: Show N lines of context before each match.
+    - `-A`, `--after-context N`: Show N lines of context after each match.
+    - `-C`, `--context N`: Show N lines of context before and after each match.
+  - **Example:** `python multitool.py search 'teh' report.txt --keyboard --line-numbers -C 1`
 
 - **`scan`**
-  - **What it does:** Scans project for known typos. It searches for every word in a mapping file, list, or extra pairs and reports all matches with filename, line number, and highlighting.
+  - **What it does:** Scans project for known typos. It searches for every word in a mapping file or extra pairs and reports all matches with filename, line number, and highlighting. It also supports context lines.
   - **Options:**
-    - Use the `--mapping` flag to provide a file with typos or words to find.
-    - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) or words to match directly on the command line.
-    - The `--smart` flag allows for finding subwords within larger compound words.
-  - **Example:** `python multitool.py scan . --add teh:the --smart`
+    - `MAPPING`: The file containing the list of typos to search for. Can also be provided via `-s` or `--mapping`.
+    - `-a`, `--add`: Provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
+    - `-S`, `--smart`: Scan for subwords within larger compound words.
+    - `-n`, `--line-numbers`: Show the line number for each match.
+    - `-B`, `--before-context N`: Show N lines of context before each match.
+    - `-A`, `--after-context N`: Show N lines of context after each match.
+    - `-C`, `--context N`: Show N lines of context before and after each match.
+  - **Example:** `python multitool.py scan . --add teh:the --smart -A 1`
 
 - **`verify`**
   - **What it does:** Checks if typos exist in project. It finds which entries in a mapping file or extra pairs are present in the provided input files.

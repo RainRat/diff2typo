@@ -5670,7 +5670,7 @@ def get_mode_summary_text() -> str:
 
     # Flags width - dynamic based on content
     width_flags = max((len(MODE_DETAILS[m].get('flags', '')) for m in all_modes), default=15)
-    width_flags = min(max(width_flags, 15), 50)
+    width_flags = min(max(width_flags, 15), 55)
 
     # Header and divider elements
     padding = "  "
@@ -5688,7 +5688,11 @@ def get_mode_summary_text() -> str:
     lines.append("\n" + header)
     lines.append(divider)
 
-    for category, modes in categories.items():
+    for i, (category, modes) in enumerate(categories.items()):
+        # Add a divider before categories (except the first one) to improve hierarchy
+        if i > 0:
+            lines.append(divider)
+
         # Category header aligned with table columns
         cat_header = (
             f"{padding}{c_bold}{c_blue}{category:<{width_mode}}{c_reset} {sep} "
@@ -5901,9 +5905,9 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=dedent(
             f"""
             {BLUE}Examples:{RESET}
-              {GREEN}python multitool.py --mode-help{RESET}             # Show a summary of every mode
-              {GREEN}python multitool.py --mode-help csv{RESET}         # Describe the CSV getting mode
-              {GREEN}python multitool.py arrow file.txt{RESET}          # Run a specific mode
+              {GREEN}python multitool.py help{RESET}                   # Show a summary of every mode
+              {GREEN}python multitool.py help csv{RESET}               # Describe the CSV getting mode
+              {GREEN}python multitool.py arrow file.txt{RESET}         # Run a specific mode
             """
         ).strip() + "\n\n" + mode_summary,
         formatter_class=argparse.RawTextHelpFormatter,
@@ -5988,7 +5992,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show help for a specific mode or a summary of all modes.",
         formatter_class=argparse.RawTextHelpFormatter,
         description="Displays extended documentation for the requested mode. If no mode is provided, shows a summary table of all available modes.",
-        epilog=f"{BLUE}Examples:{RESET}\n  {GREEN}python multitool.py help{RESET}          # Show summary of all modes\n  {GREEN}python multitool.py help count{RESET}    # Show detailed help for 'count' mode",
+        epilog=f"{BLUE}Examples:{RESET}\n  {GREEN}python multitool.py help{RESET}                # Show summary of all modes\n  {GREEN}python multitool.py help count{RESET}          # Show detailed help for 'count' mode",
     )
     help_parser.add_argument(
         'mode_to_help',

@@ -148,6 +148,13 @@ These modes help you transform or combine your data.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
   - **Example:** `python multitool.py map input.txt --add teh:the`
 
+- **`case`**
+  - **What it does:** Changes word casing. It converts words to a specified casing style. It automatically identifies sub-words within compound words and preserves the overall structure.
+  - **Options:**
+    - Use the `--to` flag to choose the target casing style: `lower`, `upper`, `snake` (snake_case), `camel` (camelCase), `pascal` (PascalCase), `kebab` (kebab-case), `title` (Title Case), `constant` (CONSTANT_CASE), or `sentence` (Sentence case).
+    - Use the `--pairs` (or `-p`) flag to see both the original and converted words.
+  - **Example:** `python multitool.py case wordlist.txt --to snake --pairs`
+
 - **`sample`**
   - **What it does:** Picks a random set of lines. You can pick a specific number (`--n 100`) or a percentage (`--percent 10`).
   - **Example:** `python multitool.py sample big_log.txt --n 50`

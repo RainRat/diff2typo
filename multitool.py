@@ -304,6 +304,36 @@ def _smart_split(text: str) -> List[str]:
     return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?![a-z])|[0-9]+', text)
 
 
+def to_case(text: str, style: str) -> str:
+    """Converts a string to a specified casing style."""
+    words = _smart_split(text)
+    if not words:
+        return text
+
+    style = style.lower()
+    if style == 'lower':
+        return text.lower()
+    if style == 'upper':
+        return text.upper()
+    if style == 'snake':
+        return '_'.join(w.lower() for w in words)
+    if style == 'camel':
+        return words[0].lower() + ''.join(w.capitalize() for w in words[1:])
+    if style == 'pascal':
+        return ''.join(w.capitalize() for w in words)
+    if style == 'kebab':
+        return '-'.join(w.lower() for w in words)
+    if style == 'title':
+        return ' '.join(w.capitalize() for w in words)
+    if style == 'constant':
+        return '_'.join(w.upper() for w in words)
+    if style == 'sentence':
+        res = ' '.join(w.lower() for w in words)
+        return res[0].upper() + res[1:] if res else ""
+
+    return text
+
+
 def clean_and_filter(items: Iterable[str], min_length: int, max_length: int, clean: bool = True) -> List[str]:
     """Clean items to letters only (if clean=True) and apply length filtering."""
     if clean:
@@ -2995,6 +3025,54 @@ def fuzzymatch_mode(
     )
 
 
+def case_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    to: str = 'lower',
+    pairs: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Converts items to a specified casing style.
+    """
+    start_time = time.perf_counter()
+    raw_item_count = 0
+    results = []
+
+    for input_file in input_files:
+        lines = _read_file_lines_robust(input_file)
+        for line in lines:
+            line_content = line.strip()
+            if not line_content:
+                continue
+
+            raw_item_count += 1
+            transformed = to_case(line_content, to)
+
+            # Re-apply length filtering to the result
+            if transformed and min_length <= len(transformed) <= max_length:
+                results.append((line_content, transformed) if pairs else transformed)
+
+    if process_output:
+        results = sorted(set(results))
+
+    if pairs:
+        _write_paired_output(results, output_file, output_format, "Case", quiet, limit=limit)
+    else:
+        write_output(results, output_file, output_format, quiet, limit=limit)
+
+    stats_items = [r[1] if isinstance(r, tuple) else r for r in results]
+    print_processing_stats(
+        raw_item_count, stats_items, item_label="case-converted-item", start_time=start_time
+    )
+
+
 def casing_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -5496,6 +5574,12 @@ MODE_DETAILS = {
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
         "flags": "[-s MAPPING] [-a K:V] [--smart-case] [-p]",
     },
+    "case": {
+        "summary": "Changes word casing",
+        "description": "Converts words to a specified casing style like snake_case, camelCase, or PascalCase. It automatically identifies sub-words within compound words and preserves the overall structure. Use --pairs to see both the original and converted words.",
+        "example": "python multitool.py case wordlist.txt --to snake --pairs",
+        "flags": "[--to STYLE] [-p]",
+    },
     "zip": {
         "summary": "Pairs lines from two files",
         "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists. Length filters are applied to both items in each pair.",
@@ -5647,7 +5731,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "line", "words", "ngrams", "regex"],
-        "CHANGE DATA": ["combine", "unique", "sort", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGE DATA": ["combine", "unique", "sort", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -6804,6 +6888,27 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(map_parser)
 
+    case_parser = subparsers.add_parser(
+        'case',
+        help=MODE_DETAILS['case']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['case']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['case']['example']}{RESET}",
+    )
+    case_options = case_parser.add_argument_group(f"{BLUE}CASE OPTIONS{RESET}")
+    case_options.add_argument(
+        '--to',
+        choices=['lower', 'upper', 'snake', 'camel', 'pascal', 'kebab', 'title', 'constant', 'sentence'],
+        default='lower',
+        help="Target casing style.",
+    )
+    case_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help='Output the original word along with its transformation.',
+    )
+    _add_common_mode_arguments(case_parser)
+
     scrub_parser = subparsers.add_parser(
         'scrub',
         help=MODE_DETAILS['scrub']['summary'],
@@ -7667,6 +7772,15 @@ def main() -> None:
                 'output_format': output_format,
                 'pairs': getattr(args, 'pairs', False),
                 'smart_case': getattr(args, 'smart_case', False),
+            }
+        ),
+        'case': (
+            case_mode,
+            {
+                **common_kwargs,
+                'to': getattr(args, 'to', 'lower'),
+                'pairs': getattr(args, 'pairs', False),
+                'output_format': output_format,
             }
         ),
         'rename': (

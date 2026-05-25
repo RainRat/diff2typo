@@ -1236,6 +1236,76 @@ def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
             yield from _traverse_data(data[current_key], path_parts[1:])
 
 
+def _flatten_data(data: Any, path: str = "") -> Iterable[Tuple[str, str]]:
+    """
+    Recursively flattens nested dictionaries and lists into dot-separated paths.
+    Yields (path, value) tuples.
+    """
+    if isinstance(data, dict):
+        for k, v in data.items():
+            new_path = f"{path}.{k}" if path else str(k)
+            yield from _flatten_data(v, new_path)
+    elif isinstance(data, list):
+        for i, item in enumerate(data):
+            new_path = f"{path}.{i}" if path else str(i)
+            yield from _flatten_data(item, new_path)
+    else:
+        yield path, str(data)
+
+
+def _yield_structured_docs(input_file: str) -> Iterable[Any]:
+    """
+    Yields structured documents (dicts or lists) from JSON, YAML, or TOML files.
+    Supports multi-document YAML and JSON Lines (JSONL).
+    """
+    ext = input_file.lower()
+    content_lines = _read_file_lines_robust(input_file)
+    content = "".join(content_lines)
+    if not content.strip():
+        return
+
+    if ext.endswith('.json'):
+        try:
+            yield json.loads(content)
+        except json.JSONDecodeError:
+            # Fallback to JSON Lines
+            for line in content_lines:
+                if line.strip():
+                    try:
+                        yield json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+    elif ext.endswith(('.yaml', '.yml')):
+        try:
+            import yaml
+            for doc in yaml.safe_load_all(content):
+                if doc is not None:
+                    yield doc
+        except (ImportError, Exception):
+            pass
+    elif ext.endswith('.toml'):
+        try:
+            if _TOMLLIB_AVAILABLE:
+                yield tomllib.loads(content)
+            elif _TOML_AVAILABLE:
+                import toml
+                yield toml.loads(content)
+        except Exception:
+            pass
+    else:
+        # Default fallback: try JSON, then YAML
+        try:
+            yield json.loads(content)
+        except json.JSONDecodeError:
+            try:
+                import yaml
+                for doc in yaml.safe_load_all(content):
+                    if doc is not None:
+                        yield doc
+            except (ImportError, Exception):
+                pass
+
+
 def _extract_json_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:
     """Yield values from JSON objects based on a dotted key path."""
 
@@ -4276,6 +4346,68 @@ def _resolve_full_mapping(
     return full_mapping
 
 
+def flatten_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    key: str = "",
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Flattens nested JSON, YAML, or TOML structures into a flat list of key.path = value pairs.
+    """
+    start_time = time.perf_counter()
+    raw_item_count = 0
+    results = []
+
+    path_parts = key.split('.') if key else []
+
+    def get_sub_data(data: Any, parts: List[str]) -> Iterable[Any]:
+        if not parts:
+            yield data
+            return
+        curr = parts[0]
+        if isinstance(data, dict):
+            if curr in data:
+                yield from get_sub_data(data[curr], parts[1:])
+        elif isinstance(data, list):
+            # If we encounter a list while navigating the path,
+            # we try to find the key in each item of the list.
+            for item in data:
+                yield from get_sub_data(item, parts)
+
+    for input_file in input_files:
+        for doc in _yield_structured_docs(input_file):
+            raw_item_count += 1
+            for sub_doc in get_sub_data(doc, path_parts):
+                for p, v in _flatten_data(sub_doc):
+                    # Apply cleaning and filtering to the value
+                    v_processed = filter_to_letters(v) if clean_items else v
+                    if min_length <= len(v_processed) <= max_length:
+                        results.append((p, v_processed))
+
+    if process_output:
+        results = sorted(set(results))
+
+    _write_paired_output(
+        results,
+        output_file,
+        output_format,
+        "Flatten",
+        quiet,
+        limit=limit
+    )
+
+    print_processing_stats(
+        raw_item_count, [r[1] for r in results], item_label="flattened-pair", start_time=start_time
+    )
+
+
 def map_mode(
     input_files: Sequence[str],
     mapping_file: str | None,
@@ -5436,6 +5568,12 @@ MODE_DETAILS = {
         "example": "python multitool.py xml data.xml -k './/item/name' --output names.txt",
         "flags": "[-k KEY]",
     },
+    "flatten": {
+        "summary": "Flattens nested data structures",
+        "description": "Transforms nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, 'user.name = value'). It supports multi-document YAML and JSON Lines (JSONL).",
+        "example": "python multitool.py flatten config.json --output-format table",
+        "flags": "[-k KEY]",
+    },
     "line": {
         "summary": "Extracts every line from a file",
         "description": "Reads every line from a file, cleans the text, and writes it to the output. Useful for simple cleaning and filtering.",
@@ -5646,7 +5784,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -6187,6 +6325,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The tag name or XPath expression to match (for example './/item/name').",
     )
     _add_common_mode_arguments(xml_parser)
+
+    flatten_parser = subparsers.add_parser(
+        'flatten',
+        help=MODE_DETAILS['flatten']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['flatten']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['flatten']['example']}{RESET}",
+    )
+    flatten_options = flatten_parser.add_argument_group(f"{BLUE}FLATTEN OPTIONS{RESET}")
+    flatten_options.add_argument(
+        '-k', '--key',
+        type=str,
+        default='',
+        help="The key path to start flattening from (for example 'users'). If not provided, flattens from the root.",
+    )
+    _add_common_mode_arguments(flatten_parser)
 
     toml_parser = subparsers.add_parser(
         'toml',
@@ -7515,6 +7669,14 @@ def main() -> None:
         ),
         'xml': (
             xml_mode,
+            {
+                **common_kwargs,
+                'key': getattr(args, 'key', ''),
+                'output_format': output_format,
+            },
+        ),
+        'flatten': (
+            flatten_mode,
             {
                 **common_kwargs,
                 'key': getattr(args, 'key', ''),

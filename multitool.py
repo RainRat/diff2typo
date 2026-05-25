@@ -188,6 +188,19 @@ def _apply_smart_case(original: str, replacement: str) -> str:
     return replacement.lower()
 
 
+def _ensure_min_dist(max_dist: int | None, keyboard: bool, transposition: bool) -> int | None:
+    """
+    Ensures that max_dist is at least 1 if keyboard is True, and at least 2 if transposition is True.
+    If no flags are set, it preserves the original max_dist (which may be None).
+    """
+    res = max_dist
+    if transposition and (res is None or res < 2):
+        res = 2
+    if keyboard and (res is None or res < 1):
+        res = 1
+    return res
+
+
 def levenshtein_distance(s1: str, s2: str) -> int:
     """Calculate the number of character changes needed to turn one string into another."""
     if len(s1) < len(s2):
@@ -2727,11 +2740,7 @@ def similarity_mode(
     raw_pairs = _extract_pairs(input_files, quiet=quiet)
     adj_keys = get_adjacent_keys()
 
-    # Adjust max_dist if filters are used but default (None) or restrictive dist was kept
-    if transposition and (max_dist is None or max_dist < 2):
-        max_dist = 2
-    if keyboard and (max_dist is None or max_dist < 1):
-        max_dist = 1
+    max_dist = _ensure_min_dist(max_dist, keyboard, transposition)
 
     filtered_results = []
     stats_items = []
@@ -2830,11 +2839,7 @@ def near_duplicates_mode(
     unique_items.sort(key=len)
     adj_keys = get_adjacent_keys()
 
-    # Adjust max_dist if filters are used but default or restrictive dist was kept
-    if transposition and (max_dist is None or max_dist < 2):
-        max_dist = 2
-    if keyboard and (max_dist is None or max_dist < 1):
-        max_dist = 1
+    max_dist = _ensure_min_dist(max_dist, keyboard, transposition)
 
     results = []
     stats_items = []
@@ -2937,11 +2942,7 @@ def fuzzymatch_mode(
     list2_unique = sorted(set(list2_unique), key=len)
     adj_keys = get_adjacent_keys()
 
-    # Adjust max_dist if filters are used but default or restrictive dist was kept
-    if transposition and (max_dist is None or max_dist < 2):
-        max_dist = 2
-    if keyboard and (max_dist is None or max_dist < 1):
-        max_dist = 1
+    max_dist = _ensure_min_dist(max_dist, keyboard, transposition)
 
     results = []
     stats_items = []
@@ -3272,11 +3273,7 @@ def discovery_mode(
     frequent_words = sorted([word for word, count in word_counts.items() if count >= freq_min], key=len)
     adj_keys = get_adjacent_keys()
 
-    # Adjust max_dist if filters are used but default or restrictive dist was kept
-    if transposition and (max_dist is None or max_dist < 2):
-        max_dist = 2
-    if keyboard and (max_dist is None or max_dist < 1):
-        max_dist = 1
+    max_dist = _ensure_min_dist(max_dist, keyboard, transposition)
 
     results = []
     stats_items = []
@@ -3529,12 +3526,7 @@ def search_mode(
     query_clean = filter_to_letters(query) if clean_items else query.lower()
     adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
 
-    # If transposition is requested but max_dist is at its default (0 for search), bump it to 2
-    if transposition and max_dist == 0:
-        max_dist = 2
-    # If keyboard slip is requested but max_dist is 0, bump it to 1
-    elif keyboard and max_dist == 0:
-        max_dist = 1
+    max_dist = _ensure_min_dist(max_dist, keyboard, transposition)
 
     # Safety check for match-all queries
     if clean_items and not query_clean:
@@ -4460,12 +4452,7 @@ def standardize_mode(
         norm_totals[norm] = sum(counts.values())
 
     # 2b: If similar word matching is enabled, group similar normalized words
-    # Adjust effective distance if filters are used but default or restrictive dist was kept
-    effective_fuzzy = fuzzy
-    if transposition and effective_fuzzy < 2:
-        effective_fuzzy = 2
-    if keyboard and effective_fuzzy < 1:
-        effective_fuzzy = 1
+    effective_fuzzy = _ensure_min_dist(fuzzy, keyboard, transposition)
 
     if effective_fuzzy > 0:
         # Sort normalized words by total frequency descending to find "anchors"

@@ -212,7 +212,7 @@ These modes help you analyze your data.
   - **Example:** `python multitool.py check mappings.csv`
 
 - **`classify`**
-  - **What it does:** Groups typos by error type. It labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [D] Deletion, [I] Insertion, [R] Replacement, and [M] Multiple letters.
+  - **What it does:** Groups typos by error type. It labels typo pairs with error codes like **[K]** Keyboard, **[T]** Transposition, **[Del]** Deletion, **[Ins]** Insertion, **[1:2]** 1-to-2, **[2:1]** 2-to-1, **[R]** Replacement, and **[M]** Multiple.
   - **Options:** Use `--show-dist` to include the number of character changes in the output labels.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, `toml`, and `xml`.
   - **Example:** `python multitool.py classify typos.txt --show-dist --output labeled.txt`

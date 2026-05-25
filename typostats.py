@@ -755,28 +755,19 @@ def generate_report(
         sorted_replacements = sorted_replacements[:limit]
 
     # Color support detection
-    # main output colors (used for the report data)
-    # These are suppressed if writing to a file or if the main output is not a terminal (piping)
-    show_color_out = not output_file and _should_enable_color(sys.stdout)
-    # standard error colors (used for human-readable headers)
-    # If output_file is set, we avoid colors in headers that might be written to the file
-    show_color_err = not output_file and _should_enable_color(sys.stderr)
+    # Reports should use consistent coloring based on the destination.
+    # If output_file is set, we disable colors to avoid junk in the file.
+    # Otherwise, we use colors if the standard output supports them.
+    use_color = not output_file and _should_enable_color(sys.stdout)
 
-    c_bold = _BOLD if show_color_out else ""
-    c_blue = _BLUE if show_color_out else ""
-    c_green = _GREEN if show_color_out else ""
-    c_yellow = _YELLOW if show_color_out else ""
-    c_magenta = _MAGENTA if show_color_out else ""
-    c_cyan = _CYAN if show_color_out else ""
-    c_red = _RED if show_color_out else ""
-    c_reset = _RESET if show_color_out else ""
-
-    # Error-specific colors for the summary section
-    c_err_cyan = _CYAN if show_color_err else ""
-    c_err_magenta = _MAGENTA if show_color_err else ""
-    c_err_green = _GREEN if show_color_err else ""
-    c_err_red = _RED if show_color_err else ""
-    c_err_reset = _RESET if show_color_err else ""
+    c_bold = _BOLD if use_color else ""
+    c_blue = _BLUE if use_color else ""
+    c_green = _GREEN if use_color else ""
+    c_yellow = _YELLOW if use_color else ""
+    c_magenta = _MAGENTA if use_color else ""
+    c_cyan = _CYAN if use_color else ""
+    c_red = _RED if use_color else ""
+    c_reset = _RESET if use_color else ""
 
     if output_format == 'arrow':
         # arrow
@@ -813,7 +804,7 @@ def generate_report(
 
             if total_single_char > 0:
                 percent = (adjacent_count / total_single_char) * 100
-                extra_metrics["Keyboard Adjacency [K]"] = f"{c_err_cyan}{adjacent_count}/{total_single_char} ({percent:.1f}%){c_err_reset}"
+                extra_metrics["Keyboard Adjacency [K]"] = f"{c_cyan}{adjacent_count}/{total_single_char} ({percent:.1f}%){c_reset}"
 
         if kwargs.get('allow_transposition'):
             trans_count = 0
@@ -822,15 +813,15 @@ def generate_report(
                     trans_count += count
             if trans_count > 0:
                 percent = (trans_count / total_typos) * 100 if total_typos > 0 else 0
-                extra_metrics["Transpositions [T]"] = f"{c_err_magenta}{trans_count}/{total_typos} ({percent:.1f}%){c_err_reset}"
+                extra_metrics["Transpositions [T]"] = f"{c_magenta}{trans_count}/{total_typos} ({percent:.1f}%){c_reset}"
 
         if any([kwargs.get('allow_1to2'), kwargs.get('allow_2to1'), kwargs.get('include_deletions')]):
             counts = defaultdict(int)
             color_map = {
-                "Insertions [Ins]": c_err_green,
-                "1-to-2 replacements [1:2]": c_err_green,
-                "Deletions [Del]": c_err_red,
-                "2-to-1 replacements [2:1]": c_err_red,
+                "Insertions [Ins]": c_green,
+                "1-to-2 replacements [1:2]": c_green,
+                "Deletions [Del]": c_red,
+                "2-to-1 replacements [2:1]": c_red,
             }
             for (c, t), count in replacement_counts.items():
                 if len(c) < len(t):
@@ -848,7 +839,7 @@ def generate_report(
                 if count > 0:
                     percent = (count / total_typos) * 100 if total_typos > 0 else 0
                     color = color_map.get(label, "")
-                    extra_metrics[label] = f"{color}{count}/{total_typos} ({percent:.1f}%){c_err_reset}"
+                    extra_metrics[label] = f"{color}{count}/{total_typos} ({percent:.1f}%){c_reset}"
 
         if unique_filtered != unique_total:
             extra_metrics["Patterns matching criteria"] = unique_filtered
@@ -862,7 +853,7 @@ def generate_report(
             total_typos,
             all_replacements,
             item_label="pattern",
-            use_color=show_color_err,
+            use_color=use_color,
             extra_metrics=extra_metrics,
             start_time=start_time,
             total_input_items=total_pairs,
@@ -901,32 +892,22 @@ def generate_report(
 
         divider = f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}"
 
-        if not output_file:
-            # Move the human-readable header to standard error to keep the main output clean for piping
-            if not quiet:
-                sys.stderr.write("\n".join(summary_lines) + "\n")
-                if sorted_replacements:
-                    # Frequency table header
-                    table_title = f"{padding}{c_bold}{c_blue}LETTER REPLACEMENTS{c_reset}"
-                    sys.stderr.write(f"\n{table_title}\n")
-                    sys.stderr.write(f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}\n")
-                    sys.stderr.write(f"{header_row}\n")
-                    sys.stderr.write(f"{divider}\n")
-                sys.stderr.flush()
-            report_lines = []
-        else:
+        # Human-readable report should be unified.
+        # If quiet is not set, we include the summary and headers.
+        if not quiet:
             report_lines = summary_lines[:]
             if sorted_replacements:
-                table_title = f"{padding}LETTER REPLACEMENTS"
-                report_lines.extend(["", table_title, f"{padding}{'─' * visible_header_len}", header_row, divider])
+                # Use colored title if possible
+                title_color = c_bold + c_blue if use_color else ""
+                reset_color = c_reset if use_color else ""
+                table_title = f"{padding}{title_color}LETTER REPLACEMENTS{reset_color}"
+                report_lines.extend(["", table_title, f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}", header_row, divider])
+        else:
+            report_lines = []
 
         if not sorted_replacements:
             no_results = f"{padding}{c_yellow}No replacements found matching the criteria.{c_reset}"
-            if not output_file:
-                if not quiet:
-                    sys.stderr.write(f"{no_results}\n")
-            else:
-                report_lines.append(no_results)
+            report_lines.append(no_results)
 
         for (correct_char, typo_char), count in sorted_replacements:
             percent = (count / total_typos * 100) if total_typos > 0 else 0

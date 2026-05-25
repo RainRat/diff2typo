@@ -178,23 +178,23 @@ def test_generate_report_sorting_and_filtering(capsys):
 
 def test_generate_report_summaries(capsys):
     typostats.generate_report({('he', 'eh'): 1}, allow_transposition=True, quiet=False)
-    assert "Transpositions [T]:" in capsys.readouterr().err
+    assert "Transpositions [T]:" in capsys.readouterr().out
     typostats.generate_report({('a', 'b'): 1}, min_occurrences=2, quiet=False)
-    assert "Patterns matching criteria:" in capsys.readouterr().err
+    assert "Patterns matching criteria:" in capsys.readouterr().out
     typostats.generate_report({('a', 'b'): 2, ('c', 'd'): 1}, limit=1, quiet=False)
-    assert "Showing patterns:" in capsys.readouterr().err
+    assert "Showing patterns:" in capsys.readouterr().out
     counts = {('a', 'aa'): 1, ('bb', 'b'): 1, ('m', 'rn'): 1, ('ph', 'f'): 1}
     typostats.generate_report(counts, include_deletions=True, allow_1to2=True, allow_2to1=True, quiet=False)
-    err = capsys.readouterr().err
-    assert "Insertions [Ins]:" in err and "Deletions [Del]:" in err
-    assert "1-to-2 replacements [1:2]" in err and "2-to-1 replacements [2:1]" in err
+    out = capsys.readouterr().out
+    assert "Insertions [Ins]:" in out and "Deletions [Del]:" in out
+    assert "1-to-2 replacements [1:2]" in out and "2-to-1 replacements [2:1]" in out
 
 
 def test_generate_report_keyboard(capsys):
     counts = {('q', 'w'): 5, ('q', 'p'): 1}
     typostats.generate_report(counts, keyboard=True, quiet=False)
     captured = capsys.readouterr()
-    assert "Keyboard Adjacency" in captured.err
+    assert "Keyboard Adjacency" in captured.out
     assert "[K]" in captured.out
     assert "[K]" not in captured.out.splitlines()[-1]
 
@@ -221,9 +221,9 @@ def test_generate_report_markers_extra():
 
 def test_generate_report_edge_cases():
     # Empty filtering result
-    with patch('sys.stderr', new=io.StringIO()) as err:
+    with patch('sys.stdout', new=io.StringIO()) as out:
         typostats.generate_report({}, quiet=False)
-        assert "No patterns passed the filtering criteria" in err.getvalue()
+        assert "No patterns passed the filtering criteria" in out.getvalue()
 
     # File write failure
     with patch("builtins.open", side_effect=Exception("Write error")):
@@ -232,9 +232,9 @@ def test_generate_report_edge_cases():
             mock_log.assert_called()
 
     # Explicit no results
-    with patch('sys.stderr', new=io.StringIO()) as err:
+    with patch('sys.stdout', new=io.StringIO()) as out:
         typostats.generate_report({}, quiet=False)
-        assert "No replacements found matching the criteria" in err.getvalue()
+        assert "No replacements found matching the criteria" in out.getvalue()
 
 
 def test_detect_encoding_variants(caplog):
@@ -369,7 +369,7 @@ def test_typostats_subprocess_all(tmp_path):
     typos_file.write_text("teh -> the\nrecieve -> receive\nm -> rn\nph -> f\nor -> o\na -> aa\n", encoding="utf-8")
     result = subprocess.run([sys.executable, "typostats.py", str(typos_file), "-a"], capture_output=True, text=True)
     assert result.returncode == 0
-    assert "Enabled features:" in result.stderr
+    assert "Enabled features:" in result.stdout
     assert "he" in result.stdout and "rn" in result.stdout
 
 
@@ -743,7 +743,8 @@ def test_read_file_lines_robust_stdin_cache_explicit():
 def test_generate_report_with_file_variants(tmp_path, capsys):
     out_file = tmp_path / "report.txt"
     counts = {("correct", "typo"): 1}
-    typostats.generate_report(counts, output_file=str(out_file), quiet=True)
+    # When quiet=True, summary and headers are omitted even when writing to a file
+    typostats.generate_report(counts, output_file=str(out_file), quiet=False)
     assert out_file.exists()
     assert "Correction" in out_file.read_text()
 
@@ -763,14 +764,14 @@ def test_generate_report_extra_metrics_full(capsys):
         ("q", "w"): 1,      # [K]
     }
     typostats.generate_report(counts, include_deletions=True, allow_1to2=True, allow_2to1=True, allow_transposition=True, quiet=False, keyboard=True, total_lines=10)
-    err = capsys.readouterr().err
-    assert "Total lines processed:" in err
-    assert "Transpositions [T]:" in err
-    assert "Keyboard Adjacency [K]:" in err
-    assert "Insertions [Ins]:" in err
-    assert "Deletions [Del]:" in err
-    assert "1-to-2 replacements [1:2]:" in err
-    assert "2-to-1 replacements [2:1]:" in err
+    out = capsys.readouterr().out
+    assert "Total lines processed:" in out
+    assert "Transpositions [T]:" in out
+    assert "Keyboard Adjacency [K]:" in out
+    assert "Insertions [Ins]:" in out
+    assert "Deletions [Del]:" in out
+    assert "1-to-2 replacements [1:2]:" in out
+    assert "2-to-1 replacements [2:1]:" in out
 
 
 def test_generate_report_json_keyboard_branches():
@@ -785,5 +786,5 @@ def test_generate_report_json_keyboard_branches():
 def test_main_stdin_path_explicit(capsys):
     with patch('sys.stdin', io.StringIO("typo -> correct\n")),          patch('sys.argv', ['typostats.py', '-a']),          patch('typostats._STDIN_CACHE', None):
         typostats.main()
-        err = capsys.readouterr().err
-        assert "Total word pairs analyzed:" in err
+        out = capsys.readouterr().out
+        assert "Total word pairs analyzed:" in out

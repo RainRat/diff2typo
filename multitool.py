@@ -348,7 +348,7 @@ def _get_total_line_count(input_files: Sequence[str]) -> int:
                     # buffer-aware line counting is generally faster than sum(1 for _ in fp)
                     # but sum(1 for line in fp) is clear and optimized in Python 3
                     total += sum(1 for _ in fp)
-            except Exception:
+            except OSError:
                 pass
     return total
 

@@ -4328,6 +4328,51 @@ def sample_mode(
     )
 
 
+def shuffle_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Randomly reorder lines from the input file(s)."""
+    start_time = time.perf_counter()
+
+    # Extract items
+    raw_items = [
+        item for input_file in input_files
+        for item in _extract_line_items(input_file, quiet=quiet)
+    ]
+
+    if not raw_items:
+        logging.warning("Input is empty or no lines found.")
+        write_output([], output_file, output_format, quiet)
+        return
+
+    # Clean and filter
+    cleaned_items = clean_and_filter(raw_items, min_length, max_length, clean=clean_items)
+
+    # Shuffle
+    shuffled_items = list(cleaned_items)
+    random.shuffle(shuffled_items)
+
+    if process_output:
+        # Note: shuffle followed by process_output (sort/dedup) effectively negates the shuffle,
+        # but we keep it for consistency with other modes.
+        shuffled_items = sorted(set(shuffled_items))
+
+    write_output(shuffled_items, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(len(raw_items), shuffled_items, start_time=start_time)
+    logging.info(
+        f"[Shuffle Mode] Shuffled {len(shuffled_items)} valid lines from {len(input_files)} file(s). Output written to '{output_file}'."
+    )
+
+
 def regex_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -5687,6 +5732,12 @@ MODE_DETAILS = {
         "example": "python multitool.py sample big_log.txt -n 100 -o sample.txt",
         "flags": "[-n N|--percent P]",
     },
+    "shuffle": {
+        "summary": "Randomly reorders lines",
+        "description": "Randomly shuffles the lines in your input files. This is useful for creating randomized test data or breaking up ordered lists.",
+        "example": "python multitool.py shuffle wordlist.txt -o randomized.txt",
+        "flags": "",
+    },
     "regex": {
         "summary": "Extracts text matching a pattern",
         "description": "Finds and gets all text that matches a Python regular expression pattern.",
@@ -5856,7 +5907,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
-        "CHANGE DATA": ["combine", "unique", "sort", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -6932,6 +6983,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(sample_parser)
 
+    shuffle_parser = subparsers.add_parser(
+        'shuffle',
+        help=MODE_DETAILS['shuffle']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['shuffle']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['shuffle']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(shuffle_parser)
+
     words_parser = subparsers.add_parser(
         'words',
         help=MODE_DETAILS['words']['summary'],
@@ -7646,6 +7706,13 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'shuffle': (
+            shuffle_mode,
+            {
+                **common_kwargs,
                 'output_format': output_format,
             },
         ),

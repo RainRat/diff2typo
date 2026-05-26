@@ -76,6 +76,11 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Extracts XML values by tag/XPath. It finds text from elements in an XML file matching a tag name or XPath expression. If no key is provided, it extracts text from every element in the file.
   - **Example:** `python multitool.py xml data.xml -k './/item/name'`
 
+- **`flatten`**
+  - **What it does:** Flattens nested data structures. It transforms nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, `user.name = value`). It supports multi-document YAML and JSON Lines (JSONL).
+  - **Options:** Use the `-k` (or `--key`) flag to specify a starting path for flattening.
+  - **Example:** `python multitool.py flatten config.json --output-format table`
+
 - **`line`**
   - **What it does:** Extracts every line from a file. Reads every line from a file, cleans the text, and writes it to the output.
   - **Example:** `python multitool.py line raw_words.txt`

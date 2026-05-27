@@ -4607,6 +4607,81 @@ def _scrub_line(
     return "".join(new_parts), replacements
 
 
+def replace_mode(
+    input_files: Sequence[str],
+    old_text: str,
+    new_text: str,
+    output_file: str,
+    quiet: bool = False,
+    in_place: str | None = None,
+    dry_run: bool = False,
+    use_regex: bool = False,
+    diff: bool = False,
+    limit: int | None = None,
+) -> None:
+    """
+    Replaces occurrences of a string or regex pattern in text files.
+    """
+    start_time = time.perf_counter()
+    total_replacements = 0
+
+    # Compile regex if needed
+    regex = None
+    if use_regex:
+        try:
+            regex = re.compile(old_text)
+        except re.error as e:
+            logging.error(f"Invalid regular expression '{old_text}': {e}")
+            sys.exit(1)
+
+    accumulated_lines = []
+
+    with (smart_open_output(output_file) if diff else contextlib.nullcontext()) as diff_out:
+        for input_file in input_files:
+            if input_file == '-' and in_place is not None:
+                logging.warning("In-place modification requested for standard input; ignoring.")
+
+            file_lines = _read_file_lines_robust(input_file)
+            original_lines = [line.rstrip('\n') for line in file_lines]
+            modified_lines = []
+            file_replacements = 0
+
+            for line in tqdm(file_lines, desc=f"Replacing in {input_file}", unit=" lines", disable=quiet):
+                # We need to handle the newline character carefully to preserve it
+                line_content = line.rstrip('\n')
+                ending = line[len(line_content):]
+
+                if use_regex:
+                    new_line, n = regex.subn(new_text, line_content)
+                else:
+                    n = line_content.count(old_text)
+                    new_line = line_content.replace(old_text, new_text)
+
+                modified_lines.append(new_line + ending)
+                file_replacements += n
+
+            total_replacements += file_replacements
+
+            if diff and file_replacements > 0:
+                _write_diff_report(input_file, original_lines, [l.rstrip('\n') for l in modified_lines], diff_out)
+
+            if in_place is not None and input_file != '-':
+                _write_file_in_place(
+                    input_file,
+                    modified_lines,
+                    file_replacements,
+                    in_place_ext=in_place if in_place != '' else None,
+                    dry_run=dry_run
+                )
+            elif not diff:
+                accumulated_lines.extend([l.rstrip('\n') for l in modified_lines])
+
+    if not in_place and not diff:
+        write_output(accumulated_lines, output_file, 'line', quiet, limit=limit)
+
+    logging.info(f"[Replace Mode] Completed. Total replacements: {total_replacements}")
+
+
 def standardize_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -5849,6 +5924,12 @@ MODE_DETAILS = {
         "example": "python multitool.py sort wordlist.txt --by length --reverse",
         "flags": "[--by {alpha,length,numeric}] [--reverse] [-u]",
     },
+    "replace": {
+        "summary": "Replaces text or patterns",
+        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). Use --old for the pattern and --new for the replacement. Supports in-place editing, dry-runs, and unified diffs.",
+        "example": "python multitool.py replace . --old 'old-tag' --new 'new-tag' --in-place",
+        "flags": "--old TEXT --new TEXT [--regex] [--in-place] [--dry-run] [--diff]",
+    },
 }
 
 
@@ -5856,7 +5937,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
-        "CHANGE DATA": ["combine", "unique", "sort", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGE DATA": ["combine", "unique", "sort", "replace", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -7405,6 +7486,48 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(sort_parser)
 
+    replace_parser = subparsers.add_parser(
+        'replace',
+        help=MODE_DETAILS['replace']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['replace']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['replace']['example']}{RESET}",
+    )
+    replace_options = replace_parser.add_argument_group(f"{BLUE}REPLACE OPTIONS{RESET}")
+    replace_options.add_argument(
+        '--old',
+        required=True,
+        help="The text or regex pattern to search for.",
+    )
+    replace_options.add_argument(
+        '--new',
+        required=True,
+        help="The replacement text.",
+    )
+    replace_options.add_argument(
+        '--regex',
+        action='store_true',
+        help="Treat '--old' as a regular expression.",
+    )
+    replace_options.add_argument(
+        '--in-place',
+        nargs='?',
+        const='',
+        metavar='EXT',
+        help="Modify files in place. If an extension is provided (for example, '.bak'), a backup is created.",
+    )
+    replace_options.add_argument(
+        '--dry-run',
+        action='store_true',
+        help="Show what would be changed without modifying any files.",
+    )
+    replace_options.add_argument(
+        '--diff',
+        action='store_true',
+        help="Show a unified diff of the changes that would be made.",
+    )
+    _add_common_mode_arguments(replace_parser)
+
     align_parser = subparsers.add_parser(
         'align',
         help=MODE_DETAILS['align']['summary'],
@@ -7972,6 +8095,21 @@ def main() -> None:
                 'keyboard': getattr(args, 'keyboard', False),
                 'transposition': getattr(args, 'transposition', False),
                 'diff': getattr(args, 'diff', False),
+            }
+        ),
+        'replace': (
+            replace_mode,
+            {
+                'input_files': args.input,
+                'old_text': getattr(args, 'old', ''),
+                'new_text': getattr(args, 'new', ''),
+                'output_file': args.output,
+                'quiet': args.quiet,
+                'in_place': getattr(args, 'in_place', None),
+                'dry_run': getattr(args, 'dry_run', False),
+                'use_regex': getattr(args, 'regex', False),
+                'diff': getattr(args, 'diff', False),
+                'limit': limit,
             }
         ),
         'scrub': (

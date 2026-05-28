@@ -76,6 +76,11 @@ These modes help you pull specific data out of a messy file.
   - **What it does:** Extracts XML values by tag/XPath. It finds text from elements in an XML file matching a tag name or XPath expression. If no key is provided, it extracts text from every element in the file.
   - **Example:** `python multitool.py xml data.xml -k './/item/name'`
 
+- **`flatten`**
+  - **What it does:** Flattens nested data structures. It transforms nested JSON, YAML, or TOML structures into dot-separated `key.path = value` pairs. It supports multi-document YAML and JSON Lines (JSONL).
+  - **Options:** Use the `-k` (or `--key`) flag to set an optional starting path.
+  - **Example:** `python multitool.py flatten config.json --output-format table`
+
 - **`line`**
   - **What it does:** Extracts every line from a file. Reads every line from a file, cleans the text, and writes it to the output.
   - **Example:** `python multitool.py line raw_words.txt`
@@ -353,4 +358,4 @@ These options work with most modes:
 - `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
 - `--limit`, `-L`: Limit the number of items in the output.
 - `--raw`: Keep punctuation and capitalization. By default, most tools convert everything to lowercase and remove all characters except for lowercase **a through z**. Use this flag if you need to preserve numbers, punctuation, or capitalization.
-- `--quiet`: Hide progress bars and log messages.
+- `--quiet`: Hide progress bars and status messages.

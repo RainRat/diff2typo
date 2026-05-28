@@ -86,6 +86,14 @@ def _should_enable_color(stream: TextIO) -> bool:
     return stream.isatty()
 
 
+def _get_status_colors(stream: TextIO) -> Tuple[str, str, str]:
+    """Returns (blue, green, reset) color codes if the stream supports them."""
+    if _should_enable_color(stream):
+        # We combine BOLD and BLUE for the mode tag to make it stand out.
+        return (BOLD + BLUE), GREEN, RESET
+    return "", "", ""
+
+
 def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
     """
     Creates a high-resolution visual bar using Unicode block characters.
@@ -902,12 +910,16 @@ def _write_file_in_place(
     dry_run: bool = False,
 ) -> None:
     """Handles in-place file modification with optional backup and dry-run reporting."""
+    # Use color for feedback if stderr is a terminal
+    c_green = GREEN if _should_enable_color(sys.stderr) else ""
+    c_reset = RESET if _should_enable_color(sys.stderr) else ""
+
     if replacements == 0:
         logging.info(f"No changes needed for '{input_file}'.")
         return
 
     if dry_run:
-        logging.warning(f"[Dry Run] Would make {replacements} replacement(s) in '{input_file}'.")
+        logging.warning(f"[Dry Run] Would make {c_green}{replacements}{c_reset} replacement(s) in '{input_file}'.")
         return
 
     # Backup if extension is provided
@@ -927,7 +939,7 @@ def _write_file_in_place(
                 f.write(line)
                 if not line.endswith('\n'):
                     f.write('\n')
-        logging.info(f"Updated '{input_file}' in-place ({replacements} replacement(s)).")
+        logging.info(f"Updated '{input_file}' in-place ({c_green}{replacements}{c_reset} replacement(s)).")
     except Exception as e:
         logging.error(f"Failed to write to '{input_file}': {e}")
         sys.exit(1)
@@ -4724,7 +4736,9 @@ def replace_mode(
     if not in_place and not diff:
         write_output(accumulated_lines, output_file, 'line', quiet, limit=limit)
 
-    logging.info(f"[Replace Mode] Completed. Total replacements: {total_replacements}")
+    # Use color for feedback if stderr is a terminal
+    c_blue, c_green, c_reset = _get_status_colors(sys.stderr)
+    logging.info(f"{c_blue}[Replace Mode]{c_reset} Completed. Total replacements: {c_green}{total_replacements}{c_reset}")
 
 
 def standardize_mode(
@@ -4892,15 +4906,19 @@ def standardize_mode(
                     if not line.endswith('\n'):
                         out.write('\n')
 
+            # Use color for feedback if stderr is a terminal
+            c_blue, c_green, c_reset = _get_status_colors(sys.stderr)
             logging.info(
-                f"[Standardize Mode] Completed standardizing {len(input_files)} file(s). "
-                f"Made {total_replacements} replacements. Output written to '{output_file}'. "
+                f"{c_blue}[Standardize Mode]{c_reset} Completed standardizing {len(input_files)} file(s). "
+                f"Made {c_green}{total_replacements}{c_reset} replacements. Output written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
         else:
+            # Use color for feedback if stderr is a terminal
+            c_blue, c_green, c_reset = _get_status_colors(sys.stderr)
             logging.info(
-                f"[Standardize Mode] Completed standardizing {len(input_files)} file(s). "
-                f"Made {total_replacements} replacements. Diff report written to '{output_file}'. "
+                f"{c_blue}[Standardize Mode]{c_reset} Completed standardizing {len(input_files)} file(s). "
+                f"Made {c_green}{total_replacements}{c_reset} replacements. Diff report written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
     elif dry_run:
@@ -4988,15 +5006,19 @@ def scrub_mode(
                     if not line.endswith('\n'):
                         out.write('\n')
 
+            # Use color for feedback if stderr is a terminal
+            c_blue, c_green, c_reset = _get_status_colors(sys.stderr)
             logging.info(
-                f"[Scrub Mode] Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
-                f"Made {total_replacements} replacements. Output written to '{output_file}'. "
+                f"{c_blue}[Scrub Mode]{c_reset} Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
+                f"Made {c_green}{total_replacements}{c_reset} replacements. Output written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
         else:
+            # Use color for feedback if stderr is a terminal
+            c_blue, c_green, c_reset = _get_status_colors(sys.stderr)
             logging.info(
-                f"[Scrub Mode] Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
-                f"Made {total_replacements} replacements. Diff report written to '{output_file}'. "
+                f"{c_blue}[Scrub Mode]{c_reset} Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
+                f"Made {c_green}{total_replacements}{c_reset} replacements. Diff report written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
     elif dry_run:
@@ -5067,7 +5089,9 @@ def rename_mode(
         if dry_run:
             logging.warning(f"[Dry Run] Total renames that would be made: {total_renames}")
         else:
-            logging.info(f"[Rename Mode] Successfully made {total_renames} rename(s).")
+            # Use color for feedback if stderr is a terminal
+            c_blue, c_green, c_reset = _get_status_colors(sys.stderr)
+            logging.info(f"{c_blue}[Rename Mode]{c_reset} Successfully made {c_green}{total_renames}{c_reset} rename(s).")
     else:
         _write_paired_output(
             rename_results,
@@ -5397,9 +5421,11 @@ def verify_mode(
             quiet,
             limit=limit
         )
+        # Use color for feedback if stderr is a terminal
+        c_blue, c_green, c_reset = _get_status_colors(sys.stderr)
         logging.info(
-            f"[Verify Mode] Pruned mapping saved to '{output_file}'. "
-            f"Kept {found_count} of {total_keys} entries. "
+            f"{c_blue}[Verify Mode]{c_reset} Pruned mapping saved to '{output_file}'. "
+            f"Kept {c_green}{found_count}{c_reset} of {total_keys} entries. "
             f"Processing time: {duration:.3f}s"
         )
     else:
@@ -5431,8 +5457,10 @@ def verify_mode(
             for line in report:
                 out.write(line + '\n')
 
+        # Use color for feedback if stderr is a terminal
+        c_blue, c_green, c_reset = _get_status_colors(sys.stderr)
         logging.info(
-            f"[Verify Mode] Verification complete. Found {found_count}/{total_keys} entries. "
+            f"{c_blue}[Verify Mode]{c_reset} Verification complete. Found {c_green}{found_count}{c_reset}/{total_keys} entries. "
             f"Report written to '{output_file}'. "
             f"Processing time: {duration:.3f}s"
         )
@@ -5912,8 +5940,8 @@ MODE_DETAILS = {
     "standardize": {
         "summary": "Fixes casing/spelling project-wide",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
-        "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --transposition",
-        "flags": "[FILES...] [--in-place] [--dry-run] [--fuzzy N] [-kt] [--diff]",
+        "example": "python multitool.py standardize . -D --min-length 4 --fuzzy 1 --transposition",
+        "flags": "[FILES...] [-ID] [--dry-run] [--fuzzy N] [-kt]",
     },
     "search": {
         "summary": "Searches for words or patterns",
@@ -5936,8 +5964,8 @@ MODE_DETAILS = {
     "scrub": {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
-        "example": "python multitool.py scrub input.txt --add teh:the --diff",
-        "flags": "[FILES...] [-s MAPPING] [-a K:V] [--in-place] [--smart-case] [--diff]",
+        "example": "python multitool.py scrub input.txt --add teh:the -D",
+        "flags": "[FILES...] [-s MAPPING] [-a K:V] [-ID] [--smart-case]",
     },
     "align": {
         "summary": "Aligns typo-correction pairs",
@@ -5948,8 +5976,8 @@ MODE_DETAILS = {
     "rename": {
         "summary": "Batch renames files and folders",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
-        "example": "python multitool.py rename src/ --add teh:the --in-place",
-        "flags": "[-s MAPPING] [-a K:V] [--in-place] [--dry-run] [--smart-case]",
+        "example": "python multitool.py rename src/ --add teh:the -I",
+        "flags": "[-s MAPPING] [-a K:V] [-I] [--dry-run] [--smart-case]",
     },
     "diff": {
         "summary": "Shows differences between files",
@@ -5978,8 +6006,8 @@ MODE_DETAILS = {
     "replace": {
         "summary": "Replaces text or patterns",
         "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). Use --old for the pattern and --new for the replacement. Supports in-place editing, dry-runs, and unified diffs.",
-        "example": "python multitool.py replace . --old 'old-tag' --new 'new-tag' --in-place",
-        "flags": "--old TEXT --new TEXT [--regex] [--in-place] [--dry-run] [--diff]",
+        "example": "python multitool.py replace . --old 'old-tag' --new 'new-tag' -I",
+        "flags": "--old TEXT --new TEXT [--regex] [-ID] [--dry-run]",
     },
 }
 
@@ -6029,19 +6057,19 @@ def get_mode_summary_text() -> str:
     lines.append("\n" + header)
     lines.append(divider)
 
-    for i, (category, modes) in enumerate(categories.items()):
-        # Add a divider before categories (except the first one) to improve hierarchy
-        if i > 0:
-            lines.append(divider)
+    # Frame category headers with appropriate junctions
+    top_cap = f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{bottom}─{'─' * width_summary}─{bottom}─{'─' * width_flags}{c_reset}"
+    mid_cap = f"{padding}{c_bold}{c_blue}{'─' * width_mode}─┬─{'─' * width_summary}─┬─{'─' * width_flags}{c_reset}"
 
-        # Category header aligned with table columns
-        cat_header = (
-            f"{padding}{c_bold}{c_blue}{category:<{width_mode}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{' ' * width_summary}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{' ' * width_flags}{c_reset}"
-        )
+    for i, (category, modes) in enumerate(categories.items()):
+        if i > 0:
+            lines.append(top_cap)
+
+        # Category header centered across the entire table width
+        total_inner_width = width_mode + width_summary + width_flags + 6
+        cat_header = f"{padding}{c_bold}{c_blue}{category:^{total_inner_width}}{c_reset}"
         lines.append(cat_header)
-        lines.append(divider)
+        lines.append(mid_cap)
 
         for mode in modes:
             if mode in MODE_DETAILS:
@@ -7218,7 +7246,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     scrub_options.add_argument(
-        '--in-place',
+        '-I', '--in-place',
         nargs='?',
         const='',
         metavar='EXT',
@@ -7235,7 +7263,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Automatically match the casing of the original word (for example, 'Teh' -> 'The').",
     )
     scrub_options.add_argument(
-        '--diff',
+        '-D', '--diff',
         action='store_true',
         help="Show a unified diff of the changes that would be made.",
     )
@@ -7264,7 +7292,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     rename_options.add_argument(
-        '--in-place',
+        '-I', '--in-place',
         action='store_true',
         help="Perform the actual renaming of files and directories.",
     )
@@ -7289,7 +7317,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     standardize_options = standardize_parser.add_argument_group(f"{BLUE}STANDARDIZE OPTIONS{RESET}")
     standardize_options.add_argument(
-        '--in-place',
+        '-I', '--in-place',
         nargs='?',
         const='',
         metavar='EXT',
@@ -7323,7 +7351,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The minimum frequency ratio to consider a rare word a typo (default: 10.0).",
     )
     standardize_options.add_argument(
-        '--diff',
+        '-D', '--diff',
         action='store_true',
         help="Show a unified diff of the changes that would be made.",
     )
@@ -7570,7 +7598,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Treat '--old' as a regular expression.",
     )
     replace_options.add_argument(
-        '--in-place',
+        '-I', '--in-place',
         nargs='?',
         const='',
         metavar='EXT',
@@ -7582,7 +7610,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show what would be changed without modifying any files.",
     )
     replace_options.add_argument(
-        '--diff',
+        '-D', '--diff',
         action='store_true',
         help="Show a unified diff of the changes that would be made.",
     )

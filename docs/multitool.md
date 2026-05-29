@@ -120,6 +120,15 @@ These modes help you transform or combine your data.
   - **Note:** For numeric sorting, the tool extracts the first number found in each item for comparison. Numeric sorting works best with the `--raw` flag to prevent digits from being stripped.
   - **Example:** `python multitool.py sort wordlist.txt --by length --reverse`
 
+- **`replace`**
+  - **What it does:** Replaces text or patterns. It performs text substitution across one or more files. It supports literal string replacement and regular expressions (with backreferences).
+  - **Options:**
+    - Use the `--old` flag to set the text or pattern to find.
+    - Use the `--new` flag to set the replacement text.
+    - Use the `--regex` flag to treat the search pattern as a regular expression.
+    - Supports `--in-place` editing, `--dry-run` preview, and `--diff` view.
+  - **Example:** `python multitool.py replace . --old 'old-tag' --new 'new-tag' --in-place`
+
 - **`resolve`**
   - **What it does:** Shortens typo correction chains. It finds and shortens chains of typo corrections. For example, if your mapping file contains `A -> B` and `B -> C`, this mode will resolve them to `A -> C` and `B -> C`.
   - **Example:** `python multitool.py resolve mappings.csv`

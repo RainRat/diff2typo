@@ -575,15 +575,14 @@ def _format_analysis_summary(
                     return f"{it[0]} -> {it[1]} {it[2]}"
             return str(it)
 
-        try:
-            lengths = [len(format_item(it)) for it in filtered_items]
-            if lengths:
-                min_len = min(lengths)
-                max_len = max(lengths)
-                avg_len = sum(lengths) / len(lengths)
-                report.append(
-                    f"  {c_bold}{c_blue}{'Min/Max/Avg length:':<{label_width}}{c_reset} {min_len} / {max_len} / {avg_len:.1f}"
-                )
+        lengths = [len(format_item(it)) for it in filtered_items]
+        if lengths:
+            min_len = min(lengths)
+            max_len = max(lengths)
+            avg_len = sum(lengths) / len(lengths)
+            report.append(
+                f"  {c_bold}{c_blue}{'Min/Max/Avg length:':<{label_width}}{c_reset} {min_len} / {max_len} / {avg_len:.1f}"
+            )
 
             shortest = min(filtered_items, key=lambda x: len(format_item(x)))
             longest = max(filtered_items, key=lambda x: len(format_item(x)))
@@ -597,26 +596,20 @@ def _format_analysis_summary(
             report.append(
                 f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
             )
-        except (ValueError, TypeError):
-            pass
 
     # Paired data distances
     if (
         filtered_items
-        and isinstance(filtered_items[0], tuple)
-        and len(filtered_items[0]) >= 2
+        and all(isinstance(it, tuple) and len(it) >= 2 for it in filtered_items)
     ):
-        try:
-            distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
-            if distances:
-                min_dist = min(distances)
-                max_dist = max(distances)
-                avg_dist = sum(distances) / len(distances)
-                report.append(
-                    f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
-                )
-        except Exception:
-            pass
+        distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
+        if distances:
+            min_dist = min(distances)
+            max_dist = max(distances)
+            avg_dist = sum(distances) / len(distances)
+            report.append(
+                f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
+            )
 
     # Extra metrics
     if extra_metrics:

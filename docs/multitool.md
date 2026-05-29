@@ -184,7 +184,7 @@ These modes help you transform or combine your data.
 
 - **`scrub`**
   - **What it does:** Fixes typos in text files. It uses a mapping file or extra pairs to fix typos in your files. It tries to keep the surrounding context (punctuation, whitespace) while fixing errors.
-  - **Supported Formats:** Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.
+  - **Supported Formats:** Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats. For XML, it expects `<pair>` elements with `<left>`/`<right>` or `<typo>`/`<correction>` children.
   - **Options:**
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add teh:the`) directly on the command line.
   - **In-Place Editing:** Use the `--in-place` flag to modify files directly. If you provide an extension (for example, `--in-place .bak`), the tool will create a backup of each file before modifying it.

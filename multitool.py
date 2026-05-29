@@ -824,6 +824,29 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                     logging.error(f"Failed to parse TOML in '{input_file}': {e}")
             continue
 
+        if ext.endswith('.xml'):
+            content = "".join(_read_file_lines_robust(input_file))
+            if content.strip():
+                try:
+                    root = ET.fromstring(content)
+                    # Support standard <pair><left>...</left><right>...</right></pair> format
+                    for pair in root.findall('.//pair'):
+                        left = pair.find('left')
+                        right = pair.find('right')
+                        if left is not None and right is not None:
+                            yield left.text.strip() if left.text else "", right.text.strip() if right.text else ""
+                        else:
+                            # Also support <typo> and <correction> for compatibility
+                            typo = pair.find('typo')
+                            correction = pair.find('correction')
+                            if correction is None:
+                                correction = pair.find('correct')
+                            if typo is not None and correction is not None:
+                                yield typo.text.strip() if typo.text else "", correction.text.strip() if correction.text else ""
+                except Exception as e:
+                    logging.error(f"Failed to parse XML in '{input_file}': {e}")
+            continue
+
         # Text formats
         lines = _read_file_lines_robust(input_file)
         for line in tqdm(lines, desc=f'Processing {input_file}', unit=' lines', disable=quiet):
@@ -4420,7 +4443,7 @@ def _resolve_full_mapping(
     # 1. Load from file if provided
     if mapping_file:
         # Load mapping or list
-        if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml')):
+        if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml', '.xml')):
             full_mapping.update(dict(_extract_pairs([mapping_file], quiet=quiet)))
         else:
             # Treat as a simple list of words if not a common mapping format

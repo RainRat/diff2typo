@@ -1756,6 +1756,137 @@ def xml_mode(
     )
 
 
+def unflatten_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    key: str = "",
+    output_format: str = 'json',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Reconstructs nested structures from dot-separated key.path = value pairs.
+    """
+    start_time = time.perf_counter()
+    raw_pairs = list(_extract_pairs(input_files, quiet=quiet))
+
+    root = {}
+    path_prefix = key + "." if key else ""
+
+    filtered_paths = []
+    for p, v in raw_pairs:
+        orig_p = p
+        if key:
+            if p.startswith(path_prefix):
+                p = p[len(path_prefix):]
+            elif p == key:
+                # If it's the exact key and no sub-paths follow, it would be the root.
+                # But unflattening usually expects sub-paths. We'll skip exact key if it's just a value.
+                continue
+            else:
+                continue
+
+        # Apply cleaning and filtering to the value
+        v_processed = filter_to_letters(v) if clean_items else v
+        if not (min_length <= len(v_processed) <= max_length):
+            continue
+
+        filtered_paths.append(orig_p)
+        parts = p.split('.')
+        curr = root
+        for part in parts[:-1]:
+            if part not in curr or not isinstance(curr[part], dict):
+                curr[part] = {}
+            curr = curr[part]
+
+        curr[parts[-1]] = v_processed
+
+    def dict_to_lists(d):
+        if not isinstance(d, dict):
+            return d
+
+        new_d = {k: dict_to_lists(v) for k, v in d.items()}
+
+        if not new_d:
+            return new_d
+
+        # Check if all keys are numeric and form a continuous sequence starting at 0
+        if all(k.isdigit() for k in new_d.keys()):
+            indices = sorted(int(k) for k in new_d.keys())
+            if indices == list(range(len(indices))):
+                return [new_d[str(i)] for i in range(len(indices))]
+
+        return new_d
+
+    result_data = dict_to_lists(root)
+
+    # Resolve output format if it was defaulted to 'line'
+    if output_format == 'line':
+        output_format = 'json'
+
+    with smart_open_output(output_file) as out:
+        if output_format == 'json':
+            json.dump(result_data, out, indent=2)
+            out.write('\n')
+        elif output_format == 'yaml':
+            try:
+                import yaml
+                yaml.dump(result_data, out, default_flow_style=False, sort_keys=False)
+            except ImportError:
+                json.dump(result_data, out, indent=2)
+                out.write('\n')
+        elif output_format == 'toml':
+            if not isinstance(result_data, dict):
+                json.dump(result_data, out, indent=2)
+            else:
+                try:
+                    # Note: Using the same logic as _yield_structured_docs for toml availability
+                    if _TOMLLIB_AVAILABLE:
+                        # tomllib is read-only. We need 'toml' or similar for writing.
+                        import toml
+                        toml.dump(result_data, out)
+                    elif _TOML_AVAILABLE:
+                        import toml
+                        toml.dump(result_data, out)
+                    else:
+                        json.dump(result_data, out, indent=2)
+                except Exception:
+                    json.dump(result_data, out, indent=2)
+            out.write('\n')
+        elif output_format == 'xml':
+            def build_xml(parent, data):
+                if isinstance(data, dict):
+                    # Sort keys for deterministic XML output
+                    for k in sorted(data.keys()):
+                        v = data[k]
+                        child = ET.SubElement(parent, k)
+                        build_xml(child, v)
+                elif isinstance(data, list):
+                    for item in data:
+                        child = ET.SubElement(parent, "item")
+                        build_xml(child, item)
+                else:
+                    parent.text = str(data)
+
+            root_tag = key if key else "root"
+            xml_root = ET.Element(root_tag)
+            build_xml(xml_root, result_data)
+            xml_str = ET.tostring(xml_root, encoding='utf-8')
+            pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
+            out.write(pretty_xml)
+        else:
+            # Fallback to JSON
+            json.dump(result_data, out, indent=2)
+            out.write('\n')
+
+    print_processing_stats(len(raw_pairs), filtered_paths, item_label="path", start_time=start_time)
+    logging.info(f"[Unflatten Mode] Structure reconstructed. Output written to '{output_file}'.")
+
+
 def toml_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -5759,6 +5890,12 @@ MODE_DETAILS = {
         "example": "python multitool.py flatten config.json --output-format table",
         "flags": "[-k KEY]",
     },
+    "unflatten": {
+        "summary": "Reconstructs nested structures",
+        "description": "Transforms dot-separated 'key.path = value' pairs back into nested JSON, YAML, or TOML structures. It automatically converts numeric path segments into lists if they form a continuous sequence.",
+        "example": "python multitool.py unflatten data.txt --output-format json",
+        "flags": "[-k KEY]",
+    },
     "line": {
         "summary": "Extracts every line from a file",
         "description": "Reads every line from a file, cleans the text, and writes it to the output. Useful for simple cleaning and filtering.",
@@ -5988,7 +6125,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
-        "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -6548,6 +6685,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The key path to start flattening from (for example 'users'). If not provided, flattens from the root.",
     )
     _add_common_mode_arguments(flatten_parser)
+
+    unflatten_parser = subparsers.add_parser(
+        'unflatten',
+        help=MODE_DETAILS['unflatten']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['unflatten']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['unflatten']['example']}{RESET}",
+    )
+    unflatten_options = unflatten_parser.add_argument_group(f"{BLUE}UNFLATTEN OPTIONS{RESET}")
+    unflatten_options.add_argument(
+        '-k', '--key',
+        type=str,
+        default='',
+        help="The key path to unflatten under (for example 'users'). Only paths starting with this key will be processed, and the prefix will be removed.",
+    )
+    _add_common_mode_arguments(unflatten_parser)
 
     toml_parser = subparsers.add_parser(
         'toml',
@@ -7829,6 +7982,14 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'unflatten': (
+            unflatten_mode,
+            {
+                **common_kwargs,
+                'key': getattr(args, 'key', ''),
                 'output_format': output_format,
             },
         ),

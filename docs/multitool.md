@@ -168,6 +168,12 @@ These modes help you transform or combine your data.
   - **What it does:** Randomly reorders lines. Randomly shuffles the lines in your input files. This is useful for creating randomized test data or breaking up ordered lists.
   - **Example:** `python multitool.py shuffle wordlist.txt -o randomized.txt`
 
+- **`unflatten`**
+  - **What it does:** Reconstructs nested structures. It transforms dot-separated `key.path = value` pairs back into nested JSON, YAML, or TOML structures.
+  - **Options:** Use the `-k` (or `--key`) flag to unflatten only paths starting with a specific key and remove that prefix.
+  - **Supported Formats:** Reconstructs data into `json`, `yaml`, `toml`, and `xml` formats.
+  - **Example:** `python multitool.py unflatten data.txt --output-format json`
+
 - **`set_operation`**
   - **What it does:** Compares files using set logic. It compares two files to find shared lines (intersection), all lines (union), lines unique to the first file (difference), or lines unique to either file (symmetric_difference).
   - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation symmetric_difference`

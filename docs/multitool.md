@@ -168,6 +168,15 @@ These modes help you transform or combine your data.
   - **What it does:** Randomly reorders lines. Randomly shuffles the lines in your input files. This is useful for creating randomized test data or breaking up ordered lists.
   - **Example:** `python multitool.py shuffle wordlist.txt -o randomized.txt`
 
+- **`replace`**
+  - **What it does:** Replaces text or patterns. It performs text substitution across multiple files. It supports literal string replacement and regular expressions (including backreferences).
+  - **Options:**
+    - Use `--old` to specify the text or regular expression pattern to search for.
+    - Use `--new` to specify the replacement text.
+    - Use the `--regex` flag to treat the search pattern as a regular expression.
+    - Supports the `--in-place`, `--dry-run`, and `--diff` flags for safe file modification.
+  - **Example:** `python multitool.py replace . --old 'old-tag' --new 'new-tag' --in-place`
+
 - **`set_operation`**
   - **What it does:** Compares files using set logic. It compares two files to find shared lines (intersection), all lines (union), lines unique to the first file (difference), or lines unique to either file (symmetric_difference).
   - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation symmetric_difference`

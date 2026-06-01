@@ -5979,7 +5979,7 @@ MODE_DETAILS = {
         "summary": "Replaces items using a mapping",
         "description": "Replaces items in your list with values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
-        "flags": "[-s MAPPING] [-a K:V] [--smart-case] [-p]",
+        "flags": "[-s MAPPING] [-a K:V] [-S] [-p]",
     },
     "case": {
         "summary": "Changes word casing",
@@ -6069,7 +6069,7 @@ MODE_DETAILS = {
         "summary": "Fixes casing/spelling project-wide",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
         "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --transposition",
-        "flags": "[FILES...] [--in-place] [--dry-run] [--fuzzy N] [-kt] [--diff]",
+        "flags": "[FILES...] [-ID] [--dry-run] [--fuzzy N] [-kt]",
     },
     "search": {
         "summary": "Searches for words or patterns",
@@ -6093,7 +6093,7 @@ MODE_DETAILS = {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --diff",
-        "flags": "[FILES...] [-s MAPPING] [-a K:V] [--in-place] [--smart-case] [--diff]",
+        "flags": "[FILES...] [-s MAPPING] [-a K:V] [-ISD]",
     },
     "align": {
         "summary": "Aligns typo-correction pairs",
@@ -6105,7 +6105,7 @@ MODE_DETAILS = {
         "summary": "Batch renames files and folders",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
         "example": "python multitool.py rename src/ --add teh:the --in-place",
-        "flags": "[-s MAPPING] [-a K:V] [--in-place] [--dry-run] [--smart-case]",
+        "flags": "[-s MAPPING] [-a K:V] [-IS] [--dry-run]",
     },
     "diff": {
         "summary": "Shows differences between files",
@@ -6135,7 +6135,7 @@ MODE_DETAILS = {
         "summary": "Replaces text or patterns",
         "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). Use --old for the pattern and --new for the replacement. Supports in-place editing, dry-runs, and unified diffs.",
         "example": "python multitool.py replace . --old 'old-tag' --new 'new-tag' --in-place",
-        "flags": "--old TEXT --new TEXT [--regex] [--in-place] [--dry-run] [--diff]",
+        "flags": "--old TEXT --new TEXT [-r] [-ID] [--dry-run]",
     },
 }
 
@@ -6230,7 +6230,9 @@ def get_mode_summary_text() -> str:
     tips = [
         ("-f arrow", "Rich visual reports with bar charts and percentages"),
         ("-P", "Automatically sort results and remove duplicates"),
-        ("--in-place", "Modify files directly (for scrub, standardize, rename)"),
+        ("--in-place (-I)", "Modify files directly (scrub, standardize, rename, replace)"),
+        ("--diff (-D)", "Show unified diff of changes before applying"),
+        ("--smart-case (-S)", "Automatically match original casing"),
         ("--raw (-R)", "Keep original text (no lowercase, no cleaning)"),
         ("--limit (-L)", "Restrict the number of items in the output")
     ]
@@ -7340,7 +7342,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Output the original word along with its transformation.',
     )
     map_options.add_argument(
-        '--smart-case',
+        '-S', '--smart-case',
         action='store_true',
         help="Automatically match the casing of the original word (for example, 'TeH' -> 'The').",
     )
@@ -7390,7 +7392,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     scrub_options.add_argument(
-        '--in-place',
+        '-I', '--in-place',
         nargs='?',
         const='',
         metavar='EXT',
@@ -7402,12 +7404,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show what would be changed without modifying any files.",
     )
     scrub_options.add_argument(
-        '--smart-case',
+        '-S', '--smart-case',
         action='store_true',
         help="Automatically match the casing of the original word (for example, 'Teh' -> 'The').",
     )
     scrub_options.add_argument(
-        '--diff',
+        '-D', '--diff',
         action='store_true',
         help="Show a unified diff of the changes that would be made.",
     )
@@ -7436,7 +7438,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Extra mapping pairs (for example "teh:the") or words to match.',
     )
     rename_options.add_argument(
-        '--in-place',
+        '-I', '--in-place',
         action='store_true',
         help="Perform the actual renaming of files and directories.",
     )
@@ -7446,7 +7448,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show what would be renamed without making any changes.",
     )
     rename_options.add_argument(
-        '--smart-case',
+        '-S', '--smart-case',
         action='store_true',
         help="Automatically match the casing of the original word.",
     )
@@ -7461,7 +7463,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     standardize_options = standardize_parser.add_argument_group(f"{BLUE}STANDARDIZE OPTIONS{RESET}")
     standardize_options.add_argument(
-        '--in-place',
+        '-I', '--in-place',
         nargs='?',
         const='',
         metavar='EXT',
@@ -7495,7 +7497,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The minimum frequency ratio to consider a rare word a typo (default: 10.0).",
     )
     standardize_options.add_argument(
-        '--diff',
+        '-D', '--diff',
         action='store_true',
         help="Show a unified diff of the changes that would be made.",
     )
@@ -7737,12 +7739,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The replacement text.",
     )
     replace_options.add_argument(
-        '--regex',
+        '-r', '--regex',
         action='store_true',
         help="Treat '--old' as a regular expression.",
     )
     replace_options.add_argument(
-        '--in-place',
+        '-I', '--in-place',
         nargs='?',
         const='',
         metavar='EXT',
@@ -7754,7 +7756,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show what would be changed without modifying any files.",
     )
     replace_options.add_argument(
-        '--diff',
+        '-D', '--diff',
         action='store_true',
         help="Show a unified diff of the changes that would be made.",
     )

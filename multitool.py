@@ -86,6 +86,13 @@ def _should_enable_color(stream: TextIO) -> bool:
     return stream.isatty()
 
 
+def _get_status_colors() -> Tuple[str, str, str]:
+    """Return standardized colors for status reporting (Mode tag, Count, Reset)."""
+    if _should_enable_color(sys.stderr):
+        return BOLD + BLUE, GREEN, RESET
+    return "", "", ""
+
+
 def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
     """
     Creates a high-resolution visual bar using Unicode block characters.
@@ -4877,7 +4884,8 @@ def replace_mode(
     if not in_place and not diff:
         write_output(accumulated_lines, output_file, 'line', quiet, limit=limit)
 
-    logging.info(f"[Replace Mode] Completed. Total replacements: {total_replacements}")
+    c_tag, c_count, c_reset = _get_status_colors()
+    logging.info(f"{c_tag}[Replace Mode]{c_reset} Completed. Total replacements: {c_count}{total_replacements}{c_reset}")
 
 
 def standardize_mode(
@@ -5045,15 +5053,17 @@ def standardize_mode(
                     if not line.endswith('\n'):
                         out.write('\n')
 
+            c_tag, c_count, c_reset = _get_status_colors()
             logging.info(
-                f"[Standardize Mode] Completed standardizing {len(input_files)} file(s). "
-                f"Made {total_replacements} replacements. Output written to '{output_file}'. "
+                f"{c_tag}[Standardize Mode]{c_reset} Completed standardizing {len(input_files)} file(s). "
+                f"Made {c_count}{total_replacements}{c_reset} replacements. Output written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
         else:
+            c_tag, c_count, c_reset = _get_status_colors()
             logging.info(
-                f"[Standardize Mode] Completed standardizing {len(input_files)} file(s). "
-                f"Made {total_replacements} replacements. Diff report written to '{output_file}'. "
+                f"{c_tag}[Standardize Mode]{c_reset} Completed standardizing {len(input_files)} file(s). "
+                f"Made {c_count}{total_replacements}{c_reset} replacements. Diff report written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
     elif dry_run:
@@ -5141,15 +5151,17 @@ def scrub_mode(
                     if not line.endswith('\n'):
                         out.write('\n')
 
+            c_tag, c_count, c_reset = _get_status_colors()
             logging.info(
-                f"[Scrub Mode] Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
-                f"Made {total_replacements} replacements. Output written to '{output_file}'. "
+                f"{c_tag}[Scrub Mode]{c_reset} Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
+                f"Made {c_count}{total_replacements}{c_reset} replacements. Output written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
         else:
+            c_tag, c_count, c_reset = _get_status_colors()
             logging.info(
-                f"[Scrub Mode] Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
-                f"Made {total_replacements} replacements. Diff report written to '{output_file}'. "
+                f"{c_tag}[Scrub Mode]{c_reset} Completed fixing typos in {len(input_files)} file(s) using '{mapping_file}'. "
+                f"Made {c_count}{total_replacements}{c_reset} replacements. Diff report written to '{output_file}'. "
                 f"Processing time: {duration:.3f}s"
             )
     elif dry_run:
@@ -5220,7 +5232,8 @@ def rename_mode(
         if dry_run:
             logging.warning(f"[Dry Run] Total renames that would be made: {total_renames}")
         else:
-            logging.info(f"[Rename Mode] Successfully made {total_renames} rename(s).")
+            c_tag, c_count, c_reset = _get_status_colors()
+            logging.info(f"{c_tag}[Rename Mode]{c_reset} Successfully made {c_count}{total_renames}{c_reset} rename(s).")
     else:
         _write_paired_output(
             rename_results,
@@ -5461,14 +5474,11 @@ def scan_mode(
             out.write(line + "\n")
 
     duration = time.perf_counter() - start_time
-    # Use color for feedback if stderr is a terminal
-    c_blue = (BOLD + BLUE) if _should_enable_color(sys.stderr) else ""
-    c_green = GREEN if _should_enable_color(sys.stderr) else ""
-    c_reset = RESET if _should_enable_color(sys.stderr) else ""
+    c_tag, c_count, c_reset = _get_status_colors()
 
     logging.info(
-        f"{c_blue}[Scan Mode]{c_reset} Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
-        f"Found {c_green}{total_matches}{c_reset} match(es) in {c_green}{matched_files_count}{c_reset} of {len(input_files)} files. "
+        f"{c_tag}[Scan Mode]{c_reset} Completed scanning {len(input_files)} file(s) for items in '{mapping_file}'. "
+        f"Found {c_count}{total_matches}{c_reset} match(es) in {c_count}{matched_files_count}{c_reset} of {len(input_files)} files. "
         f"Output written to '{output_file}'. Processing time: {duration:.3f}s"
     )
 
@@ -5550,9 +5560,10 @@ def verify_mode(
             quiet,
             limit=limit
         )
+        c_tag, c_count, c_reset = _get_status_colors()
         logging.info(
-            f"[Verify Mode] Pruned mapping saved to '{output_file}'. "
-            f"Kept {found_count} of {total_keys} entries. "
+            f"{c_tag}[Verify Mode]{c_reset} Pruned mapping saved to '{output_file}'. "
+            f"Kept {c_count}{found_count}{c_reset} of {total_keys} entries. "
             f"Processing time: {duration:.3f}s"
         )
     else:
@@ -5584,8 +5595,9 @@ def verify_mode(
             for line in report:
                 out.write(line + '\n')
 
+        c_tag, c_count, c_reset = _get_status_colors()
         logging.info(
-            f"[Verify Mode] Verification complete. Found {found_count}/{total_keys} entries. "
+            f"{c_tag}[Verify Mode]{c_reset} Verification complete. Found {c_count}{found_count}/{total_keys}{c_reset} entries. "
             f"Report written to '{output_file}'. "
             f"Processing time: {duration:.3f}s"
         )

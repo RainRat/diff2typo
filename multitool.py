@@ -4969,6 +4969,14 @@ def standardize_mode(
                         fuzzy_groups[rare] = frequent
                         logging.info(f"[Fuzzy] Identified likely typo: '{rare}' ({r_count}) -> '{frequent}' ({f_count})")
 
+        for rare in list(fuzzy_groups.keys()):
+            visited = {rare}
+            frequent = fuzzy_groups[rare]
+            while frequent in fuzzy_groups and fuzzy_groups[frequent] not in visited:
+                visited.add(frequent)
+                frequent = fuzzy_groups[frequent]
+            fuzzy_groups[rare] = frequent
+
         # Build the final mapping using both casing and fuzzy logic
         for norm in norm_totals:
             target_norm = fuzzy_groups.get(norm, norm)

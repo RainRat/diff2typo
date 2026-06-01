@@ -262,20 +262,16 @@ def _format_analysis_summary(
     # Paired data distances
     if (
         filtered_items
-        and isinstance(filtered_items[0], tuple)
-        and len(filtered_items[0]) == 2
+        and all(isinstance(p, tuple) and len(p) == 2 for p in filtered_items)
     ):
-        try:
-            distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
-            if distances:
-                min_dist = min(distances)
-                max_dist = max(distances)
-                avg_dist = sum(distances) / len(distances)
-                report.append(
-                    f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
-                )
-        except Exception:
-            pass
+        distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
+        if distances:
+            min_dist = min(distances)
+            max_dist = max(distances)
+            avg_dist = sum(distances) / len(distances)
+            report.append(
+                f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
+            )
 
     # Extra metrics
     if extra_metrics:

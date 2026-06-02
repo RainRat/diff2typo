@@ -273,7 +273,7 @@ def _format_analysis_summary(
                 report.append(
                     f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
                 )
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     # Extra metrics
@@ -1200,7 +1200,7 @@ def main() -> None:
             else:
                 with open(file_path, 'rb') as f:
                     total_lines_all += sum(1 for _ in f)
-        except Exception:
+        except OSError:
             pass
 
         pairs = _extract_pairs([file_path], quiet=args.quiet)

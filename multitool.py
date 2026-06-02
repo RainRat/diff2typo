@@ -730,6 +730,76 @@ def write_output(
                 outfile.write(item + '\n')
 
 
+def _write_structured_data(
+    data: Any,
+    output_file: str,
+    output_format: str = 'json',
+    root_tag: str = "root"
+) -> None:
+    """Writes a nested data structure to a file in the specified format."""
+    with smart_open_output(output_file) as out:
+        if output_format == 'json':
+            json.dump(data, out, indent=2)
+            out.write('\n')
+        elif output_format == 'yaml':
+            try:
+                import yaml
+                yaml.dump(data, out, default_flow_style=False, sort_keys=False)
+            except ImportError:
+                json.dump(data, out, indent=2)
+                out.write('\n')
+        elif output_format == 'toml':
+            if not isinstance(data, dict):
+                json.dump(data, out, indent=2)
+            else:
+                try:
+                    if _TOMLLIB_AVAILABLE or _TOML_AVAILABLE:
+                        import toml
+                        toml.dump(data, out)
+                    else:
+                        json.dump(data, out, indent=2)
+                except Exception:
+                    json.dump(data, out, indent=2)
+            out.write('\n')
+        elif output_format == 'xml':
+            def build_xml(parent, data):
+                if isinstance(data, dict):
+                    for k in sorted(data.keys()):
+                        v = data[k]
+                        # Sanitize tag name
+                        tag = str(k)
+                        tag = re.sub(r'[^a-zA-Z0-9._-]', '_', tag)
+                        if tag and (tag[0].isdigit() or tag[0] == '-'):
+                            tag = '_' + tag
+                        if not tag:
+                            tag = "item"
+                        child = ET.SubElement(parent, tag)
+                        build_xml(child, v)
+                elif isinstance(data, list):
+                    for item in data:
+                        child = ET.SubElement(parent, "item")
+                        build_xml(child, item)
+                else:
+                    parent.text = str(data)
+
+    # Sanitize root tag
+    clean_root = re.sub(r'[^a-zA-Z0-9._-]', '_', root_tag)
+    if clean_root and (clean_root[0].isdigit() or clean_root[0] == '-'):
+        clean_root = '_' + clean_root
+    if not clean_root:
+        clean_root = "root"
+
+    xml_root = ET.Element(clean_root)
+            build_xml(xml_root, data)
+            xml_str = ET.tostring(xml_root, encoding='utf-8')
+            pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
+            out.write(pretty_xml)
+        else:
+            # Fallback to JSON for structured data
+            json.dump(data, out, indent=2)
+            out.write('\n')
+
+
 def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[Tuple[str, str]]:
     """Yield (left, right) pairs from input files, supporting multiple formats."""
     for input_file in input_files:
@@ -1301,6 +1371,22 @@ def _traverse_data(data: Any, path_parts: List[str]) -> Iterable[str]:
             yield from _traverse_data(data[current_key], path_parts[1:])
 
 
+def _get_sub_data(data: Any, parts: List[str]) -> Iterable[Any]:
+    """Recursively traverse a nested data structure to get raw sub-elements."""
+    if not parts:
+        yield data
+        return
+    curr = parts[0]
+    if isinstance(data, dict):
+        if curr in data:
+            yield from _get_sub_data(data[curr], parts[1:])
+    elif isinstance(data, list):
+        # If we encounter a list while navigating the path,
+        # we try to find the key in each item of the list.
+        for item in data:
+            yield from _get_sub_data(item, parts)
+
+
 def _flatten_data(data: Any, path: str = "") -> Iterable[Tuple[str, str]]:
     """
     Recursively flattens nested dictionaries and lists into dot-separated paths.
@@ -1778,6 +1864,57 @@ def xml_mode(
     )
 
 
+def convert_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    key: str = "",
+    output_format: str = 'json',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """
+    Converts structured data between formats (JSON, YAML, TOML, XML).
+    Supports sub-key extraction via dot notation.
+    """
+    start_time = time.perf_counter()
+    total_docs = 0
+    all_results = []
+
+    path_parts = key.split('.') if key else []
+
+    for input_file in input_files:
+        for doc in _yield_structured_docs(input_file):
+            total_docs += 1
+            for sub_doc in _get_sub_data(doc, path_parts):
+                all_results.append(sub_doc)
+
+    if not all_results:
+        logging.warning("No data found to convert.")
+        return
+
+    # If only one result and no limit or limit is 1, output the result directly
+    # Otherwise, output a list of results.
+    if len(all_results) == 1 and (limit is None or limit >= 1):
+        final_data = all_results[0]
+    else:
+        final_data = all_results
+        if limit is not None:
+            final_data = final_data[:limit]
+
+    _write_structured_data(
+        final_data,
+        output_file,
+        output_format,
+        root_tag=path_parts[-1] if path_parts else "root"
+    )
+
+    duration = time.perf_counter() - start_time
+    logging.info(
+        f"[Convert Mode] Successfully converted {len(all_results)} item(s) from {total_docs} document(s). "
+        f"Output written to '{output_file}'. Processing time: {duration:.3f}s"
+    )
+
+
 def unflatten_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -1850,60 +1987,12 @@ def unflatten_mode(
     if output_format == 'line':
         output_format = 'json'
 
-    with smart_open_output(output_file) as out:
-        if output_format == 'json':
-            json.dump(result_data, out, indent=2)
-            out.write('\n')
-        elif output_format == 'yaml':
-            try:
-                import yaml
-                yaml.dump(result_data, out, default_flow_style=False, sort_keys=False)
-            except ImportError:
-                json.dump(result_data, out, indent=2)
-                out.write('\n')
-        elif output_format == 'toml':
-            if not isinstance(result_data, dict):
-                json.dump(result_data, out, indent=2)
-            else:
-                try:
-                    # Note: Using the same logic as _yield_structured_docs for toml availability
-                    if _TOMLLIB_AVAILABLE:
-                        # tomllib is read-only. We need 'toml' or similar for writing.
-                        import toml
-                        toml.dump(result_data, out)
-                    elif _TOML_AVAILABLE:
-                        import toml
-                        toml.dump(result_data, out)
-                    else:
-                        json.dump(result_data, out, indent=2)
-                except Exception:
-                    json.dump(result_data, out, indent=2)
-            out.write('\n')
-        elif output_format == 'xml':
-            def build_xml(parent, data):
-                if isinstance(data, dict):
-                    # Sort keys for deterministic XML output
-                    for k in sorted(data.keys()):
-                        v = data[k]
-                        child = ET.SubElement(parent, k)
-                        build_xml(child, v)
-                elif isinstance(data, list):
-                    for item in data:
-                        child = ET.SubElement(parent, "item")
-                        build_xml(child, item)
-                else:
-                    parent.text = str(data)
-
-            root_tag = key if key else "root"
-            xml_root = ET.Element(root_tag)
-            build_xml(xml_root, result_data)
-            xml_str = ET.tostring(xml_root, encoding='utf-8')
-            pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
-            out.write(pretty_xml)
-        else:
-            # Fallback to JSON
-            json.dump(result_data, out, indent=2)
-            out.write('\n')
+    _write_structured_data(
+        result_data,
+        output_file,
+        output_format,
+        root_tag=key if key else "root"
+    )
 
     print_processing_stats(len(raw_pairs), filtered_paths, item_label="path", start_time=start_time)
     logging.info(f"[Unflatten Mode] Structure reconstructed. Output written to '{output_file}'.")
@@ -4635,24 +4724,10 @@ def flatten_mode(
 
     path_parts = key.split('.') if key else []
 
-    def get_sub_data(data: Any, parts: List[str]) -> Iterable[Any]:
-        if not parts:
-            yield data
-            return
-        curr = parts[0]
-        if isinstance(data, dict):
-            if curr in data:
-                yield from get_sub_data(data[curr], parts[1:])
-        elif isinstance(data, list):
-            # If we encounter a list while navigating the path,
-            # we try to find the key in each item of the list.
-            for item in data:
-                yield from get_sub_data(item, parts)
-
     for input_file in input_files:
         for doc in _yield_structured_docs(input_file):
             raw_item_count += 1
-            for sub_doc in get_sub_data(doc, path_parts):
+            for sub_doc in _get_sub_data(doc, path_parts):
                 for p, v in _flatten_data(sub_doc):
                     # Apply cleaning and filtering to the value
                     v_processed = filter_to_letters(v) if clean_items else v
@@ -5918,6 +5993,12 @@ MODE_DETAILS = {
         "example": "python multitool.py unflatten data.txt --output-format json",
         "flags": "[-k KEY]",
     },
+    "convert": {
+        "summary": "Converts between structured formats",
+        "description": "Transforms structured data between JSON, YAML, TOML, and XML. It preserves nested structures and supports extracting sub-keys using dot notation (for example, 'metadata.tags').",
+        "example": "python multitool.py convert input.json --key 'items' --output-format yaml",
+        "flags": "[-k KEY]",
+    },
     "line": {
         "summary": "Extracts every line from a file",
         "description": "Reads every line from a file, cleans the text, and writes it to the output. Useful for simple cleaning and filtering.",
@@ -6147,7 +6228,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
-        "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
@@ -6725,6 +6806,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The key path to unflatten under (for example 'users'). Only paths starting with this key will be processed, and the prefix will be removed.",
     )
     _add_common_mode_arguments(unflatten_parser)
+
+    convert_parser = subparsers.add_parser(
+        'convert',
+        help=MODE_DETAILS['convert']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['convert']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['convert']['example']}{RESET}",
+    )
+    convert_options = convert_parser.add_argument_group(f"{BLUE}CONVERT OPTIONS{RESET}")
+    convert_options.add_argument(
+        '-k', '--key',
+        type=str,
+        default='',
+        help="The key path to extract (for example 'metadata.items'). If not provided, converts the entire document.",
+    )
+    _add_common_mode_arguments(convert_parser, include_process_output=False)
 
     toml_parser = subparsers.add_parser(
         'toml',
@@ -8007,6 +8104,17 @@ def main() -> None:
                 **common_kwargs,
                 'right_side': right_side,
                 'output_format': output_format,
+            },
+        ),
+        'convert': (
+            convert_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'key': getattr(args, 'key', ''),
+                'output_format': output_format,
+                'quiet': args.quiet,
+                'limit': limit,
             },
         ),
         'unflatten': (

@@ -6092,7 +6092,7 @@ MODE_DETAILS = {
         "summary": "Fixes casing/spelling project-wide",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
         "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --transposition",
-        "flags": "[FILES...] [-ID] [--dry-run] [--fuzzy N] [-kt]",
+        "flags": "[FILES...] [-I EXT] [-D] [--dry-run] [--fuzzy N] [-kt]",
     },
     "search": {
         "summary": "Searches for words or patterns",
@@ -6116,7 +6116,7 @@ MODE_DETAILS = {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --diff",
-        "flags": "[FILES...] [-s MAPPING] [-a K:V] [-ISD]",
+        "flags": "[FILES...] [-s MAPPING] [-a K:V] [-I EXT] [-SD]",
     },
     "align": {
         "summary": "Aligns typo-correction pairs",
@@ -6156,9 +6156,9 @@ MODE_DETAILS = {
     },
     "replace": {
         "summary": "Replaces text or patterns",
-        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). Use --old for the pattern and --new for the replacement. Supports in-place editing, dry-runs, and unified diffs.",
-        "example": "python multitool.py replace . --old 'old-tag' --new 'new-tag' --in-place",
-        "flags": "--old TEXT --new TEXT [-r] [-ID] [--dry-run]",
+        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs.",
+        "example": "python multitool.py replace 'old-tag' 'new-tag' . --in-place",
+        "flags": "[OLD] [NEW] [FILES...] [-r] [-I EXT] [-D] [--dry-run]",
     },
 }
 
@@ -7753,12 +7753,10 @@ def _build_parser() -> argparse.ArgumentParser:
     replace_options = replace_parser.add_argument_group(f"{BLUE}REPLACE OPTIONS{RESET}")
     replace_options.add_argument(
         '--old',
-        required=True,
         help="The text or regex pattern to search for.",
     )
     replace_options.add_argument(
         '--new',
-        required=True,
         help="The replacement text.",
     )
     replace_options.add_argument(
@@ -7970,6 +7968,18 @@ def main() -> None:
                 # Use the only positional argument as the query and read input from stdin.
                 args.query = input_paths[0]
                 args.input = ['-']
+    elif args.mode == 'replace':
+        if getattr(args, 'old', None) is None:
+            if len(input_paths) >= 3:
+                # Use the first two positional arguments as old and new strings.
+                args.old = input_paths.pop(0)
+                args.new = input_paths.pop(0)
+                args.input = input_paths
+            elif len(input_paths) == 2 and input_paths[0] != '-':
+                # Use both positional arguments and read from stdin.
+                args.old = input_paths.pop(0)
+                args.new = input_paths.pop(0)
+                args.input = ['-']
 
     file2 = getattr(args, 'file2', None)
     # Check for missing secondary files after fallback attempt
@@ -7979,6 +7989,9 @@ def main() -> None:
     if args.mode in {'map', 'scrub', 'rename', 'highlight', 'scan', 'verify'} and \
        getattr(args, 'mapping', None) is None and not getattr(args, 'ad_hoc', None):
         logging.error(f"{args.mode.capitalize()} mode requires a mapping file or extra pairs (use --mapping or --add).")
+        sys.exit(1)
+    if args.mode == 'replace' and (getattr(args, 'old', None) is None or getattr(args, 'new', None) is None):
+        logging.error("Replace mode requires both OLD and NEW text (provide positionally or use --old/--new flags).")
         sys.exit(1)
     if args.mode == 'search' and getattr(args, 'query', None) is None:
         logging.error("Search mode requires a search query (provide QUERY positionally or use --query).")
@@ -8373,8 +8386,8 @@ def main() -> None:
             replace_mode,
             {
                 'input_files': args.input,
-                'old_text': getattr(args, 'old', ''),
-                'new_text': getattr(args, 'new', ''),
+                'old_text': getattr(args, 'old', '') or '',
+                'new_text': getattr(args, 'new', '') or '',
                 'output_file': args.output,
                 'quiet': args.quiet,
                 'in_place': getattr(args, 'in_place', None),

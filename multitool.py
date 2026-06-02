@@ -1892,7 +1892,14 @@ def unflatten_mode(
                     # Sort keys for deterministic XML output
                     for k in sorted(data.keys()):
                         v = data[k]
-                        child = ET.SubElement(parent, k)
+                        # Ensure tag name is valid (cannot start with digit)
+                        tag = k
+                        if not tag or not (tag[0].isalpha() or tag[0] == '_'):
+                            tag = "_" + tag
+                        # Further sanitize tag: replace invalid chars with underscore
+                        tag = re.sub(r'[^a-zA-Z0-9._-]', '_', tag)
+
+                        child = ET.SubElement(parent, tag)
                         build_xml(child, v)
                 elif isinstance(data, list):
                     for item in data:

@@ -19,6 +19,17 @@ python multitool.py help count  # Show details for 'count' mode
 
 Most modes default to reading from **standard input** if you do not specify an input file. This makes it easy to send data from other commands into Multitool.
 
+### Input Files and Directories
+
+You can provide one or more files or directories as input. If you provide a directory, Multitool will automatically find and process every file inside it recursively.
+
+To keep things fast and clean, the tool automatically ignores common system and environment folders, including:
+- **`.git`**
+- **`node_modules`**
+- **`venv`** and **`.venv`**
+- **`__pycache__`**
+- **`dist`** and **`build`**
+
 ## Modes
 
 Multitool operates in different "modes," each designed for a specific task.

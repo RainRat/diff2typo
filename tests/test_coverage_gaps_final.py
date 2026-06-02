@@ -85,7 +85,7 @@ def test_generate_report_distance_failure():
     """Test _format_analysis_summary distance calculation failure."""
     # line 187: distances = [levenshtein_distance(str(p[0]), str(p[1])) for p in filtered_items]
 
-    with patch('typostats.levenshtein_distance', side_effect=Exception("Levenshtein failed")):
+    with patch('typostats.levenshtein_distance', side_effect=ValueError("Levenshtein failed")):
         # Must be a tuple of length 2 to enter the distance block
         lines = typostats._format_analysis_summary(1, [('a', 'b')], use_color=False)
     assert any("ANALYSIS SUMMARY" in line for line in lines)

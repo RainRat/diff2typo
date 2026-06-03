@@ -948,13 +948,7 @@ def main():
     # If the file is missing, we don't exit. Instead we just warn and continue without filtering.
     large_dictionary_mapping = read_words_mapping(args.dictionary_file, required=False)
 
-    try:
-        allowed_words = read_allowed_words(args.allowed_file)
-    except Exception as exc:
-        logging.error(
-            "Failed to read allowed words file '%s': %s", args.allowed_file, exc
-        )
-        sys.exit(1)
+    allowed_words = read_allowed_words(args.allowed_file)
     # Build a set of words for the large dictionary. For simple word lists, every
     # entry is treated as correct. For words.csv files, only the corrections
     # (columns after the first) are considered correct words.

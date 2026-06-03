@@ -3911,6 +3911,7 @@ def search_mode(
     with_filename: bool | None = None,
     before_context: int = 0,
     after_context: int = 0,
+    ignore_case: bool = True,
 ) -> None:
     """
     Searches for words or patterns in text files, supporting similar word matching and smart subword detection.
@@ -3918,7 +3919,7 @@ def search_mode(
     start_time = time.perf_counter()
     total_matches = 0
     matched_files_count = 0
-    query_clean = filter_to_letters(query) if clean_items else query.lower()
+    query_clean = filter_to_letters(query) if clean_items else (query.lower() if ignore_case else query)
     adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
 
     max_dist = _ensure_min_dist(max_dist, keyboard, transposition)
@@ -3936,7 +3937,7 @@ def search_mode(
     query_parts_clean = (
         [filter_to_letters(p) for p in query_parts]
         if clean_items
-        else [p.lower() for p in query_parts]
+        else [(p.lower() if ignore_case else p) for p in query_parts]
     )
 
     accumulated_lines = []
@@ -3949,7 +3950,8 @@ def search_mode(
         show_filename = len(input_files) > 1
 
     # Pre-compile patterns outside the loop for better performance
-    lit_pattern = re.compile(re.escape(query), re.IGNORECASE)
+    flags = re.IGNORECASE if ignore_case else 0
+    lit_pattern = re.compile(re.escape(query), flags)
     word_pattern = re.compile(r"([a-zA-Z0-9]+)")
     query_len = len(query_clean) if clean_items else len(query)
     apply_literal_match = min_length <= query_len <= max_length
@@ -3984,7 +3986,7 @@ def search_mode(
                 word = m_word.group(0)
                 word_start, word_end = m_word.span()
 
-                word_clean = filter_to_letters(word) if clean_items else word.lower()
+                word_clean = filter_to_letters(word) if clean_items else (word.lower() if ignore_case else word)
                 if not word_clean:
                     continue
 
@@ -4022,7 +4024,7 @@ def search_mode(
                 elif smart:
                     sub_parts = _smart_split(word)
                     for sp in sub_parts:
-                        sp_clean = filter_to_letters(sp) if clean_items else sp.lower()
+                        sp_clean = filter_to_letters(sp) if clean_items else (sp.lower() if ignore_case else sp)
                         if not sp_clean:
                             continue
 
@@ -4896,6 +4898,8 @@ def replace_mode(
     use_regex: bool = False,
     diff: bool = False,
     limit: int | None = None,
+    ignore_case: bool = False,
+    smart_case: bool = False,
 ) -> None:
     """
     Replaces occurrences of a string or regex pattern in text files.
@@ -4905,11 +4909,13 @@ def replace_mode(
 
     # Compile regex if needed
     regex = None
-    if use_regex:
+    if use_regex or ignore_case or smart_case:
+        flags = re.IGNORECASE if ignore_case else 0
+        pattern_str = old_text if use_regex else re.escape(old_text)
         try:
-            regex = re.compile(old_text)
+            regex = re.compile(pattern_str, flags=flags)
         except re.error as e:
-            logging.error(f"Invalid regular expression '{old_text}': {e}")
+            logging.error(f"Invalid regular expression '{pattern_str}': {e}")
             sys.exit(1)
 
     accumulated_lines = []
@@ -4929,8 +4935,15 @@ def replace_mode(
                 line_content = line.rstrip('\n')
                 ending = line[len(line_content):]
 
-                if use_regex:
-                    new_line, n = regex.subn(new_text, line_content)
+                if regex:
+                    if smart_case:
+                        def smart_replace(match):
+                            # Expand backreferences if any
+                            expanded = match.expand(new_text)
+                            return _apply_smart_case(match.group(0), expanded)
+                        new_line, n = regex.subn(smart_replace, line_content)
+                    else:
+                        new_line, n = regex.subn(new_text, line_content)
                 else:
                     n = line_content.count(old_text)
                     new_line = line_content.replace(old_text, new_text)
@@ -6175,7 +6188,7 @@ MODE_DETAILS = {
     },
     "search": {
         "summary": "Searches for words or patterns",
-        "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.",
+        "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports case-insensitive searching, highlighting, line numbers, and context lines.",
         "example": "python multitool.py search 'teh' report.txt --keyboard --line-numbers",
         "flags": "[QUERY] [FILES...] [-Sktn] [-B/A/C N]",
     },
@@ -6235,9 +6248,9 @@ MODE_DETAILS = {
     },
     "replace": {
         "summary": "Replaces text or patterns",
-        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs.",
+        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). It also supports case-insensitive matching and smart-casing to preserve capitalization. You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs.",
         "example": "python multitool.py replace 'old-tag' 'new-tag' . --in-place",
-        "flags": "[OLD] [NEW] [FILES...] [-r] [-I EXT] [-D] [--dry-run]",
+        "flags": "[OLD] [NEW] [FILES...] [-rSI] [-D] [--dry-run]",
     },
 }
 
@@ -7274,6 +7287,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Only include matches likely caused by swapping two adjacent letters.",
     )
     search_options.add_argument(
+        '--ignore-case',
+        action='store_true',
+        default=True,
+        help="Perform a case-insensitive search (default: True).",
+    )
+    search_options.add_argument(
+        '--no-ignore-case',
+        dest='ignore_case',
+        action='store_false',
+        help="Perform a case-sensitive search.",
+    )
+    search_options.add_argument(
         '-n', '--line-numbers',
         action='store_true',
         help="Show line numbers in the search results.",
@@ -7860,6 +7885,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Treat '--old' as a regular expression.",
     )
     replace_options.add_argument(
+        '--ignore-case',
+        action='store_true',
+        help="Perform case-insensitive matching.",
+    )
+    replace_options.add_argument(
+        '-S', '--smart-case',
+        action='store_true',
+        help="Match the capitalization of the original word in the replacement.",
+    )
+    replace_options.add_argument(
         '-I', '--in-place',
         nargs='?',
         const='',
@@ -8389,6 +8424,7 @@ def main() -> None:
                 'with_filename': getattr(args, 'with_filename', None),
                 'before_context': before_context,
                 'after_context': after_context,
+                'ignore_case': getattr(args, 'ignore_case', True),
             }
         ),
         'unique': (
@@ -8501,6 +8537,8 @@ def main() -> None:
                 'use_regex': getattr(args, 'regex', False),
                 'diff': getattr(args, 'diff', False),
                 'limit': limit,
+                'ignore_case': getattr(args, 'ignore_case', False),
+                'smart_case': getattr(args, 'smart_case', False),
             }
         ),
         'scrub': (

@@ -177,6 +177,6 @@ def test_rename_mode_dry_run(tmp_path, caplog):
 
     with caplog.at_level(logging.WARNING):
         multitool.rename_mode([str(f)], None, "-", 1, 100, False, in_place=True, dry_run=True, quiet=True, ad_hoc=["test:new"])
-    assert "[Dry Run] Would rename" in caplog.text
+    assert "[Dry Run] Total renames that would be made: 1" in caplog.text
     assert f.exists()
     assert not (tmp_path / "new.txt").exists()

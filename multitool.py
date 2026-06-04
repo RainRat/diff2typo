@@ -661,14 +661,17 @@ def print_processing_stats(
 
 
 @contextlib.contextmanager
-def smart_open_output(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
+def smart_open_output(filename: Any, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
     """
     Context manager that yields a file object for writing.
     If filename is '-', yields the main output (the screen).
+    If filename has a .write attribute, yields it directly.
     Otherwise, opens the file for writing.
     """
     if filename == '-':
         yield sys.stdout
+    elif hasattr(filename, 'write'):
+        yield filename
     else:
         with open(filename, 'w', encoding=encoding, newline=newline) as f:
             yield f
@@ -1072,9 +1075,9 @@ def _write_paired_output(
     elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery", "Map", "Resolve"):
         left_header = "Typo"
         right_header = "Correction"
-    elif mode_label == "Rename":
+    elif mode_label in ("Rename", "Standardize"):
         left_header = "Original"
-        right_header = "New Name"
+        right_header = "Standardized" if mode_label == "Standardize" else "New Name"
     elif mode_label == "NearDuplicates":
         left_header = "Word 1"
         right_header = "Word 2"
@@ -1193,8 +1196,10 @@ def _write_paired_output(
                             c_attr = c_red
                         elif any(tag in attr for tag in ("[Ins]", "[1:2]")):
                             c_attr = c_green
-                        elif any(tag in attr for tag in ("[R]", "[M]")):
+                        elif any(tag in attr for tag in ("[R]", "[M]", "[Spelling]")):
                             c_attr = c_yellow
+                        elif "[Casing]" in attr:
+                            c_attr = c_cyan
 
                         row += f" {sep} {c_attr}{attr:<{max_attr}}{c_reset}"
                     out_file.write(row + "\n")
@@ -1220,9 +1225,11 @@ def _write_paired_output(
                 val = f"{right} {attr}".strip()
                 out_file.write(f"{left} -> {val}\n")
 
-    logging.info(
-        f"[{mode_label} Mode] Processed {len(pairs_list)} pairs. Output written to '{output_file}' in {output_format} format."
-    )
+    if not quiet:
+        dest = "stream" if hasattr(output_file, 'write') else f"'{output_file}'"
+        logging.info(
+            f"[{mode_label} Mode] Processed {len(pairs_list)} pairs. Output written to {dest} in {output_format} format."
+        )
 
 
 def _process_items(
@@ -5064,9 +5071,15 @@ def standardize_mode(
             winner = norm_winners[target_norm]
 
             # If norm was a rare word that was fuzzy-mapped, or it has casing variations
-            if norm in fuzzy_groups or len(variation_counts[norm]) > 1:
-                # Double check that we aren't mapping a word to itself identically
-                # (Can happen if casing winner matches common variation of rare word by chance)
+            # We also check if the winners are different.
+            if norm in fuzzy_groups:
+                # Spelling correction: winner of rare word (or the word itself) -> winner of target
+                # We need the most common variation of the rare word for the 'before' part of the rule.
+                # But mapping works on the normalized key.
+                mapping[norm] = winner
+            elif len(variation_counts[norm]) > 1:
+                # Casing correction within the same normalized word
+                # If target_norm is norm, then winner is norm_winners[norm].
                 if norm not in variation_counts[norm] or variation_counts[norm][norm] < norm_totals[norm] or norm != winner:
                     mapping[norm] = winner
     else:
@@ -5081,6 +5094,37 @@ def standardize_mode(
         # But if in-place, we can exit early.
         if in_place is not None:
             return
+    else:
+        # Pass 2c: Display the standardization rules
+        rules_to_show = []
+        # Group fuzzy_groups' final resolved values
+        resolved_fuzzy = {}
+        if effective_fuzzy > 0:
+            for rare in fuzzy_groups:
+                resolved_fuzzy[rare] = fuzzy_groups[rare]
+
+        for norm in sorted(mapping.keys()):
+            winner = mapping[norm]
+            attr = "[Spelling]" if norm in resolved_fuzzy else "[Casing]"
+            rules_to_show.append((norm, winner, attr))
+
+        if not quiet:
+            # We determine color availability for stderr to keep logs consistent
+            use_color = _should_enable_color(sys.stderr)
+            c_bold = BOLD if use_color else ""
+            c_blue = BLUE if use_color else ""
+            c_reset = RESET if use_color else ""
+
+            sys.stderr.write(f"\n  {c_bold}{c_blue}STANDARDIZATION RULES{c_reset}\n")
+            sys.stderr.write(f"  {c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}\n")
+
+            _write_paired_output(
+                rules_to_show,
+                sys.stderr,
+                'arrow',
+                'Standardize',
+                quiet=True # Suppress the "Processed N pairs" log for this internal report
+            )
 
     # Pass 3: Transformation
     total_replacements = 0
@@ -5302,14 +5346,32 @@ def rename_mode(
             if in_place and not dry_run:
                 try:
                     os.rename(path, new_path)
-                    logging.info(f"Renamed '{path}' to '{new_path}'")
                 except Exception as e:
                     logging.error(f"Failed to rename '{path}' to '{new_path}': {e}")
                     sys.exit(1)
-            elif dry_run:
-                logging.warning(f"[Dry Run] Would rename '{path}' to '{new_path}'")
 
-    if in_place:
+    if in_place or dry_run:
+        if not quiet:
+            use_color = _should_enable_color(sys.stderr)
+            c_bold = BOLD if use_color else ""
+            c_blue = BLUE if use_color else ""
+            c_reset = RESET if use_color else ""
+
+            title = "RENAME SUMMARY"
+            if dry_run:
+                title += " (DRY RUN)"
+
+            sys.stderr.write(f"\n  {c_bold}{c_blue}{title}{c_reset}\n")
+            sys.stderr.write(f"  {c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}\n")
+
+            _write_paired_output(
+                rename_results,
+                sys.stderr,
+                'arrow',
+                'Rename',
+                quiet=True # Suppress processing log for this internal report
+            )
+
         if dry_run:
             logging.warning(f"[Dry Run] Total renames that would be made: {total_renames}")
         else:

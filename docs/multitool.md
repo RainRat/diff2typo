@@ -190,8 +190,10 @@ Use these modes to transform or combine your data.
   - **Options:**
     - Use `--old` for the search pattern and `--new` for the replacement.
     - Use the `--regex` flag to treat the pattern as a regular expression.
+    - Use the `--ignore-case` flag for case-insensitive matching.
+    - Use the `--smart-case` (or `-S`) flag to automatically match the original casing pattern (for example, `Teh` -> `The`).
     - Supports `--in-place`, `--dry-run`, and `--diff` flags.
-  - **Example:** `python multitool.py replace . --old 'old-tag' --new 'new-tag' --in-place`
+  - **Example:** `python multitool.py replace . --old 'the' --new 'that' --smart-case --in-place`
 
 - **`set_operation`**
   - Compares two files using set logic: `intersection`, `union`, `difference`, or `symmetric_difference`.

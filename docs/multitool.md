@@ -185,6 +185,11 @@ Use these modes to transform or combine your data.
   - **Supported Formats:** `json`, `yaml`, `toml`, and `xml`.
   - **Example:** `python multitool.py unflatten data.txt --output-format json`
 
+- **`convert`**
+  - Transforms structured data between JSON, YAML, TOML, and XML while preserving nested structures. It supports extracting sub-keys using dot notation (for example, `metadata.items`).
+  - **Options:** Use the `-k` (or `--key`) flag to set an optional starting path.
+  - **Example:** `python multitool.py convert input.json --key 'items' --output-format yaml`
+
 - **`replace`**
   - Performs text substitution across multiple files using literal strings or regular expressions.
   - **Options:**

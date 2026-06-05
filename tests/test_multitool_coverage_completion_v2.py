@@ -25,8 +25,10 @@ def test_format_analysis_summary_item_error_handling():
     assert "Longest item" not in full_report
 
 def test_format_analysis_summary_distance_calculation_error_handling():
+    # Update to test that only expected errors (ValueError, TypeError) are caught.
+    # Broad Exceptions should now propagate.
     with patch("multitool.levenshtein_distance") as mock_lev:
-        mock_lev.side_effect = Exception("Levenshtein failed")
+        mock_lev.side_effect = ValueError("Expected failure")
 
         report = multitool._format_analysis_summary(2, [("a", "b")], "item", None, False)
         assert "Min/Max/Avg changes" not in "".join(report)

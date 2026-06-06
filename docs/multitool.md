@@ -188,10 +188,10 @@ Use these modes to transform or combine your data.
 - **`replace`**
   - Performs text substitution across multiple files using literal strings or regular expressions.
   - **Options:**
-    - Use `--old` for the search pattern and `--new` for the replacement.
-    - Use the `--regex` flag to treat the pattern as a regular expression.
-    - Supports `--in-place`, `--dry-run`, and `--diff` flags.
-  - **Example:** `python multitool.py replace . --old 'old-tag' --new 'new-tag' --in-place`
+    - Provide the **`OLD`** pattern and **`NEW`** text as positional arguments or use the `--old` and `--new` flags.
+    - Use the `--regex` (or **`-r`**) flag to treat the pattern as a regular expression.
+    - Supports `--in-place` (or **`-I`**), `--dry-run`, and `--diff` (or **`-D`**) flags.
+  - **Example:** `python multitool.py replace 'old-tag' 'new-tag' . --in-place`
 
 - **`set_operation`**
   - Compares two files using set logic: `intersection`, `union`, `difference`, or `symmetric_difference`.
@@ -348,11 +348,11 @@ Use these modes to analyze your data.
 These options work with most modes:
 
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input** if not provided.
-- `--output`: The file to write results to. Defaults to printing to the screen.
-- `--output-format`: The format of the output. Options include `line` (default), `json`, `yaml`, `toml`, `csv`, `markdown`, `md-table`, `arrow`, `table`, and `xml`. The tool automatically detects the format from the output file extension.
-- `--min-length`: Skip items shorter than this length (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').
-- `--max-length`: Skip words longer than this length (default: 1000).
-- `--process-output`: Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
-- `--limit`, `-L`: Limit the number of items in the output.
-- `--raw`: Keep punctuation and capitalization. By default, most tools convert everything to lowercase and remove all characters except for lowercase **a through z**. Use this flag if you need to preserve numbers, punctuation, or capitalization.
-- `--quiet`: Hide progress bars and status messages.
+- `--output` (or **`-o`**): The file to write results to. Defaults to printing to the screen.
+- `--output-format` (or **`-f`**): The format of the output. Options include `line` (default), `json`, `yaml`, `toml`, `csv`, `markdown`, `md-table`, `arrow`, `table`, and `xml`. The tool automatically detects the format from the output file extension.
+- `--min-length` (or **`-m`**): Skip items shorter than this length (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').
+- `--max-length` (or **`-M`**): Skip words longer than this length (default: 1000).
+- `--process-output` (or **`-P`**): Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
+- `--limit` (or **`-L`**): Limit the number of items in the output.
+- `--raw` (or **`-R`**): Keep punctuation and capitalization. By default, most tools convert everything to lowercase and remove all characters except for lowercase **a through z**. Use this flag if you need to preserve numbers, punctuation, or capitalization.
+- `--quiet` (or **`-q`**): Hide progress bars and status messages.

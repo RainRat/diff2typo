@@ -171,12 +171,12 @@ def test_rename_mode_exception(tmp_path, caplog):
     assert "Failed to rename" in caplog.text
 
 def test_rename_mode_dry_run(tmp_path, caplog):
-    # Covers multitool.py:5068
+    # Covers multitool.py:5068 (updated line)
     f = tmp_path / "test.txt"
     f.write_text("content")
 
     with caplog.at_level(logging.WARNING):
         multitool.rename_mode([str(f)], None, "-", 1, 100, False, in_place=True, dry_run=True, quiet=True, ad_hoc=["test:new"])
-    assert "[Dry Run] Would rename" in caplog.text
+    assert "[Dry Run] Total renames that would be made: 1" in caplog.text
     assert f.exists()
     assert not (tmp_path / "new.txt").exists()

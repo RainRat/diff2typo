@@ -25,9 +25,9 @@ def test_rename_basic_file(temp_dir):
     # Run rename mode (dry run)
     test_args = ["multitool.py", "rename", file_path, "--mapping", mapping_path, "--dry-run"]
     with patch.object(sys, 'argv', test_args):
-        with patch('sys.stdout', new_callable=pytest.importorskip('io').StringIO) as mock_stdout:
+        with patch('sys.stderr', new_callable=pytest.importorskip('io').StringIO) as mock_stderr:
             main()
-            output = mock_stdout.getvalue()
+            output = mock_stderr.getvalue()
             assert "teh_file.txt" in output and "the_file.txt" in output
             assert "Original" in output and "New Name" in output
 

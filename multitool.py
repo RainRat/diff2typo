@@ -661,14 +661,17 @@ def print_processing_stats(
 
 
 @contextlib.contextmanager
-def smart_open_output(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
+def smart_open_output(filename: Any, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
     """
     Context manager that yields a file object for writing.
     If filename is '-', yields the main output (the screen).
+    If filename has a 'write' attribute, yields it directly.
     Otherwise, opens the file for writing.
     """
     if filename == '-':
         yield sys.stdout
+    elif hasattr(filename, 'write'):
+        yield filename
     else:
         with open(filename, 'w', encoding=encoding, newline=newline) as f:
             yield f
@@ -1189,7 +1192,7 @@ def _write_paired_output(
                         c_attr = c_cyan
                         if "[T]" in attr:
                             c_attr = c_magenta
-                        elif any(tag in attr for tag in ("[Del]", "[2:1]")):
+                        elif any(tag in attr for tag in ("[Del]", "[2:1]", "[Collision]")):
                             c_attr = c_red
                         elif any(tag in attr for tag in ("[Ins]", "[1:2]")):
                             c_attr = c_green
@@ -1220,8 +1223,9 @@ def _write_paired_output(
                 val = f"{right} {attr}".strip()
                 out_file.write(f"{left} -> {val}\n")
 
+    dest_name = output_file if isinstance(output_file, str) else 'stream'
     logging.info(
-        f"[{mode_label} Mode] Processed {len(pairs_list)} pairs. Output written to '{output_file}' in {output_format} format."
+        f"[{mode_label} Mode] Processed {len(pairs_list)} pairs. Output written to '{dest_name}' in {output_format} format."
     )
 
 
@@ -5281,9 +5285,10 @@ def rename_mode(
     # Sort by depth descending.
     sorted_paths = sorted(unique_paths, key=lambda p: (len(p.split(os.sep)), len(p)), reverse=True)
 
-    rename_results = []
+    planned_renames = []
+    target_counts = Counter()
 
-    for path in tqdm(sorted_paths, desc="Processing renames", disable=quiet):
+    for path in sorted_paths:
         if not os.path.exists(path):
             continue
 
@@ -5295,37 +5300,72 @@ def rename_mode(
         )
 
         if replacements > 0 and new_basename != basename:
-            new_path = os.path.join(dirname, new_basename)
-            rename_results.append((path, new_path))
+            new_path = os.path.normpath(os.path.join(dirname, new_basename))
+            planned_renames.append((path, new_path))
+            target_counts[new_path] += 1
+
+    # Detect collisions and prepare results with attributes
+    rename_results = []
+    for path, new_path in planned_renames:
+        attr = ""
+        # Collision: multiple files mapping to the same target
+        if target_counts[new_path] > 1:
+            attr = "[Collision]"
+        # Collision: target already exists and is not the source
+        elif os.path.exists(new_path) and new_path != path:
+            attr = "[Collision]"
+
+        rename_results.append((path, new_path, attr))
+        if not attr:
             total_renames += 1
 
-            if in_place and not dry_run:
-                try:
-                    os.rename(path, new_path)
-                    logging.info(f"Renamed '{path}' to '{new_path}'")
-                except Exception as e:
-                    logging.error(f"Failed to rename '{path}' to '{new_path}': {e}")
-                    sys.exit(1)
-            elif dry_run:
-                logging.warning(f"[Dry Run] Would rename '{path}' to '{new_path}'")
-
-    if in_place:
-        if dry_run:
-            logging.warning(f"[Dry Run] Total renames that would be made: {total_renames}")
-        else:
-            c_tag, c_count, c_reset = _get_status_colors()
-            logging.info(f"{c_tag}[Rename Mode]{c_reset} Successfully made {c_count}{total_renames}{c_reset} rename(s).")
-    else:
+    # Display consolidated summary table if not quiet
+    if not quiet and rename_results:
+        # If performing changes, write the summary to stderr to keep stdout clean for piped data.
+        # This provides a rich "RENAME SUMMARY" even in destructive modes.
+        summary_dest = sys.stderr if (in_place or dry_run) else output_file
         _write_paired_output(
             rename_results,
-            output_file,
+            summary_dest,
             'arrow',
             'Rename',
-            quiet,
+            quiet=False,
             limit=limit
         )
 
-    # For stats, use the paths as the items
+    if in_place and not dry_run:
+        # Second pass: execute renames
+        success_count = 0
+        collision_count = sum(1 for r in rename_results if r[2] == "[Collision]")
+        execute_list = [r for r in rename_results if r[2] != "[Collision]"]
+
+        if execute_list:
+            pbar = tqdm(execute_list, desc="Executing renames", disable=quiet or len(execute_list) < 5)
+            for path, new_path, _ in pbar:
+                try:
+                    os.rename(path, new_path)
+                    success_count += 1
+                except Exception as e:
+                    logging.error(f"Failed to rename '{path}' to '{new_path}': {e}")
+                    sys.exit(1)
+            if pbar:
+                pbar.close()
+
+        c_tag, c_count, c_reset = _get_status_colors()
+        c_red = RED if _should_enable_color(sys.stderr) else ""
+        msg = f"{c_tag}[Rename Mode]{c_reset} Successfully made {c_count}{success_count}{c_reset} rename(s)."
+        if collision_count > 0:
+            msg += f" {c_red}Skipped {collision_count} collision(s).{c_reset}"
+        logging.info(msg)
+    elif dry_run:
+        collision_count = sum(1 for r in rename_results if r[2] == "[Collision]")
+        c_red = RED if _should_enable_color(sys.stderr) else ""
+        c_reset = RESET if _should_enable_color(sys.stderr) else ""
+        logging.warning(f"[Dry Run] Total renames that would be made: {total_renames}")
+        if collision_count > 0:
+            logging.warning(f"[Dry Run] {c_red}Total collisions detected (would be skipped): {collision_count}{c_reset}")
+
+    # For stats, use the target paths
     stats_items = [r[1] for r in rename_results]
     print_processing_stats(
         len(unique_paths), stats_items, item_label="rename", start_time=start_time

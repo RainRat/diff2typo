@@ -26,7 +26,7 @@ def test_format_analysis_summary_item_error_handling():
 
 def test_format_analysis_summary_distance_calculation_error_handling():
     with patch("multitool.levenshtein_distance") as mock_lev:
-        mock_lev.side_effect = Exception("Levenshtein failed")
+        mock_lev.side_effect = ValueError("Levenshtein failed")
 
         report = multitool._format_analysis_summary(2, [("a", "b")], "item", None, False)
         assert "Min/Max/Avg changes" not in "".join(report)

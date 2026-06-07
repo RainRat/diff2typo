@@ -3862,11 +3862,16 @@ def _render_context_to_lines(
     show_filename: bool,
     line_numbers: bool,
     use_color: bool,
+    heading: bool = False,
 ) -> List[str]:
     """Renders match lines and their surrounding context lines into a list of strings."""
     accumulated_lines = []
     sorted_indices = sorted(match_indices.keys())
     last_rendered_idx = -1
+
+    if heading and sorted_indices:
+        h_text = f"{BOLD}{MAGENTA}{filename}{RESET}" if use_color else filename
+        accumulated_lines.append(h_text)
 
     for idx in sorted_indices:
         # Determine block start and end
@@ -3911,6 +3916,7 @@ def search_mode(
     with_filename: bool | None = None,
     before_context: int = 0,
     after_context: int = 0,
+    heading: bool | None = None,
 ) -> None:
     """
     Searches for words or patterns in text files, supporting similar word matching and smart subword detection.
@@ -3943,10 +3949,13 @@ def search_mode(
     # Check if color is enabled for the output
     use_color = _should_enable_color(sys.stdout) if output_file == '-' else ('FORCE_COLOR' in os.environ and 'NO_COLOR' not in os.environ)
 
-    # Determine if filenames should be shown
+    # Determine grouping and filename display defaults
+    if heading is None:
+        heading = sys.stdout.isatty() and output_file == '-'
+
     show_filename = with_filename
     if show_filename is None:
-        show_filename = len(input_files) > 1
+        show_filename = len(input_files) > 1 and not heading
 
     # Pre-compile patterns outside the loop for better performance
     lit_pattern = re.compile(re.escape(query), re.IGNORECASE)
@@ -4074,6 +4083,10 @@ def search_mode(
         total_matches += len(match_indices)
         matched_files_count += 1
 
+        # Add a blank line between file groups if using headings
+        if heading and accumulated_lines:
+            accumulated_lines.append("")
+
         # Collect context blocks
         accumulated_lines.extend(
             _render_context_to_lines(
@@ -4085,6 +4098,7 @@ def search_mode(
                 show_filename,
                 line_numbers,
                 use_color,
+                heading=heading,
             )
         )
 
@@ -5431,6 +5445,7 @@ def scan_mode(
     ad_hoc: List[str] | None = None,
     before_context: int = 0,
     after_context: int = 0,
+    heading: bool | None = None,
 ) -> None:
     """
     Scans files for matches of words from a mapping file or extra pairs, providing context.
@@ -5447,10 +5462,13 @@ def scan_mode(
     # Check if color is enabled for the output
     use_color = _should_enable_color(sys.stdout) if output_file == '-' else ('FORCE_COLOR' in os.environ and 'NO_COLOR' not in os.environ)
 
-    # Determine if filenames should be shown
+    # Determine grouping and filename display defaults
+    if heading is None:
+        heading = sys.stdout.isatty() and output_file == '-'
+
     show_filename = with_filename
     if show_filename is None:
-        show_filename = len(input_files) > 1
+        show_filename = len(input_files) > 1 and not heading
 
     # Pre-calculate total lines for a single cohesive progress bar
     pbar = None
@@ -5527,6 +5545,10 @@ def scan_mode(
         total_matches += len(match_indices)
         matched_files_count += 1
 
+        # Add a blank line between file groups if using headings
+        if heading and accumulated_lines:
+            accumulated_lines.append("")
+
         # Collect context blocks
         accumulated_lines.extend(
             _render_context_to_lines(
@@ -5538,6 +5560,7 @@ def scan_mode(
                 show_filename,
                 line_numbers,
                 use_color,
+                heading=heading,
             )
         )
 
@@ -7279,6 +7302,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show line numbers in the search results.",
     )
     search_options.add_argument(
+        '--heading',
+        action='store_true',
+        dest='heading',
+        default=None,
+        help="Show a filename heading above matches from each file.",
+    )
+    search_options.add_argument(
+        '--no-heading',
+        action='store_false',
+        dest='heading',
+        help="Suppress the filename heading above matches.",
+    )
+    search_options.add_argument(
         '--with-filename',
         action='store_true',
         dest='with_filename',
@@ -7736,6 +7772,19 @@ def _build_parser() -> argparse.ArgumentParser:
         '-n', '--line-numbers',
         action='store_true',
         help="Show line numbers in the results.",
+    )
+    scan_options.add_argument(
+        '--heading',
+        action='store_true',
+        dest='heading',
+        default=None,
+        help="Show a filename heading above matches from each file.",
+    )
+    scan_options.add_argument(
+        '--no-heading',
+        action='store_false',
+        dest='heading',
+        help="Suppress the filename heading above matches.",
     )
     scan_options.add_argument(
         '--with-filename',
@@ -8389,6 +8438,7 @@ def main() -> None:
                 'with_filename': getattr(args, 'with_filename', None),
                 'before_context': before_context,
                 'after_context': after_context,
+                'heading': getattr(args, 'heading', None),
             }
         ),
         'unique': (
@@ -8633,6 +8683,7 @@ def main() -> None:
                 'with_filename': getattr(args, 'with_filename', None),
                 'before_context': before_context,
                 'after_context': after_context,
+                'heading': getattr(args, 'heading', None),
             }
         ),
         'verify': (

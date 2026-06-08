@@ -669,12 +669,10 @@ def smart_open_output(filename: Any, encoding: str = 'utf-8', newline: str | Non
     If filename has a 'write' attribute, yields it directly.
     Otherwise, opens the file for writing.
     """
-    if not isinstance(filename, str) and hasattr(filename, 'write'):
+    if hasattr(filename, 'write'):
         yield filename
     elif filename == '-':
         yield sys.stdout
-    elif hasattr(filename, 'write'):
-        yield filename
     else:
         with open(filename, 'w', encoding=encoding, newline=newline) as f:
             yield f

@@ -1670,6 +1670,22 @@ def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bo
                 yield content
 
 
+def _extract_markdown_headings(input_file: str, quiet: bool = False) -> Iterable[Tuple[int, str]]:
+    """Yield (level, text) for each Markdown heading."""
+    lines = _read_file_lines_robust(input_file)
+    # Match ATX headings: # Title, ## Subtitle, etc.
+    # Pattern matches 1-6 hashes, then whitespace, then content.
+    # It optionally strips trailing hashes.
+    pattern = re.compile(r'^(#{1,6})\s+(.*?)(?:\s+#+)?$')
+
+    for line in tqdm(lines, desc=f'Processing {input_file} (headings)', unit=' lines', disable=quiet):
+        match = pattern.match(line.strip())
+        if match:
+            level = len(match.group(1))
+            text = match.group(2).strip()
+            yield level, text
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2102,6 +2118,51 @@ def markdown_mode(
         clean_items=clean_items,
         limit=limit,
     )
+
+
+def headings_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    level: int | None = None,
+    pairs: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts headings from Markdown files."""
+    start_time = time.perf_counter()
+    results = []
+    total_headings = 0
+
+    for input_file in input_files:
+        for h_level, h_text in _extract_markdown_headings(input_file, quiet=quiet):
+            total_headings += 1
+            if level is not None and h_level != level:
+                continue
+
+            # Apply cleaning and filtering to the text
+            text_to_save = filter_to_letters(h_text) if clean_items else h_text
+            if not (min_length <= len(text_to_save) <= max_length):
+                continue
+
+            if pairs:
+                results.append((str(h_level), text_to_save))
+            else:
+                results.append(text_to_save)
+
+    if process_output:
+        results = sorted(set(results))
+
+    if pairs:
+        _write_paired_output(results, output_file, output_format, "Headings", quiet, limit=limit)
+    else:
+        write_output(results, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(total_headings, results, item_label="heading", start_time=start_time)
 
 
 def md_table_mode(
@@ -6102,6 +6163,12 @@ MODE_DETAILS = {
         "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
         "flags": "[--right] [-c N]",
     },
+    "headings": {
+        "summary": "Extracts Markdown headings",
+        "description": "Finds headings in Markdown files (like '# Title'). It saves the heading text by default. Use --level to filter by heading level (1-6) or --pairs to see both level and text.",
+        "example": "python multitool.py headings readme.md --level 1",
+        "flags": "[--level N] [-p]",
+    },
     "json": {
         "summary": "Extracts JSON values by key",
         "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it gets items from the top level. It automatically handles lists of objects.",
@@ -6372,7 +6439,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -6871,6 +6938,27 @@ def _build_parser() -> argparse.ArgumentParser:
         help='One or more 0-based column numbers to get.',
     )
     _add_common_mode_arguments(md_table_parser)
+
+    headings_parser = subparsers.add_parser(
+        'headings',
+        help=MODE_DETAILS['headings']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['headings']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['headings']['example']}{RESET}",
+    )
+    headings_options = headings_parser.add_argument_group(f"{BLUE}HEADINGS OPTIONS{RESET}")
+    headings_options.add_argument(
+        '--level',
+        type=int,
+        choices=range(1, 7),
+        help="Filter by heading level (1-6).",
+    )
+    headings_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Output the heading level along with the text.",
+    )
+    _add_common_mode_arguments(headings_parser)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -8386,6 +8474,15 @@ def main() -> None:
                 'right_side': right_side,
                 'output_format': output_format,
                 'columns': getattr(args, 'columns', None),
+            },
+        ),
+        'headings': (
+            headings_mode,
+            {
+                **common_kwargs,
+                'level': getattr(args, 'level', None),
+                'pairs': getattr(args, 'pairs', False),
+                'output_format': output_format,
             },
         ),
         'table': (

@@ -71,6 +71,11 @@ Use these modes to pull specific data from a file.
   - Extracts text from cells in a Markdown table. It saves the first column by default. Use the `--right` flag for the second column, or `--column` (or `-c`) to pick specific columns. It automatically skips header and divider rows.
   - **Example:** `python multitool.py md-table readme.md --column 2`
 
+- **`headings`**
+  - Extracts headings from Markdown files (lines starting with `#`). It saves the heading text by default.
+  - **Options:** Use `--level` (1-6) to filter by a specific heading level. Use `--pairs` (or `-p`) to see both the level and the text.
+  - **Example:** `python multitool.py headings readme.md --level 1`
+
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`

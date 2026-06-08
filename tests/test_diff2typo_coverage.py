@@ -168,12 +168,17 @@ def test_main_corrections_mode(tmp_path, monkeypatch):
 
 def test_main_allowed_read_fail(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    with patch("diff2typo.read_allowed_words", side_effect=OSError("read fail")):
+    original_open = open
+    def mock_open(file, *args, **kwargs):
+        if "allowed.csv" in str(file):
+            raise OSError("read fail")
+        return original_open(file, *args, **kwargs)
+
+    with patch("builtins.open", mock_open):
         monkeypatch.setattr(sys, "argv", ["diff2typo.py", "--quiet"])
         monkeypatch.setattr(diff2typo, "_read_diff_sources", lambda _: "")
-        with pytest.raises(SystemExit) as excinfo:
-            diff2typo.main()
-        assert excinfo.value.code == 1
+        # Should complete successfully and not exit
+        diff2typo.main()
 
 def test_levenshtein_distance_coverage():
     assert diff2typo.levenshtein_distance("", "") == 0

@@ -4899,6 +4899,8 @@ def replace_mode(
     in_place: str | None = None,
     dry_run: bool = False,
     use_regex: bool = False,
+    ignore_case: bool = False,
+    smart_case: bool = False,
     diff: bool = False,
     limit: int | None = None,
 ) -> None:
@@ -4908,13 +4910,15 @@ def replace_mode(
     start_time = time.perf_counter()
     total_replacements = 0
 
-    # Compile regex if needed
+    # Compile regex if needed OR if casing support is enabled
     regex = None
-    if use_regex:
+    if use_regex or ignore_case or smart_case:
+        pattern = old_text if use_regex else re.escape(old_text)
+        flags = re.IGNORECASE if (ignore_case or smart_case) else 0
         try:
-            regex = re.compile(old_text)
+            regex = re.compile(pattern, flags)
         except re.error as e:
-            logging.error(f"Invalid regular expression '{old_text}': {e}")
+            logging.error(f"Invalid regular expression '{pattern}': {e}")
             sys.exit(1)
 
     accumulated_lines = []
@@ -4929,13 +4933,22 @@ def replace_mode(
             modified_lines = []
             file_replacements = 0
 
+            # Define replacement function outside the loop for performance
+            if regex and smart_case:
+                def repl_func(match):
+                    # Handle backreferences by expanding them first
+                    expanded = match.expand(new_text)
+                    return _apply_smart_case(match.group(0), expanded)
+            else:
+                repl_func = new_text
+
             for line in tqdm(file_lines, desc=f"Replacing in {input_file}", unit=" lines", disable=quiet):
                 # We need to handle the newline character carefully to preserve it
                 line_content = line.rstrip('\n')
                 ending = line[len(line_content):]
 
-                if use_regex:
-                    new_line, n = regex.subn(new_text, line_content)
+                if regex:
+                    new_line, n = regex.subn(repl_func, line_content)
                 else:
                     n = line_content.count(old_text)
                     new_line = line_content.replace(old_text, new_text)
@@ -6287,9 +6300,9 @@ MODE_DETAILS = {
     },
     "replace": {
         "summary": "Replaces text or patterns",
-        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs.",
-        "example": "python multitool.py replace 'old-tag' 'new-tag' . --in-place",
-        "flags": "[OLD] [NEW] [FILES...] [-r] [-I EXT] [-D] [--dry-run]",
+        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
+        "example": "python multitool.py replace 'the' 'that' . --in-place --smart-case",
+        "flags": "[OLD] [NEW] [FILES...] [-rSI] [-D] [--dry-run] [--ignore-case]",
     },
 }
 
@@ -7912,6 +7925,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Treat '--old' as a regular expression.",
     )
     replace_options.add_argument(
+        '--ignore-case',
+        action='store_true',
+        help="Perform case-insensitive replacement.",
+    )
+    replace_options.add_argument(
+        '-S', '--smart-case',
+        action='store_true',
+        help="Automatically match the casing of the original word (for example, 'Teh' -> 'The').",
+    )
+    replace_options.add_argument(
         '-I', '--in-place',
         nargs='?',
         const='',
@@ -8551,6 +8574,8 @@ def main() -> None:
                 'in_place': getattr(args, 'in_place', None),
                 'dry_run': getattr(args, 'dry_run', False),
                 'use_regex': getattr(args, 'regex', False),
+                'ignore_case': getattr(args, 'ignore_case', False),
+                'smart_case': getattr(args, 'smart_case', False),
                 'diff': getattr(args, 'diff', False),
                 'limit': limit,
             }

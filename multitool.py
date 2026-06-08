@@ -661,13 +661,16 @@ def print_processing_stats(
 
 
 @contextlib.contextmanager
-def smart_open_output(filename: str, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
+def smart_open_output(filename: str | TextIO, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
     """
     Context manager that yields a file object for writing.
+    If filename is a stream, yields it directly.
     If filename is '-', yields the main output (the screen).
     Otherwise, opens the file for writing.
     """
-    if filename == '-':
+    if not isinstance(filename, str) and hasattr(filename, 'write'):
+        yield filename
+    elif filename == '-':
         yield sys.stdout
     else:
         with open(filename, 'w', encoding=encoding, newline=newline) as f:
@@ -1069,7 +1072,7 @@ def _write_paired_output(
     if mode_label == "Conflict":
         left_header = "Typo"
         right_header = "Corrections"
-    elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery", "Map", "Resolve"):
+    elif mode_label in ("Similarity", "Pairs", "Swap", "Zip", "Classify", "FuzzyMatch", "Discovery", "Map", "Resolve", "Standardize Rules"):
         left_header = "Typo"
         right_header = "Correction"
     elif mode_label == "Rename":
@@ -1220,9 +1223,11 @@ def _write_paired_output(
                 val = f"{right} {attr}".strip()
                 out_file.write(f"{left} -> {val}\n")
 
-    logging.info(
-        f"[{mode_label} Mode] Processed {len(pairs_list)} pairs. Output written to '{output_file}' in {output_format} format."
-    )
+    if not quiet:
+        dest = f"'{output_file}'" if isinstance(output_file, str) else "stream"
+        logging.info(
+            f"[{mode_label} Mode] Processed {len(pairs_list)} pairs. Output written to {dest} in {output_format} format."
+        )
 
 
 def _process_items(
@@ -4986,6 +4991,9 @@ def standardize_mode(
     start_time = time.perf_counter()
     pattern = re.compile(r'([a-zA-Z0-9]+)')
 
+    raw_word_count = 0
+    filtered_words = []
+
     # Pass 1: Count variations
     variation_counts = defaultdict(Counter)
 
@@ -4994,6 +5002,7 @@ def standardize_mode(
         for line in tqdm(file_lines, desc=f"Analyzing {input_file}", unit=" lines", disable=quiet):
             parts = pattern.findall(line)
             for part in parts:
+                raw_word_count += 1
                 # Collect candidates for analysis (full word and any sub-parts)
                 candidates = [part]
                 sub_parts = _smart_split(part)
@@ -5004,9 +5013,11 @@ def standardize_mode(
                     norm = filter_to_letters(cand) if clean_items else cand.lower()
                     if norm and min_length <= len(norm) <= max_length:
                         variation_counts[norm][cand] += 1
+                        filtered_words.append(cand)
 
     # Pass 2: Find "winners" and build mapping
     mapping = {}
+    rule_types = {}
 
     # 2a: Determine the best casing variation for each normalized word
     norm_winners = {}
@@ -5017,11 +5028,11 @@ def standardize_mode(
 
     # 2b: If similar word matching is enabled, group similar normalized words
     effective_fuzzy = _ensure_min_dist(fuzzy, keyboard, transposition)
+    fuzzy_groups = {}  # rare_norm -> frequent_norm
 
     if effective_fuzzy > 0:
         # Sort normalized words by total frequency descending to find "anchors"
         sorted_norms = sorted(norm_totals.keys(), key=lambda n: norm_totals[n], reverse=True)
-        fuzzy_groups = {}  # rare_norm -> frequent_norm
         adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
 
         for i, frequent in enumerate(sorted_norms):
@@ -5063,28 +5074,69 @@ def standardize_mode(
             target_norm = fuzzy_groups.get(norm, norm)
             winner = norm_winners[target_norm]
 
-            # If norm was a rare word that was fuzzy-mapped, or it has casing variations
-            if norm in fuzzy_groups or len(variation_counts[norm]) > 1:
+            # If norm was a rare word that was fuzzy-mapped
+            if norm in fuzzy_groups:
+                mapping[norm] = winner
+                rule_types[norm] = "[Spelling]"
+            elif len(variation_counts[norm]) > 1:
+                # Casing variations only
                 # Double check that we aren't mapping a word to itself identically
-                # (Can happen if casing winner matches common variation of rare word by chance)
                 if norm not in variation_counts[norm] or variation_counts[norm][norm] < norm_totals[norm] or norm != winner:
                     mapping[norm] = winner
+                    rule_types[norm] = "[Casing]"
     else:
         # Original logic for casing-only standardization
         for norm, counts in variation_counts.items():
             if len(counts) > 1:
-                mapping[norm] = norm_winners[norm]
+                winner = norm_winners[norm]
+                if norm not in variation_counts[norm] or variation_counts[norm][norm] < norm_totals[norm] or norm != winner:
+                    mapping[norm] = winner
+                    rule_types[norm] = "[Casing]"
 
     if not mapping:
         logging.info("No inconsistencies found. Everything is standardized.")
-        # If not in-place, we still proceed to Pass 3 to ensure output is written if requested.
-        # But if in-place, we can exit early.
-        if in_place is not None:
-            return
 
-    # Pass 3: Transformation
+    # Pass 3: Reporting and Transformation
     total_replacements = 0
     accumulated_lines = []
+
+    # Display rich visual report
+    if not quiet:
+        use_color = _should_enable_color(sys.stderr)
+        summary = _format_analysis_summary(
+            raw_word_count,
+            filtered_words,
+            item_label="word",
+            start_time=start_time,
+            use_color=use_color
+        )
+        sys.stderr.write("\n".join(summary))
+
+        if mapping:
+            # Sort mapping by frequency of the *winner* (target) to show most impactful rules first
+            # but then lexicographically by the *norm* (source) for predictable display.
+            sorted_rules = sorted(
+                mapping.items(),
+                key=lambda x: (-norm_totals[fuzzy_groups.get(x[0], x[0])], x[0])
+            )
+
+            # Extract pairs for rules table
+            rule_pairs = []
+            for norm, winner in sorted_rules:
+                rule_pairs.append((norm, winner, rule_types[norm]))
+
+            # Write rules table to stderr
+            _write_paired_output(
+                rule_pairs,
+                sys.stderr,
+                'arrow',
+                'Standardize Rules',
+                quiet=True
+            )
+
+    # Proceed with transformation even if mapping is empty (to handle limit/output consistency)
+    if not mapping and in_place is not None:
+        return
 
     with (smart_open_output(output_file) if diff else contextlib.nullcontext()) as diff_out:
         for input_file in input_files:
@@ -6171,7 +6223,7 @@ MODE_DETAILS = {
         "summary": "Fixes casing/spelling project-wide",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
         "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --transposition",
-        "flags": "[FILES...] [-I EXT] [-D] [--dry-run] [--fuzzy N] [-kt]",
+        "flags": "[FILES...] [-I EXT] [-Dkt] [--dry-run] [--fuzzy N]",
     },
     "search": {
         "summary": "Searches for words or patterns",

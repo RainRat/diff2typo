@@ -331,6 +331,7 @@ Use these modes to analyze your data.
     - `-S`, `--smart`: Search for subwords within larger items.
     - `-k`, `--keyboard` or `-t`, `--transposition`: Filter for likely typing errors.
     - `-n`, `--line-numbers` and `-C`, `--context N`: Show location and surrounding lines.
+    - `--heading` and `--no-heading`: Control whether results are grouped under filename headers (default is on for terminals).
   - **Example:** `python multitool.py search 'teh' report.txt --keyboard --line-numbers -C 1`
 
 - **`scan`**
@@ -340,6 +341,7 @@ Use these modes to analyze your data.
     - `-a`, `--add`: Provide extra mapping pairs directly on the command line.
     - `-S`, `--smart`: Scan for subwords within compound words.
     - `-n`, `--line-numbers` and `-C`, `--context N`: Show location and surrounding lines.
+    - `--heading` and `--no-heading`: Control whether results are grouped under filename headers (default is on for terminals).
   - **Example:** `python multitool.py scan . --add teh:the --smart -A 1`
 
 - **`verify`**

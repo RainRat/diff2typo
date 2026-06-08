@@ -621,7 +621,7 @@ def _format_analysis_summary(
                 report.append(
                     f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
                 )
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     # Extra metrics

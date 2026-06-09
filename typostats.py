@@ -1086,7 +1086,7 @@ def main() -> None:
         '-s', '--sort',
         choices=['count', 'typo', 'correct'],
         default='count',
-        help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by the mistake), or 'correct' (alphabetical by the fix)."
+        help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by the typo), or 'correct' (alphabetical by the correction)."
     )
     analysis_group.add_argument(
         '-a',
@@ -1099,7 +1099,7 @@ def main() -> None:
         '--allow-two-char',
         dest='allow_two_char',
         action='store_true',
-        help="Allow cases where one letter is replaced by two (like 'm' to 'rn') or two letters are replaced by one (like 'ph' to 'f').",
+        help="Allow cases where you typed two letters instead of one (like 'rn' instead of 'm') or one instead of two (like 'f' instead of 'ph').",
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--allow_two_char', action='store_true', help=argparse.SUPPRESS)
@@ -1108,18 +1108,18 @@ def main() -> None:
         '--1to2',
         dest='allow_1to2',
         action='store_true',
-        help="Allow cases where one letter is replaced by two (like 'm' to 'rn').",
+        help="Allow cases where you typed two letters instead of one (like 'rn' instead of 'm').",
     )
     analysis_group.add_argument(
         '--2to1',
         dest='allow_2to1',
         action='store_true',
-        help="Allow cases where two letters are replaced by one (like 'ph' to 'f').",
+        help="Allow cases where you typed one letter instead of two (like 'f' instead of 'ph').",
     )
     analysis_group.add_argument(
         '--include-deletions',
         action='store_true',
-        help="Include cases where you added an extra letter or missed one (like 'aa' to 'a' or 'o' to 'or').",
+        help="Include cases where you added an extra letter or missed one (like typing 'aa' instead of 'a').",
     )
 
     analysis_group.add_argument(

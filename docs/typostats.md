@@ -34,13 +34,13 @@ The tool automatically recognizes several common ways of listing typos:
 
 ### Analysis Options
 - `-m`, `--min`: Only show patterns that appear at least this many times (Default: 1).
-- `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by fix).
+- `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by correction).
 - `-a`, `--all`: Enable all analysis features at once. This is the default if no other analysis options are chosen.
 - `-n`, `-L`, `--limit`: Only show the top N results.
-- `-2`, `--allow-two-char`: Look for cases where one letter is replaced by two (like `m` -> `rn`) or two by one (like `ph` -> `f`).
-- `--1to2`: Specifically look for single-to-double letter replacements.
-- `--2to1`: Specifically look for double-to-single letter replacements.
-- `--include-deletions`: Include cases where you added an extra letter or missed one (like `aa` -> `a`).
+- `-2`, `--allow-two-char`: Look for cases where you typed two letters instead of one (like `rn` instead of `m`) or one instead of two (like `f` instead of `ph`).
+- `--1to2`: Specifically look for cases where you typed two letters instead of one (like `rn` instead of `m`).
+- `--2to1`: Specifically look for cases where you typed one letter instead of two (like `f` instead of `ph`).
+- `--include-deletions`: Include cases where you added an extra letter or missed one (like typing `aa` instead of `a`).
 - `-t`, `--transposition`: Find swapped letters (like `teh` instead of `the`).
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
 
@@ -111,8 +111,8 @@ For example, a row showing `eh │ he` means you swapped the letters `h` and `e`
 When you enable analysis features, the tool finds specific patterns in the **Attr** column:
 - **[K]**: Keyboard slip (the keys are next to each other on a QWERTY layout).
 - **[T]**: Transposition (swapped letters, like `teh` instead of `the`).
-- **[1:2]**: One-to-two replacement (for example, typing `rn` instead of `m`).
-- **[2:1]**: Two-to-one replacement (for example, typing `f` instead of `ph`).
+- **[1:2]**: One-to-two replacement (for example, typing `rn` instead of `m`, or `ph` instead of `f`).
+- **[2:1]**: Two-to-one replacement (for example, typing `m` instead of `rn`, or `f` instead of `ph`).
 - **[Ins]**: Insertion (typing an extra letter).
 - **[Del]**: Deletion (missing a letter).
 

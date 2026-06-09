@@ -76,6 +76,11 @@ Use these modes to pull specific data from a file.
   - **Options:** Use `--level` (1-6) to filter by a specific heading level. Use `--pairs` (or `-p`) to see both the level and the text.
   - **Example:** `python multitool.py headings readme.md --level 1`
 
+- **`links`**
+  - Extracts links (`[text](url)`) and images (`![alt](url)`) from Markdown files. It saves the link text by default.
+  - **Options:** Use the `--right` flag to save the URL instead, or `--pairs` (or `-p`) to save both.
+  - **Example:** `python multitool.py links readme.md --pairs`
+
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`

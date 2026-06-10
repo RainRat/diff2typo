@@ -1090,6 +1090,9 @@ def _write_paired_output(
     elif mode_label == "Repeated":
         left_header = "Repeated Words"
         right_header = "Fix"
+    elif mode_label == "Links":
+        left_header = "Text"
+        right_header = "URL"
 
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
@@ -1686,6 +1689,19 @@ def _extract_markdown_headings(input_file: str, quiet: bool = False) -> Iterable
             yield level, text
 
 
+def _extract_markdown_links(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
+    """Yield (text, url) for each Markdown link or image."""
+    lines = _read_file_lines_robust(input_file)
+    # Match [text](url) or ![alt](url)
+    pattern = re.compile(r'!?\[(.*?)\]\((.*?)\)')
+
+    for line in tqdm(lines, desc=f'Processing {input_file} (links)', unit=' lines', disable=quiet):
+        for match in pattern.finditer(line):
+            text = match.group(1).strip()
+            url = match.group(2).strip()
+            yield text, url
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2163,6 +2179,51 @@ def headings_mode(
         write_output(results, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(total_headings, results, item_label="heading", start_time=start_time)
+
+
+def links_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    right_side: bool = False,
+    pairs: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts links and images from Markdown files."""
+    start_time = time.perf_counter()
+    results = []
+    total_links = 0
+
+    for input_file in input_files:
+        for l_text, l_url in _extract_markdown_links(input_file, quiet=quiet):
+            total_links += 1
+
+            # Apply cleaning and filtering to the text side by default
+            text_to_check = filter_to_letters(l_text) if clean_items else l_text
+            if not (min_length <= len(text_to_check) <= max_length):
+                continue
+
+            if pairs:
+                results.append((text_to_check, l_url))
+            elif right_side:
+                results.append(l_url)
+            else:
+                results.append(text_to_check)
+
+    if process_output:
+        results = sorted(set(results))
+
+    if pairs:
+        _write_paired_output(results, output_file, output_format, "Links", quiet, limit=limit)
+    else:
+        write_output(results, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(total_links, results, item_label="link", start_time=start_time)
 
 
 def md_table_mode(
@@ -6193,6 +6254,12 @@ MODE_DETAILS = {
         "example": "python multitool.py xml data.xml -k './/item/name' --output names.txt",
         "flags": "[-k KEY]",
     },
+    "links": {
+        "summary": "Extracts Markdown links and images",
+        "description": "Finds links ([text](url)) and images (![alt](url)) in Markdown files. It saves the link text by default. Use --right to save the URL instead, or --pairs to see both.",
+        "example": "python multitool.py links readme.md --right",
+        "flags": "[--right] [-p]",
+    },
     "flatten": {
         "summary": "Flattens nested data structures",
         "description": "Transforms nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, 'user.name = value'). It supports multi-document YAML and JSON Lines (JSONL).",
@@ -6439,7 +6506,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -6959,6 +7026,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output the heading level along with the text.",
     )
     _add_common_mode_arguments(headings_parser)
+
+    links_parser = subparsers.add_parser(
+        'links',
+        help=MODE_DETAILS['links']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['links']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['links']['example']}{RESET}",
+    )
+    links_options = links_parser.add_argument_group(f"{BLUE}LINKS OPTIONS{RESET}")
+    links_options.add_argument(
+        '--right',
+        action='store_true',
+        help="Get the URL instead of the link text.",
+    )
+    links_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Output both the link text and the URL.",
+    )
+    _add_common_mode_arguments(links_parser)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -8385,6 +8472,15 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'links': (
+            links_mode,
+            {
+                **common_kwargs,
+                'right_side': right_side,
+                'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             },
         ),

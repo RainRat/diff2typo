@@ -444,3 +444,45 @@ def test_main_block():
         with pytest.raises(SystemExit) as excinfo:
             runpy.run_module("cmdrunner", run_name="__main__")
         assert excinfo.value.code == 0
+
+def test_run_command_in_folders_with_placeholder(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    included = ['proj1', 'proj2']
+    for name in included:
+        (base_dir / name).mkdir()
+
+    command = "python3 -c \"open('{}.txt','w').write('{}')\""
+
+    cmdrunner.run_command_in_folders(str(base_dir), command)
+
+    for name in included:
+        test_file = base_dir / name / f'{name}.txt'
+        assert test_file.exists()
+        assert test_file.read_text() == name
+
+def test_tqdm_fallback():
+    # Force ImportError by masking tqdm
+    with patch.dict(sys.modules, {"tqdm": None}):
+        importlib.reload(cmdrunner)
+
+        # Verify it's the fallback class, not the real module/class from tqdm
+        assert cmdrunner.tqdm.__module__ == "cmdrunner"
+
+        # Test methods for coverage
+        items = [1, 2, 3]
+        t = cmdrunner.tqdm(items, desc="test", unit="item")
+        assert list(t) == items
+
+        with cmdrunner.tqdm(items) as t2:
+            t2.update(1)
+            t2.set_description("desc")
+            t2.set_postfix(key="val")
+
+        t3 = cmdrunner.tqdm(None)
+        assert list(t3) == []
+        t3.close()
+
+    # Restore cmdrunner to original state for other tests
+    importlib.reload(cmdrunner)

@@ -1090,6 +1090,9 @@ def _write_paired_output(
     elif mode_label == "Links":
         left_header = "Text"
         right_header = "URL"
+    elif mode_label == "CodeBlocks":
+        left_header = "Language"
+        right_header = "Content"
 
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
@@ -1699,6 +1702,49 @@ def _extract_markdown_links(input_file: str, quiet: bool = False) -> Iterable[Tu
             yield text, url
 
 
+def _extract_markdown_codeblocks(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
+    """Yield (language, content) for each fenced Markdown code block."""
+    lines = _read_file_lines_robust(input_file)
+    in_block = False
+    fence_char = None
+    fence_len = 0
+    language = ""
+    current_block = []
+
+    # Regex to match the opening or closing of a fenced code block
+    # Supports backticks ``` or tildes ~~~ and captures the language
+    pattern = re.compile(r'^(\s*)(`{3,}|~{3,})(.*)$')
+
+    for line in tqdm(lines, desc=f'Processing {input_file} (codeblocks)', unit=' lines', disable=quiet):
+        match = pattern.match(line)
+        if match:
+            indent, fence, info = match.groups()
+            if not in_block:
+                # Opening a new block
+                in_block = True
+                fence_char = fence[0]
+                fence_len = len(fence)
+                language = info.strip().split()[0] if info.strip() else ""
+                current_block = []
+                continue
+            else:
+                # Potential closing of a block
+                if fence[0] == fence_char and len(fence) >= fence_len:
+                    # Successfully closed the block
+                    content = "".join(current_block)
+                    yield language, content
+                    in_block = False
+                    continue
+
+        if in_block:
+            current_block.append(line)
+
+    # Handle unclosed blocks if they exist at the end of the file
+    if in_block:
+        content = "".join(current_block)
+        yield language, content
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2176,6 +2222,57 @@ def headings_mode(
         write_output(results, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(total_headings, results, item_label="heading", start_time=start_time)
+
+
+def codeblocks_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    language: str | None = None,
+    pairs: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts fenced code blocks from Markdown files."""
+    start_time = time.perf_counter()
+    results = []
+    total_blocks = 0
+
+    for input_file in input_files:
+        for cb_lang, cb_content in _extract_markdown_codeblocks(input_file, quiet=quiet):
+            total_blocks += 1
+
+            if language and cb_lang.lower() != language.lower():
+                continue
+
+            # Filtering and cleaning applies to the content
+            # Note: cleaning (filter_to_letters) might be destructive for code,
+            # so we only apply it if explicitly requested via lack of --raw.
+            # Usually for code extraction users would use --raw.
+            content_to_check = filter_to_letters(cb_content) if clean_items else cb_content
+            if not (min_length <= len(content_to_check) <= max_length):
+                continue
+
+            if pairs:
+                results.append((cb_lang, cb_content))
+            else:
+                results.append(cb_content)
+
+    if process_output:
+        results = sorted(set(results))
+
+    if pairs:
+        _write_paired_output(results, output_file, output_format, "CodeBlocks", quiet, limit=limit)
+    else:
+        # For multiple code blocks in 'line' format, it might be useful to separate them
+        # but write_output just writes items one after another.
+        write_output(results, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(total_blocks, results, item_label="codeblock", start_time=start_time)
 
 
 def links_mode(
@@ -6270,6 +6367,12 @@ MODE_DETAILS = {
         "example": "python multitool.py links readme.md --right",
         "flags": "[--right] [-p]",
     },
+    "codeblocks": {
+        "summary": "Extracts Markdown code blocks",
+        "description": "Finds fenced code blocks in Markdown files (using ``` or ~~~). It saves the code content by default. Use --language to filter by a specific language (for example, 'python') or --pairs to see both language and content.",
+        "example": "python multitool.py codeblocks readme.md --language python",
+        "flags": "[FILES...] [-l LANG] [-p]",
+    },
     "flatten": {
         "summary": "Flattens nested data structures",
         "description": "Transforms nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, 'user.name = value'). It supports multi-document YAML and JSON Lines (JSONL).",
@@ -6516,7 +6619,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -7036,6 +7139,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output the heading level along with the text.",
     )
     _add_common_mode_arguments(headings_parser)
+
+    codeblocks_parser = subparsers.add_parser(
+        'codeblocks',
+        help=MODE_DETAILS['codeblocks']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['codeblocks']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['codeblocks']['example']}{RESET}",
+    )
+    codeblocks_options = codeblocks_parser.add_argument_group(f"{BLUE}CODEBLOCKS OPTIONS{RESET}")
+    codeblocks_options.add_argument(
+        '-l', '--language',
+        type=str,
+        help="Filter by language (for example, 'python').",
+    )
+    codeblocks_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Output both the language and the code content.",
+    )
+    _add_common_mode_arguments(codeblocks_parser)
 
     links_parser = subparsers.add_parser(
         'links',
@@ -8482,6 +8605,15 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'codeblocks': (
+            codeblocks_mode,
+            {
+                **common_kwargs,
+                'language': getattr(args, 'language', None),
+                'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             },
         ),

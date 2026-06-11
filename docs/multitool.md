@@ -81,6 +81,11 @@ Use these modes to pull specific data from a file.
   - **Options:** Use `--right` to save the URL instead, or `--pairs` (or `-p`) to see both.
   - **Example:** `python multitool.py links readme.md --right`
 
+- **`codeblocks`**
+  - Extracts fenced code blocks from Markdown files (lines starting with \` \` \` or `~~~`). It saves the code content by default.
+  - **Options:** Use `--language` (or `-l`) to filter by a specific language (for example, `python`). Use `--pairs` (or `-p`) to see both the language and the code content.
+  - **Example:** `python multitool.py codeblocks readme.md --language python`
+
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`

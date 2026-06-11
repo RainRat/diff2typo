@@ -831,7 +831,7 @@ def main() -> None:
     """
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Likely Typo Generator: Create lists of common typing mistakes.{RESET}",
+        description=f"{BOLD}Create lists of common typing mistakes by simulating keyboard slips and common patterns like swapping, skipping, or doubling letters.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python gentypos.py "hello" "world"{RESET}
@@ -851,7 +851,7 @@ def main() -> None:
     io_group.add_argument(
         'words',
         nargs='*',
-        help="One or more words to process. If you provide words here, the tool ignores the input file in your config.",
+        help="One or more words to generate typos for. If provided, the tool ignores the input file in your configuration.",
     )
     io_group.add_argument(
         '-c', '--config',
@@ -874,7 +874,7 @@ def main() -> None:
     io_group.add_argument(
         '-s', '--substitutions',
         type=str,
-        help="The path to a file with your own typo patterns (JSON, CSV, or YAML).",
+        help="A file containing your own typo patterns (JSON, CSV, or YAML). This is useful for using your personal typo history from 'typostats.py'.",
     )
     # Legacy flag, suppressed from help
     parser.add_argument(

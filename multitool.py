@@ -4998,10 +4998,18 @@ def replace_mode(
 
     accumulated_lines = []
 
+    pbar = None
+    if not quiet:
+        total_lines = _get_total_line_count(input_files)
+        pbar = tqdm(total=total_lines, desc="Replacing", unit=" lines", disable=quiet)
+
     with (smart_open_output(output_file) if diff else contextlib.nullcontext()) as diff_out:
         for input_file in input_files:
             if input_file == '-' and in_place is not None:
                 logging.warning("In-place modification requested for standard input; ignoring.")
+
+            if pbar:
+                pbar.set_postfix(file=os.path.basename(input_file), refresh=True)
 
             file_lines = _read_file_lines_robust(input_file)
             original_lines = [line.rstrip('\n') for line in file_lines]
@@ -5017,7 +5025,9 @@ def replace_mode(
             else:
                 repl_func = new_text
 
-            for line in tqdm(file_lines, desc=f"Replacing in {input_file}", unit=" lines", disable=quiet):
+            for line in file_lines:
+                if pbar:
+                    pbar.update(1)
                 # We need to handle the newline character carefully to preserve it
                 line_content = line.rstrip('\n')
                 ending = line[len(line_content):]
@@ -5046,6 +5056,9 @@ def replace_mode(
                 )
             elif not diff:
                 accumulated_lines.extend([l.rstrip('\n') for l in modified_lines])
+
+    if pbar:
+        pbar.close()
 
     if not in_place and not diff:
         write_output(accumulated_lines, output_file, 'line', quiet, limit=limit)

@@ -6147,8 +6147,8 @@ MODE_DETAILS = {
     },
     "csv": {
         "summary": "Extracts columns from CSV",
-        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, --column to pick specific numbers, or --delimiter to use a custom separator.",
-        "example": "python multitool.py csv typos.csv --column 2 --delimiter ';' -o corrections.txt",
+        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, --column to pick specific 0-based numbers, or --delimiter to use a custom separator.",
+        "example": "python multitool.py csv typos.csv --column 1 --delimiter ';'  # Get the second column",
         "flags": "[--first-column] [-c N] [-d DELIM]",
     },
     "markdown": {
@@ -6159,8 +6159,8 @@ MODE_DETAILS = {
     },
     "md-table": {
         "summary": "Extracts Markdown table items",
-        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers. It automatically skips header and divider rows.",
-        "example": "python multitool.py md-table readme.md --column 2 --output corrections.txt",
+        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific 0-based numbers. It automatically skips header and divider rows.",
+        "example": "python multitool.py md-table readme.md --column 1  # Get the second column",
         "flags": "[--right] [-c N]",
     },
     "headings": {

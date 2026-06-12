@@ -1745,6 +1745,49 @@ def _extract_markdown_codeblocks(input_file: str, quiet: bool = False) -> Iterab
         yield language, content
 
 
+def _extract_markdown_frontmatter(
+    input_file: str, body: bool = False, quiet: bool = False
+) -> Iterable[str]:
+    """Yield Markdown frontmatter or body content from a file."""
+    lines = _read_file_lines_robust(input_file)
+    if not lines:
+        return
+
+    # Typical delimiters for Markdown frontmatter
+    # YAML: ---
+    # TOML: +++
+    delimiters = ('---', '+++')
+    first_line = lines[0].strip()
+
+    if first_line not in delimiters:
+        # No frontmatter found at the start of the file
+        if body:
+            yield "".join(lines)
+        return
+
+    delim = first_line
+    frontmatter = []
+    content = []
+    found_end = False
+
+    for i, line in enumerate(lines[1:], start=1):
+        if not found_end and line.strip() == delim:
+            found_end = True
+            continue
+
+        if not found_end:
+            frontmatter.append(line)
+        else:
+            content.append(line)
+
+    if body:
+        if found_end:
+            yield "".join(content)
+    else:
+        if found_end:
+            yield "".join(frontmatter)
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2318,6 +2361,43 @@ def links_mode(
         write_output(results, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(total_links, results, item_label="link", start_time=start_time)
+
+
+def frontmatter_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    body: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts frontmatter or body from Markdown files."""
+    start_time = time.perf_counter()
+    results = []
+    total_files = 0
+
+    for input_file in input_files:
+        total_files += 1
+        for content in _extract_markdown_frontmatter(input_file, body=body, quiet=quiet):
+            # Filtering and cleaning applies to the content
+            # For metadata, cleaning (filter_to_letters) is likely destructive.
+            content_to_check = filter_to_letters(content) if clean_items else content
+            if not (min_length <= len(content_to_check) <= max_length):
+                continue
+
+            results.append(content)
+
+    if process_output:
+        results = sorted(set(results))
+
+    # For multiple items in 'line' format, it might be useful to separate them
+    write_output(results, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(total_files, results, item_label="file", start_time=start_time)
 
 
 def md_table_mode(
@@ -6373,6 +6453,12 @@ MODE_DETAILS = {
         "example": "python multitool.py codeblocks readme.md --language python",
         "flags": "[FILES...] [-l LANG] [-p]",
     },
+    "frontmatter": {
+        "summary": "Extracts Markdown frontmatter",
+        "description": "Extracts YAML (---) or TOML (+++) frontmatter from the beginning of Markdown files. Use --body to extract the content after the frontmatter instead.",
+        "example": "python multitool.py frontmatter article.md --output metadata.yaml",
+        "flags": "[FILES...] [--body]",
+    },
     "flatten": {
         "summary": "Flattens nested data structures",
         "description": "Transforms nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, 'user.name = value'). It supports multi-document YAML and JSON Lines (JSONL).",
@@ -6619,7 +6705,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "codeblocks", "frontmatter", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -7159,6 +7245,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output both the language and the code content.",
     )
     _add_common_mode_arguments(codeblocks_parser)
+
+    frontmatter_parser = subparsers.add_parser(
+        'frontmatter',
+        help=MODE_DETAILS['frontmatter']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['frontmatter']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['frontmatter']['example']}{RESET}",
+    )
+    frontmatter_options = frontmatter_parser.add_argument_group(f"{BLUE}FRONTMATTER OPTIONS{RESET}")
+    frontmatter_options.add_argument(
+        '--body',
+        action='store_true',
+        help="Get the content after the frontmatter instead of the metadata.",
+    )
+    _add_common_mode_arguments(frontmatter_parser)
 
     links_parser = subparsers.add_parser(
         'links',
@@ -8605,6 +8706,14 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'frontmatter': (
+            frontmatter_mode,
+            {
+                **common_kwargs,
+                'body': getattr(args, 'body', False),
                 'output_format': output_format,
             },
         ),

@@ -86,6 +86,11 @@ Use these modes to pull specific data from a file.
   - **Options:** Use `--language` (or `-l`) to filter by a specific language (for example, `python`). Use `--pairs` (or `-p`) to see both the language and the code content.
   - **Example:** `python multitool.py codeblocks readme.md --language python`
 
+- **`frontmatter`**
+  - Extracts YAML (`---`) or TOML (`+++`) frontmatter from the beginning of Markdown files.
+  - **Options:** Use the `--body` flag to extract the content after the frontmatter instead.
+  - **Example:** `python multitool.py frontmatter article.md --output metadata.yaml`
+
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`

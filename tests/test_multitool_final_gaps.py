@@ -60,9 +60,33 @@ def test_count_mode_arrow_stderr_coverage(tmp_path):
                     quiet=False
                 )
 
+                # When using count_mode directly in a test without main(),
+                # we need to ensure logging is configured to see output in mock_stderr.
+                # Use a more robust mock that handles multiple arguments.
+                def mock_log_info(msg, *args):
+                    if args:
+                        formatted_msg = msg % args
+                    else:
+                        formatted_msg = msg
+                    sys.stderr.write(formatted_msg + "\n")
+
+                with patch("logging.info", side_effect=mock_log_info):
+                    multitool.count_mode(
+                        input_files=[str(input_file)],
+                        output_file='-',
+                        min_length=1,
+                        max_length=100,
+                        process_output=False,
+                        output_format='arrow',
+                        quiet=False
+                    )
+
                 stderr_output = mock_stderr.getvalue()
+                # Metadata and summary now go to stderr via logging/print_processing_stats
                 assert "ANALYSIS SUMMARY" in stderr_output
-                assert "Word" in stderr_output # Header
+
+                stdout_output = mock_stdout.getvalue()
+                assert "Word" in stdout_output # Header now on stdout
 
 def test_highlight_mode_limit(tmp_path):
     """Cover line 3091: limit in highlight_mode."""

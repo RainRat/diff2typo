@@ -650,30 +650,41 @@ def print_processing_stats(
     filtered_items: Sequence[Any],
     item_label: str = "item",
     start_time: float | None = None,
+    extra_metrics: Mapping[str, Any] | None = None,
 ) -> None:
     """Print summary statistics for processed text items with visual hierarchy."""
     use_color = _should_enable_color(sys.stderr)
 
     report = _format_analysis_summary(
-        raw_item_count, filtered_items, item_label, start_time, use_color
+        raw_item_count,
+        filtered_items,
+        item_label,
+        start_time,
+        use_color,
+        extra_metrics=extra_metrics,
     )
     logging.info("\n".join(report))
 
 
 @contextlib.contextmanager
-def smart_open_output(filename: Any, encoding: str = 'utf-8', newline: str | None = None) -> Iterable[TextIO]:
+def smart_open_output(
+    filename: Any,
+    mode: str = "w",
+    encoding: str = "utf-8",
+    newline: str | None = None,
+) -> Iterable[TextIO]:
     """
     Context manager that yields a file object for writing.
     If filename is '-', yields the main output (the screen).
     If filename has a 'write' attribute (like a stream), yields it directly.
     Otherwise, opens the file for writing.
     """
-    if filename == '-':
+    if filename == "-":
         yield sys.stdout
-    elif hasattr(filename, 'write'):
+    elif hasattr(filename, "write"):
         yield filename
     else:
-        with open(filename, 'w', encoding=encoding, newline=newline) as f:
+        with open(filename, mode, encoding=encoding, newline=newline) as f:
             yield f
 
 def write_output(
@@ -2545,6 +2556,15 @@ def count_mode(
         mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
         pairs = True  # Automatically enable pairs for mapping audit
 
+    if pairs:
+        item_label = "pair"
+    elif lines:
+        item_label = "line"
+    elif chars:
+        item_label = "character"
+    else:
+        item_label = "word"
+
     if mapping:
         # Audit mode: Count matches of mapped typos in input files
         for input_file in input_files:
@@ -2754,37 +2774,8 @@ def count_mode(
             divider = f"{padding}{c_out_bold}{c_out_blue}{'─' * visible_header_len}{c_out_reset}"
             header_block = f"\n{header}\n{divider}\n"
 
-            # If not quiet OR writing to a file, prepare and write the summary and header block.
-            if not quiet or output_file != '-':
-                if pairs:
-                    item_label = "pair"
-                elif lines:
-                    item_label = "line"
-                elif chars:
-                    item_label = "character"
-                else:
-                    item_label = "word"
-
-                extra_metrics = {}
-                if by_file:
-                    extra_metrics["Total files processed"] = len(input_files)
-
-                summary_lines = _format_analysis_summary(
-                    raw_count, filtered_items, item_label, start_time, use_color_err,
-                    extra_metrics=extra_metrics
-                )
-                summary_text = "\n".join(summary_lines) + "\n"
-
-                # When the output is the console ('-'), we write the analysis summary and table
-                # header to stderr. This keeps stdout clean for piped data.
-                if output_file == '-':
-                    sys.stderr.write(summary_text)
-                    sys.stderr.write(header_block)
-                    sys.stderr.flush()
-                else:
-                    # When writing to a file, we include everything in the file.
-                    out_file.write(summary_text)
-                    out_file.write(header_block)
+            # Always write the table header to the primary output stream
+            out_file.write(header_block)
 
             for res_item in final_results:
                 if pairs:
@@ -2836,24 +2827,39 @@ def count_mode(
                     label = str(item)
                 out_file.write(f"{label}: {count}\n")
 
-    if output_format != 'arrow':
-        if pairs:
-            item_label = "pair"
-        elif lines:
-            item_label = "line"
-        elif chars:
-            item_label = "character"
-        else:
-            item_label = "word"
+    # After the loop, write the final summary
+    extra_metrics = {}
+    if by_file:
+        extra_metrics["Total files processed"] = len(input_files)
 
-        print_processing_stats(
-            raw_count,
-            filtered_items,
-            item_label=item_label,
-            start_time=start_time,
-        )
+    # For arrow format, we append the summary to the same file if it's not stdout.
+    # We do this even if quiet=True to maintain consistency with previous behavior for files.
+    if output_format == "arrow" and output_file != "-":
+        with smart_open_output(output_file, mode="a") as out:
+            use_color = _should_enable_color(out)
+            report = _format_analysis_summary(
+                raw_count,
+                filtered_items,
+                item_label,
+                start_time,
+                use_color,
+                extra_metrics=extra_metrics,
+            )
+            out.write("\n".join(report) + "\n")
+
+    # Always call print_processing_stats at the end.
+    # It uses logging.info, which will be suppressed by the log level if quiet=True.
+    print_processing_stats(
+        raw_count,
+        filtered_items,
+        item_label=item_label,
+        start_time=start_time,
+        extra_metrics=extra_metrics,
+    )
+
+    if not quiet:
         logging.info(
-            f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
+            f"[Count Mode] {item_label.capitalize()} frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
         )
 
 

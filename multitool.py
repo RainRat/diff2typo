@@ -2258,9 +2258,9 @@ def codeblocks_mode(
                 continue
 
             if pairs:
-                results.append((cb_lang, cb_content))
+                results.append((cb_lang, content_to_check))
             else:
-                results.append(cb_content)
+                results.append(content_to_check)
 
     if process_output:
         results = sorted(set(results))

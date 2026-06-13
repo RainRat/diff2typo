@@ -76,6 +76,11 @@ Use these modes to pull specific data from a file.
   - **Options:** Use `--level` (1-6) to filter by a specific heading level. Use `--pairs` (or `-p`) to see both the level and the text.
   - **Example:** `python multitool.py headings readme.md --level 1`
 
+- **`frontmatter`**
+  - Extracts YAML (`---`) or TOML (`+++`) frontmatter from the beginning of Markdown files. It saves the frontmatter content by default.
+  - **Options:** Use the `--body` flag to save the content after the frontmatter instead.
+  - **Example:** `python multitool.py frontmatter article.md --body`
+
 - **`links`**
   - Extracts links (`[text](url)`) and images (`![alt](url)`) from Markdown files. It saves the link text by default.
   - **Options:** Use `--right` to save the URL instead, or `--pairs` (or `-p`) to see both.

@@ -1745,6 +1745,40 @@ def _extract_markdown_codeblocks(input_file: str, quiet: bool = False) -> Iterab
         yield language, content
 
 
+def _extract_markdown_frontmatter(input_file: str, body: bool = False, quiet: bool = False) -> Iterable[str]:
+    """Yield YAML or TOML frontmatter from Markdown files, or the body after it."""
+    lines = _read_file_lines_robust(input_file)
+    if not lines:
+        return
+
+    first_line = lines[0].strip()
+    if first_line not in ('---', '+++'):
+        if body:
+            yield from (line.rstrip('\n') for line in lines)
+        return
+
+    delimiter = first_line
+    frontmatter = []
+    found_end = False
+
+    for i in range(1, len(lines)):
+        line = lines[i].rstrip('\n')
+        if line.strip() == delimiter:
+            found_end = True
+            if not body:
+                yield "\n".join(frontmatter)
+            else:
+                yield from (l.rstrip('\n') for l in lines[i+1:])
+            break
+        frontmatter.append(line)
+
+    if not found_end:
+        # If no closing delimiter, treat the whole file as body if requested,
+        # or nothing if frontmatter was expected but never closed.
+        if body:
+            yield from (line.rstrip('\n') for line in lines)
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2318,6 +2352,40 @@ def links_mode(
         write_output(results, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(total_links, results, item_label="link", start_time=start_time)
+
+
+def frontmatter_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    body: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts frontmatter or body from Markdown files."""
+    start_time = time.perf_counter()
+    results = []
+    total_files = len(input_files)
+
+    for input_file in input_files:
+        for item in _extract_markdown_frontmatter(input_file, body=body, quiet=quiet):
+            # Apply cleaning and filtering
+            # For frontmatter/body, cleaning might be destructive, so it depends on --raw
+            processed = filter_to_letters(item) if clean_items else item
+            if not (min_length <= len(processed) <= max_length):
+                continue
+            results.append(item)
+
+    if process_output:
+        results = sorted(set(results))
+
+    write_output(results, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(total_files, results, item_label="file", start_time=start_time)
 
 
 def md_table_mode(
@@ -6365,7 +6433,13 @@ MODE_DETAILS = {
         "summary": "Extracts Markdown links and images",
         "description": "Finds links ([text](url)) and images (![alt](url)) in Markdown files. It saves the link text by default. Use --right to save the URL instead, or --pairs to see both.",
         "example": "python multitool.py links readme.md --right",
-        "flags": "[--right] [-p]",
+        "flags": "[FILES...] [--right] [-p]",
+    },
+    "frontmatter": {
+        "summary": "Extracts Markdown frontmatter",
+        "description": "Finds YAML (---) or TOML (+++) frontmatter at the beginning of Markdown files. It saves the frontmatter content by default. Use --body to save the content after the frontmatter instead.",
+        "example": "python multitool.py frontmatter article.md --body",
+        "flags": "[FILES...] [--body]",
     },
     "codeblocks": {
         "summary": "Extracts Markdown code blocks",
@@ -7179,6 +7253,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output both the link text and the URL.",
     )
     _add_common_mode_arguments(links_parser)
+
+    frontmatter_parser = subparsers.add_parser(
+        'frontmatter',
+        help=MODE_DETAILS['frontmatter']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['frontmatter']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['frontmatter']['example']}{RESET}",
+    )
+    frontmatter_options = frontmatter_parser.add_argument_group(f"{BLUE}FRONTMATTER OPTIONS{RESET}")
+    frontmatter_options.add_argument(
+        '--body',
+        action='store_true',
+        help="Get the content after the frontmatter instead of the frontmatter itself.",
+    )
+    _add_common_mode_arguments(frontmatter_parser)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -8605,6 +8694,14 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'frontmatter': (
+            frontmatter_mode,
+            {
+                **common_kwargs,
+                'body': getattr(args, 'body', False),
                 'output_format': output_format,
             },
         ),

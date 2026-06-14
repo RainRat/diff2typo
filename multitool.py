@@ -1745,6 +1745,56 @@ def _extract_markdown_codeblocks(input_file: str, quiet: bool = False) -> Iterab
         yield language, content
 
 
+def _extract_markdown_frontmatter(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
+    """Yield (type, content) for Markdown frontmatter (YAML or TOML)."""
+    lines = _read_file_lines_robust(input_file)
+    if not lines:
+        return
+
+    first_line = lines[0].strip()
+    if first_line not in ('---', '+++'):
+        return
+
+    marker = first_line
+    fm_type = 'yaml' if marker == '---' else 'toml'
+    content = []
+
+    for i in range(1, len(lines)):
+        line = lines[i]
+        if line.strip() == marker:
+            yield fm_type, "".join(content)
+            return
+        content.append(line)
+
+
+def _extract_frontmatter_items(input_file: str, key_path: str = "", quiet: bool = False) -> Iterable[str]:
+    """Yield values from Markdown frontmatter, optionally by key."""
+    for fm_type, content in _extract_markdown_frontmatter(input_file, quiet=quiet):
+        if not key_path:
+            yield content.strip()
+            continue
+
+        path_parts = key_path.split('.')
+        try:
+            if fm_type == 'yaml':
+                import yaml
+                data = yaml.safe_load(content)
+                yield from _traverse_data(data, path_parts)
+            elif fm_type == 'toml':
+                if _TOMLLIB_AVAILABLE:
+                    import tomllib
+                    data = tomllib.loads(content)
+                elif _TOML_AVAILABLE:
+                    import toml
+                    data = toml.loads(content)
+                else:
+                    logging.error("TOML support requires Python 3.11+ or the 'toml' package.")
+                    return
+                yield from _traverse_data(data, path_parts)
+        except Exception as e:
+            logging.error(f"Failed to parse {fm_type.upper()} frontmatter in '{input_file}': {e}")
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2273,6 +2323,37 @@ def codeblocks_mode(
         write_output(results, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(total_blocks, results, item_label="codeblock", start_time=start_time)
+
+
+def frontmatter_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    key: str = "",
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts metadata from Markdown frontmatter."""
+    def extractor(f, quiet=False):
+        return _extract_frontmatter_items(f, key, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Frontmatter',
+        'Successfully got frontmatter values.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+    )
 
 
 def links_mode(
@@ -6367,6 +6448,12 @@ MODE_DETAILS = {
         "example": "python multitool.py links readme.md --right",
         "flags": "[--right] [-p]",
     },
+    "frontmatter": {
+        "summary": "Extracts Markdown frontmatter",
+        "description": "Finds metadata at the start of Markdown files (between --- or +++ markers). It saves the raw content by default. Use -k/--key to extract specific values from the YAML or TOML data.",
+        "example": "python multitool.py frontmatter post.md --key title",
+        "flags": "[FILES...] [-k KEY]",
+    },
     "codeblocks": {
         "summary": "Extracts Markdown code blocks",
         "description": "Finds fenced code blocks in Markdown files (using ``` or ~~~). It saves the code content by default. Use --language to filter by a specific language (for example, 'python') or --pairs to see both language and content.",
@@ -6619,7 +6706,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "frontmatter", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -7179,6 +7266,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output both the link text and the URL.",
     )
     _add_common_mode_arguments(links_parser)
+
+    frontmatter_parser = subparsers.add_parser(
+        'frontmatter',
+        help=MODE_DETAILS['frontmatter']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['frontmatter']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['frontmatter']['example']}{RESET}",
+    )
+    frontmatter_options = frontmatter_parser.add_argument_group(f"{BLUE}FRONTMATTER OPTIONS{RESET}")
+    frontmatter_options.add_argument(
+        '-k', '--key',
+        type=str,
+        default='',
+        help="The key path to get (for example 'title'). If not provided, gets the raw content.",
+    )
+    _add_common_mode_arguments(frontmatter_parser)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -8605,6 +8708,14 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'frontmatter': (
+            frontmatter_mode,
+            {
+                **common_kwargs,
+                'key': getattr(args, 'key', ''),
                 'output_format': output_format,
             },
         ),

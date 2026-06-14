@@ -2754,36 +2754,22 @@ def count_mode(
             divider = f"{padding}{c_out_bold}{c_out_blue}{'─' * visible_header_len}{c_out_reset}"
             header_block = f"\n{header}\n{divider}\n"
 
-            # If not quiet OR writing to a file, prepare and write the summary and header block.
+            # Determine labels for summary
+            if pairs:
+                item_label = "pair"
+            elif lines:
+                item_label = "line"
+            elif chars:
+                item_label = "character"
+            else:
+                item_label = "word"
+
+            # Write the table header for arrow format (suppressed in quiet mode for console)
             if not quiet or output_file != '-':
-                if pairs:
-                    item_label = "pair"
-                elif lines:
-                    item_label = "line"
-                elif chars:
-                    item_label = "character"
-                else:
-                    item_label = "word"
-
-                extra_metrics = {}
-                if by_file:
-                    extra_metrics["Total files processed"] = len(input_files)
-
-                summary_lines = _format_analysis_summary(
-                    raw_count, filtered_items, item_label, start_time, use_color_err,
-                    extra_metrics=extra_metrics
-                )
-                summary_text = "\n".join(summary_lines) + "\n"
-
-                # When the output is the console ('-'), we write the analysis summary and table
-                # header to stderr. This keeps stdout clean for piped data.
                 if output_file == '-':
-                    sys.stderr.write(summary_text)
                     sys.stderr.write(header_block)
                     sys.stderr.flush()
                 else:
-                    # When writing to a file, we include everything in the file.
-                    out_file.write(summary_text)
                     out_file.write(header_block)
 
             for res_item in final_results:
@@ -2826,6 +2812,26 @@ def count_mode(
                     )
                 out_file.write(f"{row}\n")
             out_file.write("\n")
+
+            # Prepare and write the analysis summary at the end for arrow format
+            if not quiet or output_file != '-':
+                extra_metrics = {}
+                if by_file:
+                    extra_metrics["Total files processed"] = len(input_files)
+
+                # Use color based on destination
+                summary_color = use_color_err if output_file == '-' else use_color_out
+                summary_lines = _format_analysis_summary(
+                    raw_count, filtered_items, item_label, start_time, summary_color,
+                    extra_metrics=extra_metrics
+                )
+                summary_text = "\n".join(summary_lines) + "\n"
+
+                if output_file == '-':
+                    sys.stderr.write(summary_text)
+                    sys.stderr.flush()
+                else:
+                    out_file.write(summary_text)
         else:  # 'line' or fallback
             for res_item in final_results:
                 if pairs:
@@ -2852,9 +2858,11 @@ def count_mode(
             item_label=item_label,
             start_time=start_time,
         )
-        logging.info(
-            f"[Count Mode] Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
-        )
+
+    c_tag, c_count, c_reset = _get_status_colors()
+    logging.info(
+        f"{c_tag}[Count Mode]{c_reset} Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
+    )
 
 
 def classify_mode(

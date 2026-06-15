@@ -1642,6 +1642,45 @@ def _extract_words_items(
     )
 
 
+def _extract_frontmatter(input_file: str, key_path: str = '', quiet: bool = False) -> Iterable[str]:
+    """Yield values from YAML frontmatter in Markdown files based on a dotted key path."""
+    lines = _read_file_lines_robust(input_file)
+    if not lines:
+        return
+
+    # Frontmatter must start with --- on the first line
+    if not lines[0].startswith('---'):
+        return
+
+    yaml_lines = []
+    found_end = False
+    for line in lines[1:]:
+        if line.startswith('---'):
+            found_end = True
+            break
+        yaml_lines.append(line)
+
+    if not found_end:
+        return
+
+    yaml_content = "".join(yaml_lines)
+    path_parts = key_path.split('.') if key_path else []
+
+    try:
+        import yaml
+    except ImportError:
+        logging.error("PyYAML is required for 'frontmatter' mode. Install it with 'pip install PyYAML'.")
+        return
+
+    try:
+        data = yaml.safe_load(yaml_content)
+        if data:
+            yield from _traverse_data(data, path_parts)
+    except yaml.YAMLError as e:
+        logging.error(f"Failed to parse frontmatter in '{input_file}': {e}")
+        return
+
+
 def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
     """Yield text from Markdown list items, optionally splitting by ':' or '->'."""
     lines = _read_file_lines_robust(input_file)
@@ -2141,6 +2180,37 @@ def table_mode(
         process_output,
         'Table',
         'Successfully got table fields.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+    )
+
+
+def frontmatter_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    key: str,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Wrapper for getting fields from Markdown frontmatter."""
+    def extractor(f, quiet=False):
+        return _extract_frontmatter(f, key, quiet=quiet)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Frontmatter',
+        'Successfully got frontmatter values.',
         output_format,
         quiet,
         clean_items=clean_items,
@@ -6325,6 +6395,12 @@ MODE_DETAILS = {
         "example": "python multitool.py markdown notes.md --output items.txt",
         "flags": "[FILES...] [--right]",
     },
+    "frontmatter": {
+        "summary": "Extracts Markdown frontmatter",
+        "description": "Finds YAML frontmatter in Markdown files (text between '---' delimiters at the start of the file). Use dots for nested keys (like 'metadata.tags'). If no key is provided, it gets items from the top level.",
+        "example": "python multitool.py frontmatter post.md --key 'tags'",
+        "flags": "[FILES...] [-k KEY]",
+    },
     "md-table": {
         "summary": "Extracts Markdown table items",
         "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific 0-based numbers. It automatically skips header and divider rows.",
@@ -6619,7 +6695,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "links", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -7095,6 +7171,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Get the right side of a pair (split by ':' or '->') instead of the left side.",
     )
     _add_common_mode_arguments(markdown_parser)
+
+    frontmatter_parser = subparsers.add_parser(
+        'frontmatter',
+        help=MODE_DETAILS['frontmatter']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['frontmatter']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['frontmatter']['example']}{RESET}",
+    )
+    frontmatter_options = frontmatter_parser.add_argument_group(f"{BLUE}FRONTMATTER OPTIONS{RESET}")
+    frontmatter_options.add_argument(
+        '-k', '--key',
+        type=str,
+        default='',
+        help="The key path to extract (for example 'metadata.items'). If not provided, converts the entire document.",
+    )
+    _add_common_mode_arguments(frontmatter_parser)
 
     md_table_parser = subparsers.add_parser(
         'md-table',
@@ -8605,6 +8697,14 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'frontmatter': (
+            frontmatter_mode,
+            {
+                **common_kwargs,
+                'key': getattr(args, 'key', ''),
                 'output_format': output_format,
             },
         ),

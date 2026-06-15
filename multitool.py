@@ -6365,7 +6365,7 @@ MODE_DETAILS = {
         "summary": "Extracts Markdown links and images",
         "description": "Finds links ([text](url)) and images (![alt](url)) in Markdown files. It saves the link text by default. Use --right to save the URL instead, or --pairs to see both.",
         "example": "python multitool.py links readme.md --right",
-        "flags": "[--right] [-p]",
+        "flags": "[FILES...] [--right] [-p]",
     },
     "codeblocks": {
         "summary": "Extracts Markdown code blocks",
@@ -6533,7 +6533,7 @@ MODE_DETAILS = {
         "summary": "Finds loops in typo pairs",
         "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues when automatically fixing typos and represent logic errors in your data.",
         "example": "python multitool.py cycles typos.csv --output-format arrow",
-        "flags": "",
+        "flags": "[FILES...]",
     },
     "repeated": {
         "summary": "Finds doubled words",

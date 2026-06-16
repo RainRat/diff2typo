@@ -146,6 +146,24 @@ def filter_to_letters(text: str) -> str:
     return re.sub("[^a-z]", "", text.lower())
 
 
+def _slugify(text: str) -> str:
+    """
+    Converts text into a GitHub-compatible Markdown anchor slug.
+    (lowercase, alphanumeric, spaces become hyphens, remove other symbols).
+    """
+    # 1. Lowercase
+    slug = text.lower()
+    # 2. Replace spaces/underscores with hyphens
+    slug = re.sub(r'[\s_]+', '-', slug)
+    # 3. Remove everything that isn't alphanumeric or a hyphen
+    slug = re.sub(r'[^a-z0-9-]', '', slug)
+    # 4. Collapse consecutive hyphens
+    slug = re.sub(r'-+', '-', slug)
+    # 5. Remove leading/trailing hyphens
+    slug = slug.strip('-')
+    return slug
+
+
 def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
     """
     Detect the output format based on the file extension.
@@ -2220,6 +2238,60 @@ def headings_mode(
         _write_paired_output(results, output_file, output_format, "Headings", quiet, limit=limit)
     else:
         write_output(results, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(total_headings, results, item_label="heading", start_time=start_time)
+
+
+def toc_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    level: int | None = None,
+    no_links: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Generates a Table of Contents from Markdown files."""
+    start_time = time.perf_counter()
+    results = []
+    total_headings = 0
+    seen_slugs = Counter()
+
+    for input_file in input_files:
+        # Reset slug counter for each file if we are processing multiple files separately,
+        # but here we treat all inputs as a single stream of headings for the TOC.
+        # GitHub anchors are usually file-specific, but for a single TOC we want uniqueness.
+        for h_level, h_text in _extract_markdown_headings(input_file, quiet=quiet):
+            total_headings += 1
+            if level is not None and h_level != level:
+                continue
+
+            # Filtering (cleaning is usually not desired for TOC text, but we respect the flag)
+            display_text = filter_to_letters(h_text) if clean_items else h_text
+            if not (min_length <= len(display_text) <= max_length):
+                continue
+
+            if no_links:
+                line = f"{'  ' * (h_level - 1)}- {display_text}"
+            else:
+                slug = _slugify(h_text)
+                count = seen_slugs[slug]
+                seen_slugs[slug] += 1
+                final_slug = slug if count == 0 else f"{slug}-{count}"
+                line = f"{'  ' * (h_level - 1)}- [{display_text}](#{final_slug})"
+
+            results.append(line)
+
+    if process_output:
+        # For TOC, sorting alphabetically might break the document structure,
+        # but we respect the global flag if the user explicitly asks for it.
+        results = sorted(set(results))
+
+    write_output(results, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(total_headings, results, item_label="heading", start_time=start_time)
 
@@ -6337,6 +6409,12 @@ MODE_DETAILS = {
         "example": "python multitool.py headings readme.md --level 1",
         "flags": "[FILES...] [--level N] [-p]",
     },
+    "toc": {
+        "summary": "Generates a Table of Contents",
+        "description": "Creates a clickable, nested Table of Contents from Markdown headings. It handles duplicate headings by adding numeric suffixes. Use --no-links to generate a simple indented list.",
+        "example": "python multitool.py toc readme.md --level 2",
+        "flags": "[FILES...] [--level N] [--no-links]",
+    },
     "json": {
         "summary": "Extracts JSON values by key",
         "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If no key is provided, it gets items from the top level. It automatically handles lists of objects.",
@@ -6619,7 +6697,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "links", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "md-table", "headings", "toc", "links", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -7139,6 +7217,27 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output the heading level along with the text.",
     )
     _add_common_mode_arguments(headings_parser)
+
+    toc_parser = subparsers.add_parser(
+        'toc',
+        help=MODE_DETAILS['toc']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['toc']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['toc']['example']}{RESET}",
+    )
+    toc_options = toc_parser.add_argument_group(f"{BLUE}TOC OPTIONS{RESET}")
+    toc_options.add_argument(
+        '--level',
+        type=int,
+        choices=range(1, 7),
+        help="Filter by heading level (1-6).",
+    )
+    toc_options.add_argument(
+        '--no-links',
+        action='store_true',
+        help="Generate a simple indented list without clickable links.",
+    )
+    _add_common_mode_arguments(toc_parser)
 
     codeblocks_parser = subparsers.add_parser(
         'codeblocks',
@@ -8605,6 +8704,15 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'toc': (
+            toc_mode,
+            {
+                **common_kwargs,
+                'level': getattr(args, 'level', None),
+                'no_links': getattr(args, 'no_links', False),
                 'output_format': output_format,
             },
         ),

@@ -76,6 +76,11 @@ Use these modes to pull specific data from a file.
   - **Options:** Use `--level` (1-6) to filter by a specific heading level. Use `--pairs` (or `-p`) to see both the level and the text.
   - **Example:** `python multitool.py headings readme.md --level 1`
 
+- **`toc`**
+  - Creates a clickable, nested Table of Contents from Markdown headings. It handles duplicate headings by adding numeric suffixes.
+  - **Options:** Use `--level` (1-6) to filter by a specific heading level. Use `--no-links` to generate a simple indented list without clickable links.
+  - **Example:** `python multitool.py toc readme.md --level 2`
+
 - **`links`**
   - Extracts links (`[text](url)`) and images (`![alt](url)`) from Markdown files. It saves the link text by default.
   - **Options:** Use `--right` to save the URL instead, or `--pairs` (or `-p`) to see both.

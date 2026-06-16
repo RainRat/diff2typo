@@ -6447,7 +6447,7 @@ MODE_DETAILS = {
         "summary": "Extracts Markdown links and images",
         "description": "Finds links ([text](url)) and images (![alt](url)) in Markdown files. It saves the link text by default. Use --right to save the URL instead, or --pairs to see both.",
         "example": "python multitool.py links readme.md --right",
-        "flags": "[--right] [-p]",
+        "flags": "[FILES...] [--right] [-p]",
     },
     "codeblocks": {
         "summary": "Extracts Markdown code blocks",
@@ -6495,7 +6495,7 @@ MODE_DETAILS = {
         "summary": "Counts how often items appear",
         "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
         "example": "python multitool.py count . --lines --min-count 5 -f arrow",
-        "flags": "[FILES...] [-s MAPPING] [-adSplcB]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-SplcB]",
     },
     "filterfragments": {
         "summary": "Removes words found inside others",
@@ -6535,9 +6535,9 @@ MODE_DETAILS = {
     },
     "map": {
         "summary": "Replaces items using a mapping",
-        "description": "Replaces items in your list with values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, and YAML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
+        "description": "Replaces items in your list with values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
-        "flags": "[FILES...] [-s MAPPING] [-apS]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-pS]",
     },
     "case": {
         "summary": "Changes word casing",
@@ -6615,7 +6615,7 @@ MODE_DETAILS = {
         "summary": "Finds loops in typo pairs",
         "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues when automatically fixing typos and represent logic errors in your data.",
         "example": "python multitool.py cycles typos.csv --output-format arrow",
-        "flags": "",
+        "flags": "[FILES...]",
     },
     "repeated": {
         "summary": "Finds doubled words",
@@ -6639,7 +6639,7 @@ MODE_DETAILS = {
         "summary": "Scans project for known typos",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. It also supports context lines.",
         "example": "python multitool.py scan . --add teh:the --smart -A 1",
-        "flags": "[FILES...] [-s MAPPING] [-anS] [-B/A/C N]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-nS] [-B/A/C N]",
     },
     "verify": {
         "summary": "Checks if typos exist in project",
@@ -6649,9 +6649,9 @@ MODE_DETAILS = {
     },
     "scrub": {
         "summary": "Fixes typos in text files",
-        "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, and YAML mapping formats.",
+        "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --diff",
-        "flags": "[FILES...] [-s MAPPING] [-I EXT] [-aSD]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I EXT] [-SD]",
     },
     "align": {
         "summary": "Aligns typo-correction pairs",
@@ -6663,7 +6663,7 @@ MODE_DETAILS = {
         "summary": "Batch renames files and folders",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
         "example": "python multitool.py rename src/ --add teh:the --in-place",
-        "flags": "[FILES...] [-s MAPPING] [-a K:V] [-IS] [--dry-run]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I] [-S] [--dry-run]",
     },
     "diff": {
         "summary": "Shows differences between files",
@@ -6693,7 +6693,7 @@ MODE_DETAILS = {
         "summary": "Replaces text or patterns",
         "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
         "example": "python multitool.py replace 'the' 'that' . --in-place --smart-case",
-        "flags": "[OLD] [NEW] [FILES...] [-rSI] [-D] [--dry-run]",
+        "flags": "[OLD] [NEW] [FILES...] [-rS] [-I EXT] [-D] [--ignore-case] [--dry-run]",
     },
 }
 
@@ -7455,7 +7455,7 @@ def _build_parser() -> argparse.ArgumentParser:
     unit_group.add_argument(
         '-p', '--pairs',
         action='store_true',
-        help='Count frequencies of word pairs (for example, typo -> correction) instead of single words.',
+        help='Count frequencies of word pairs (for example, typo -> correction) and classify them instead of single words.',
     )
     unit_group.add_argument(
         '-l', '--lines',

@@ -195,6 +195,14 @@ def _apply_smart_case(original: str, replacement: str) -> str:
     return replacement.lower()
 
 
+def _sanitize_xml_tag(name: Any) -> str:
+    """Ensures a string is a valid XML tag name."""
+    tag = str(name)
+    if not tag or not (tag[0].isalpha() or tag[0] == '_'):
+        tag = "_" + tag
+    return re.sub(r'[^a-zA-Z0-9._-]', '_', tag)
+
+
 def _ensure_min_dist(max_dist: int | None, keyboard: bool, transposition: bool) -> int | None:
     """
     Ensures that max_dist is at least 1 if keyboard is True, and at least 2 if transposition is True.
@@ -776,12 +784,7 @@ def _write_structured_data(
                 if isinstance(data, dict):
                     for k in sorted(data.keys()):
                         v = data[k]
-                        # Ensure tag name is valid (cannot start with digit, dot, or minus, etc.)
-                        tag = str(k)
-                        if not tag or not (tag[0].isalpha() or tag[0] == '_'):
-                            tag = "_" + tag
-                        # Further sanitize tag: replace invalid chars with underscore
-                        tag = re.sub(r'[^a-zA-Z0-9._-]', '_', tag)
+                        tag = _sanitize_xml_tag(k)
                         child = ET.SubElement(parent, tag)
                         build_xml(child, v)
                 elif isinstance(data, list):
@@ -791,12 +794,7 @@ def _write_structured_data(
                 else:
                     parent.text = str(data)
 
-            # Ensure root tag is valid (cannot start with digit, dot, or minus, etc.)
-            clean_root = str(root_tag)
-            if not clean_root or not (clean_root[0].isalpha() or clean_root[0] == '_'):
-                clean_root = "_" + clean_root
-            clean_root = re.sub(r'[^a-zA-Z0-9._-]', '_', clean_root)
-
+            clean_root = _sanitize_xml_tag(root_tag)
             xml_root = ET.Element(clean_root)
             build_xml(xml_root, data)
             xml_str = ET.tostring(xml_root, encoding='utf-8')

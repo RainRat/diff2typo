@@ -2253,14 +2253,14 @@ def codeblocks_mode(
             # Note: cleaning (filter_to_letters) might be destructive for code,
             # so we only apply it if explicitly requested via lack of --raw.
             # Usually for code extraction users would use --raw.
-            content_to_check = filter_to_letters(cb_content) if clean_items else cb_content
-            if not (min_length <= len(content_to_check) <= max_length):
+            text_to_save = filter_to_letters(cb_content) if clean_items else cb_content
+            if not (min_length <= len(text_to_save) <= max_length):
                 continue
 
             if pairs:
-                results.append((cb_lang, cb_content))
+                results.append((cb_lang, text_to_save))
             else:
-                results.append(cb_content)
+                results.append(text_to_save)
 
     if process_output:
         results = sorted(set(results))

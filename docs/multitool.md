@@ -27,6 +27,8 @@ To keep things fast and clean, the tool automatically ignores common system and 
 - **`.git`**
 - **`node_modules`**
 - **`venv`** and **`.venv`**
+- **`.pytest_cache`** and **`.ruff_cache`**
+- **`.vscode`** and **`.idea`**
 - **`__pycache__`**
 - **`dist`** and **`build`**
 
@@ -221,7 +223,11 @@ Use these modes to transform or combine your data.
   - **Example:** `python multitool.py replace 'old-tag' 'new-tag' . --smart-case --in-place`
 
 - **`set_operation`**
-  - Compares two files using set logic: `intersection`, `union`, `difference`, or `symmetric_difference`.
+  - Compares two files using set logic:
+    - `intersection`: Finds items present in both files.
+    - `union`: Combines all unique items from both files.
+    - `difference`: Finds items present only in the first file.
+    - `symmetric_difference`: Finds items present in either file, but not both.
   - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation symmetric_difference`
 
 - **`zip`**
@@ -248,6 +254,7 @@ Use these modes to transform or combine your data.
     - Supports `--in-place`, `--dry-run`, and `--diff`.
     - Use `--fuzzy` to set the maximum character distance for matching.
     - Use `--keyboard` or `--transposition` to filter for likely typing errors.
+    - Use `--threshold` to set the minimum frequency ratio to consider a rare word a typo (default: 10.0).
   - **Example:** `python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --keyboard`
 
 - **`highlight`**

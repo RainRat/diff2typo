@@ -1800,6 +1800,32 @@ def _extract_markdown_codeblocks(input_file: str, quiet: bool = False) -> Iterab
         yield language, content
 
 
+def _extract_comment_items(input_file: str, quiet: bool = False) -> Iterable[str]:
+    """Yields comments extracted from a file using various common comment markers."""
+    lines = _read_file_lines_robust(input_file)
+    content = "".join(lines)
+
+    # Multi-line patterns (on whole content)
+    multi_line_patterns = [
+        re.compile(r'/\*(.*?)\*/', re.DOTALL),
+        re.compile(r'<!--(.*?)-->', re.DOTALL),
+        re.compile(r'"{3}(.*?)"{3}', re.DOTALL),
+        re.compile(r"'{3}(.*?)'{3}", re.DOTALL),
+    ]
+
+    for pattern in multi_line_patterns:
+        for match in pattern.finditer(content):
+            yield match.group(1).strip()
+
+    # Single-line patterns
+    # Heuristic: match from #, //, or -- to the end of line.
+    single_line_pattern = re.compile(r'(?:#|//|--)\s*(.*)')
+    for line in tqdm(lines, desc=f'Processing {input_file} (comments)', unit=' lines', disable=quiet):
+        match = single_line_pattern.search(line)
+        if match:
+            yield match.group(1).strip()
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2413,6 +2439,46 @@ def codeblocks_mode(
         write_output(results, output_file, output_format, quiet, limit=limit)
 
     print_processing_stats(total_blocks, results, item_label="codeblock", start_time=start_time)
+
+
+def comments_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts comments from various file types."""
+    start_time = time.perf_counter()
+    results = []
+    total_found = 0
+
+    for input_file in input_files:
+        for comment in _extract_comment_items(input_file, quiet=quiet):
+            total_found += 1
+
+            # For multi-line comments, we split into lines if cleaning is requested
+            # to allow filtering specific words/lines within the comment.
+            if clean_items:
+                sub_items = comment.splitlines()
+            else:
+                sub_items = [comment]
+
+            for item in sub_items:
+                text_to_save = filter_to_letters(item) if clean_items else item
+                if not (min_length <= len(text_to_save) <= max_length):
+                    continue
+                results.append(text_to_save)
+
+    if process_output:
+        results = sorted(set(results))
+
+    write_output(results, output_file, output_format, quiet, limit=limit)
+    print_processing_stats(total_found, results, item_label="comment", start_time=start_time)
 
 
 def links_mode(
@@ -6533,6 +6599,12 @@ MODE_DETAILS = {
         "example": "python multitool.py codeblocks readme.md --language python",
         "flags": "[FILES...] [-l LANG] [-p]",
     },
+    "comments": {
+        "summary": "Extracts comments from source files",
+        "description": "Finds comments in various programming and markup languages. It identifies single-line comments (#, //, --) and multi-line comments (/* */, <!-- -->, and triple quotes).",
+        "example": "python multitool.py comments src/ --output comments.txt",
+        "flags": "[FILES...]",
+    },
     "flatten": {
         "summary": "Flattens nested data structures",
         "description": "Transforms nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, 'user.name = value'). It supports multi-document YAML and JSON Lines (JSONL).",
@@ -6779,7 +6851,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -7356,6 +7428,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output both the language and the code content.",
     )
     _add_common_mode_arguments(codeblocks_parser)
+
+    comments_parser = subparsers.add_parser(
+        'comments',
+        help=MODE_DETAILS['comments']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['comments']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['comments']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(comments_parser)
 
     links_parser = subparsers.add_parser(
         'links',
@@ -8802,6 +8883,13 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'comments': (
+            comments_mode,
+            {
+                **common_kwargs,
                 'output_format': output_format,
             },
         ),

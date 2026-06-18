@@ -96,3 +96,28 @@ This is a comment // but this is one
     assert "example.com/some/path" not in lines
     assert "but this is one" in lines
 
+def test_comments_mode_coverage_gap(tmp_path):
+    """Test comments_mode with multi-line splitting, length filtering, and sorting/deduplication."""
+    f = tmp_path / "gap.py"
+    f.write_text("""
+/*
+   Line One
+   Line Two
+*/
+# short
+# unique
+# unique
+""", encoding='utf-8')
+    out = tmp_path / "out.txt"
+    # min_length=6 will filter out "short"
+    comments_mode(
+        input_files=[str(f)],
+        output_file=str(out),
+        min_length=6,
+        max_length=1000,
+        process_output=True,
+        clean_items=True
+    )
+    content = out.read_text(encoding='utf-8')
+    lines = content.splitlines()
+    assert lines == ["lineone", "linetwo", "unique"]

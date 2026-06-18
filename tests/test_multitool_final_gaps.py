@@ -37,32 +37,30 @@ def test_ngrams_clean_empty_word(tmp_path):
     # Should be "hello world" if !!! was skipped
     assert content == "hello world"
 
-def test_count_mode_arrow_stderr_coverage(tmp_path):
-    """Cover lines 1467-1468 and 1489-1492: stderr metadata in count_mode arrow format."""
+def test_count_mode_arrow_stdout_coverage(tmp_path):
+    """Cover metadata in count_mode arrow format when outputting to stdout."""
     input_file = tmp_path / "input.txt"
     input_file.write_text("apple banana apple")
 
     # We need output_file='-', output_format='arrow', and quiet=False
-    # Also need to mock sys.stderr.write to verify it was called
-    with patch("sys.stderr", new=io.StringIO()) as mock_stderr:
-        with patch("sys.stdout", new=io.StringIO()) as mock_stdout:
-            # Force color and TTY for coverage of the branches
-            with patch("os.environ", {"FORCE_COLOR": "1"}):
-                # Ensure headers are considered colorable by setting TTY mock
-                mock_stdout.isatty = lambda: True
-                multitool.count_mode(
-                    input_files=[str(input_file)],
-                    output_file='-',
-                    min_length=1,
-                    max_length=100,
-                    process_output=False,
-                    output_format='arrow',
-                    quiet=False
-                )
+    with patch("sys.stdout", new=io.StringIO()) as mock_stdout:
+        # Force color and TTY for coverage of the branches
+        with patch("os.environ", {"FORCE_COLOR": "1"}):
+            # Ensure headers are considered colorable by setting TTY mock
+            mock_stdout.isatty = lambda: True
+            multitool.count_mode(
+                input_files=[str(input_file)],
+                output_file='-',
+                min_length=1,
+                max_length=100,
+                process_output=False,
+                output_format='arrow',
+                quiet=False
+            )
 
-                stderr_output = mock_stderr.getvalue()
-                assert "ANALYSIS SUMMARY" in stderr_output
-                assert "Word" in stderr_output # Header
+            stdout_output = mock_stdout.getvalue()
+            assert "ANALYSIS SUMMARY" in stdout_output
+            assert "Word" in stdout_output # Header
 
 def test_highlight_mode_limit(tmp_path):
     """Cover line 3091: limit in highlight_mode."""

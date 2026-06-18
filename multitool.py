@@ -4209,6 +4209,82 @@ def line_mode(
     )
 
 
+def _extract_path_items(
+    path: str,
+    basename: bool = False,
+    dirname: bool = False,
+    extension: bool = False,
+    smart: bool = False,
+    quiet: bool = False,
+) -> Iterable[str]:
+    """Yield components of the provided path."""
+    if path == '-':
+        return
+
+    # Determine which component(s) to yield
+    components = []
+    if basename:
+        components.append(os.path.basename(path))
+    if dirname:
+        components.append(os.path.dirname(path))
+    if extension:
+        components.append(os.path.splitext(path)[1])
+
+    # Default to full path if no flags specified
+    if not (basename or dirname or extension):
+        components.append(path)
+
+    for component in components:
+        if smart:
+            yield from _smart_split(component)
+        else:
+            yield component
+
+
+def paths_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    basename: bool = False,
+    dirname: bool = False,
+    extension: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+    smart: bool = False,
+) -> None:
+    """Extracts components from file and directory paths."""
+    start_time = time.perf_counter()
+
+    raw_items = []
+    for input_file in input_files:
+        raw_items.extend(
+            _extract_path_items(
+                input_file,
+                basename=basename,
+                dirname=dirname,
+                extension=extension,
+                smart=smart,
+                quiet=quiet,
+            )
+        )
+
+    filtered_items = clean_and_filter(raw_items, min_length, max_length, clean=clean_items)
+
+    if process_output:
+        filtered_items = sorted(set(filtered_items))
+
+    write_output(filtered_items, output_file, output_format, quiet, limit=limit)
+
+    print_processing_stats(len(raw_items), filtered_items, item_label="path", start_time=start_time)
+    logging.info(
+        f"[Paths Mode] Successfully extracted {len(filtered_items)} path components. Output written to '{output_file}'."
+    )
+
+
 def words_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -6558,6 +6634,12 @@ MODE_DETAILS = {
         "example": "python multitool.py json list.json -o items.txt",
         "flags": "[FILES...] [-k KEY]",
     },
+    "paths": {
+        "summary": "Extracts path components",
+        "description": "Finds and extracts specific parts of file and directory paths. You can get just the filename (basename), the folder path (dirname), or the file extension. It also supports smart splitting to find words within filenames.",
+        "example": "python multitool.py paths src/ --basename --smart --output wordlist.txt",
+        "flags": "[FILES...] [--basename] [--dirname] [--extension] [-S]",
+    },
     "yaml": {
         "summary": "Extracts YAML values by key",
         "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If no key is provided, it gets items from the top level. It automatically handles lists.",
@@ -6840,7 +6922,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
@@ -7494,6 +7576,36 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The tag name or XPath expression to match (for example './/item/name').",
     )
     _add_common_mode_arguments(xml_parser)
+
+    paths_parser = subparsers.add_parser(
+        'paths',
+        help=MODE_DETAILS['paths']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['paths']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['paths']['example']}{RESET}",
+    )
+    paths_options = paths_parser.add_argument_group(f"{BLUE}PATH EXTRACTION OPTIONS{RESET}")
+    paths_options.add_argument(
+        '--basename',
+        action='store_true',
+        help="Extract the final component of the path (the filename).",
+    )
+    paths_options.add_argument(
+        '--dirname',
+        action='store_true',
+        help="Extract the directory part of the path.",
+    )
+    paths_options.add_argument(
+        '--extension',
+        action='store_true',
+        help="Extract the file extension.",
+    )
+    paths_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Split path components by symbols and capital letters.',
+    )
+    _add_common_mode_arguments(paths_parser)
 
     flatten_parser = subparsers.add_parser(
         'flatten',
@@ -8727,24 +8839,24 @@ def main() -> None:
                 # to ensure contents are processed before their parent directories.
                 # Skip common noise folders for performance and to reduce clutter.
                 exclude = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.vscode', '.idea', 'dist', 'build'}
-                for root, dirs, files in os.walk(match, topdown=(args.mode != 'rename')):
+                for root, dirs, files in os.walk(match, topdown=(args.mode not in ('rename', 'paths'))):
                     # If we encounter an excluded folder in the path, skip it and its contents
                     if any(part in exclude for part in root.split(os.sep)):
                         dirs[:] = []  # Don't recurse further if topdown=True
                         continue
-                    
-                    if args.mode != 'rename':
+
+                    if args.mode not in ('rename', 'paths'):
                         # Prune directories in-place for efficiency when topdown=True
                         dirs[:] = [d for d in dirs if d not in exclude]
 
-                    if args.mode == 'rename':
+                    if args.mode in ('rename', 'paths'):
                         for d in sorted(dirs):
                             if d not in exclude:
                                 expanded_paths.append(os.path.join(root, d))
                     for f in sorted(files):
                         expanded_paths.append(os.path.join(root, f))
 
-                if args.mode == 'rename':
+                if args.mode in ('rename', 'paths'):
                     expanded_paths.append(match)
             else:
                 expanded_paths.append(match)
@@ -9072,6 +9184,17 @@ def main() -> None:
                 **common_kwargs,
                 'key': getattr(args, 'key', ''),
                 'output_format': output_format,
+            },
+        ),
+        'paths': (
+            paths_mode,
+            {
+                **common_kwargs,
+                'basename': getattr(args, 'basename', False),
+                'dirname': getattr(args, 'dirname', False),
+                'extension': getattr(args, 'extension', False),
+                'output_format': output_format,
+                'smart': getattr(args, 'smart', False),
             },
         ),
         'flatten': (

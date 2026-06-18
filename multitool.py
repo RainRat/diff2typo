@@ -2899,9 +2899,7 @@ def count_mode(
             max_bar = 20
 
             # Colors for output
-            # We determine color availability independently for stdout and stderr to preserve correct behavior when piping.
             use_color_out = _should_enable_color(out_file)
-            use_color_err = _should_enable_color(sys.stderr)
 
             c_out_bold = BOLD if use_color_out else ""
             c_out_blue = BLUE if use_color_out else ""
@@ -2972,11 +2970,7 @@ def count_mode(
 
             # Write the table header for arrow format (suppressed in quiet mode for console)
             if not quiet or output_file != '-':
-                if output_file == '-':
-                    sys.stderr.write(header_block)
-                    sys.stderr.flush()
-                else:
-                    out_file.write(header_block)
+                out_file.write(header_block)
 
             for res_item in final_results:
                 if pairs:
@@ -3026,18 +3020,12 @@ def count_mode(
                     extra_metrics["Total files processed"] = len(input_files)
 
                 # Use color based on destination
-                summary_color = use_color_err if output_file == '-' else use_color_out
                 summary_lines = _format_analysis_summary(
-                    raw_count, filtered_items, item_label, start_time, summary_color,
+                    raw_count, filtered_items, item_label, start_time, use_color_out,
                     extra_metrics=extra_metrics
                 )
                 summary_text = "\n".join(summary_lines) + "\n"
-
-                if output_file == '-':
-                    sys.stderr.write(summary_text)
-                    sys.stderr.flush()
-                else:
-                    out_file.write(summary_text)
+                out_file.write(summary_text)
         else:  # 'line' or fallback
             for res_item in final_results:
                 if pairs:

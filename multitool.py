@@ -149,14 +149,15 @@ def filter_to_letters(text: str) -> str:
 def _slugify(text: str) -> str:
     """
     Converts text into a GitHub-compatible Markdown anchor slug.
-    (lowercase, alphanumeric, spaces become hyphens, remove other symbols).
+    (lowercase, alphanumeric, spaces become hyphens, remove other symbols,
+    preserves underscores).
     """
     # 1. Lowercase
     slug = text.lower()
-    # 2. Replace spaces/underscores with hyphens
-    slug = re.sub(r'[\s_]+', '-', slug)
-    # 3. Remove everything that isn't alphanumeric or a hyphen
-    slug = re.sub(r'[^a-z0-9-]', '', slug)
+    # 2. Replace spaces with hyphens
+    slug = re.sub(r'\s+', '-', slug)
+    # 3. Remove everything that isn't alphanumeric, a hyphen, or an underscore
+    slug = re.sub(r'[^a-z0-9_-]', '', slug)
     # 4. Collapse consecutive hyphens
     slug = re.sub(r'-+', '-', slug)
     # 5. Remove leading/trailing hyphens

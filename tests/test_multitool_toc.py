@@ -6,7 +6,7 @@ def test_slugify():
     assert _slugify("Hello World") == "hello-world"
     assert _slugify("Markdown Header!!") == "markdown-header"
     assert _slugify("Multiple   Spaces") == "multiple-spaces"
-    assert _slugify("Underscore_Test") == "underscore-test"
+    assert _slugify("Underscore_Test") == "underscore_test"
     assert _slugify("Numbers 123") == "numbers-123"
     assert _slugify("-Leading and Trailing-") == "leading-and-trailing"
     assert _slugify("Special !@#$%^&*() Characters") == "special-characters"

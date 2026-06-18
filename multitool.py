@@ -1819,7 +1819,7 @@ def _extract_comment_items(input_file: str, quiet: bool = False) -> Iterable[str
 
     # Single-line patterns
     # Heuristic: match from #, //, or -- to the end of line.
-    single_line_pattern = re.compile(r'(?:#|//|--)\s*(.*)')
+    single_line_pattern = re.compile(r'(?:#|(?<!:)//|--)\s*(.*)')
     for line in tqdm(lines, desc=f'Processing {input_file} (comments)', unit=' lines', disable=quiet):
         match = single_line_pattern.search(line)
         if match:

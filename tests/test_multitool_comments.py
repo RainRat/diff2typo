@@ -80,3 +80,19 @@ SELECT * FROM table; -- another SQL comment
     content = out.read_text(encoding='utf-8')
     assert "SQL comment" in content
     assert "another SQL comment" in content
+
+def test_extract_comments_ignore_urls(tmp_path):
+    f = tmp_path / "test.txt"
+    f.write_text("""
+Check out https://github.com/RainRat/diff2typo
+Also http://example.com/some/path
+This is a comment // but this is one
+""", encoding='utf-8')
+    out = tmp_path / "out.txt"
+    comments_mode([str(f)], str(out), 1, 1000, False, clean_items=False)
+    content = out.read_text(encoding='utf-8')
+    lines = content.splitlines()
+    assert "github.com/RainRat/diff2typo" not in lines
+    assert "example.com/some/path" not in lines
+    assert "but this is one" in lines
+

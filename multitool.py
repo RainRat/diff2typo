@@ -1266,6 +1266,7 @@ def _process_items(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    item_label: str = "item",
 ) -> None:
     """Generic processing for modes that get raw string items from one or more files."""
     start_time = time.perf_counter()
@@ -1284,7 +1285,7 @@ def _process_items(
 
     write_output(filtered_items, output_file, output_format, quiet, limit=limit)
 
-    print_processing_stats(len(raw_items), filtered_items, start_time=start_time)
+    print_processing_stats(len(raw_items), filtered_items, item_label=item_label, start_time=start_time)
     logging.info(
         f"[{mode_name} Mode] {success_msg} Output written to '{output_file}'."
     )
@@ -2454,32 +2455,30 @@ def comments_mode(
     limit: int | None = None,
 ) -> None:
     """Extracts comments from various file types."""
-    start_time = time.perf_counter()
-    results = []
-    total_found = 0
-
-    for input_file in input_files:
+    def extractor(input_file: str, quiet: bool = False) -> Iterable[str]:
         for comment in _extract_comment_items(input_file, quiet=quiet):
-            total_found += 1
-
             # For multi-line comments, we split into lines if cleaning is requested
             # to allow filtering specific words/lines within the comment.
             if clean_items:
-                sub_items = comment.splitlines()
+                yield from comment.splitlines()
             else:
-                sub_items = [comment]
+                yield comment
 
-            for item in sub_items:
-                text_to_save = filter_to_letters(item) if clean_items else item
-                if not (min_length <= len(text_to_save) <= max_length):
-                    continue
-                results.append(text_to_save)
-
-    if process_output:
-        results = sorted(set(results))
-
-    write_output(results, output_file, output_format, quiet, limit=limit)
-    print_processing_stats(total_found, results, item_label="comment", start_time=start_time)
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Comments',
+        'Comments extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+        item_label="comment",
+    )
 
 
 def links_mode(
@@ -4257,31 +4256,30 @@ def paths_mode(
     smart: bool = False,
 ) -> None:
     """Extracts components from file and directory paths."""
-    start_time = time.perf_counter()
-
-    raw_items = []
-    for input_file in input_files:
-        raw_items.extend(
-            _extract_path_items(
-                input_file,
-                basename=basename,
-                dirname=dirname,
-                extension=extension,
-                smart=smart,
-                quiet=quiet,
-            )
+    def extractor(path: str, quiet: bool = False) -> Iterable[str]:
+        return _extract_path_items(
+            path,
+            basename=basename,
+            dirname=dirname,
+            extension=extension,
+            smart=smart,
+            quiet=quiet,
         )
 
-    filtered_items = clean_and_filter(raw_items, min_length, max_length, clean=clean_items)
-
-    if process_output:
-        filtered_items = sorted(set(filtered_items))
-
-    write_output(filtered_items, output_file, output_format, quiet, limit=limit)
-
-    print_processing_stats(len(raw_items), filtered_items, item_label="path", start_time=start_time)
-    logging.info(
-        f"[Paths Mode] Successfully extracted {len(filtered_items)} path components. Output written to '{output_file}'."
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Paths',
+        'Successfully extracted path components.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+        item_label="path",
     )
 
 

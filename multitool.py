@@ -4053,6 +4053,89 @@ def repeated_mode(
     )
 
 
+def _extract_anomalies(
+    input_file: str,
+    delimiter: str | None = None,
+    quiet: bool = False,
+    smart: bool = False,
+) -> Iterable[Tuple[str, str]]:
+    """Yields (word, anomaly_type) for words with structural irregularities."""
+    # Sticky Shift: HEllow
+    sticky_shift = re.compile(r'^[A-Z]{2}[a-z]+$')
+    # Accidental Caps: gIT, iNPUT
+    accidental_caps = re.compile(r'^[a-z][A-Z]{2,}$')
+    # Mid-word number: w0rd
+    mid_number = re.compile(r'[a-zA-Z][0-9][a-zA-Z]')
+    # Bumpy Casing: pyTHon
+    bumpy_case = re.compile(r'[a-z][A-Z]{2,}[a-z]')
+
+    words_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
+    for word in words_gen:
+        # Skip very short words
+        if len(word) < 3:
+            continue
+
+        if sticky_shift.match(word):
+            yield word, "[Shift]"
+        elif accidental_caps.match(word):
+            yield word, "[Caps]"
+        elif mid_number.search(word):
+            yield word, "[Num]"
+        elif bumpy_case.search(word):
+            yield word, "[Bumpy]"
+
+
+def anomalies_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    delimiter: str | None = None,
+    smart: bool = False,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """
+    Finds words with structural anomalies like HEllow or w0rd.
+    """
+    start_time = time.perf_counter()
+    raw_results = []
+    for input_file in input_files:
+        raw_results.extend(list(_extract_anomalies(
+            input_file,
+            delimiter=delimiter,
+            quiet=quiet,
+            smart=smart,
+        )))
+
+    # Apply length filtering manually because we need original casing
+    filtered_results = []
+    for word, label in raw_results:
+        if min_length <= len(word) <= max_length:
+            filtered_results.append((word, label))
+
+    if process_output:
+        filtered_results = sorted(set(filtered_results))
+
+    _write_paired_output(
+        filtered_results,
+        output_file,
+        output_format,
+        "Anomalies",
+        quiet,
+        limit=limit
+    )
+
+    # Use words only for processing stats
+    stats_items = [r[0] for r in filtered_results]
+    print_processing_stats(
+        len(raw_results), stats_items, item_label="anomaly", start_time=start_time
+    )
+
+
 def discovery_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -6844,6 +6927,12 @@ MODE_DETAILS = {
         "example": "python multitool.py repeated report.txt --smart --output-format arrow",
         "flags": "[FILES...] [-dS]",
     },
+    "anomalies": {
+        "summary": "Finds structural word errors",
+        "description": "Finds words with structural irregularities like sticky shift (HEllow), accidental caps (gIT), mid-word numbers (w0rd), or bumpy casing (pyTHon). This catches common finger-slips without needing a dictionary.",
+        "example": "python multitool.py anomalies src/ --output-format arrow",
+        "flags": "[FILES...] [-dS]",
+    },
     "standardize": {
         "summary": "Fix project-wide casing/spelling",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
@@ -6924,7 +7013,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -8052,6 +8141,26 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(repeated_parser)
 
+    anomalies_parser = subparsers.add_parser(
+        'anomalies',
+        help=MODE_DETAILS['anomalies']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['anomalies']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['anomalies']['example']}{RESET}",
+    )
+    anomalies_options = anomalies_parser.add_argument_group(f"{BLUE}ANOMALIES OPTIONS{RESET}")
+    anomalies_options.add_argument(
+        '-d', '--delimiter',
+        type=str,
+        help='The delimiter character to split words by (default: whitespace).',
+    )
+    anomalies_options.add_argument(
+        '-S', '--smart',
+        action='store_true',
+        help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
+    )
+    _add_common_mode_arguments(anomalies_parser)
+
     search_parser = subparsers.add_parser(
         'search',
         help=MODE_DETAILS['search']['summary'],
@@ -8984,6 +9093,15 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'anomalies': (
+            anomalies_mode,
+            {
+                **common_kwargs,
+                'delimiter': delimiter,
+                'smart': getattr(args, 'smart', False),
                 'output_format': output_format,
             },
         ),

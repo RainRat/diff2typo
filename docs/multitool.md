@@ -62,8 +62,8 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py between input.txt --start '{{' --end '}}'`
 
 - **`csv`**
-  - Extracts columns from CSV files. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) to pick specific columns (using 0-based indexing). Use `--delimiter` (or `-d`) to set a different separator (for example, `;`).
-  - **Example:** `python multitool.py csv data.csv --column 1  # Get the second column`
+  - Extracts columns from CSV files. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column (index 0). You can also use `--column` (or `-c`) to pick one or more specific columns by their 0-based index. Use `--delimiter` (or `-d`) to set a different separator (for example, `;`).
+  - **Example:** `python multitool.py csv data.csv --column 0 2  # Get the first and third columns`
 
 - **`markdown`**
   - Extracts Markdown list items (lines starting with `-`, `*`, or `+`). You can split items by `:` or `->` to get one side of a pair (use the `--right` flag for the second part).

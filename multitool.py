@@ -6594,8 +6594,8 @@ MODE_DETAILS = {
     },
     "csv": {
         "summary": "Extracts columns from CSV",
-        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, --column to pick specific 0-based numbers, or --delimiter to use a custom separator.",
-        "example": "python multitool.py csv typos.csv --column 1 --delimiter ';'  # Get the second column",
+        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column (index 0). You can also use --column to pick one or more specific 0-based column numbers, or --delimiter to use a custom separator.",
+        "example": "python multitool.py csv data.csv --column 0 2 --delimiter ';'  # Get first and third columns",
         "flags": "[FILES...] [-d DELIM] [-c N] [--first-column]",
     },
     "markdown": {

@@ -3123,6 +3123,108 @@ def classify_mode(
     )
 
 
+def fileinfo_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    output_format: str = "arrow",
+    quiet: bool = False,
+    **kwargs
+) -> None:
+    """
+    Gathers and displays metadata (size, lines, words, encoding) for each input file.
+    """
+    start_time = time.perf_counter()
+    results = []
+
+    for input_file in input_files:
+        if input_file == "-":
+            continue
+
+        if not os.path.isfile(input_file):
+            continue
+
+        try:
+            size = os.path.getsize(input_file)
+            lines = _read_file_lines_robust(input_file)
+            line_count = len(lines)
+            word_count = sum(len(line.split()) for line in lines)
+            encoding = detect_encoding(input_file) or "unknown"
+
+            results.append({
+                "file": input_file,
+                "size": size,
+                "lines": line_count,
+                "words": word_count,
+                "encoding": encoding,
+            })
+        except Exception as e:
+            if not quiet:
+                logging.error(f"Failed to get info for '{input_file}': {e}")
+
+    if not results:
+        logging.warning("No file information gathered.")
+        return
+
+    # Structured output formats
+    if output_format in ("json", "yaml", "toml", "xml"):
+        _write_structured_data(results, output_file, output_format, root_tag="fileinfo")
+    elif output_format == "csv":
+        with smart_open_output(output_file, newline="") as out_file:
+            writer = csv.DictWriter(out_file, fieldnames=["file", "size", "lines", "words", "encoding"])
+            writer.writeheader()
+            writer.writerows(results)
+    else:
+        # Visual Table (Arrow/Line fallback)
+        use_color = _should_enable_color(sys.stdout) if output_file == "-" else False
+        c_bold = BOLD if use_color else ""
+        c_blue = BLUE if use_color else ""
+        c_green = GREEN if use_color else ""
+        c_yellow = YELLOW if use_color else ""
+        c_reset = RESET if use_color else ""
+
+        padding = "  "
+        sep = f"{c_bold}{c_blue}│{c_reset}"
+
+        # Determine column widths
+        max_file = max((len(r["file"]) for r in results), default=10)
+        max_file = max(max_file, len("File"))
+        max_size = max((len(str(r["size"])) for r in results), default=4)
+        max_size = max(max_size, len("Size"))
+        max_lines = max((len(str(r["lines"])) for r in results), default=5)
+        max_lines = max(max_lines, len("Lines"))
+        max_words = max((len(str(r["words"])) for r in results), default=5)
+        max_words = max(max_words, len("Words"))
+        max_enc = max((len(r["encoding"]) for r in results), default=8)
+        max_enc = max(max_enc, len("Encoding"))
+
+        header = (
+            f"{padding}{c_bold}{c_blue}{'File':<{max_file}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'Size':>{max_size}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'Lines':>{max_lines}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'Words':>{max_words}}{c_reset} {sep} "
+            f"{c_bold}{c_blue}{'Encoding':<{max_enc}}{c_reset}"
+        )
+        visible_len = max_file + max_size + max_lines + max_words + max_enc + 14
+        divider = f"{padding}{c_bold}{c_blue}{'─' * visible_len}{c_reset}"
+
+        with smart_open_output(output_file) as out:
+            out.write(f"\n{header}\n")
+            out.write(f"{divider}\n")
+            for r in results:
+                row = (
+                    f"{padding}{c_green}{r['file']:<{max_file}}{c_reset} {sep} "
+                    f"{c_yellow}{r['size']:>{max_size}}{c_reset} {sep} "
+                    f"{c_yellow}{r['lines']:>{max_lines}}{c_reset} {sep} "
+                    f"{c_yellow}{r['words']:>{max_words}}{c_reset} {sep} "
+                    f"{c_green}{r['encoding']:<{max_enc}}{c_reset}"
+                )
+                out.write(f"{row}\n")
+            out.write("\n")
+
+    duration = time.perf_counter() - start_time
+    logging.info(f"[FileInfo Mode] Processed {len(results)} file(s) in {duration:.3f}s.")
+
+
 def stats_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -6808,6 +6910,12 @@ MODE_DETAILS = {
         "example": "python multitool.py fuzzymatch typos.txt words.csv --keyboard --show-dist",
         "flags": "[FILES...] [FILE2] [--max-dist N] [-kt] [--show-dist]",
     },
+    "fileinfo": {
+        "summary": "Shows metadata for each file",
+        "description": "Gathers and displays metadata (size, lines, words, encoding) for each input file. Supports structured output like JSON, CSV, and YAML, or a visual table format.",
+        "example": "python multitool.py fileinfo *.txt -f arrow",
+        "flags": "[FILES...]",
+    },
     "stats": {
         "summary": "Shows statistics for a list",
         "description": "Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
@@ -6924,7 +7032,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
+        "CHECK & ANALYZE": ["count", "fileinfo", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -7922,6 +8030,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Include the number of character changes in the output.",
     )
     _add_common_mode_arguments(fuzzymatch_parser)
+
+    fileinfo_parser = subparsers.add_parser(
+        'fileinfo',
+        help=MODE_DETAILS['fileinfo']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['fileinfo']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['fileinfo']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(fileinfo_parser, include_process_output=False)
 
     stats_parser = subparsers.add_parser(
         'stats',
@@ -9502,6 +9619,15 @@ def main() -> None:
                 'keyboard': getattr(args, 'keyboard', False),
                 'transposition': getattr(args, 'transposition', False),
                 'output_format': output_format,
+            },
+        ),
+        'fileinfo': (
+            fileinfo_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'output_format': output_format,
+                'quiet': args.quiet,
             },
         ),
         'stats': (

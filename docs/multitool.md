@@ -303,6 +303,12 @@ Use these modes to analyze your data.
   - **Note:** This mode has built-in sorting.
   - **Example:** `python multitool.py count all_typos.txt --min-count 5 -f arrow --smart`
 
+- **`fileinfo`**
+  - Gathers and displays metadata (size, lines, words, encoding) for each input file.
+  - **Supported Formats:** `arrow` (visual table), `json`, `csv`, `yaml`, `toml`, and `xml`.
+  - **Example:** `python multitool.py fileinfo *.txt -f arrow`
+
+
 - **`cycles`**
   - Finds loops in typo-correction pairs (for example, "A" maps to "B" and "B" maps back to "A").
   - **Example:** `python multitool.py cycles typos.csv --output-format arrow`

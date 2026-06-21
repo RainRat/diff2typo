@@ -6914,7 +6914,7 @@ MODE_DETAILS = {
         "summary": "Replaces text or patterns",
         "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
         "example": "python multitool.py replace 'the' 'that' . --in-place --smart-case",
-        "flags": "[OLD] [NEW] [FILES...] [-rS] [-I EXT] [-D] [--ignore-case] [--dry-run]",
+        "flags": "[OLD] [NEW] [FILES...] [-rcS] [-I EXT] [-D] [--dry-run]",
     },
 }
 
@@ -8700,7 +8700,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Treat '--old' as a regular expression.",
     )
     replace_options.add_argument(
-        '--ignore-case',
+        '-c', '--ignore-case',
         action='store_true',
         help="Perform case-insensitive replacement.",
     )

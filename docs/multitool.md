@@ -69,6 +69,11 @@ Use these modes to pull specific data from a file.
   - Extracts Markdown list items (lines starting with `-`, `*`, or `+`). You can split items by `:` or `->` to get one side of a pair (use the `--right` flag for the second part).
   - **Example:** `python multitool.py markdown notes.md --right`
 
+- **`frontmatter`**
+  - Finds YAML frontmatter in Markdown files (text between `---` delimiters at the start of the file).
+  - **Options:** Use the `--key` (or `-k`) flag to extract a specific key path (for example, `metadata.tags`). If no key is provided, it extracts the entire frontmatter.
+  - **Example:** `python multitool.py frontmatter post.md --key 'tags'`
+
 - **`md-table`**
   - Extracts text from cells in a Markdown table. It saves the first column by default. Use the `--right` flag for the second column, or `--column` (or `-c`) to pick specific columns (using 0-based indexing). It automatically skips header and divider rows.
   - **Example:** `python multitool.py md-table readme.md --column 1  # Get the second column`
@@ -93,6 +98,10 @@ Use these modes to pull specific data from a file.
   - **Options:** Use `--language` (or `-l`) to filter by a specific language (for example, `python`). Use `--pairs` (or `-p`) to see both the language and the code content.
   - **Example:** `python multitool.py codeblocks readme.md --language python`
 
+- **`comments`**
+  - Extracts comments from various source and markup files. It supports markers like `#`, `//`, `--`, `/* */`, `<!-- -->`, and Python triple quotes.
+  - **Example:** `python multitool.py comments source.py`
+
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`
@@ -108,6 +117,15 @@ Use these modes to pull specific data from a file.
 - **`xml`**
   - Extracts values from XML files using a tag name or XPath expression. If you do not provide a key, it extracts text from every element.
   - **Example:** `python multitool.py xml data.xml -k './/item/name'`
+
+- **`paths`**
+  - Extracts components from file and directory paths, such as the filename, directory path, or extension.
+  - **Options:**
+    - Use `--basename` to get the filename.
+    - Use `--dirname` to get the directory path.
+    - Use `--extension` to get the file extension.
+    - Use the `--smart` (or `-S`) flag to split the filename into individual words.
+  - **Example:** `python multitool.py paths src/ --basename`
 
 - **`flatten`**
   - Transforms nested JSON, YAML, or TOML structures into dot-separated `key.path = value` pairs. It supports multi-document YAML and JSON Lines (JSONL). The default output format is `arrow`.

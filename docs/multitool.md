@@ -273,6 +273,11 @@ Use these modes to transform or combine your data.
 
 Use these modes to analyze your data.
 
+- **`fileinfo`**
+  - Displays metadata for one or more files, including file size, line count, word count, and detected encoding.
+  - **Supported Formats:** `arrow` (default), `json`, `csv`, `yaml`, `toml`, and `xml`.
+  - **Example:** `python multitool.py fileinfo . --output-format arrow`
+
 - **`check`**
   - Finds words that appear in both the typo and correction columns. This helps spot errors in your typo lists.
   - **Example:** `python multitool.py check mappings.csv`

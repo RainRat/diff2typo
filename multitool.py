@@ -3301,6 +3301,155 @@ def stats_mode(
     logging.info(f"[Stats Mode] Analysis complete. Summary written to '{output_file}'.")
 
 
+def fileinfo_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """Displays metadata for the input files."""
+    start_time = time.perf_counter()
+    results = []
+
+    for path in input_files:
+        if path == '-':
+            # Skip stdin for fileinfo as metadata is less relevant or harder to get
+            continue
+
+        if not os.path.isfile(path):
+            continue
+
+        try:
+            size = os.path.getsize(path)
+            lines = _read_file_lines_robust(path)
+            line_count = len(lines)
+            word_count = sum(len(line.split()) for line in lines)
+
+            # Use the already available detect_encoding helper
+            encoding = "utf-8"
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    f.read(1024)
+            except UnicodeDecodeError:
+                encoding = detect_encoding(path) or "unknown"
+
+            results.append({
+                "file": path,
+                "size": size,
+                "lines": line_count,
+                "words": word_count,
+                "encoding": encoding
+            })
+        except Exception as e:
+            logging.warning(f"Could not get info for '{path}': {e}")
+
+    if limit is not None:
+        results = results[:limit]
+
+    # Output formatting logic will be implemented in the next step
+    # For now, just placeholder for results processing
+    _write_fileinfo_output(results, output_file, output_format, quiet, start_time)
+
+
+def _write_fileinfo_output(
+    results: List[Mapping[str, Any]],
+    output_file: str,
+    output_format: str,
+    quiet: bool,
+    start_time: float,
+) -> None:
+    """Helper to format and write fileinfo results."""
+    if not results:
+        logging.warning("No file information collected.")
+        return
+
+    with smart_open_output(output_file) as out:
+        if output_format == 'json':
+            json.dump(results, out, indent=2)
+            out.write('\n')
+        elif output_format == 'csv':
+            writer = csv.writer(out)
+            writer.writerow(["File", "Size", "Lines", "Words", "Encoding"])
+            for r in results:
+                writer.writerow([r["file"], r["size"], r["lines"], r["words"], r["encoding"]])
+        elif output_format == 'yaml':
+            try:
+                import yaml
+                yaml.dump(results, out, default_flow_style=False)
+            except ImportError:
+                json.dump(results, out, indent=2)
+        elif output_format == 'toml':
+            try:
+                if _TOMLLIB_AVAILABLE or _TOML_AVAILABLE:
+                    import toml
+                    toml.dump({"files": results}, out)
+                else:
+                    json.dump(results, out, indent=2)
+            except Exception:
+                json.dump(results, out, indent=2)
+        elif output_format == 'xml':
+            root = ET.Element("fileinfo")
+            for r in results:
+                f_elem = ET.SubElement(root, "file")
+                for k, v in r.items():
+                    child = ET.SubElement(f_elem, k)
+                    child.text = str(v)
+            xml_str = ET.tostring(root, encoding='utf-8')
+            pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
+            out.write(pretty_xml)
+        else: # 'arrow' or fallback
+            # Visual table formatting
+            show_color = _should_enable_color(out)
+            c_bold = BOLD if show_color else ""
+            c_blue = BLUE if show_color else ""
+            c_green = GREEN if show_color else ""
+            c_yellow = YELLOW if show_color else ""
+            c_reset = RESET if show_color else ""
+
+            headers = ["File", "Size (B)", "Lines", "Words", "Encoding"]
+            keys = ["file", "size", "lines", "words", "encoding"]
+
+            # Calculate widths
+            widths = [len(h) for h in headers]
+            for r in results:
+                for i, k in enumerate(keys):
+                    widths[i] = max(widths[i], len(str(r[k])))
+
+            padding = "  "
+            sep = f"{c_bold}{c_blue}│{c_reset}"
+
+            # Header
+            header_parts = []
+            for i, h in enumerate(headers):
+                if i == 0:
+                    header_parts.append(f"{c_bold}{c_blue}{h:<{widths[i]}}{c_reset}")
+                else:
+                    header_parts.append(f"{c_bold}{c_blue}{h:>{widths[i]}}{c_reset}")
+
+            out.write(f"\n{padding}{f' {sep} '.join(header_parts)}\n")
+
+            # Divider
+            total_w = sum(widths) + (len(headers) - 1) * 3
+            out.write(f"{padding}{c_bold}{c_blue}{'─' * total_w}{c_reset}\n")
+
+            # Rows
+            for r in results:
+                row_parts = []
+                for i, k in enumerate(keys):
+                    val = r[k]
+                    if i == 0:
+                        row_parts.append(f"{c_green}{str(val):<{widths[i]}}{c_reset}")
+                    else:
+                        row_parts.append(f"{c_yellow}{str(val):>{widths[i]}}{c_reset}")
+                out.write(f"{padding}{f' {sep} '.join(row_parts)}\n")
+            out.write("\n")
+
+    if not quiet:
+        duration = time.perf_counter() - start_time
+        logging.info(f"[FileInfo Mode] Processed {len(results)} file(s) in {duration:.3f}s.")
+
+
 def check_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -6622,6 +6771,12 @@ MODE_DETAILS = {
         "example": "python multitool.py headings readme.md --level 1",
         "flags": "[FILES...] [--level N] [-p]",
     },
+    "fileinfo": {
+        "summary": "Shows information about files",
+        "description": "Displays metadata for one or more files, including file size, line count, word count, and detected encoding. Supports multiple output formats for easy analysis.",
+        "example": "python multitool.py fileinfo . --output-format arrow",
+        "flags": "[FILES...]",
+    },
     "toc": {
         "summary": "Generates a Table of Contents",
         "description": "Creates a clickable, nested Table of Contents from Markdown headings. It handles duplicate headings by adding numeric suffixes. Use --no-links to generate a simple indented list.",
@@ -6924,7 +7079,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
+        "CHECK & ANALYZE": ["fileinfo", "count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -7458,6 +7613,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output the heading level along with the text.",
     )
     _add_common_mode_arguments(headings_parser)
+
+    fileinfo_parser = subparsers.add_parser(
+        'fileinfo',
+        help=MODE_DETAILS['fileinfo']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['fileinfo']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['fileinfo']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(fileinfo_parser, include_process_output=False)
 
     toc_parser = subparsers.add_parser(
         'toc',
@@ -9000,6 +9164,16 @@ def main() -> None:
                 **common_kwargs,
                 'key': getattr(args, 'key', ''),
                 'output_format': output_format,
+            },
+        ),
+        'fileinfo': (
+            fileinfo_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'output_format': output_format,
+                'quiet': args.quiet,
+                'limit': limit,
             },
         ),
         'toc': (

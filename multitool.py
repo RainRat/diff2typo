@@ -6912,9 +6912,9 @@ MODE_DETAILS = {
     },
     "replace": {
         "summary": "Replaces text or patterns",
-        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
+        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
         "example": "python multitool.py replace 'the' 'that' . --in-place --smart-case",
-        "flags": "[OLD] [NEW] [FILES...] [-rS] [-I EXT] [-D] [--ignore-case] [--dry-run]",
+        "flags": "[OLD] [NEW] [FILES...] [-rcS] [-I EXT] [-D] [--dry-run]",
     },
 }
 
@@ -6962,21 +6962,15 @@ def get_mode_summary_text() -> str:
     divider = f"{padding}{c_bold}{c_blue}{'─' * width_mode}─{cross}─{'─' * width_summary}─{cross}─{'─' * width_flags}{c_reset}"
 
     lines.append("\n" + header)
-    lines.append(divider)
+
+    total_table_width = width_mode + width_summary + width_flags + 6
 
     for i, (category, modes) in enumerate(categories.items()):
-        # Add a divider before categories (except the first one) to improve hierarchy
-        if i > 0:
-            lines.append(divider)
-
-        # Category header aligned with table columns
-        cat_header = (
-            f"{padding}{c_bold}{c_blue}{category:<{width_mode}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{' ' * width_summary}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{' ' * width_flags}{c_reset}"
-        )
-        lines.append(cat_header)
-        lines.append(divider)
+        # Themed category divider
+        cat_label = f" {category} "
+        side_width = (total_table_width - len(cat_label)) // 2
+        cat_divider = f"{padding}{c_bold}{c_blue}{'─' * side_width}{cat_label}{'─' * (total_table_width - len(cat_label) - side_width)}{c_reset}"
+        lines.append(cat_divider)
 
         for mode in modes:
             if mode in MODE_DETAILS:
@@ -7016,7 +7010,7 @@ def get_mode_summary_text() -> str:
         ("--limit (-L)", "Restrict the number of items in the output")
     ]
     for flag, desc in tips:
-        lines.append(f"{padding}{c_bold}{c_green}{flag:<13}{c_reset} {desc}")
+        lines.append(f"{padding}{c_bold}{c_green}{flag:<20}{c_reset} {desc}")
 
     lines.append(f"\nRun '{c_bold}python multitool.py help <mode>{c_reset}' for details on a specific mode.\n")
     return "\n".join(lines)
@@ -8700,7 +8694,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Treat '--old' as a regular expression.",
     )
     replace_options.add_argument(
-        '--ignore-case',
+        '-c', '--ignore-case',
         action='store_true',
         help="Perform case-insensitive replacement.",
     )

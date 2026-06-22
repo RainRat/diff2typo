@@ -6594,9 +6594,9 @@ MODE_DETAILS = {
     },
     "csv": {
         "summary": "Extracts columns from CSV",
-        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, --column to pick specific 0-based numbers, or --delimiter to use a custom separator.",
+        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, --column to pick specific columns starting from 0, or --delimiter to use a custom separator.",
         "example": "python multitool.py csv typos.csv --column 1 --delimiter ';'  # Get the second column",
-        "flags": "[FILES...] [-d DELIM] [-c N] [--first-column]",
+        "flags": "[FILES...] [-d DELIM] [-c N...] [--first-column]",
     },
     "markdown": {
         "summary": "Extracts Markdown list items",
@@ -6612,9 +6612,9 @@ MODE_DETAILS = {
     },
     "md-table": {
         "summary": "Extracts Markdown table items",
-        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific 0-based numbers. It automatically skips header and divider rows.",
+        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific columns starting from 0. It automatically skips header and divider rows.",
         "example": "python multitool.py md-table readme.md --column 1  # Get the second column",
-        "flags": "[FILES...] [-c N] [--right]",
+        "flags": "[FILES...] [-c N...] [--right]",
     },
     "headings": {
         "summary": "Extracts Markdown headings",
@@ -7380,7 +7380,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         nargs='+',
         metavar='NUMBER',
-        help='One or more 0-based column numbers to get.',
+        help='One or more column numbers to get (starting from 0).',
     )
     _add_common_mode_arguments(csv_parser)
 
@@ -7434,7 +7434,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         nargs='+',
         metavar='NUMBER',
-        help='One or more 0-based column numbers to get.',
+        help='One or more column numbers to get (starting from 0).',
     )
     _add_common_mode_arguments(md_table_parser)
 

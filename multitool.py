@@ -3123,6 +3123,99 @@ def classify_mode(
     )
 
 
+def fileinfo_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """Gathers metadata (size, lines, words, encoding) for input files."""
+    start_time = time.perf_counter()
+    results = []
+
+    for path in input_files:
+        if limit is not None and len(results) >= limit:
+            break
+        if path == '-':
+            continue
+        if not os.path.isfile(path):
+            continue
+
+        try:
+            size = os.path.getsize(path)
+            lines = _read_file_lines_robust(path)
+            line_count = len(lines)
+            word_count = sum(len(line.split()) for line in lines)
+            encoding = detect_encoding(path) or "utf-8"
+
+            results.append({
+                "file": path,
+                "size": size,
+                "lines": line_count,
+                "words": word_count,
+                "encoding": encoding
+            })
+        except Exception as e:
+            logging.warning(f"Failed to get info for '{path}': {e}")
+
+    if limit is not None:
+        results = results[:limit]
+
+    if output_format == 'arrow':
+        with smart_open_output(output_file) as out:
+            if not results:
+                return
+
+            headers = ["File", "Size", "Lines", "Words", "Encoding"]
+            cols = ["file", "size", "lines", "words", "encoding"]
+
+            max_widths = [len(h) for h in headers]
+            for res in results:
+                for i, col in enumerate(cols):
+                    max_widths[i] = max(max_widths[i], len(str(res[col])))
+
+            div_len = sum(max_widths) + 14
+
+            show_color = _should_enable_color(out)
+            c_bold = BOLD if show_color else ""
+            c_blue = BLUE if show_color else ""
+            c_green = GREEN if show_color else ""
+            c_yellow = YELLOW if show_color else ""
+            c_reset = RESET if show_color else ""
+
+            padding = "  "
+            sep = f"{c_bold}{c_blue}│{c_reset}"
+
+            header_parts = []
+            for i, h in enumerate(headers):
+                header_parts.append(f"{c_bold}{c_blue}{h:<{max_widths[i]}}{c_reset}")
+
+            out.write(f"\n{padding}" + f" {sep} ".join(header_parts) + "\n")
+            out.write(f"{padding}{c_bold}{c_blue}{'─' * div_len}{c_reset}\n")
+
+            for res in results:
+                row_parts = []
+                row_parts.append(f"{c_green}{res['file']:<{max_widths[0]}}{c_reset}")
+                row_parts.append(f"{c_yellow}{str(res['size']):>{max_widths[1]}}{c_reset}")
+                row_parts.append(f"{c_yellow}{str(res['lines']):>{max_widths[2]}}{c_reset}")
+                row_parts.append(f"{c_yellow}{str(res['words']):>{max_widths[3]}}{c_reset}")
+                row_parts.append(f"{c_blue}{res['encoding']:<{max_widths[4]}}{c_reset}")
+                out.write(f"{padding}" + f" {sep} ".join(row_parts) + "\n")
+            out.write("\n")
+    elif output_format == 'csv':
+        with smart_open_output(output_file, newline='') as out:
+            writer = csv.DictWriter(out, fieldnames=["file", "size", "lines", "words", "encoding"])
+            writer.writeheader()
+            writer.writerows(results)
+    else:
+        _write_structured_data(results, output_file, output_format, root_tag="fileinfo")
+
+    duration = time.perf_counter() - start_time
+    if not quiet:
+        logging.info(f"[FileInfo Mode] Processed {len(results)} files in {duration:.3f}s.")
+
+
 def stats_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -6868,6 +6961,12 @@ MODE_DETAILS = {
         "example": "python multitool.py verify . --mapping typos.csv --prune",
         "flags": "[FILES...] [-s MAPPING] [-aS] [--prune]",
     },
+    "fileinfo": {
+        "summary": "Gathers metadata for input files",
+        "description": "Collects information such as file size, number of lines, word count, and detected encoding for the specified files. It supports structured output formats and a visual table format.",
+        "example": "python multitool.py fileinfo . -f arrow",
+        "flags": "[FILES...]",
+    },
     "scrub": {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.",
@@ -6924,7 +7023,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "search", "scan", "verify", "fileinfo"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -8643,6 +8742,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(verify_parser)
 
+    fileinfo_parser = subparsers.add_parser(
+        'fileinfo',
+        help=MODE_DETAILS['fileinfo']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['fileinfo']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['fileinfo']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(fileinfo_parser, include_process_output=False, include_limit=True)
+
     resolve_parser = subparsers.add_parser(
         'resolve',
         help=MODE_DETAILS['resolve']['summary'],
@@ -8955,7 +9063,12 @@ def main() -> None:
     output_format = getattr(args, 'output_format', None)
     if output_format is None:
         allowed_formats = ['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml']
-        output_format = _detect_format_from_extension(args.output, allowed_formats, 'line')
+        default_fmt = 'line'
+        # These analytical modes automatically default to 'arrow' when run interactively
+        analytical_modes = {'count', 'stats', 'classify', 'similarity', 'near_duplicates', 'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo'}
+        if args.mode in analytical_modes and sys.stdout.isatty() and args.output == '-':
+            default_fmt = 'arrow'
+        output_format = _detect_format_from_extension(args.output, allowed_formats, default_fmt)
 
     clean_items = not getattr(args, 'raw', False)
 
@@ -9559,6 +9672,16 @@ def main() -> None:
                 'ad_hoc': getattr(args, 'ad_hoc', None),
                 'smart': getattr(args, 'smart', False),
                 'prune': getattr(args, 'prune', False),
+            }
+        ),
+        'fileinfo': (
+            fileinfo_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'output_format': output_format,
+                'quiet': args.quiet,
+                'limit': limit,
             }
         ),
     }

@@ -62,7 +62,7 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py between input.txt --start '{{' --end '}}'`
 
 - **`csv`**
-  - Extracts columns from CSV files. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) to pick specific columns (using 0-based indexing). Use `--delimiter` (or `-d`) to set a different separator (for example, `;`).
+  - Extracts columns from CSV files. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) to pick specific columns (starting from 0). Use `--delimiter` (or `-d`) to set a different separator (for example, `;`).
   - **Example:** `python multitool.py csv data.csv --column 1  # Get the second column`
 
 - **`markdown`**
@@ -70,7 +70,7 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py markdown notes.md --right`
 
 - **`md-table`**
-  - Extracts text from cells in a Markdown table. It saves the first column by default. Use the `--right` flag for the second column, or `--column` (or `-c`) to pick specific columns (using 0-based indexing). It automatically skips header and divider rows.
+  - Extracts text from cells in a Markdown table. It saves the first column by default. Use the `--right` flag for the second column, or `--column` (or `-c`) to pick specific columns (starting from 0). It automatically skips header and divider rows.
   - **Example:** `python multitool.py md-table readme.md --column 1  # Get the second column`
 
 - **`headings`**

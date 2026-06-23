@@ -2460,8 +2460,6 @@ def comments_mode(
 
     for input_file in input_files:
         for comment in _extract_comment_items(input_file, quiet=quiet):
-            total_found += 1
-
             # For multi-line comments, we split into lines if cleaning is requested
             # to allow filtering specific words/lines within the comment.
             if clean_items:
@@ -2470,6 +2468,7 @@ def comments_mode(
                 sub_items = [comment]
 
             for item in sub_items:
+                total_found += 1
                 text_to_save = filter_to_letters(item) if clean_items else item
                 if not (min_length <= len(text_to_save) <= max_length):
                     continue

@@ -62,15 +62,19 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py between input.txt --start '{{' --end '}}'`
 
 - **`csv`**
-  - Extracts columns from CSV files. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) to pick specific columns (using 0-based indexing). Use `--delimiter` (or `-d`) to set a different separator (for example, `;`).
+  - Extracts columns from CSV files. By default, it picks **every column except the first one**. Use `--first-column` to get *only* the first column, or `--column` (or `-c`) to pick specific columns (starting from 0). Use `--delimiter` (or `-d`) to set a different separator (for example, `;`).
   - **Example:** `python multitool.py csv data.csv --column 1  # Get the second column`
 
 - **`markdown`**
   - Extracts Markdown list items (lines starting with `-`, `*`, or `+`). You can split items by `:` or `->` to get one side of a pair (use the `--right` flag for the second part).
   - **Example:** `python multitool.py markdown notes.md --right`
 
+- **`frontmatter`**
+  - Extracts YAML frontmatter from Markdown files (text between '---' delimiters at the start of the file). Use dots for nested keys (like 'metadata.tags'). If you don't provide a key, it gets items from the top level.
+  - **Example:** `python multitool.py frontmatter post.md --key 'tags'`
+
 - **`md-table`**
-  - Extracts text from cells in a Markdown table. It saves the first column by default. Use the `--right` flag for the second column, or `--column` (or `-c`) to pick specific columns (using 0-based indexing). It automatically skips header and divider rows.
+  - Extracts text from cells in a Markdown table. It saves the first column by default. Use the `--right` flag for the second column, or `--column` (or `-c`) to pick specific columns (starting from 0). It automatically skips header and divider rows.
   - **Example:** `python multitool.py md-table readme.md --column 1  # Get the second column`
 
 - **`headings`**
@@ -93,6 +97,10 @@ Use these modes to pull specific data from a file.
   - **Options:** Use `--language` (or `-l`) to filter by a specific language (for example, `python`). Use `--pairs` (or `-p`) to see both the language and the code content.
   - **Example:** `python multitool.py codeblocks readme.md --language python`
 
+- **`comments`**
+  - Extracts comments from source files. It identifies single-line comments (`#`, `//`, `--`) and multi-line comments (`/* */`, `<!-- -->`, and triple quotes) in various programming and markup languages.
+  - **Example:** `python multitool.py comments src/ --output comments.txt`
+
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`
@@ -106,8 +114,13 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py toml pyproject.toml --key tool.poetry.dependencies`
 
 - **`xml`**
-  - Extracts values from XML files using a tag name or XPath expression. If you do not provide a key, it extracts text from every element.
+  - Extracts values from XML files using a tag name or XPath expression. If you don't provide a key, it extracts text from every element.
   - **Example:** `python multitool.py xml data.xml -k './/item/name'`
+
+- **`paths`**
+  - Extracts path components (basename, dirname, extension) from file and directory paths. It also supports smart splitting to find words within filenames.
+  - **Options:** Use `--basename`, `--dirname`, or `--extension` to pick specific parts. Use `--smart` to split components into words.
+  - **Example:** `python multitool.py paths src/ --basename --smart`
 
 - **`flatten`**
   - Transforms nested JSON, YAML, or TOML structures into dot-separated `key.path = value` pairs. It supports multi-document YAML and JSON Lines (JSONL). The default output format is `arrow`.

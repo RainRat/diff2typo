@@ -6022,16 +6022,34 @@ def rename_mode(
     dry_run: bool = False,
     smart_case: bool = False,
     ad_hoc: List[str] | None = None,
+    use_regex: bool = False,
 ) -> None:
     """
     Renames files and directories using a mapping file or extra pairs.
     """
     start_time = time.perf_counter()
     # Load and merge mappings
-    mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
+    # If using regex, we must NOT clean the patterns (mapping keys)
+    mapping = _resolve_full_mapping(
+        mapping_file, ad_hoc, False if use_regex else clean_items, quiet=quiet
+    )
 
     total_renames = 0
     pattern = re.compile(r'([a-zA-Z0-9]+)')
+
+    # Pre-compile regexes if requested
+    compiled_mapping = []
+    if use_regex:
+        for pat, repl in mapping.items():
+            try:
+                # Compile each mapping key as a regex
+                # We use IGNORECASE if not cleaning (since clean implies lowercase anyway)
+                # but actually _resolve_full_mapping might have lowercased it.
+                c_pat = re.compile(pat)
+                compiled_mapping.append((c_pat, repl))
+            except re.error as e:
+                logging.error(f"Invalid regular expression pattern '{pat}': {e}")
+                sys.exit(1)
 
     # To handle nested renames safely, we must rename from bottom to top.
     # Deduplicate and normalize paths first.
@@ -6048,11 +6066,28 @@ def rename_mode(
             continue
 
         dirname, basename = os.path.split(path)
+        new_basename = basename
+        replacements = 0
 
-        # Apply _scrub_line logic to the basename only
-        new_basename, replacements = _scrub_line(
-            basename, mapping, pattern, clean_items, smart_case
-        )
+        if use_regex:
+            # Apply regex replacements sequentially for this basename
+            for c_pat, repl in compiled_mapping:
+                if smart_case:
+                    def repl_func(match):
+                        expanded = match.expand(repl)
+                        return _apply_smart_case(match.group(0), expanded)
+                    res, n = c_pat.subn(repl_func, new_basename)
+                else:
+                    res, n = c_pat.subn(repl, new_basename)
+
+                if n > 0:
+                    new_basename = res
+                    replacements += n
+        else:
+            # Apply _scrub_line logic to the basename only
+            new_basename, replacements = _scrub_line(
+                basename, mapping, pattern, clean_items, smart_case
+            )
 
         if replacements > 0 and new_basename != basename:
             new_path = os.path.normpath(os.path.join(dirname, new_basename))
@@ -7063,9 +7098,9 @@ MODE_DETAILS = {
     },
     "rename": {
         "summary": "Batch renames files and folders",
-        "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. It handles nested renames by processing files before their parent directories.",
-        "example": "python multitool.py rename src/ --add teh:the --in-place",
-        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I] [-S] [--dry-run]",
+        "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. Use --regex to treat patterns as regular expressions (supports backreferences like \\1). It handles nested renames by processing files before their parent directories.",
+        "example": "python multitool.py rename . --regex --add 'test_(.*)\\.py:spec_\\1.py' --dry-run",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I] [-S] [-r] [--dry-run]",
     },
     "diff": {
         "summary": "Shows differences between files",
@@ -8577,6 +8612,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help="Automatically match the casing of the original word.",
     )
+    rename_options.add_argument(
+        '-r', '--regex',
+        action='store_true',
+        help="Treat mapping patterns as regular expressions.",
+    )
     _add_common_mode_arguments(rename_parser, include_process_output=False, include_limit=True)
 
     standardize_parser = subparsers.add_parser(
@@ -9587,6 +9627,7 @@ def main() -> None:
                 'in_place': getattr(args, 'in_place', False),
                 'dry_run': getattr(args, 'dry_run', False),
                 'smart_case': getattr(args, 'smart_case', False),
+                'use_regex': getattr(args, 'regex', False),
             }
         ),
         'standardize': (

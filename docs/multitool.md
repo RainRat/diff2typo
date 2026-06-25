@@ -181,7 +181,8 @@ Use these modes to transform or combine your data.
     - Supports `--in-place` renaming and `--dry-run` preview.
     - Use the `--add` flag to provide extra mapping pairs (for example, `--add old_name:new_name`) directly on the command line.
     - Use the `--smart-case` flag to match the casing of the original filename.
-  - **Example:** `python multitool.py rename src/ --mapping corrections.csv --in-place`
+    - Use the `--regex` (or **`-r`**) flag to treat patterns as regular expressions. This supports capturing groups and backreferences (for example, `\1`).
+  - **Example:** `python multitool.py rename . --regex --add 'test_(.*)\.py:spec_\1.py' --dry-run`
 
 - **`diff`**
   - Shows differences between two files, including added, removed, and changed items.

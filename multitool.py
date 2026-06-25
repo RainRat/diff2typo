@@ -11,7 +11,7 @@ import sys
 import re
 import time
 from textwrap import dedent
-from typing import Any, Callable, Iterable, List, Mapping, Sequence, Tuple, TextIO, Optional
+from typing import Any, Callable, Iterable, List, Mapping, Sequence, Set, Tuple, TextIO, Optional
 try:
     from tqdm import tqdm
 except ImportError:
@@ -1730,6 +1730,31 @@ def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bo
                 yield content
 
 
+def _get_markdown_anchor_map(input_files: Sequence[str], quiet: bool = False) -> Mapping[str, Set[str]]:
+    """Builds a map of filenames to sets of available anchor slugs."""
+    anchor_map = {}
+    for input_file in input_files:
+        if input_file == '-' or not input_file.lower().endswith(('.md', '.markdown')):
+            continue
+
+        slugs = set()
+        seen_slugs = Counter()
+        # We need the exact slug logic including duplicate handling
+        lines = _read_file_lines_robust(input_file)
+        pattern = re.compile(r'^(#{1,6})\s+(.*?)(?:\s+#+)?$')
+        for line in lines:
+            match = pattern.match(line.strip())
+            if match:
+                h_text = match.group(2).strip()
+                slug = _slugify(h_text)
+                count = seen_slugs[slug]
+                seen_slugs[slug] += 1
+                final_slug = slug if count == 0 else f"{slug}-{count}"
+                slugs.add(final_slug)
+        anchor_map[input_file] = slugs
+    return anchor_map
+
+
 def _extract_markdown_headings(input_file: str, quiet: bool = False) -> Iterable[Tuple[int, str]]:
     """Yield (level, text) for each Markdown heading."""
     lines = _read_file_lines_robust(input_file)
@@ -1757,6 +1782,61 @@ def _extract_markdown_links(input_file: str, quiet: bool = False) -> Iterable[Tu
             text = match.group(1).strip()
             url = match.group(2).strip()
             yield text, url
+
+
+def _extract_markdown_links_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str, int]]:
+    """Yield (text, url, line_number) for each Markdown link, image, and reference."""
+    lines = _read_file_lines_robust(input_file)
+
+    # Standard inline links and images: [text](url) or ![alt](url)
+    inline_pattern = re.compile(r'!?\[(.*?)\]\((.*?)\)')
+
+    # Reference-style links: [text][label] or [text][]
+    ref_link_pattern = re.compile(r'\[(.*?)\]\[(.*?)\]')
+
+    # Reference definitions: [label]: url "title"
+    ref_def_pattern = re.compile(r'^\s*\[(.*?)\]:\s*(\S+)')
+
+    references = {}
+    extracted_links = []
+
+    for i, line in enumerate(lines):
+        line_num = i + 1
+
+        # Extract reference definitions first
+        ref_def_match = ref_def_pattern.match(line)
+        if ref_def_match:
+            label = ref_def_match.group(1).strip().lower()
+            url = ref_def_match.group(2).strip()
+            references[label] = url
+            continue
+
+        # Extract inline links
+        for match in inline_pattern.finditer(line):
+            text = match.group(1).strip()
+            url = match.group(2).strip()
+            extracted_links.append((text, url, line_num))
+
+        # Extract reference-style links
+        for match in ref_link_pattern.finditer(line):
+            text = match.group(1).strip()
+            label = match.group(2).strip().lower()
+            # If [text][] use text as label
+            if not label:
+                label = text.lower()
+            extracted_links.append((text, f"ref:{label}", line_num))
+
+    for text, url, line_num in extracted_links:
+        if url.startswith("ref:"):
+            label = url[4:]
+            final_url = references.get(label)
+            if final_url:
+                yield text, final_url, line_num
+            else:
+                # Broken reference
+                yield text, f"broken-ref:{label}", line_num
+        else:
+            yield text, url, line_num
 
 
 def _extract_markdown_codeblocks(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
@@ -2479,6 +2559,131 @@ def comments_mode(
         limit=limit,
         item_label="comment",
     )
+
+
+def brokenlinks_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """Finds broken internal anchors and missing local file references in Markdown."""
+    start_time = time.perf_counter()
+    anchor_map = _get_markdown_anchor_map(input_files, quiet=quiet)
+
+    broken_links = []
+    total_links = 0
+
+    # We need to resolve relative paths, so we track the directory of each input file
+    for input_file in input_files:
+        if input_file == '-' or not input_file.lower().endswith(('.md', '.markdown')):
+            continue
+
+        base_dir = os.path.dirname(input_file)
+
+        for text, url, line_num in _extract_markdown_links_detailed(input_file, quiet=quiet):
+            total_links += 1
+            reason = ""
+
+            if url.startswith("broken-ref:"):
+                reason = f"Undefined reference label: {url[11:]}"
+            elif url.startswith(("http://", "https://", "mailto:", "ftp:")):
+                # We don't validate external URLs for performance and zero-config reasons
+                continue
+            elif url.startswith("#"):
+                # Internal anchor in the same file
+                slug = url[1:].split('?')[0] # Strip possible query params
+                if slug not in anchor_map.get(input_file, set()):
+                    reason = f"Anchor not found: {url}"
+            else:
+                # Local file reference (might include an anchor)
+                parts = url.split('#', 1)
+                file_path = parts[0]
+                anchor = parts[1] if len(parts) > 1 else None
+
+                # Strip query parameters from file path if any
+                file_path = file_path.split('?')[0]
+
+                if not file_path:
+                    # Case like url="#anchor" handled above, but url="" is a broken link
+                    if not anchor:
+                        reason = "Empty link"
+                    else:
+                        # Should have been handled by url.startswith("#")
+                        continue
+                else:
+                    # Resolve relative path
+                    target_path = os.path.join(base_dir, file_path)
+                    # Normalize path (handling ../ etc)
+                    target_path = os.path.normpath(target_path)
+
+                    if not os.path.exists(target_path):
+                        reason = f"File not found: {file_path}"
+                    elif anchor and target_path in anchor_map:
+                        if anchor not in anchor_map[target_path]:
+                            reason = f"Anchor not found in {file_path}: #{anchor}"
+                    elif anchor and target_path.lower().endswith(('.md', '.markdown')):
+                        # If the file exists but isn't in our anchor map (maybe it wasn't in input_files),
+                        # we can try to scan it on the fly.
+                        temp_map = _get_markdown_anchor_map([target_path], quiet=True)
+                        if target_path in temp_map:
+                            anchor_map.update(temp_map)
+                            if anchor not in anchor_map[target_path]:
+                                reason = f"Anchor not found in {file_path}: #{anchor}"
+
+            if reason:
+                location = f"{input_file}:{line_num}"
+                broken_links.append((location, text, url, reason))
+
+    # Apply limit if requested
+    if limit is not None:
+        broken_links = broken_links[:limit]
+
+    # Output using aligned table format
+    if output_format == 'arrow':
+        # Custom arrow format for broken links
+        use_color = _should_enable_color(sys.stdout) if output_file == '-' else ('FORCE_COLOR' in os.environ and 'NO_COLOR' not in os.environ)
+        c_bold = BOLD if use_color else ""
+        c_blue = BLUE if use_color else ""
+        c_red = RED if use_color else ""
+        c_green = GREEN if use_color else ""
+        c_yellow = YELLOW if use_color else ""
+        c_reset = RESET if use_color else ""
+
+        padding = "  "
+        sep = f"{c_bold}{c_blue}│{c_reset}"
+
+        max_loc = max((len(l[0]) for l in broken_links), default=10)
+        max_text = max((len(l[1]) for l in broken_links), default=10)
+        max_url = max((len(l[2]) for l in broken_links), default=10)
+        max_reason = max((len(l[3]) for l in broken_links), default=10)
+
+        header = f"{padding}{c_bold}{c_blue}{'Location':<{max_loc}}{c_reset} {sep} {c_bold}{c_blue}{'Text':<{max_text}}{c_reset} {sep} {c_bold}{c_blue}{'URL':<{max_url}}{c_reset} {sep} {c_bold}{c_blue}{'Reason':<{max_reason}}{c_reset}"
+        divider = f"{padding}{c_bold}{c_blue}{'─' * (max_loc + max_text + max_url + max_reason + 9)}{c_reset}"
+
+        with smart_open_output(output_file) as out:
+            if broken_links:
+                out.write(f"\n{header}\n{divider}\n")
+                for loc, text, url, reason in broken_links:
+                    out.write(f"{padding}{c_yellow}{loc:<{max_loc}}{c_reset} {sep} {c_reset}{text:<{max_text}}{c_reset} {sep} {c_red}{url:<{max_url}}{c_reset} {sep} {c_red}{reason:<{max_reason}}{c_reset}\n")
+                out.write("\n")
+
+            summary = _format_analysis_summary(
+                total_links,
+                broken_links,
+                item_label="link",
+                start_time=start_time,
+                use_color=use_color,
+                title="BROKEN LINKS ANALYSIS"
+            )
+            out.write("\n".join(summary) + "\n")
+    else:
+        # Default paired output (slightly customized)
+        results = [(f"{l[0]} [{l[1]}]", f"{l[2]} ({l[3]})") for l in broken_links]
+        _write_paired_output(results, output_file, output_format, "BrokenLinks", quiet, limit=limit)
+
+    logging.info(f"[BrokenLinks Mode] Found {len(broken_links)} broken links across {len(input_files)} file(s).")
 
 
 def links_mode(
@@ -6868,6 +7073,12 @@ MODE_DETAILS = {
         "example": "python multitool.py links readme.md --right",
         "flags": "[FILES...] [--right] [-p]",
     },
+    "brokenlinks": {
+        "summary": "Finds broken anchors and file links",
+        "description": "Checks Markdown files for broken internal anchors (like '#missing-heading') and missing local file references. It builds a project-wide map of all headings to correctly validate cross-file links.",
+        "example": "python multitool.py brokenlinks docs/ --output-format arrow",
+        "flags": "[FILES...]",
+    },
     "codeblocks": {
         "summary": "Extracts Markdown code blocks",
         "description": "Finds fenced code blocks in Markdown files (using ``` or ~~~). It saves the code content by default. Use --language to filter by a specific language (for example, 'python') or --pairs to see both language and content.",
@@ -7140,7 +7351,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -7723,6 +7934,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output both the link text and the URL.",
     )
     _add_common_mode_arguments(links_parser)
+
+    brokenlinks_parser = subparsers.add_parser(
+        'brokenlinks',
+        help=MODE_DETAILS['brokenlinks']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['brokenlinks']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['brokenlinks']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(brokenlinks_parser, include_process_output=False)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -9224,6 +9444,16 @@ def main() -> None:
                 **common_kwargs,
                 'right_side': right_side,
                 'output_format': output_format,
+            },
+        ),
+        'brokenlinks': (
+            brokenlinks_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'output_format': output_format,
+                'quiet': args.quiet,
+                'limit': limit,
             },
         ),
         'anomalies': (

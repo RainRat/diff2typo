@@ -383,9 +383,15 @@ def to_case(text: str, style: str) -> str:
 
 def clean_and_filter(items: Iterable[str], min_length: int, max_length: int, clean: bool = True) -> List[str]:
     """Clean items to letters only (if clean=True) and apply length filtering."""
-    if clean:
-        items = [filter_to_letters(item) for item in items]
-    return [c for c in items if min_length <= len(c) <= max_length]
+    if not clean:
+        return [c for c in items if min_length <= len(c) <= max_length]
+
+    results = []
+    for item in items:
+        cleaned = filter_to_letters(item)
+        if min_length <= len(cleaned) <= max_length:
+            results.append(cleaned)
+    return results
 
 
 def detect_encoding(file_path: str) -> str | None:

@@ -7146,18 +7146,15 @@ def get_mode_summary_text() -> str:
     lines.append(divider)
 
     for i, (category, modes) in enumerate(categories.items()):
-        # Add a divider before categories (except the first one) to improve hierarchy
-        if i > 0:
-            lines.append(divider)
+        # Category header with themed divider spanning the table width
+        cat_visible_width = width_mode + width_summary + width_flags + 6
+        left_len = (cat_visible_width - len(category) - 2) // 2
+        right_len = cat_visible_width - len(category) - 2 - left_len
 
-        # Category header aligned with table columns
         cat_header = (
-            f"{padding}{c_bold}{c_blue}{category:<{width_mode}}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{' ' * width_summary}{c_reset} {sep} "
-            f"{c_bold}{c_blue}{' ' * width_flags}{c_reset}"
+            f"{padding}{c_bold}{c_blue}{'─' * left_len} {category} {'─' * right_len}{c_reset}"
         )
         lines.append(cat_header)
-        lines.append(divider)
 
         for mode in modes:
             if mode in MODE_DETAILS:
@@ -7197,7 +7194,7 @@ def get_mode_summary_text() -> str:
         ("--limit (-L)", "Restrict the number of items in the output")
     ]
     for flag, desc in tips:
-        lines.append(f"{padding}{c_bold}{c_green}{flag:<13}{c_reset} {desc}")
+        lines.append(f"{padding}{c_bold}{c_green}{flag:<20}{c_reset} {desc}")
 
     lines.append(f"\nRun '{c_bold}python multitool.py help <mode>{c_reset}' for details on a specific mode.\n")
     return "\n".join(lines)
@@ -7254,25 +7251,7 @@ def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> No
             block.append(f"{label_color}{'DESCRIPTION:':<15}{RESET}{desc}")
 
         flags_str = details.get("flags", "[FILES...]")
-        all_tokens = flags_str.split()
-
-        # Identify positional arguments (uppercase words not preceded by a flag)
-        pos_args = []
-        for i, token in enumerate(all_tokens):
-            # Positional if it doesn't start with - and is not an argument to a preceding flag
-            if token.startswith('-') or (token.startswith('[') and token[1] == '-'):
-                continue
-            if i > 0:
-                prev = all_tokens[i-1]
-                if prev.startswith('-') or (prev.startswith('[') and prev[1] == '-'):
-                    continue
-
-            clean_token = token.strip('[]().')
-            if clean_token.isupper() and clean_token not in ("FILES...", "FILES"):
-                pos_args.append(token)
-
-        pos_args_str = (" " + " ".join(pos_args)) if pos_args else ""
-        usage_line = f"python {parser.prog} {mode_name}{pos_args_str} [FILES...] [OPTIONS]"
+        usage_line = f"python {parser.prog} {mode_name} {flags_str} [OPTIONS]"
 
         block.append(f"\n{label_color}{'USAGE:':<15}{RESET}{BOLD}{usage_line}{RESET}")
 

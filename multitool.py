@@ -5530,7 +5530,6 @@ def replace_mode(
                 pbar.set_postfix(file=os.path.basename(input_file), refresh=True)
 
             file_lines = _read_file_lines_robust(input_file)
-            original_lines = [line.rstrip('\n') for line in file_lines]
             modified_lines = []
             file_replacements = 0
 
@@ -5562,7 +5561,7 @@ def replace_mode(
             total_replacements += file_replacements
 
             if diff and file_replacements > 0:
-                _write_diff_report(input_file, original_lines, [l.rstrip('\n') for l in modified_lines], diff_out)
+                _write_diff_report(input_file, file_lines, modified_lines, diff_out)
 
             if in_place is not None and input_file != '-':
                 _write_file_in_place(
@@ -5763,8 +5762,6 @@ def standardize_mode(
                 logging.warning("In-place modification requested for standard input; ignoring.")
 
             file_lines = _read_file_lines_robust(input_file)
-            # Store original lines without newlines for diffing
-            original_lines = [line.rstrip('\n') for line in file_lines]
             modified_lines = []
             file_replacements = 0
 
@@ -5778,7 +5775,7 @@ def standardize_mode(
             total_replacements += file_replacements
 
             if diff and file_replacements > 0:
-                _write_diff_report(input_file, original_lines, modified_lines, diff_out)
+                _write_diff_report(input_file, file_lines, modified_lines, diff_out)
 
             if in_place is not None and input_file != '-':
                 _write_file_in_place(
@@ -5861,8 +5858,6 @@ def scrub_mode(
                 logging.warning("In-place modification requested for standard input; ignoring.")
 
             file_lines = _read_file_lines_robust(input_file)
-            # Store original lines without newlines for diffing
-            original_lines = [line.rstrip('\n') for line in file_lines]
             modified_lines = []
             file_replacements = 0
 
@@ -5876,7 +5871,7 @@ def scrub_mode(
             total_replacements += file_replacements
 
             if diff and file_replacements > 0:
-                _write_diff_report(input_file, original_lines, modified_lines, diff_out)
+                _write_diff_report(input_file, file_lines, modified_lines, diff_out)
 
             if in_place is not None and input_file != '-':
                 _write_file_in_place(

@@ -6790,8 +6790,8 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how often items appear",
-        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. Use -f arrow for a rich visual report with bar charts. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
-        "example": "python multitool.py count . --lines --min-count 5 -f arrow",
+        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. It defaults to the rich 'arrow' format when run in a terminal. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
+        "example": "python multitool.py count . --lines --min-count 5",
         "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-SplcB]",
     },
     "filterfragments": {
@@ -6862,62 +6862,62 @@ MODE_DETAILS = {
     },
     "conflict": {
         "summary": "Finds typos with multiple fixes",
-        "description": "Finds typos in your paired data that are associated with more than one unique correction. Use this to find inconsistencies in your typo lists.",
-        "example": "python multitool.py conflict typos.csv --output-format arrow --output conflicts.txt",
+        "description": "Finds typos in your paired data that are associated with more than one unique correction. It defaults to the rich 'arrow' format when run in a terminal. Use this to find inconsistencies in your typo lists.",
+        "example": "python multitool.py conflict typos.csv",
         "flags": "[FILES...]",
     },
     "similarity": {
         "summary": "Filters pairs by changes",
-        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. Use this to remove extra data or find specific types of typos.",
+        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. It defaults to the rich 'arrow' format when run in a terminal. Use this to remove extra data or find specific types of typos.",
         "example": "python multitool.py similarity typos.txt --keyboard --show-dist",
         "flags": "[FILES...] [--max-dist N] [-kt] [--show-dist]",
     },
     "near_duplicates": {
         "summary": "Finds similar words in one list",
-        "description": "Finds pairs of words in your list that are very similar (only a few characters apart). Use this to find potential typos or unintended duplicates in a project.",
+        "description": "Finds pairs of words in your list that are very similar (only a few characters apart). It defaults to the rich 'arrow' format when run in a terminal. Use this to find potential typos or unintended duplicates in a project.",
         "example": "python multitool.py near_duplicates words.txt --keyboard --show-dist",
         "flags": "[FILES...] [--max-dist N] [-kt] [--show-dist]",
     },
     "fuzzymatch": {
         "summary": "Finds similar words in two lists",
-        "description": "Finds words in your list that are similar to words in a second list (large dictionary). Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
+        "description": "Finds words in your list that are similar to words in a second list (large dictionary). It defaults to the rich 'arrow' format when run in a terminal. Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
         "example": "python multitool.py fuzzymatch typos.txt words.csv --keyboard --show-dist",
         "flags": "[FILES...] [FILE2] [--max-dist N] [-kt] [--show-dist]",
     },
     "stats": {
         "summary": "Shows statistics for a list",
-        "description": "Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words.",
-        "example": "python multitool.py stats typos.csv --pairs --output-format json",
+        "description": "Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words. It defaults to a rich visual report when run in a terminal.",
+        "example": "python multitool.py stats typos.csv --pairs",
         "flags": "[FILES...] [-p]",
     },
     "classify": {
         "summary": "Groups typos by error type",
-        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [Del] Deletion, [Ins] Insertion, [1:2] 1-to-2, [2:1] 2-to-1, [R] Replacement, and [M] Multiple. Use --show-dist to include the number of character changes.",
-        "example": "python multitool.py classify typos.txt --show-dist --output labeled.txt",
+        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [Del] Deletion, [Ins] Insertion, [1:2] 1-to-2, [2:1] 2-to-1, [R] Replacement, and [M] Multiple. It defaults to the rich 'arrow' format when run in a terminal. Use --show-dist to include the number of character changes.",
+        "example": "python multitool.py classify typos.txt --show-dist",
         "flags": "[FILES...] [--show-dist]",
     },
     "discovery": {
         "summary": "Finds typos in rare words",
-        "description": "Automatically finds potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. This is a powerful way to find errors without needing a dictionary.",
+        "description": "Automatically finds potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. It defaults to the rich 'arrow' format when run in a terminal. This is a powerful way to find errors without needing a dictionary.",
         "example": "python multitool.py discovery code.py --keyboard --smart",
         "flags": "[FILES...] [--rare-max N] [--freq-min N] [-Skt]",
     },
     "casing": {
         "summary": "Finds inconsistent casing",
-        "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for seeing inconsistent naming or typos that differ only by case.",
-        "example": "python multitool.py casing report.txt --smart --output-format arrow",
+        "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for seeing inconsistent naming or typos that differ only by case. It defaults to the rich 'arrow' format when run in a terminal.",
+        "example": "python multitool.py casing report.txt --smart",
         "flags": "[FILES...] [-dS]",
     },
     "cycles": {
         "summary": "Finds loops in typo pairs",
-        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues when automatically fixing typos and represent logic errors in your data.",
-        "example": "python multitool.py cycles typos.csv --output-format arrow",
+        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues when automatically fixing typos and represent logic errors in your data. It defaults to the rich 'arrow' format when run in a terminal.",
+        "example": "python multitool.py cycles typos.csv",
         "flags": "[FILES...]",
     },
     "repeated": {
         "summary": "Finds doubled words",
-        "description": "Finds doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. Use --smart to handle CamelCase or punctuation.",
-        "example": "python multitool.py repeated report.txt --smart --output-format arrow",
+        "description": "Finds doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. It defaults to the rich 'arrow' format when run in a terminal. Use --smart to handle CamelCase or punctuation.",
+        "example": "python multitool.py repeated report.txt --smart",
         "flags": "[FILES...] [-dS]",
     },
     "anomalies": {
@@ -9057,7 +9057,17 @@ def main() -> None:
     output_format = getattr(args, 'output_format', None)
     if output_format is None:
         allowed_formats = ['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml']
-        output_format = _detect_format_from_extension(args.output, allowed_formats, 'line')
+        default_format = 'line'
+
+        # Analysis modes should default to 'arrow' when run in a terminal for better UX
+        analysis_modes = {
+            'count', 'stats', 'classify', 'similarity', 'near_duplicates',
+            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles'
+        }
+        if args.mode in analysis_modes and args.output == '-' and sys.stdout.isatty():
+            default_format = 'arrow'
+
+        output_format = _detect_format_from_extension(args.output, allowed_formats, default_format)
 
     clean_items = not getattr(args, 'raw', False)
 

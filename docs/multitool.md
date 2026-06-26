@@ -364,6 +364,14 @@ Use these modes to analyze your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, `toml`, and `xml`.
   - **Example:** `python multitool.py repeated report.txt --smart --output-format arrow`
 
+- **`anomalies`**
+  - Finds words with structural irregularities like accidental capital letters or numbers in the middle of words (for example, 'HEllow' or 'w0rd'). This helps you find common typing errors without needing a dictionary.
+  - **Options:**
+    - Use the `--delimiter` (or `-d`) flag to set a different separator (default: whitespace).
+    - Use the `--smart` (or `-S`) flag to split items by symbols and capital letters.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, `toml`, and `xml`.
+  - **Example:** `python multitool.py anomalies src/ --output-format arrow`
+
 - **`search`**
   - Searches for a query in your files and identifies similar words or subword matches. It supports highlighting and context lines.
   - **Options:**

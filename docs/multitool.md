@@ -127,6 +127,10 @@ Use these modes to pull specific data from a file.
   - **Options:** Use the `-k` (or `--key`) flag to set an optional starting path.
   - **Example:** `python multitool.py flatten config.json --output-format table`
 
+- **`sentences`**
+  - Extracts individual sentences using punctuation and capitalization boundaries. It automatically cleans up extra whitespace and handles multi-line text.
+  - **Example:** `python multitool.py sentences report.txt --output sentences.txt`
+
 - **`line`**
   - Extracts every line from a file. It reads every line, cleans the text, and writes it to the output.
   - **Example:** `python multitool.py line raw_words.txt`
@@ -311,6 +315,7 @@ Use these modes to analyze your data.
     - `-p`, `--pairs`: Count frequencies of word pairs and classify them.
     - `-l`, `--lines`: Count frequencies of raw lines.
     - `-c`, `--chars`: Count frequencies of individual characters.
+    - `--sentences`: Count frequencies of individual sentences.
     - `-B`, `--by-file`: Count how many files contain each item.
   - **Visual Report:** Use `--output-format arrow` for a rich report with metrics and bar charts.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, `line`, and `xml`.

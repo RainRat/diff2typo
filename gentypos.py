@@ -8,7 +8,7 @@ Purpose:
 
 Features:
     - Generates typos based on common typing patterns (skipping letters, swapping neighbors, and so on).
-    - Uses keyboard adjacency to predict likely finger-slips on a QWERTY layout.
+    - Uses keyboard adjacency to predict likely typing errors on a QWERTY layout.
     - Supports custom substitution rules for specific character patterns (for example, 'ph' -> 'f').
     - Checks generated typos against the large dictionary and removes any that are correct words.
     - Can process words directly from the command line or from a text file.

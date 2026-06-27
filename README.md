@@ -42,7 +42,7 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 | **gentypos** | Creates lists of likely typos based on common typing errors. | [Read Docs](docs/gentypos.md) |
 | **multitool** | A multipurpose tool for cleaning, getting, and analyzing text, files, and paths. | [Read Docs](docs/multitool.md) |
 | **cmdrunner** | Runs commands across many folders at once. | [Read Docs](docs/cmdrunner.md) |
-| **typostats** | Analyzes your typos to find common finger-slips. | [Read Docs](docs/typostats.md) |
+| **typostats** | Analyzes your typos to find common typing errors. | [Read Docs](docs/typostats.md) |
 
 ## 🚀 Quick Start
 

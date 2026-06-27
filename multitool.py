@@ -1666,6 +1666,20 @@ def _extract_words_items(
     )
 
 
+def _extract_sentence_items(input_file: str, quiet: bool = False) -> Iterable[str]:
+    """Yield individual sentences from the file using a regex heuristic."""
+    lines = _read_file_lines_robust(input_file)
+    # Join lines with spaces to handle multi-line sentences, while preserving spacing
+    content = " ".join(line.strip() for line in lines if line.strip())
+    # Heuristic: split by punctuation followed by whitespace and a non-lowercase letter or end of string
+    pattern = re.compile(r'(?<=[.!?])\s+(?=[^a-z]|$)')
+    sentences = pattern.split(content)
+    for s in sentences:
+        trimmed = s.strip()
+        if trimmed:
+            yield trimmed
+
+
 def _extract_frontmatter(input_file: str, key_path: str = '', quiet: bool = False) -> Iterable[str]:
     """Yield values from YAML frontmatter in Markdown files based on a dotted key path."""
     lines = _read_file_lines_robust(input_file)
@@ -2087,6 +2101,35 @@ def arrow_mode(
         quiet,
         clean_items=clean_items,
         limit=limit,
+    )
+
+
+def sentences_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Wrapper for getting individual sentences from file(s)."""
+    _process_items(
+        _extract_sentence_items,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Sentences',
+        'Successfully got sentences.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+        item_label="sentence",
     )
 
 
@@ -2939,6 +2982,7 @@ def count_mode(
     pairs: bool = False,
     lines: bool = False,
     chars: bool = False,
+    sentences: bool = False,
     mapping_file: str | None = None,
     ad_hoc: List[str] | None = None,
     by_file: bool = False,
@@ -3013,6 +3057,8 @@ def count_mode(
                 items_gen = _extract_line_items(input_file, quiet=quiet)
             elif chars:
                 items_gen = _extract_char_items(input_file, quiet=quiet)
+            elif sentences:
+                items_gen = _extract_sentence_items(input_file, quiet=quiet)
             else:
                 items_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
 
@@ -3152,6 +3198,8 @@ def count_mode(
                     item_header = "Line"
                 elif chars:
                     item_header = "Character"
+                elif sentences:
+                    item_header = "Sentence"
                 else:
                     item_header = "Word"
 
@@ -3176,6 +3224,8 @@ def count_mode(
                 item_label = "line"
             elif chars:
                 item_label = "character"
+            elif sentences:
+                item_label = "sentence"
             else:
                 item_label = "word"
 
@@ -3254,6 +3304,8 @@ def count_mode(
             item_label = "line"
         elif chars:
             item_label = "character"
+        elif sentences:
+            item_label = "sentence"
         else:
             item_label = "word"
 
@@ -7127,6 +7179,12 @@ MODE_DETAILS = {
         "example": "python multitool.py words report.txt --smart --output wordlist.txt",
         "flags": "[FILES...] [-d DELIM] [-S]",
     },
+    "sentences": {
+        "summary": "Extracts sentences from a file",
+        "description": "Splits a file into individual sentences using a regex-based heuristic that identifies punctuation followed by whitespace and a capital letter. It handles multi-line sentences by joining lines with spaces before splitting.",
+        "example": "python multitool.py sentences report.txt --output sentences.txt",
+        "flags": "[FILES...]",
+    },
     "ngrams": {
         "summary": "Extracts sequences of words",
         "description": "Gets sequences of words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
@@ -7355,7 +7413,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks"],
     }
@@ -8169,6 +8227,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Count frequencies of individual characters instead of individual words.',
     )
+    unit_group.add_argument(
+        '-E', '--sentences',
+        action='store_true',
+        help='Count frequencies of individual sentences instead of individual words.',
+    )
     count_options.add_argument(
         '-s', '--mapping',
         type=str,
@@ -8652,6 +8715,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Split by symbols and capital letters (for example, splitting "CamelCase" into "Camel" and "Case").',
     )
     _add_common_mode_arguments(words_parser)
+
+    sentences_parser = subparsers.add_parser(
+        'sentences',
+        help=MODE_DETAILS['sentences']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['sentences']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['sentences']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(sentences_parser)
 
     ngrams_parser = subparsers.add_parser(
         'ngrams',
@@ -9248,9 +9320,13 @@ def main() -> None:
     if args.min_length is None:
         if args.mode in ('words', 'ngrams', 'stats'):
             args.min_length = 3
+        elif args.mode == 'sentences':
+            args.min_length = 10
         elif args.mode == 'count':
-            # Count mode uses 3 for word extraction, but 1 for auditing, lines, or character counting
-            if any([getattr(args, 'pairs', False), getattr(args, 'chars', False), getattr(args, 'lines', False),
+            # Count mode uses 3 for word extraction, 10 for sentences, but 1 for auditing, lines, or character counting
+            if getattr(args, 'sentences', False):
+                args.min_length = 10
+            elif any([getattr(args, 'pairs', False), getattr(args, 'chars', False), getattr(args, 'lines', False),
                     getattr(args, 'mapping', None), getattr(args, 'ad_hoc', None)]):
                 args.min_length = 1
             else:
@@ -9449,6 +9525,13 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'sentences': (
+            sentences_mode,
+            {
+                **common_kwargs,
                 'output_format': output_format,
             },
         ),
@@ -9727,6 +9810,7 @@ def main() -> None:
                 'pairs': getattr(args, 'pairs', False),
                 'lines': getattr(args, 'lines', False),
                 'chars': getattr(args, 'chars', False),
+                'sentences': getattr(args, 'sentences', False),
                 'mapping_file': getattr(args, 'mapping', None),
                 'ad_hoc': getattr(args, 'ad_hoc', None),
                 'by_file': getattr(args, 'by_file', False),

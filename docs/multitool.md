@@ -135,6 +135,10 @@ Use these modes to pull specific data from a file.
   - Extracts individual words from a file using whitespace or a custom delimiter. Use the `--smart` (or `-S`) flag to also split by symbols and capital letters (for example, "CamelCase" becomes "Camel" and "Case").
   - **Example:** `python multitool.py words report.txt --smart`
 
+- **`sentences`**
+  - Extracts individual sentences from a file using a regex-based heuristic. It handles multi-line sentences by joining lines with spaces before splitting.
+  - **Example:** `python multitool.py sentences report.txt --output sentences.txt`
+
 - **`ngrams`**
   - Extracts sequences of words. This is useful for finding phrases or context around typos. It supports sequences across line boundaries.
   - **Options:** Use `-n` to pick the number of words in each sequence (default is 2). Like the `words` mode, it supports custom delimiters and smart word splitting.
@@ -311,6 +315,7 @@ Use these modes to analyze your data.
     - `-p`, `--pairs`: Count frequencies of word pairs and classify them.
     - `-l`, `--lines`: Count frequencies of raw lines.
     - `-c`, `--chars`: Count frequencies of individual characters.
+    - `-E`, `--sentences`: Count frequencies of individual sentences.
     - `-B`, `--by-file`: Count how many files contain each item.
   - **Visual Report:** Use `--output-format arrow` for a rich report with metrics and bar charts.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, `line`, and `xml`.
@@ -416,7 +421,7 @@ These options work with most modes:
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input** if not provided.
 - `--output` (or **`-o`**): The file to write results to. Defaults to printing to the screen.
 - `--output-format` (or **`-f`**): The format of the output. Options include `line` (default), `json`, `yaml`, `toml`, `csv`, `markdown`, `md-table`, `arrow`, `table`, and `xml`. The tool automatically detects the format from the output file extension.
-- `--min-length` (or **`-m`**): Skip items shorter than this length (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').
+- `--min-length` (or **`-m`**): Skip items shorter than this length (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count', and 10 for sentence-based modes).
 - `--max-length` (or **`-M`**): Skip words longer than this length (default: 1000).
 - `--process-output` (or **`-P`**): Sorts the final list and removes duplicates. Use this to organize your output or remove redundant entries.
 - `--limit` (or **`-L`**): Limit the number of items in the output.

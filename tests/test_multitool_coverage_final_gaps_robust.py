@@ -33,7 +33,7 @@ def test_get_mode_summary_text_truncation(monkeypatch):
 
     output = multitool.get_mode_summary_text()
 
-    # The tool now uses a 35-character width for summaries
-    expected_truncated = long_summary[:35-3] + "..."
+    # The tool now uses a dynamic width for summaries (max 45)
+    expected_truncated = long_summary[:45-3] + "..."
     assert expected_truncated in output
     assert long_summary not in output

@@ -24,8 +24,8 @@ def test_mode_help_all_implicit(monkeypatch, capsys):
     assert "arrow" in output
     assert "csv" in output
     # In table view, we print "Summary: ..." as just the text column
-    assert "Extracts text from arrow lines" in output
-    assert "Merges multiple files into one" in output
+    assert "Extract text from arrow lines" in output
+    assert "Merge multiple files into one" in output
 
 def test_mode_help_all_explicit(monkeypatch, capsys):
     """Test 'multitool.py --mode-help all' displays help for all modes."""
@@ -54,7 +54,7 @@ def test_mode_help_specific(monkeypatch, capsys):
     assert "MODE:" in output
     assert "ARROW" in output
     assert "SUMMARY:" in output
-    assert "Extracts text from arrow lines" in output
+    assert "Extract text from arrow lines" in output
 
     # Should not contain other modes
     assert "MODE: CSV" not in output
@@ -86,7 +86,7 @@ def test_mode_help_search_detailed(monkeypatch, capsys):
     assert "MODE:" in output
     assert "SEARCH" in output
     assert "SUMMARY:" in output
-    assert "Searches for words or patterns" in output
+    assert "Search for words or patterns" in output
     assert "DESCRIPTION:" in output
     assert "A typo-aware search tool." in output
     assert "EXAMPLE:" in output

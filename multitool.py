@@ -4805,6 +4805,7 @@ def search_mode(
     before_context: int = 0,
     after_context: int = 0,
     heading: bool | None = None,
+    output_format: str = 'line',
 ) -> None:
     """
     Searches for words or patterns in text files, supporting similar word matching and smart subword detection.
@@ -4812,6 +4813,8 @@ def search_mode(
     start_time = time.perf_counter()
     total_matches = 0
     matched_files_count = 0
+    total_lines_analyzed = 0
+    all_matched_lines = []
     query_clean = filter_to_letters(query) if clean_items else query.lower()
     adj_keys = get_adjacent_keys() if (keyboard or transposition) else {}
 
@@ -4859,6 +4862,7 @@ def search_mode(
 
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
+        total_lines_analyzed += len(file_lines)
         # Store original lines without trailing newlines for consistent rendering
         file_contents = [line.rstrip("\n") for line in file_lines]
         match_indices = {}  # index -> highlighted_line
@@ -4942,6 +4946,7 @@ def search_mode(
                             break
 
             if spans:
+                all_matched_lines.append(line_content)
                 if use_color:
                     spans.sort()
                     merged = []
@@ -4998,6 +5003,22 @@ def search_mode(
 
     if limit is not None:
         accumulated_lines = accumulated_lines[:limit]
+
+    if output_format == 'arrow':
+        extra_metrics = {
+            "Matched files": f"{matched_files_count} of {len(input_files)}",
+            "Total matches": total_matches,
+        }
+        summary = _format_analysis_summary(
+            total_lines_analyzed,
+            all_matched_lines,
+            item_label="line",
+            start_time=start_time,
+            use_color=use_color,
+            extra_metrics=extra_metrics,
+            title="SEARCH ANALYSIS"
+        )
+        accumulated_lines.extend(summary)
 
     with smart_open_output(output_file) as out:
         for line in accumulated_lines:
@@ -6473,6 +6494,7 @@ def scan_mode(
     before_context: int = 0,
     after_context: int = 0,
     heading: bool | None = None,
+    output_format: str = 'line',
 ) -> None:
     """
     Scans files for matches of words from a mapping file or extra pairs, providing context.
@@ -6483,6 +6505,8 @@ def scan_mode(
 
     total_matches = 0
     matched_files_count = 0
+    total_lines_analyzed = 0
+    all_matched_lines = []
     pattern = re.compile(r'([a-zA-Z0-9]+)')
 
     accumulated_lines = []
@@ -6505,6 +6529,7 @@ def scan_mode(
 
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
+        total_lines_analyzed += len(file_lines)
         file_contents = [line.rstrip('\n') for line in file_lines]
         match_indices = {}  # index -> highlighted_line
 
@@ -6538,6 +6563,7 @@ def scan_mode(
                         break
 
             if match_found:
+                all_matched_lines.append(line_content)
                 # Highlight if color is enabled
                 if use_color:
                     new_parts = []
@@ -6599,6 +6625,22 @@ def scan_mode(
 
     if limit is not None:
         accumulated_lines = accumulated_lines[:limit]
+
+    if output_format == 'arrow':
+        extra_metrics = {
+            "Matched files": f"{matched_files_count} of {len(input_files)}",
+            "Total matches": total_matches,
+        }
+        summary = _format_analysis_summary(
+            total_lines_analyzed,
+            all_matched_lines,
+            item_label="line",
+            start_time=start_time,
+            use_color=use_color,
+            extra_metrics=extra_metrics,
+            title="SCAN ANALYSIS"
+        )
+        accumulated_lines.extend(summary)
 
     with smart_open_output(output_file) as out:
         for line in accumulated_lines:
@@ -9415,7 +9457,8 @@ def main() -> None:
         # Analysis modes should default to 'arrow' when run in a terminal for better UX
         analysis_modes = {
             'count', 'stats', 'classify', 'similarity', 'near_duplicates',
-            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo'
+            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo',
+            'search', 'scan'
         }
         if args.mode in analysis_modes and args.output == '-' and sys.stdout.isatty():
             default_format = 'arrow'
@@ -9786,6 +9829,7 @@ def main() -> None:
                 'before_context': before_context,
                 'after_context': after_context,
                 'heading': getattr(args, 'heading', None),
+                'output_format': output_format,
             }
         ),
         'unique': (
@@ -10034,6 +10078,7 @@ def main() -> None:
                 'before_context': before_context,
                 'after_context': after_context,
                 'heading': getattr(args, 'heading', None),
+                'output_format': output_format,
             }
         ),
         'verify': (

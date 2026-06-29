@@ -327,7 +327,7 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
     Creates a map of keys that are next to each other on a QWERTY keyboard.
 
-    This is used to find typos caused by a finger slipping to a nearby key.
+    This is used to find typos caused by hitting a nearby key.
 
     Args:
         include_diagonals: Whether to count keys that are diagonal to each other.

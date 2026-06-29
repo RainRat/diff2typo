@@ -405,6 +405,10 @@ Use these modes to analyze your data.
   - Checks Markdown files for broken internal anchors (like `#missing-heading`) and missing local file references. It builds a project-wide map of all headings to correctly validate cross-file links.
   - **Example:** `python multitool.py brokenlinks docs/ --output-format arrow`
 
+- **`orphans`**
+  - Finds files that are not referenced by any Markdown link or image in your project. This is useful for identifying unused assets or incomplete documentation.
+  - **Example:** `python multitool.py orphans docs/ --output-format arrow`
+
 - **`fileinfo`**
   - Gathers metadata such as file size, number of lines, word count, and detected encoding for the specified files.
   - **Example:** `python multitool.py fileinfo . --output-format arrow`

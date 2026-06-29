@@ -2692,6 +2692,75 @@ def brokenlinks_mode(
     logging.info(f"[BrokenLinks Mode] Found {len(broken_links)} broken links across {len(input_files)} file(s).")
 
 
+def orphans_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    output_format: str = 'line',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """Finds files that are not referenced by any Markdown link or image."""
+    start_time = time.perf_counter()
+    all_files = set()
+    referenced_files = set()
+    total_links = 0
+
+    # 1. Collect all files from the input
+    for path in input_files:
+        if path == '-':
+            continue
+        norm_path = os.path.normpath(path)
+        if os.path.isfile(norm_path):
+            all_files.add(norm_path)
+
+    # 2. Scan Markdown files for links
+    for path in all_files:
+        if path.lower().endswith(('.md', '.markdown')):
+            base_dir = os.path.dirname(path)
+            for _, url, _ in _extract_markdown_links_detailed(path, quiet=quiet):
+                total_links += 1
+                # Skip external links, mailto, and pure anchors
+                if url.startswith(("http://", "https://", "mailto:", "ftp:", "#")):
+                    continue
+
+                # Resolve local file reference
+                file_part = url.split('#', 1)[0].split('?', 1)[0]
+                if file_part:
+                    target_path = os.path.normpath(os.path.join(base_dir, file_part))
+                    referenced_files.add(target_path)
+
+    # 3. Identify orphans (files in all_files but not in referenced_files)
+    orphans = sorted([f for f in all_files if f not in referenced_files])
+
+    if limit is not None:
+        orphans = orphans[:limit]
+
+    # 4. Output
+    if output_format == 'arrow':
+        use_color = _should_enable_color(sys.stdout) if output_file == '-' else ('FORCE_COLOR' in os.environ and 'NO_COLOR' not in os.environ)
+
+        summary = _format_analysis_summary(
+            len(all_files),
+            orphans,
+            item_label="file",
+            start_time=start_time,
+            use_color=use_color,
+            extra_metrics={"Total links scanned": total_links},
+            title="ORPHAN FILES ANALYSIS"
+        )
+
+        with smart_open_output(output_file) as out:
+            if orphans:
+                for orphan in orphans:
+                    out.write(orphan + '\n')
+                out.write('\n')
+            out.write("\n".join(summary) + '\n')
+    else:
+        write_output(orphans, output_file, output_format, quiet, limit=limit)
+
+    logging.info(f"[Orphans Mode] Found {len(orphans)} orphan files among {len(all_files)} total files.")
+
+
 def links_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -7085,6 +7154,12 @@ MODE_DETAILS = {
         "example": "python multitool.py brokenlinks docs/ --output-format arrow",
         "flags": "[FILES...]",
     },
+    "orphans": {
+        "summary": "Finds unreferenced project files",
+        "description": "Finds files that are not referenced by any Markdown link or image in your project. This is useful for identifying unused assets or incomplete documentation.",
+        "example": "python multitool.py orphans docs/ --output-format arrow",
+        "flags": "[FILES...]",
+    },
     "codeblocks": {
         "summary": "Extracts Markdown code blocks",
         "description": "Finds fenced code blocks in Markdown files (using ``` or ~~~). It saves the code content by default. Use --language to filter by a specific language (for example, 'python') or --pairs to see both language and content.",
@@ -7357,7 +7432,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks", "orphans"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -7949,6 +8024,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['brokenlinks']['example']}{RESET}",
     )
     _add_common_mode_arguments(brokenlinks_parser, include_process_output=False)
+
+    orphans_parser = subparsers.add_parser(
+        'orphans',
+        help=MODE_DETAILS['orphans']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['orphans']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['orphans']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(orphans_parser, include_process_output=False)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -9415,7 +9499,8 @@ def main() -> None:
         # Analysis modes should default to 'arrow' when run in a terminal for better UX
         analysis_modes = {
             'count', 'stats', 'classify', 'similarity', 'near_duplicates',
-            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo'
+            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo',
+            'brokenlinks', 'orphans'
         }
         if args.mode in analysis_modes and args.output == '-' and sys.stdout.isatty():
             default_format = 'arrow'
@@ -9454,6 +9539,16 @@ def main() -> None:
         ),
         'brokenlinks': (
             brokenlinks_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'output_format': output_format,
+                'quiet': args.quiet,
+                'limit': limit,
+            },
+        ),
+        'orphans': (
+            orphans_mode,
             {
                 'input_files': args.input,
                 'output_file': args.output,

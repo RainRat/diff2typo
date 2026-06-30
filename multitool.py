@@ -4805,6 +4805,7 @@ def search_mode(
     before_context: int = 0,
     after_context: int = 0,
     heading: bool | None = None,
+    output_format: str = 'line',
 ) -> None:
     """
     Searches for words or patterns in text files, supporting similar word matching and smart subword detection.
@@ -4851,12 +4852,17 @@ def search_mode(
     query_len = len(query_clean) if clean_items else len(query)
     apply_literal_match = min_length <= query_len <= max_length
 
-    # Pre-calculate total lines for a single cohesive progress bar
+    # Pre-calculate total lines for a cohesive progress bar and metrics
+    total_lines = 0
+    show_summary = output_format == 'arrow'
+    if not quiet or show_summary:
+        total_lines = _get_total_line_count(input_files)
+
     pbar = None
     if not quiet:
-        total_lines = _get_total_line_count(input_files)
         pbar = tqdm(total=total_lines, desc="Searching", unit=" lines", disable=quiet)
 
+    matched_line_contents = [] if show_summary else None
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         # Store original lines without trailing newlines for consistent rendering
@@ -4942,6 +4948,8 @@ def search_mode(
                             break
 
             if spans:
+                if show_summary:
+                    matched_line_contents.append(line_content)
                 if use_color:
                     spans.sort()
                     merged = []
@@ -5002,6 +5010,22 @@ def search_mode(
     with smart_open_output(output_file) as out:
         for line in accumulated_lines:
             out.write(line + "\n")
+
+        if output_format == 'arrow':
+            extra_metrics = {
+                "Matches found": total_matches,
+                "Matched files count": f"{matched_files_count} of {len(input_files)}",
+            }
+            summary = _format_analysis_summary(
+                total_lines,
+                matched_line_contents,
+                item_label="line",
+                start_time=start_time,
+                use_color=use_color,
+                extra_metrics=extra_metrics,
+                title="SEARCH ANALYSIS SUMMARY"
+            )
+            out.write("\n".join(summary) + "\n")
 
     duration = time.perf_counter() - start_time
     # Use color for feedback if stderr is a terminal
@@ -6473,6 +6497,7 @@ def scan_mode(
     before_context: int = 0,
     after_context: int = 0,
     heading: bool | None = None,
+    output_format: str = 'line',
 ) -> None:
     """
     Scans files for matches of words from a mapping file or extra pairs, providing context.
@@ -6497,12 +6522,17 @@ def scan_mode(
     if show_filename is None:
         show_filename = len(input_files) > 1 and not heading
 
-    # Pre-calculate total lines for a single cohesive progress bar
+    # Pre-calculate total lines for a cohesive progress bar and metrics
+    total_lines = 0
+    show_summary = output_format == 'arrow'
+    if not quiet or show_summary:
+        total_lines = _get_total_line_count(input_files)
+
     pbar = None
     if not quiet:
-        total_lines = _get_total_line_count(input_files)
         pbar = tqdm(total=total_lines, desc="Scanning", unit=" lines", disable=quiet)
 
+    matched_line_contents = [] if show_summary else None
     for input_file in input_files:
         file_lines = _read_file_lines_robust(input_file)
         file_contents = [line.rstrip('\n') for line in file_lines]
@@ -6538,6 +6568,8 @@ def scan_mode(
                         break
 
             if match_found:
+                if show_summary:
+                    matched_line_contents.append(line_content)
                 # Highlight if color is enabled
                 if use_color:
                     new_parts = []
@@ -6603,6 +6635,22 @@ def scan_mode(
     with smart_open_output(output_file) as out:
         for line in accumulated_lines:
             out.write(line + "\n")
+
+        if output_format == 'arrow':
+            extra_metrics = {
+                "Matches found": total_matches,
+                "Matched files count": f"{matched_files_count} of {len(input_files)}",
+            }
+            summary = _format_analysis_summary(
+                total_lines,
+                matched_line_contents,
+                item_label="line",
+                start_time=start_time,
+                use_color=use_color,
+                extra_metrics=extra_metrics,
+                title="SCAN ANALYSIS SUMMARY"
+            )
+            out.write("\n".join(summary) + "\n")
 
     duration = time.perf_counter() - start_time
     c_tag, c_count, c_reset = _get_status_colors()
@@ -9415,7 +9463,8 @@ def main() -> None:
         # Analysis modes should default to 'arrow' when run in a terminal for better UX
         analysis_modes = {
             'count', 'stats', 'classify', 'similarity', 'near_duplicates',
-            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo'
+            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles',
+            'fileinfo', 'search', 'scan', 'brokenlinks'
         }
         if args.mode in analysis_modes and args.output == '-' and sys.stdout.isatty():
             default_format = 'arrow'
@@ -9786,6 +9835,7 @@ def main() -> None:
                 'before_context': before_context,
                 'after_context': after_context,
                 'heading': getattr(args, 'heading', None),
+                'output_format': output_format,
             }
         ),
         'unique': (
@@ -10034,6 +10084,7 @@ def main() -> None:
                 'before_context': before_context,
                 'after_context': after_context,
                 'heading': getattr(args, 'heading', None),
+                'output_format': output_format,
             }
         ),
         'verify': (

@@ -6966,146 +6966,146 @@ def set_operation_mode(
 
 MODE_DETAILS = {
     "arrow": {
-        "summary": "Extracts text from arrow lines",
-        "description": "Finds text in lines that use arrows (like 'typo -> correction'). It saves the left side by default. Use --right to save the right side instead.",
+        "summary": "Extract text from arrow lines",
+        "description": "Find text in lines that use arrows (like 'typo -> correction'). It saves the left side by default. Use --right to save the right side instead.",
         "example": "python multitool.py arrow typos.log --right --output corrections.txt",
         "flags": "[FILES...] [--right]",
     },
     "table": {
-        "summary": "Extracts text from key=value",
-        "description": "Gets keys or values from entries like 'key = \"value\"'. It saves the key by default. Use --right to save the quoted value instead.",
+        "summary": "Extract text from key=value",
+        "description": "Get keys or values from entries like 'key = \"value\"'. It saves the key by default. Use --right to save the quoted value instead.",
         "example": "python multitool.py table typos.toml --right -o corrections.txt",
         "flags": "[FILES...] [--right]",
     },
     "combine": {
-        "summary": "Merges multiple files into one",
-        "description": "Combines several files into one list. It removes duplicates and sorts the results alphabetically.",
+        "summary": "Merge multiple files into one",
+        "description": "Combine several files into one list. It removes duplicates and sorts the results alphabetically.",
         "example": "python multitool.py combine typos1.txt typos2.txt --output all_typos.txt",
         "flags": "[FILES...]",
     },
     "unique": {
-        "summary": "Removes duplicates, keeps order",
-        "description": "Removes duplicate items from your list. Unlike 'combine', it preserves the order in which items first appeared in your files.",
+        "summary": "Remove duplicates, keep order",
+        "description": "Remove duplicate items from your list. Unlike 'combine', it preserves the order in which items first appeared in your files.",
         "example": "python multitool.py unique raw_typos.txt --output clean_typos.txt",
         "flags": "[FILES...]",
     },
     "backtick": {
-        "summary": "Extracts text inside backticks",
-        "description": "Finds text inside backticks (like `code`). It prioritizes items near words like 'error' or 'warning' to find the most relevant data.",
+        "summary": "Extract text inside backticks",
+        "description": "Find text inside backticks (like `code`). It prioritizes items near words like 'error' or 'warning' to find the most relevant data.",
         "example": "python multitool.py backtick build.log --output suspects.txt",
         "flags": "[FILES...]",
     },
     "quoted": {
-        "summary": "Extracts text inside quotes",
-        "description": "Finds text inside double (\") or single (') quotes. It handles backslash escaping (like \\\" or \\') to correctly extract strings from code or data files.",
+        "summary": "Extract text inside quotes",
+        "description": "Find text inside double (\") or single (') quotes. It handles backslash escaping (like \\\" or \\') to correctly extract strings from code or data files.",
         "example": "python multitool.py quoted source.py --output strings.txt",
         "flags": "[FILES...]",
     },
     "between": {
-        "summary": "Extracts text between markers",
-        "description": "Finds text between a starting marker and an ending marker. It supports simple text markers and can work across multiple lines if the --multi-line flag is used.",
+        "summary": "Extract text between markers",
+        "description": "Find text between a starting marker and an ending marker. It supports simple text markers and can work across multiple lines if the --multi-line flag is used.",
         "example": "python multitool.py between input.txt --start '{{' --end '}}' --output items.txt",
         "flags": "[FILES...] --start START --end END [--multi-line]",
     },
     "csv": {
-        "summary": "Extracts columns from CSV",
-        "description": "Gets data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, --column to pick specific numbers starting from 0, or --delimiter to use a custom separator.",
+        "summary": "Extract columns from CSV",
+        "description": "Get data from CSV files. By default, it gets every column except the first one. Use --first-column to get only the first column, --column to pick specific numbers starting from 0, or --delimiter to use a custom separator.",
         "example": "python multitool.py csv typos.csv --column 1 --delimiter ';'  # Get the second column",
         "flags": "[FILES...] [-d DELIM] [-c N...] [--first-column]",
     },
     "markdown": {
-        "summary": "Extracts Markdown list items",
-        "description": "Finds text in lines starting with -, *, or +. It can also split items by ':' or '->' to get one side of a pair (use --right for the second part).",
+        "summary": "Extract Markdown list items",
+        "description": "Find text in lines starting with -, *, or +. It can also split items by ':' or '->' to get one side of a pair (use --right for the second part).",
         "example": "python multitool.py markdown notes.md --output items.txt",
         "flags": "[FILES...] [--right]",
     },
     "frontmatter": {
-        "summary": "Extracts Markdown frontmatter",
-        "description": "Finds YAML frontmatter in Markdown files (text between '---' delimiters at the start of the file). Use dots for nested keys (like 'metadata.tags'). If you don't provide a key, it gets items from the top level.",
+        "summary": "Extract Markdown frontmatter",
+        "description": "Find YAML frontmatter in Markdown files (text between '---' delimiters at the start of the file). Use dots for nested keys (like 'metadata.tags'). If you don't provide a key, it gets items from the top level.",
         "example": "python multitool.py frontmatter post.md --key 'tags'",
         "flags": "[FILES...] [-k KEY]",
     },
     "md-table": {
-        "summary": "Extracts Markdown table items",
-        "description": "Finds text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers starting from 0. It automatically skips header and divider rows.",
+        "summary": "Extract Markdown table items",
+        "description": "Find text in cells of a Markdown table. It saves the first column by default. Use --right to save the second column instead, or --column to pick specific numbers starting from 0. It automatically skips header and divider rows.",
         "example": "python multitool.py md-table readme.md --column 1  # Get the second column",
         "flags": "[FILES...] [-c N...] [--right]",
     },
     "headings": {
-        "summary": "Extracts Markdown headings",
-        "description": "Finds headings in Markdown files (like '# Title'). It saves the heading text by default. Use --level to filter by heading level (1-6) or --pairs to see both level and text.",
+        "summary": "Extract Markdown headings",
+        "description": "Find headings in Markdown files (like '# Title'). It saves the heading text by default. Use --level to filter by heading level (1-6) or --pairs to see both level and text.",
         "example": "python multitool.py headings readme.md --level 1",
         "flags": "[FILES...] [--level N] [-p]",
     },
     "toc": {
-        "summary": "Generates a Table of Contents",
-        "description": "Creates a clickable, nested Table of Contents from Markdown headings. It handles duplicate headings by adding numeric suffixes. Use --no-links to generate a simple indented list.",
+        "summary": "Generate a Table of Contents",
+        "description": "Create a clickable, nested Table of Contents from Markdown headings. It handles duplicate headings by adding numeric suffixes. Use --no-links to generate a simple indented list.",
         "example": "python multitool.py toc readme.md --level 2",
         "flags": "[FILES...] [--level N] [--no-links]",
     },
     "json": {
-        "summary": "Extracts JSON values by key",
-        "description": "Finds values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If you don't provide a key, it gets items from the top level. It automatically handles lists of objects.",
+        "summary": "Extract JSON values by key",
+        "description": "Find values for a specific key in a JSON file. Use dots for nested keys (like 'user.name'). If you don't provide a key, it gets items from the top level. It automatically handles lists of objects.",
         "example": "python multitool.py json list.json -o items.txt",
         "flags": "[FILES...] [-k KEY]",
     },
     "paths": {
-        "summary": "Extracts path components",
-        "description": "Finds and extracts specific parts of file and directory paths. You can get just the filename (basename), the folder path (dirname), or the file extension. It also supports smart splitting to find words within filenames.",
+        "summary": "Extract path components",
+        "description": "Find and extract specific parts of file and directory paths. You can get just the filename (basename), the folder path (dirname), or the file extension. It also supports smart splitting to find words within filenames.",
         "example": "python multitool.py paths src/ --basename --smart --output wordlist.txt",
         "flags": "[FILES...] [--basename] [--dirname] [--extension] [-S]",
     },
     "yaml": {
-        "summary": "Extracts YAML values by key",
-        "description": "Finds values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If you don't provide a key, it gets items from the top level. It automatically handles lists.",
+        "summary": "Extract YAML values by key",
+        "description": "Find values for a specific key in a YAML file. Use dots for nested keys (like 'config.items'). If you don't provide a key, it gets items from the top level. It automatically handles lists.",
         "example": "python multitool.py yaml list.yaml -o items.txt",
         "flags": "[FILES...] [-k KEY]",
     },
     "toml": {
-        "summary": "Extracts TOML values by key",
-        "description": "Finds values for a specific key in a TOML file. Use dots for nested keys (like 'tool.poetry.dependencies'). If you don't provide a key, it gets items from the top level. It automatically handles nested tables.",
+        "summary": "Extract TOML values by key",
+        "description": "Find values for a specific key in a TOML file. Use dots for nested keys (like 'tool.poetry.dependencies'). If you don't provide a key, it gets items from the top level. It automatically handles nested tables.",
         "example": "python multitool.py toml pyproject.toml -k tool.poetry.dependencies --output-format toml",
         "flags": "[FILES...] [-k KEY]",
     },
     "xml": {
-        "summary": "Extracts XML values by tag/XPath",
-        "description": "Finds text from elements in an XML file matching a tag name or XPath expression. If you don't provide a key, it extracts text from every element in the file.",
+        "summary": "Extract XML values by tag/XPath",
+        "description": "Find text from elements in an XML file matching a tag name or XPath expression. If you don't provide a key, it extracts text from every element in the file.",
         "example": "python multitool.py xml data.xml -k './/item/name' --output names.txt",
         "flags": "[FILES...] [-k KEY]",
     },
     "links": {
-        "summary": "Extracts Markdown links and images",
-        "description": "Finds links ([text](url)) and images (![alt](url)) in Markdown files. It saves the link text by default. Use --right to save the URL instead, or --pairs to see both.",
+        "summary": "Extract Markdown links and images",
+        "description": "Find links ([text](url)) and images (![alt](url)) in Markdown files. It saves the link text by default. Use --right to save the URL instead, or --pairs to see both.",
         "example": "python multitool.py links readme.md --right",
         "flags": "[FILES...] [--right] [-p]",
     },
     "brokenlinks": {
-        "summary": "Finds broken anchors and file links",
-        "description": "Checks Markdown files for broken internal anchors (like '#missing-heading') and missing local file references. It builds a project-wide map of all headings to correctly validate cross-file links.",
+        "summary": "Find broken anchors and file links",
+        "description": "Check Markdown files for broken internal anchors (like '#missing-heading') and missing local file references. It builds a project-wide map of all headings to correctly validate cross-file links.",
         "example": "python multitool.py brokenlinks docs/ --output-format arrow",
         "flags": "[FILES...]",
     },
     "codeblocks": {
-        "summary": "Extracts Markdown code blocks",
-        "description": "Finds fenced code blocks in Markdown files (using ``` or ~~~). It saves the code content by default. Use --language to filter by a specific language (for example, 'python') or --pairs to see both language and content.",
+        "summary": "Extract Markdown code blocks",
+        "description": "Find fenced code blocks in Markdown files (using ``` or ~~~). It saves the code content by default. Use --language to filter by a specific language (for example, 'python') or --pairs to see both language and content.",
         "example": "python multitool.py codeblocks readme.md --language python",
         "flags": "[FILES...] [-l LANG] [-p]",
     },
     "comments": {
-        "summary": "Extracts comments from source files",
-        "description": "Finds comments in various programming and markup languages. It identifies single-line comments (#, //, --) and multi-line comments (/* */, <!-- -->, and triple quotes).",
+        "summary": "Extract comments from source files",
+        "description": "Find comments in various programming and markup languages. It identifies single-line comments (#, //, --) and multi-line comments (/* */, <!-- -->, and triple quotes).",
         "example": "python multitool.py comments src/ --output comments.txt",
         "flags": "[FILES...]",
     },
     "flatten": {
-        "summary": "Flattens nested data structures",
-        "description": "Transforms nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, 'user.name = value'). It supports multi-document YAML and JSON Lines (JSONL).",
+        "summary": "Flatten nested data structures",
+        "description": "Transform nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, 'user.name = value'). It supports multi-document YAML and JSON Lines (JSONL).",
         "example": "python multitool.py flatten config.json --output-format table",
         "flags": "[FILES...] [-k KEY]",
     },
     "unflatten": {
-        "summary": "Reconstructs nested structures",
-        "description": "Transforms dot-separated 'key.path = value' pairs back into nested JSON, YAML, or TOML structures. It automatically converts numeric path segments into lists if they form a continuous sequence.",
+        "summary": "Reconstruct nested structures",
+        "description": "Transform dot-separated 'key.path = value' pairs back into nested JSON, YAML, or TOML structures. It automatically converts numeric path segments into lists if they form a continuous sequence.",
         "example": "python multitool.py unflatten data.txt --output-format json",
         "flags": "[FILES...] [-k KEY]",
     },
@@ -7116,238 +7116,238 @@ MODE_DETAILS = {
         "flags": "[FILES...] [-k KEY]",
     },
     "line": {
-        "summary": "Extracts every line from a file",
-        "description": "Reads every line from a file, cleans the text, and writes it to the output. Useful for simple cleaning and filtering.",
+        "summary": "Extract every line from a file",
+        "description": "Read every line from a file, clean the text, and write it to the output. Useful for simple cleaning and filtering.",
         "example": "python multitool.py line raw_words.txt --output filtered.txt",
         "flags": "[FILES...]",
     },
     "words": {
-        "summary": "Extracts words from a file",
-        "description": "Splits a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use --smart to split by capital letters and symbols.",
+        "summary": "Extract words from a file",
+        "description": "Split a file into individual words using whitespace or a custom delimiter. It's the standard way to get a list of every word used in a document. Use --smart to split by capital letters and symbols.",
         "example": "python multitool.py words report.txt --smart --output wordlist.txt",
         "flags": "[FILES...] [-d DELIM] [-S]",
     },
     "ngrams": {
-        "summary": "Extracts sequences of words",
-        "description": "Gets sequences of words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
+        "summary": "Extract sequences of words",
+        "description": "Get sequences of words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
         "example": "python multitool.py ngrams report.txt -n 2 --smart --output phrases.txt",
         "flags": "[FILES...] [-n N] [-d DELIM] [-S]",
     },
     "count": {
-        "summary": "Counts how often items appear",
-        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. It defaults to the rich 'arrow' format when run in a terminal. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
+        "summary": "Count how often items appear",
+        "description": "Count how often each word, pair, line, or character appears and sort the list by frequency. It defaults to the rich 'arrow' format when run in a terminal. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
         "example": "python multitool.py count . --lines --min-count 5",
         "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-S] [-p|l|c] [-B]",
     },
     "filterfragments": {
-        "summary": "Removes words found inside others",
-        "description": "Removes words from your list if they appear anywhere (even as a fragment) inside words in a second file.",
+        "summary": "Remove words found inside others",
+        "description": "Remove words from your list if they appear anywhere (even as a fragment) inside words in a second file.",
         "example": "python multitool.py filterfragments list.txt reference.txt --output unique.txt",
-        "flags": "[FILES...] [FILE2]",
+        "flags": "[FILES...] FILE2",
     },
     "check": {
-        "summary": "Finds word used as typo and fix",
-        "description": "Checks for words that appear in both the typo and correction columns of a file. Use this to find errors in your typo lists.",
+        "summary": "Find word used as typo and fix",
+        "description": "Check for words that appear in both the typo and correction columns of a file. Use this to find errors in your typo lists.",
         "example": "python multitool.py check typos.csv --output duplicates.txt",
         "flags": "[FILES...]",
     },
     "set_operation": {
-        "summary": "Compares files using set logic",
-        "description": "Compares two files to find shared lines (intersection), all lines (union), lines unique to the first file (difference), or lines unique to either file (symmetric_difference).",
+        "summary": "Compare files using set logic",
+        "description": "Compare two files to find shared lines (intersection), all lines (union), lines unique to the first file (difference), or lines unique to either file (symmetric_difference).",
         "example": "python multitool.py set_operation fileA.txt fileB.txt --operation difference --output unique.txt",
-        "flags": "[FILES...] [FILE2] --operation OP",
+        "flags": "[FILES...] FILE2 --operation OP",
     },
     "sample": {
-        "summary": "Picks a random set of lines",
-        "description": "Selects a random subset of lines. You can choose a specific number of lines (-n) or a percentage (--percent).",
+        "summary": "Pick a random set of lines",
+        "description": "Select a random subset of lines. You can choose a specific number of lines (-n) or a percentage (--percent).",
         "example": "python multitool.py sample big_log.txt -n 100 -o sample.txt",
         "flags": "[FILES...] [-n N|--percent P]",
     },
     "shuffle": {
-        "summary": "Randomly reorders lines",
-        "description": "Randomly shuffles the lines in your input files. This is useful for creating randomized test data or breaking up ordered lists.",
+        "summary": "Randomly reorder lines",
+        "description": "Randomly shuffle the lines in your input files. This is useful for creating randomized test data or breaking up ordered lists.",
         "example": "python multitool.py shuffle wordlist.txt -o randomized.txt",
         "flags": "[FILES...]",
     },
     "regex": {
-        "summary": "Extracts text matching a pattern",
-        "description": "Finds and gets all text that matches a Python regular expression pattern.",
+        "summary": "Extract text matching a pattern",
+        "description": "Find and get all text that matches a Python regular expression pattern.",
         "example": "python multitool.py regex inputs.txt --pattern 'user_\\w+' --output users.txt",
         "flags": "[FILES...] [-r PATTERN]",
     },
     "map": {
-        "summary": "Replaces items using a mapping",
-        "description": "Replaces items in your list with values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
+        "summary": "Replace items using a mapping",
+        "description": "Replace items in your list with values from a mapping file or extra pairs provided via --add. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats. Use --smart-case to preserve capitalization and --pairs to see both original and changed words. Length filters are re-applied to items after they are changed.",
         "example": "python multitool.py map input.txt --add teh:the --smart-case --pairs",
         "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-p] [-S]",
     },
     "case": {
-        "summary": "Changes word casing",
-        "description": "Converts words to a specified casing style like snake_case, camelCase, or PascalCase. It automatically identifies sub-words within compound words and preserves the overall structure. Use --pairs to see both the original and converted words.",
+        "summary": "Change word casing",
+        "description": "Convert words to a specified casing style like snake_case, camelCase, or PascalCase. It automatically identifies sub-words within compound words and preserves the overall structure. Use --pairs to see both the original and converted words.",
         "example": "python multitool.py case wordlist.txt --to snake --pairs",
         "flags": "[FILES...] [--to STYLE] [-p]",
     },
     "zip": {
-        "summary": "Pairs lines from two files",
-        "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists. Length filters are applied to both items in each pair.",
+        "summary": "Pair lines from two files",
+        "description": "Join two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists. Length filters are applied to both items in each pair.",
         "example": "python multitool.py zip typos.txt corrections.txt --output-format table --output typos.toml",
-        "flags": "[FILES...] [FILE2]",
+        "flags": "[FILES...] FILE2",
     },
     "swap": {
-        "summary": "Reverses the order of pairs",
-        "description": "Flips the left and right elements of pairs (for example, 'typo -> correction' becomes 'correction -> typo'). Supports Arrow, Table, CSV, and Markdown formats.",
+        "summary": "Reverse the order of pairs",
+        "description": "Flip the left and right elements of pairs (for example, 'typo -> correction' becomes 'correction -> typo'). Supports Arrow, Table, CSV, and Markdown formats.",
         "example": "python multitool.py swap typos.csv --output-format arrow --output flipped.txt",
         "flags": "[FILES...]",
     },
     "pairs": {
-        "summary": "Converts paired data formats",
-        "description": "Reads pairs (like 'typo -> correction') from any supported format and writes them to the specified output format. Useful for cleaning, filtering, and format conversion.",
+        "summary": "Convert paired data formats",
+        "description": "Read pairs (like 'typo -> correction') from any supported format and write them to the specified output format. Useful for cleaning, filtering, and format conversion.",
         "example": "python multitool.py pairs typos.json --output-format csv --output typos.csv",
         "flags": "[FILES...]",
     },
     "conflict": {
-        "summary": "Finds typos with multiple fixes",
-        "description": "Finds typos in your paired data that are associated with more than one unique correction. It defaults to the rich 'arrow' format when run in a terminal. Use this to find inconsistencies in your typo lists.",
+        "summary": "Find typos with multiple fixes",
+        "description": "Find typos in your paired data that are associated with more than one unique correction. It defaults to the rich 'arrow' format when run in a terminal. Use this to find inconsistencies in your typo lists.",
         "example": "python multitool.py conflict typos.csv",
         "flags": "[FILES...]",
     },
     "similarity": {
-        "summary": "Filters pairs by changes",
-        "description": "Filters pairs (typo -> correction) based on the number of character changes needed to turn one word into another. It defaults to the rich 'arrow' format when run in a terminal. Use this to remove extra data or find specific types of typos.",
+        "summary": "Filter pairs by changes",
+        "description": "Filter pairs (typo -> correction) based on the number of character changes needed to turn one word into another. It defaults to the rich 'arrow' format when run in a terminal. Use this to remove extra data or find specific types of typos.",
         "example": "python multitool.py similarity typos.txt --keyboard --show-dist",
         "flags": "[FILES...] [--max-dist N] [-k] [-t] [--show-dist]",
     },
     "near_duplicates": {
-        "summary": "Finds similar words in one list",
-        "description": "Finds pairs of words in your list that are very similar (only a few characters apart). It defaults to the rich 'arrow' format when run in a terminal. Use this to find potential typos or unintended duplicates in a project.",
+        "summary": "Find similar words in one list",
+        "description": "Find pairs of words in your list that are very similar (only a few characters apart). It defaults to the rich 'arrow' format when run in a terminal. Use this to find potential typos or unintended duplicates in a project.",
         "example": "python multitool.py near_duplicates words.txt --keyboard --show-dist",
         "flags": "[FILES...] [--max-dist N] [-k] [-t] [--show-dist]",
     },
     "fuzzymatch": {
-        "summary": "Finds similar words in two lists",
-        "description": "Finds words in your list that are similar to words in a second list (large dictionary). It defaults to the rich 'arrow' format when run in a terminal. Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
+        "summary": "Find similar words in two lists",
+        "description": "Find words in your list that are similar to words in a second list (large dictionary). It defaults to the rich 'arrow' format when run in a terminal. Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
         "example": "python multitool.py fuzzymatch typos.txt words.csv --keyboard --show-dist",
-        "flags": "[FILES...] [FILE2] [--max-dist N] [-k] [-t] [--show-dist]",
+        "flags": "[FILES...] FILE2 [--max-dist N] [-k] [-t] [--show-dist]",
     },
     "stats": {
-        "summary": "Shows statistics for a list",
-        "description": "Provides a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words. It defaults to a rich visual report when run in a terminal.",
+        "summary": "Show statistics for a list",
+        "description": "Provide a detailed overview of your dataset. It reports counts, unique items, statistics, and (optionally) paired data stats like conflicts, overlaps, and the number of changes between words. It defaults to a rich visual report when run in a terminal.",
         "example": "python multitool.py stats typos.csv --pairs",
         "flags": "[FILES...] [-p]",
     },
     "classify": {
-        "summary": "Groups typos by error type",
-        "description": "Labels typo pairs with error codes like [K] Keyboard, [T] Transposition, [Del] Deletion, [Ins] Insertion, [1:2] 1-to-2, [2:1] 2-to-1, [R] Replacement, and [M] Multiple. It defaults to the rich 'arrow' format when run in a terminal. Use --show-dist to include the number of character changes.",
+        "summary": "Group typos by error type",
+        "description": "Label typo pairs with error codes like [K] Keyboard, [T] Transposition, [Del] Deletion, [Ins] Insertion, [1:2] 1-to-2, [2:1] 2-to-1, [R] Replacement, and [M] Multiple. It defaults to the rich 'arrow' format when run in a terminal. Use --show-dist to include the number of character changes.",
         "example": "python multitool.py classify typos.txt --show-dist",
         "flags": "[FILES...] [--show-dist]",
     },
     "discovery": {
-        "summary": "Finds typos in rare words",
-        "description": "Automatically finds potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. It defaults to the rich 'arrow' format when run in a terminal. This is a powerful way to find errors without needing a dictionary.",
+        "summary": "Find typos in rare words",
+        "description": "Automatically find potential typos in a text by seeing rare words that are very similar to frequent words. It assumes that frequent words are likely correct and rare variations are likely typos. It defaults to the rich 'arrow' format when run in a terminal. This is a powerful way to find errors without needing a dictionary.",
         "example": "python multitool.py discovery code.py --keyboard --smart",
         "flags": "[FILES...] [--rare-max N] [--freq-min N] [-S] [-k] [-t]",
     },
     "casing": {
-        "summary": "Finds inconsistent casing",
-        "description": "Finds words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for seeing inconsistent naming or typos that differ only by case. It defaults to the rich 'arrow' format when run in a terminal.",
+        "summary": "Find inconsistent casing",
+        "description": "Find words that appear in your files with multiple different casing styles (for example, 'hello', 'Hello', 'HELLO'). This is useful for seeing inconsistent naming or typos that differ only by case. It defaults to the rich 'arrow' format when run in a terminal.",
         "example": "python multitool.py casing report.txt --smart",
         "flags": "[FILES...] [-d DELIM] [-S]",
     },
     "cycles": {
-        "summary": "Finds loops in typo pairs",
-        "description": "Detects cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues when automatically fixing typos and represent logic errors in your data. It defaults to the rich 'arrow' format when run in a terminal.",
+        "summary": "Find loops in typo pairs",
+        "description": "Detect cycles in your typo mappings (for example, 'A' maps to 'B' and 'B' maps back to 'A'). Repeated loops can cause issues when automatically fixing typos and represent logic errors in your data. It defaults to the rich 'arrow' format when run in a terminal.",
         "example": "python multitool.py cycles typos.csv",
         "flags": "[FILES...]",
     },
     "repeated": {
-        "summary": "Finds doubled words",
-        "description": "Finds doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. It defaults to the rich 'arrow' format when run in a terminal. Use --smart to handle CamelCase or punctuation.",
+        "summary": "Find doubled words",
+        "description": "Find doubled words (for example, 'the the') in your text. It outputs the duplicated pair and the suggested fix. It defaults to the rich 'arrow' format when run in a terminal. Use --smart to handle CamelCase or punctuation.",
         "example": "python multitool.py repeated report.txt --smart",
         "flags": "[FILES...] [-d DELIM] [-S]",
     },
     "anomalies": {
-        "summary": "Finds structural word errors",
-        "description": "Finds words with structural irregularities like sticky shift (HEllow), accidental caps (gIT), mid-word numbers (w0rd), or bumpy casing (pyTHon). This catches common finger-slips without needing a dictionary.",
+        "summary": "Find structural word errors",
+        "description": "Find words with structural irregularities like sticky shift (HEllow), accidental caps (gIT), mid-word numbers (w0rd), or bumpy casing (pyTHon). This catches common typing errors without needing a dictionary.",
         "example": "python multitool.py anomalies src/ --output-format arrow",
         "flags": "[FILES...] [-d DELIM] [-S]",
     },
     "standardize": {
         "summary": "Fix project-wide casing/spelling",
-        "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
+        "description": "Analyze your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replace all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
         "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --transposition",
         "flags": "[FILES...] [-I EXT] [-D] [-k] [-t] [--dry-run] [--fuzzy N]",
     },
     "search": {
-        "summary": "Searches for words or patterns",
+        "summary": "Search for words or patterns",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.",
         "example": "python multitool.py search 'teh' report.txt --keyboard --line-numbers",
-        "flags": "[QUERY] [FILES...] [-S] [-k] [-t] [-n] [-B/A/C N]",
+        "flags": "QUERY [FILES...] [-S] [-k] [-t] [-n] [-B/A/C N]",
     },
     "scan": {
-        "summary": "Scans project for known typos",
+        "summary": "Scan project for known typos",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. It also supports context lines.",
         "example": "python multitool.py scan . --add teh:the --smart -A 1",
         "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-n] [-S] [-B/A/C N]",
     },
     "verify": {
-        "summary": "Checks if typos exist in project",
-        "description": "Checks a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
+        "summary": "Check if typos exist in project",
+        "description": "Check a mapping file or extra pairs against your files to see which ones are actually present. Use --prune to output a mapping containing only the found typos. Use --smart to also search for subword matches in larger compound words.",
         "example": "python multitool.py verify . --mapping typos.csv --prune",
         "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-S] [--prune]",
     },
     "fileinfo": {
-        "summary": "Gathers metadata for input files",
-        "description": "Collects information such as file size, number of lines, word count, and detected encoding for the specified files. It supports structured output formats and a visual table format.",
+        "summary": "Gather metadata for input files",
+        "description": "Collect information such as file size, number of lines, word count, and detected encoding for the specified files. It supports structured output formats and a visual table format.",
         "example": "python multitool.py fileinfo . -f arrow",
         "flags": "[FILES...]",
     },
     "scrub": {
-        "summary": "Fixes typos in text files",
-        "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.",
+        "summary": "Fix typos in text files",
+        "description": "Perform in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --diff",
         "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I EXT] [-S] [-D]",
     },
     "align": {
-        "summary": "Aligns typo-correction pairs",
-        "description": "Extracts typo-correction pairs from any supported format (CSV, arrow, Markdown lists/tables) and outputs them in perfectly aligned columns by automatically calculating the maximum width of the left column. It supports a custom separator string via the --sep flag.",
+        "summary": "Align typo-correction pairs",
+        "description": "Extract typo-correction pairs from any supported format (CSV, arrow, Markdown lists/tables) and output them in perfectly aligned columns by automatically calculating the maximum width of the left column. It supports a custom separator string via the --sep flag.",
         "example": "python multitool.py align typos.csv --sep ' -> ' --output-format aligned",
         "flags": "[FILES...] [--sep SEP]",
     },
     "rename": {
-        "summary": "Batch renames files and folders",
-        "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. Use --regex to treat patterns as regular expressions (supports backreferences like \\1). It handles nested renames by processing files before their parent directories.",
+        "summary": "Batch rename files and folders",
+        "description": "Rename files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. Use --regex to treat patterns as regular expressions (supports backreferences like \\1). It handles nested renames by processing files before their parent directories.",
         "example": "python multitool.py rename . --regex --add 'test_(.*)\\.py:spec_\\1.py' --dry-run",
         "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I] [-S] [-r] [--dry-run]",
     },
     "diff": {
-        "summary": "Shows differences between files",
-        "description": "Finds differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what is added (+), what is removed (-), and what changed (~).",
+        "summary": "Show differences between files",
+        "description": "Find differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what is added (+), what is removed (-), and what changed (~).",
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
-        "flags": "[FILES...] [FILE2] [-p]",
+        "flags": "[FILES...] FILE2 [-p]",
     },
     "highlight": {
-        "summary": "Color-codes words from a list",
-        "description": "Searches for words from a mapping file or extra pairs provided via --add and highlights them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the typo-fixing tool.",
+        "summary": "Color-code words from a list",
+        "description": "Search for words from a mapping file or extra pairs provided via --add and highlight them with color in the output. Useful as a non-destructive preview before using 'scrub'. Supports the same smart word detection as the typo-fixing tool.",
         "example": "python multitool.py highlight input.txt --add teh:the",
         "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-S]",
     },
     "resolve": {
-        "summary": "Shortens typo correction chains",
-        "description": "Finds and shortens chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of fixing typos and analysis.",
+        "summary": "Shorten typo correction chains",
+        "description": "Find and shorten chains of corrections (for example, 'A' -> 'B' and 'B' -> 'C' becomes 'A' -> 'C'). This ensures that your mapping files always point directly to the final correct word, which improves the efficiency of fixing typos and analysis.",
         "example": "python multitool.py resolve mappings.csv --output resolved.csv",
         "flags": "[FILES...]",
     },
     "sort": {
-        "summary": "Sorts items in a list",
-        "description": "Sorts items from input file(s) by alphabetical order, length, or numeric value. It supports reverse sorting and deduplication. Numeric sorting extracts the first number found in each item for comparison.",
+        "summary": "Sort items in a list",
+        "description": "Sort items from input file(s) by alphabetical order, length, or numeric value. It supports reverse sorting and deduplication. Numeric sorting extracts the first number found in each item for comparison.",
         "example": "python multitool.py sort wordlist.txt --by length --reverse",
         "flags": "[FILES...] [--by TYPE] [-r] [-u]",
     },
     "replace": {
-        "summary": "Replaces text or patterns",
-        "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
+        "summary": "Replace text or patterns",
+        "description": "Perform text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
         "example": "python multitool.py replace 'the' 'that' . --in-place --smart-case",
-        "flags": "[OLD] [NEW] [FILES...] [-r] [-c] [-S] [-I EXT] [-D] [--dry-run]",
+        "flags": "OLD NEW [FILES...] [-r] [-c] [-S] [-I EXT] [-D] [--dry-run]",
     },
 }
 
@@ -7375,10 +7375,11 @@ def get_mode_summary_text() -> str:
     width_mode = max((len(m) for m in all_modes), default=15)
 
     # Summary width - we allow some growth but cap it to keep the table readable
-    width_summary = 35
+    width_summary = max((len(MODE_DETAILS[m]['summary'].rstrip('.')) for m in all_modes), default=35)
+    width_summary = min(max(width_summary, 30), 45)
 
     # Flags width - dynamic based on content
-    width_flags = max((len(MODE_DETAILS[m].get('flags', '')) for m in all_modes), default=15)
+    width_flags = max((len(MODE_DETAILS[m].get('flags', '').replace('[FILES...] ', '').replace(' [FILES...]', '').replace('[FILES...]', '').strip()) for m in all_modes), default=15)
     width_flags = min(max(width_flags, 15), 70)
 
     # Header and divider elements
@@ -7403,8 +7404,17 @@ def get_mode_summary_text() -> str:
         left_len = (cat_visible_width - len(category) - 2) // 2
         right_len = cat_visible_width - len(category) - 2 - left_len
 
+        # Color based on category
+        cat_color = c_blue
+        if category == "GET DATA":
+            cat_color = c_green
+        elif category == "CHANGE DATA":
+            cat_color = c_yellow
+        elif category == "CHECK & ANALYZE":
+            cat_color = CYAN
+
         cat_header = (
-            f"{padding}{c_bold}{c_blue}{'─' * left_len} {category} {'─' * right_len}{c_reset}"
+            f"{padding}{c_bold}{cat_color}{'─' * left_len} {category} {'─' * right_len}{c_reset}"
         )
         lines.append(cat_header)
 
@@ -7419,7 +7429,8 @@ def get_mode_summary_text() -> str:
                     summary = summary[:width_summary-3] + "..."
 
                 # Truncate flags if they exceed the calculated width
-                display_flags = flags
+                # Strip redundant [FILES...] from the table display
+                display_flags = flags.replace('[FILES...] ', '').replace(' [FILES...]', '').replace('[FILES...]', '').strip()
                 if len(display_flags) > width_flags:
                     display_flags = display_flags[:width_flags-3] + "..."
 
@@ -7437,6 +7448,8 @@ def get_mode_summary_text() -> str:
     lines.append(f"\n{padding}{c_bold}{c_blue}QUICK TIPS & GLOBAL FLAGS{c_reset}")
     lines.append(f"{padding}{c_bold}{c_blue}─────────────────────────{c_reset}")
     tips = [
+        ("Input Files", "All modes accept FILES (or globs) as positional arguments."),
+        ("Stdin", "If no files are provided, the tool reads from standard input."),
         ("-f arrow", "Rich visual reports with bar charts and percentages"),
         ("-P", "Automatically sort results and remove duplicates"),
         ("--in-place (-I)", "Modify files directly (scrub, standardize, rename, replace)"),

@@ -165,6 +165,21 @@ def _slugify(text: str) -> str:
     return slug
 
 
+def _mark_referenced_file(url: str, base_dir: str, referenced_files: Set[str]) -> None:
+    """Helper to resolve a URL to a local file and mark it as referenced."""
+    if url.startswith(("#", "http://", "https://", "mailto:", "ftp:")):
+        return
+    # Strip anchors and query params
+    file_path = url.split('#', 1)[0].split('?')[0]
+    if not file_path:
+        return
+    try:
+        target_path = os.path.normpath(os.path.join(base_dir, file_path))
+        referenced_files.add(target_path)
+    except Exception:
+        pass
+
+
 def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
     """
     Detect the output format based on the file extension.
@@ -2565,6 +2580,141 @@ def comments_mode(
         limit=limit,
         item_label="comment",
     )
+
+
+def orphans_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """Finds unreferenced files (dead assets) and unused reference definitions."""
+    start_time = time.perf_counter()
+
+    # Files explicitly mentioned as input (potential candidates for being orphans)
+    candidate_orphans = {os.path.normpath(f) for f in input_files if f != '-' and os.path.isfile(f)}
+
+    # Files referenced by links in Markdown documents
+    referenced_files = set()
+    unused_definitions = []
+    total_definitions = 0
+
+    # 1. Scan all files to find what is referenced
+    for input_file in input_files:
+        if input_file == '-' or not input_file.lower().endswith(('.md', '.markdown')):
+            continue
+
+        base_dir = os.path.dirname(input_file)
+        lines = _read_file_lines_robust(input_file)
+
+        # We need custom logic here to track reference usage
+        inline_pattern = re.compile(r'!?\[(.*?)\]\((.*?)\)')
+        ref_link_pattern = re.compile(r'!?\[(.*?)\]\[(.*?)\]')
+        # Shortcut reference links: [label] (only if no [ or ( follows)
+        shortcut_ref_pattern = re.compile(r'!?\[([^\]]+)\](?![\[\(])')
+        # [label]: url "title"
+        ref_def_pattern = re.compile(r'^\s*\[(.*?)\]:\s*(\S+)')
+
+        definitions = {} # label -> (url, line_num)
+        used_labels = set()
+
+        for i, line in enumerate(lines):
+            line_num = i + 1
+
+            # Find definitions
+            def_match = ref_def_pattern.match(line)
+            if def_match:
+                label = def_match.group(1).strip().lower()
+                url = def_match.group(2).strip()
+                definitions[label] = (url, line_num)
+                continue
+
+            # Find inline usage (marks files as referenced)
+            for match in inline_pattern.finditer(line):
+                _mark_referenced_file(match.group(2).strip(), base_dir, referenced_files)
+
+            # Find reference usage
+            for match in ref_link_pattern.finditer(line):
+                label = match.group(2).strip().lower()
+                if not label:
+                    label = match.group(1).strip().lower()
+                used_labels.add(label)
+
+            # Find shortcut reference usage
+            for match in shortcut_ref_pattern.finditer(line):
+                label = match.group(1).strip().lower()
+                used_labels.add(label)
+
+        # After scanning the file, check which definitions were unused
+        total_definitions += len(definitions)
+        for label, (url, line_num) in definitions.items():
+            if label not in used_labels:
+                location = f"{input_file}:{line_num}"
+                unused_definitions.append((location, f"[{label}]", url, "Unused definition"))
+            else:
+                # If it IS used, mark the file it points to as referenced
+                _mark_referenced_file(url, base_dir, referenced_files)
+
+    # 2. Identify orphaned files
+    orphans = []
+    for candidate in sorted(candidate_orphans):
+        if candidate not in referenced_files:
+            # Check if this file is a Markdown file (which are usually documents, not assets)
+            # We usually only consider non-markdown files as orphaned assets.
+            # However, if it's explicitly passed, we should report it if it's unreferenced.
+            orphans.append((candidate, "File", candidate, "Unreferenced file"))
+
+    # Combine results
+    results = orphans + unused_definitions
+
+    if limit is not None:
+        results = results[:limit]
+
+    # Output using aligned table format (copied/adapted from brokenlinks)
+    if output_format == 'arrow':
+        use_color = _should_enable_color(sys.stdout) if output_file == '-' else ('FORCE_COLOR' in os.environ and 'NO_COLOR' not in os.environ)
+        c_bold = BOLD if use_color else ""
+        c_blue = BLUE if use_color else ""
+        c_red = RED if use_color else ""
+        c_green = GREEN if use_color else ""
+        c_yellow = YELLOW if use_color else ""
+        c_reset = RESET if use_color else ""
+
+        padding = "  "
+        sep = f"{c_bold}{c_blue}│{c_reset}"
+
+        max_loc = max((len(l[0]) for l in results), default=10)
+        max_type = max((len(l[1]) for l in results), default=10)
+        max_target = max((len(l[2]) for l in results), default=10)
+        max_reason = max((len(l[3]) for l in results), default=10)
+
+        header = f"{padding}{c_bold}{c_blue}{'Location':<{max_loc}}{c_reset} {sep} {c_bold}{c_blue}{'Type':<{max_type}}{c_reset} {sep} {c_bold}{c_blue}{'Target':<{max_target}}{c_reset} {sep} {c_bold}{c_blue}{'Reason':<{max_reason}}{c_reset}"
+        divider = f"{padding}{c_bold}{c_blue}{'─' * (max_loc + max_type + max_target + max_reason + 9)}{c_reset}"
+
+        with smart_open_output(output_file) as out:
+            if results:
+                out.write(f"\n{header}\n{divider}\n")
+                for loc, rtype, target, reason in results:
+                    out.write(f"{padding}{c_yellow}{loc:<{max_loc}}{c_reset} {sep} {c_reset}{rtype:<{max_type}}{c_reset} {sep} {c_red}{target:<{max_target}}{c_reset} {sep} {c_red}{reason:<{max_reason}}{c_reset}\n")
+                out.write("\n")
+
+            total_orphans = len(candidate_orphans)
+            summary = _format_analysis_summary(
+                total_orphans + total_definitions,
+                results,
+                item_label="orphan/unused",
+                start_time=start_time,
+                use_color=use_color,
+                title="ORPHANS ANALYSIS"
+            )
+            out.write("\n".join(summary) + "\n")
+    else:
+        # Default paired output
+        pair_results = [(f"{l[0]} [{l[1]}]", f"{l[2]} ({l[3]})") for l in results]
+        _write_paired_output(pair_results, output_file, output_format, "Orphans", quiet, limit=limit)
+
+    logging.info(f"[Orphans Mode] Found {len(results)} orphans or unused definitions.")
 
 
 def brokenlinks_mode(
@@ -7085,6 +7235,12 @@ MODE_DETAILS = {
         "example": "python multitool.py brokenlinks docs/ --output-format arrow",
         "flags": "[FILES...]",
     },
+    "orphans": {
+        "summary": "Finds unreferenced files and links",
+        "description": "Scans your files to find 'dead' assets (files not linked from any Markdown document) and unused Markdown reference definitions. This helps you keep your documentation clean and remove unnecessary files.",
+        "example": "python multitool.py orphans docs/ --output-format arrow",
+        "flags": "[FILES...]",
+    },
     "codeblocks": {
         "summary": "Extracts Markdown code blocks",
         "description": "Finds fenced code blocks in Markdown files (using ``` or ~~~). It saves the code content by default. Use --language to filter by a specific language (for example, 'python') or --pairs to see both language and content.",
@@ -7357,7 +7513,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks", "orphans"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -7949,6 +8105,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['brokenlinks']['example']}{RESET}",
     )
     _add_common_mode_arguments(brokenlinks_parser, include_process_output=False)
+
+    orphans_parser = subparsers.add_parser(
+        'orphans',
+        help=MODE_DETAILS['orphans']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['orphans']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['orphans']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(orphans_parser, include_process_output=False)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -9454,6 +9619,16 @@ def main() -> None:
         ),
         'brokenlinks': (
             brokenlinks_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'output_format': output_format,
+                'quiet': args.quiet,
+                'limit': limit,
+            },
+        ),
+        'orphans': (
+            orphans_mode,
             {
                 'input_files': args.input,
                 'output_file': args.output,

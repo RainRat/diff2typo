@@ -5916,11 +5916,18 @@ def replace_mode(
             file_replacements = 0
 
             # Define replacement function outside the loop for performance
-            if regex and smart_case:
-                def repl_func(match):
-                    # Handle backreferences by expanding them first
-                    expanded = match.expand(new_text)
-                    return _apply_smart_case(match.group(0), expanded)
+            if regex:
+                if smart_case:
+                    def repl_func(match):
+                        # Handle backreferences by expanding them first if regex mode is on
+                        expanded = match.expand(new_text) if use_regex else new_text
+                        return _apply_smart_case(match.group(0), expanded)
+                elif not use_regex:
+                    # For literal replacement with internal regex (e.g. ignore-case)
+                    # use a lambda to prevent re.sub from interpreting backslashes.
+                    repl_func = lambda m: new_text
+                else:
+                    repl_func = new_text
             else:
                 repl_func = new_text
 

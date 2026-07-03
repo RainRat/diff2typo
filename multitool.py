@@ -770,7 +770,9 @@ def write_output(
             outfile.write(pretty_xml)
         else:  # 'line' or fallback
             for item in items_list:
-                outfile.write(item + '\n')
+                outfile.write(item)
+                if not item.endswith('\n'):
+                    outfile.write('\n')
 
 
 def _write_structured_data(
@@ -5928,7 +5930,7 @@ def replace_mode(
                     dry_run=dry_run
                 )
             elif not diff:
-                accumulated_lines.extend([l.rstrip('\n') for l in modified_lines])
+                accumulated_lines.extend(modified_lines)
 
     if pbar:
         pbar.close()
@@ -6152,11 +6154,7 @@ def standardize_mode(
         if dry_run:
             logging.warning(f"[Dry Run] Total replacements that would be made: {total_replacements}. Processing time: {duration:.3f}s")
         elif not diff:
-            with smart_open_output(output_file) as out:
-                for line in accumulated_lines:
-                    out.write(line)
-                    if not line.endswith('\n'):
-                        out.write('\n')
+            write_output(accumulated_lines, output_file, 'line', quiet)
 
             c_tag, c_count, c_reset = _get_status_colors()
             logging.info(
@@ -6248,11 +6246,7 @@ def scrub_mode(
         if dry_run:
             logging.warning(f"[Dry Run] Total replacements that would be made: {total_replacements}. Processing time: {duration:.3f}s")
         elif not diff:
-            with smart_open_output(output_file) as out:
-                for line in accumulated_lines:
-                    out.write(line)
-                    if not line.endswith('\n'):
-                        out.write('\n')
+            write_output(accumulated_lines, output_file, 'line', quiet)
 
             c_tag, c_count, c_reset = _get_status_colors()
             logging.info(

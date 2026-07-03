@@ -136,6 +136,6 @@ def test_codeblocks_mode_process_output_and_length_skip(tmp_path):
     # "longblock\n" has length 10. "sh\n" has length 3.
     # min_length=5, so "sh\n" is skipped (triggers line 2258).
     # process_output=True, so "longblock\n" is de-duplicated (triggers line 2266).
-    # Note: write_output appends a newline to each item.
-    # "longblock\n" -> saved as "longblock\n\n"
-    assert content == ["longblock", ""]
+    # Note: write_output ensures each item has a newline.
+    # "longblock\n" already has one, so it is preserved as "longblock\n"
+    assert content == ["longblock"]

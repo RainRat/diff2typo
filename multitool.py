@@ -1813,8 +1813,8 @@ def _extract_markdown_links_detailed(input_file: str, quiet: bool = False) -> It
     # Standard inline links and images: [text](url) or ![alt](url)
     inline_pattern = re.compile(r'!?\[(.*?)\]\((.*?)\)')
 
-    # Reference-style links: [text][label] or [text][]
-    ref_link_pattern = re.compile(r'\[(.*?)\]\[(.*?)\]')
+    # Reference-style links: [text][label] or [text][] or ![alt][label]
+    ref_link_pattern = re.compile(r'!?\[(.*?)\]\[(.*?)\]')
 
     # Reference definitions: [label]: url "title"
     ref_def_pattern = re.compile(r'^\s*\[(.*?)\]:\s*(\S+)')
@@ -2735,6 +2735,137 @@ def brokenlinks_mode(
         _write_paired_output(results, output_file, output_format, "BrokenLinks", quiet, limit=limit)
 
     logging.info(f"[BrokenLinks Mode] Found {len(broken_links)} broken links across {len(input_files)} file(s).")
+
+
+def orphans_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """Finds unreferenced files and unused Markdown reference definitions."""
+    start_time = time.perf_counter()
+
+    all_files = set()
+    referenced_files = set()
+    # file -> set of labels
+    defined_labels = {}
+    used_labels = defaultdict(set)
+
+    # We need to resolve relative paths, so we track the directory of each input file
+    md_files = []
+    for f in input_files:
+        if f == '-':
+            continue
+        p = os.path.normpath(f)
+        all_files.add(p)
+        if p.lower().endswith(('.md', '.markdown')):
+            md_files.append(p)
+
+    # First pass: collect all defined labels from all MD files
+    ref_def_pattern = re.compile(r'^\s*\[(.*?)\]:\s*(\S+)')
+    for md_file in md_files:
+        labels = set()
+        lines = _read_file_lines_robust(md_file)
+        for line in lines:
+            match = ref_def_pattern.match(line)
+            if match:
+                label = match.group(1).strip().lower()
+                labels.add(label)
+        defined_labels[md_file] = labels
+
+    # Second pass: find used labels and referenced files
+    # We use a broader regex for used labels to catch shortcut links [label]
+    shortcut_ref_pattern = re.compile(r'!?\[([^\]]+)\]')
+
+    for md_file in md_files:
+        base_dir = os.path.dirname(md_file)
+
+        # 1. Use standard detailed extractor for explicit links
+        for text, url, line_num in _extract_markdown_links_detailed(md_file, quiet=True):
+            if url.startswith("ref:"):
+                used_labels[md_file].add(url[4:])
+            elif url.startswith("broken-ref:"):
+                used_labels[md_file].add(url[11:])
+            elif not url.startswith(("http://", "https://", "mailto:", "ftp:", "#")):
+                file_path = url.split('#', 1)[0].split('?')[0]
+                if file_path:
+                    target_path = os.path.normpath(os.path.join(base_dir, file_path))
+                    referenced_files.add(target_path)
+
+        # 2. Check for shortcut reference links [label]
+        # This is a bit heuristic but we only consider it a "use" if the label is defined.
+        lines = _read_file_lines_robust(md_file)
+        file_defs = defined_labels.get(md_file, set())
+        for line in lines:
+            # Skip if it's a reference definition line itself to avoid self-reference
+            if ref_def_pattern.match(line):
+                continue
+            for match in shortcut_ref_pattern.finditer(line):
+                label = match.group(1).strip().lower()
+                if label in file_defs:
+                    used_labels[md_file].add(label)
+
+    # Calculate orphans
+    orphans = []
+
+    # 1. Unreferenced files
+    for f in sorted(all_files):
+        if f not in referenced_files:
+            orphans.append((f, "Unreferenced file"))
+
+    # 2. Unused labels
+    for md_file in sorted(defined_labels.keys()):
+        defs = defined_labels[md_file]
+        used = used_labels[md_file]
+        for label in sorted(defs):
+            if label not in used:
+                orphans.append((f"{md_file} (label: {label})", "Unused Markdown reference definition"))
+
+    if limit is not None:
+        orphans = orphans[:limit]
+
+    # Output using aligned table format
+    if output_format == 'arrow':
+        use_color = _should_enable_color(sys.stdout) if output_file == '-' else ('FORCE_COLOR' in os.environ and 'NO_COLOR' not in os.environ)
+        c_bold = BOLD if use_color else ""
+        c_blue = BLUE if use_color else ""
+        c_red = RED if use_color else ""
+        c_green = GREEN if use_color else ""
+        c_yellow = YELLOW if use_color else ""
+        c_reset = RESET if use_color else ""
+
+        padding = "  "
+        sep = f"{c_bold}{c_blue}│{c_reset}"
+
+        max_item = max((len(o[0]) for o in orphans), default=10)
+        max_reason = max((len(o[1]) for o in orphans), default=10)
+
+        header = f"{padding}{c_bold}{c_blue}{'Item':<{max_item}}{c_reset} {sep} {c_bold}{c_blue}{'Reason':<{max_reason}}{c_reset}"
+        divider = f"{padding}{c_bold}{c_blue}{'─' * (max_item + max_reason + 3)}{c_reset}"
+
+        with smart_open_output(output_file) as out:
+            if orphans:
+                out.write(f"\n{header}\n{divider}\n")
+                for item, reason in orphans:
+                    out.write(f"{padding}{c_yellow}{item:<{max_item}}{c_reset} {sep} {c_red}{reason:<{max_reason}}{c_reset}\n")
+                out.write("\n")
+
+            summary = _format_analysis_summary(
+                len(all_files) + sum(len(l) for l in defined_labels.values()),
+                orphans,
+                item_label="potential orphan",
+                start_time=start_time,
+                use_color=use_color,
+                title="ORPHANS ANALYSIS"
+            )
+            out.write("\n".join(summary) + "\n")
+    else:
+        results = [(o[0], o[1]) for o in orphans]
+        _write_paired_output(results, output_file, output_format, "Orphans", quiet, limit=limit)
+
+    logging.info(f"[Orphans Mode] Found {len(orphans)} orphans.")
 
 
 def links_mode(
@@ -7186,6 +7317,12 @@ MODE_DETAILS = {
         "example": "python multitool.py brokenlinks docs/ --output-format arrow",
         "flags": "[FILES...]",
     },
+    "orphans": {
+        "summary": "Finds unreferenced files and labels",
+        "description": "Checks for files that are not linked to by any other file and identifies unused Markdown reference definitions. Useful for cleaning up dead assets and documentation.",
+        "example": "python multitool.py orphans . --output-format arrow",
+        "flags": "[FILES...]",
+    },
     "codeblocks": {
         "summary": "Extracts Markdown code blocks",
         "description": "Finds fenced code blocks in Markdown files (using ``` or ~~~). It saves the code content by default. Use --language to filter by a specific language (for example, 'python') or --pairs to see both language and content.",
@@ -7464,7 +7601,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks", "orphans"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -8056,6 +8193,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['brokenlinks']['example']}{RESET}",
     )
     _add_common_mode_arguments(brokenlinks_parser, include_process_output=False)
+
+    orphans_parser = subparsers.add_parser(
+        'orphans',
+        help=MODE_DETAILS['orphans']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['orphans']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['orphans']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(orphans_parser, include_process_output=False)
 
     json_parser = subparsers.add_parser(
         'json',
@@ -9540,8 +9686,7 @@ def main() -> None:
         # Analysis modes should default to 'arrow' when run in a terminal for better UX
         analysis_modes = {
             'count', 'stats', 'classify', 'similarity', 'near_duplicates',
-            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles',
-            'fileinfo', 'search', 'scan', 'brokenlinks'
+            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo', 'brokenlinks', 'orphans', 'search', 'scan'
         }
         if args.mode in analysis_modes and args.output == '-' and sys.stdout.isatty():
             default_format = 'arrow'
@@ -9587,6 +9732,16 @@ def main() -> None:
         ),
         'brokenlinks': (
             brokenlinks_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'output_format': output_format,
+                'quiet': args.quiet,
+                'limit': limit,
+            },
+        ),
+        'orphans': (
+            orphans_mode,
             {
                 'input_files': args.input,
                 'output_file': args.output,

@@ -7374,7 +7374,7 @@ MODE_DETAILS = {
     },
     "anomalies": {
         "summary": "Finds structural word errors",
-        "description": "Finds words with structural irregularities like sticky shift (HEllow), accidental caps (gIT), mid-word numbers (w0rd), or bumpy casing (pyTHon). This catches common finger-slips without needing a dictionary.",
+        "description": "Finds words with structural irregularities like sticky shift (HEllow), accidental caps (gIT), mid-word numbers (w0rd), or bumpy casing (pyTHon). This catches common typing errors without needing a dictionary.",
         "example": "python multitool.py anomalies src/ --output-format arrow",
         "flags": "[FILES...] [-d DELIM] [-S]",
     },

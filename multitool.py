@@ -7387,7 +7387,7 @@ MODE_DETAILS = {
         "summary": "Removes words found inside others",
         "description": "Removes words from your list if they appear anywhere (even as a fragment) inside words in a second file.",
         "example": "python multitool.py filterfragments list.txt reference.txt --output unique.txt",
-        "flags": "[FILES...] [FILE2]",
+        "flags": "[FILES...] FILE2",
     },
     "check": {
         "summary": "Finds word used as typo and fix",
@@ -7399,7 +7399,7 @@ MODE_DETAILS = {
         "summary": "Compares files using set logic",
         "description": "Compares two files to find shared lines (intersection), all lines (union), lines unique to the first file (difference), or lines unique to either file (symmetric_difference).",
         "example": "python multitool.py set_operation fileA.txt fileB.txt --operation difference --output unique.txt",
-        "flags": "[FILES...] [FILE2] --operation OP",
+        "flags": "[FILES...] FILE2 --operation OP",
     },
     "sample": {
         "summary": "Picks a random set of lines",
@@ -7435,7 +7435,7 @@ MODE_DETAILS = {
         "summary": "Pairs lines from two files",
         "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists. Length filters are applied to both items in each pair.",
         "example": "python multitool.py zip typos.txt corrections.txt --output-format table --output typos.toml",
-        "flags": "[FILES...] [FILE2]",
+        "flags": "[FILES...] FILE2",
     },
     "swap": {
         "summary": "Reverses the order of pairs",
@@ -7471,7 +7471,7 @@ MODE_DETAILS = {
         "summary": "Finds similar words in two lists",
         "description": "Finds words in your list that are similar to words in a second list (large dictionary). It defaults to the rich 'arrow' format when run in a terminal. Use this to find likely corrections for typos. It defaults to a threshold of 1 character change.",
         "example": "python multitool.py fuzzymatch typos.txt words.csv --keyboard --show-dist",
-        "flags": "[FILES...] [FILE2] [--max-dist N] [-k] [-t] [--show-dist]",
+        "flags": "[FILES...] FILE2 [--max-dist N] [-k] [-t] [--show-dist]",
     },
     "stats": {
         "summary": "Shows statistics for a list",
@@ -7525,7 +7525,7 @@ MODE_DETAILS = {
         "summary": "Searches for words or patterns",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.",
         "example": "python multitool.py search 'teh' report.txt --keyboard --line-numbers",
-        "flags": "[QUERY] [FILES...] [-S] [-k] [-t] [-n] [-B/A/C N]",
+        "flags": "QUERY [FILES...] [-S] [-k] [-t] [-n] [-B/A/C N]",
     },
     "scan": {
         "summary": "Scans project for known typos",
@@ -7567,7 +7567,7 @@ MODE_DETAILS = {
         "summary": "Shows differences between files",
         "description": "Finds differences between two files or lists. It can track simple word additions/removals or (with --pairs) find changed corrections for existing typos. Color-coded output highlights what is added (+), what is removed (-), and what changed (~).",
         "example": "python multitool.py diff old_typos.csv new_typos.csv --pairs --output-format json",
-        "flags": "[FILES...] [FILE2] [-p]",
+        "flags": "[FILES...] FILE2 [-p]",
     },
     "highlight": {
         "summary": "Color-codes words from a list",
@@ -7591,7 +7591,7 @@ MODE_DETAILS = {
         "summary": "Replaces text or patterns",
         "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
         "example": "python multitool.py replace 'the' 'that' . --in-place --smart-case",
-        "flags": "[OLD] [NEW] [FILES...] [-r] [-c] [-S] [-I EXT] [-D] [--dry-run]",
+        "flags": "OLD NEW [FILES...] [-r] [-c] [-S] [-I EXT] [-D] [--dry-run]",
     },
 }
 
@@ -7609,6 +7609,7 @@ def get_mode_summary_text() -> str:
     c_blue = BLUE if use_color else ""
     c_green = GREEN if use_color else ""
     c_yellow = YELLOW if use_color else ""
+    c_cyan = CYAN if use_color else ""
     c_reset = RESET if use_color else ""
 
     lines = []
@@ -7641,14 +7642,21 @@ def get_mode_summary_text() -> str:
     lines.append("\n" + header)
     lines.append(divider)
 
+    cat_colors = {
+        "GET DATA": c_green,
+        "CHANGE DATA": c_yellow,
+        "CHECK & ANALYZE": c_cyan
+    }
+
     for i, (category, modes) in enumerate(categories.items()):
         # Category header with themed divider spanning the table width
         cat_visible_width = width_mode + width_summary + width_flags + 6
         left_len = (cat_visible_width - len(category) - 2) // 2
         right_len = cat_visible_width - len(category) - 2 - left_len
 
+        color = cat_colors.get(category, c_blue)
         cat_header = (
-            f"{padding}{c_bold}{c_blue}{'─' * left_len} {category} {'─' * right_len}{c_reset}"
+            f"{padding}{c_bold}{color}{'─' * left_len} {category} {'─' * right_len}{c_reset}"
         )
         lines.append(cat_header)
 
@@ -7658,12 +7666,14 @@ def get_mode_summary_text() -> str:
                 summary = details['summary'].rstrip('.')
                 flags = details.get('flags', '')
 
+                # Strip redundant [FILES...] from summary table to save space
+                display_flags = flags.replace("[FILES...] ", "").replace(" [FILES...]", "").replace("[FILES...]", "").strip()
+
                 # Truncate summary if it exceeds the calculated width
                 if len(summary) > width_summary:
                     summary = summary[:width_summary-3] + "..."
 
                 # Truncate flags if they exceed the calculated width
-                display_flags = flags
                 if len(display_flags) > width_flags:
                     display_flags = display_flags[:width_flags-3] + "..."
 
@@ -7692,6 +7702,7 @@ def get_mode_summary_text() -> str:
     for flag, desc in tips:
         lines.append(f"{padding}{c_bold}{c_green}{flag:<20}{c_reset} {desc}")
 
+    lines.append(f"\n{padding}{c_bold}{c_blue}Note:{c_reset} All modes accept one or more {c_bold}FILES{c_reset} as arguments or read from standard input.")
     lines.append(f"\nRun '{c_bold}python multitool.py help <mode>{c_reset}' for details on a specific mode.\n")
     return "\n".join(lines)
 

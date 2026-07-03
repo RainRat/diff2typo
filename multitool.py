@@ -1793,19 +1793,6 @@ def _extract_markdown_headings(input_file: str, quiet: bool = False) -> Iterable
             yield level, text
 
 
-def _extract_markdown_links(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
-    """Yield (text, url) for each Markdown link or image."""
-    lines = _read_file_lines_robust(input_file)
-    # Match [text](url) or ![alt](url)
-    pattern = re.compile(r'!?\[(.*?)\]\((.*?)\)')
-
-    for line in tqdm(lines, desc=f'Processing {input_file} (links)', unit=' lines', disable=quiet):
-        for match in pattern.finditer(line):
-            text = match.group(1).strip()
-            url = match.group(2).strip()
-            yield text, url
-
-
 def _extract_markdown_links_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str, int]]:
     """Yield (text, url, line_number) for each Markdown link, image, and reference."""
     lines = _read_file_lines_robust(input_file)
@@ -1822,7 +1809,7 @@ def _extract_markdown_links_detailed(input_file: str, quiet: bool = False) -> It
     references = {}
     extracted_links = []
 
-    for i, line in enumerate(lines):
+    for i, line in enumerate(tqdm(lines, desc=f'Processing {input_file} (links)', unit=' lines', disable=quiet)):
         line_num = i + 1
 
         # Extract reference definitions first
@@ -2887,7 +2874,7 @@ def links_mode(
     total_links = 0
 
     for input_file in input_files:
-        for l_text, l_url in _extract_markdown_links(input_file, quiet=quiet):
+        for l_text, l_url, _ in _extract_markdown_links_detailed(input_file, quiet=quiet):
             total_links += 1
 
             # Apply cleaning and filtering to the text side by default

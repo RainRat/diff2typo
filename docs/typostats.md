@@ -102,14 +102,14 @@ This section breaks down every mistake:
 - **Correction:** The character you intended to type.
 - **Count:** How many times this specific mistake happened.
 - **%:** What percentage of all found replacements this mistake represents.
-- **Attr:** Special markers showing the type of mistake (for example, `[K]` for keyboard slip).
+- **Attr:** Special markers showing the type of mistake (for example, `[K]` for nearby key error).
 - **Visual:** A high-resolution bar chart for quick comparison.
 
 For example, a row showing `eh │ he` means you swapped the letters `h` and `e`.
 
 ### Typo Attributes (Attr)
 When you enable analysis features, the tool finds specific patterns in the **Attr** column:
-- **[K]**: Keyboard slip (the keys are next to each other on a QWERTY layout).
+- **[K]**: Nearby key error (the keys are next to each other on a QWERTY layout).
 - **[T]**: Transposition (swapped letters, like `teh` instead of `the`).
 - **[1:2]**: One-to-two replacement (for example, typing `rn` instead of `m`, or `ph` instead of `f`).
 - **[2:1]**: Two-to-one replacement (for example, typing `m` instead of `rn`, or `f` instead of `ph`).

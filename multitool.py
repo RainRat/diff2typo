@@ -1682,6 +1682,25 @@ def _extract_sentence_items(input_file: str, quiet: bool = False) -> Iterable[st
             yield trimmed
 
 
+def _extract_paragraph_items(input_file: str, quiet: bool = False) -> Iterable[str]:
+    """Yield blocks of text separated by one or more blank lines."""
+    lines = _read_file_lines_robust(input_file)
+
+    current_paragraph = []
+
+    for line in tqdm(lines, desc=f'Processing {input_file} (paragraphs)', unit=' lines', disable=quiet):
+        content = line.strip()
+        if not content:
+            if current_paragraph:
+                yield " ".join(current_paragraph)
+                current_paragraph = []
+        else:
+            current_paragraph.append(content)
+
+    if current_paragraph:
+        yield " ".join(current_paragraph)
+
+
 def _extract_frontmatter(input_file: str, key_path: str = '', quiet: bool = False) -> Iterable[str]:
     """Yield values from YAML frontmatter in Markdown files based on a dotted key path."""
     lines = _read_file_lines_robust(input_file)
@@ -2132,6 +2151,35 @@ def sentences_mode(
         clean_items=clean_items,
         limit=limit,
         item_label="sentence",
+    )
+
+
+def paragraphs_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Wrapper for getting individual paragraphs from file(s)."""
+    _process_items(
+        _extract_paragraph_items,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Paragraphs',
+        'Successfully got paragraphs.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+        item_label="paragraph",
     )
 
 
@@ -3116,6 +3164,7 @@ def count_mode(
     lines: bool = False,
     chars: bool = False,
     sentences: bool = False,
+    paragraphs: bool = False,
     mapping_file: str | None = None,
     ad_hoc: List[str] | None = None,
     by_file: bool = False,
@@ -3192,6 +3241,8 @@ def count_mode(
                 items_gen = _extract_char_items(input_file, quiet=quiet)
             elif sentences:
                 items_gen = _extract_sentence_items(input_file, quiet=quiet)
+            elif paragraphs:
+                items_gen = _extract_paragraph_items(input_file, quiet=quiet)
             else:
                 items_gen = _extract_words_items(input_file, delimiter=delimiter, quiet=quiet, smart=smart)
 
@@ -3333,6 +3384,8 @@ def count_mode(
                     item_header = "Character"
                 elif sentences:
                     item_header = "Sentence"
+                elif paragraphs:
+                    item_header = "Paragraph"
                 else:
                     item_header = "Word"
 
@@ -3359,6 +3412,8 @@ def count_mode(
                 item_label = "character"
             elif sentences:
                 item_label = "sentence"
+            elif paragraphs:
+                item_label = "paragraph"
             else:
                 item_label = "word"
 
@@ -3439,6 +3494,8 @@ def count_mode(
             item_label = "character"
         elif sentences:
             item_label = "sentence"
+        elif paragraphs:
+            item_label = "paragraph"
         else:
             item_label = "word"
 
@@ -7371,6 +7428,12 @@ MODE_DETAILS = {
         "example": "python multitool.py sentences report.txt --output sentences.txt",
         "flags": "[FILES...]",
     },
+    "paragraphs": {
+        "summary": "Extracts paragraphs from a file",
+        "description": "Splits a file into individual paragraphs using one or more blank lines as delimiters. It automatically joins multi-line paragraphs into single lines and cleans up extra whitespace.",
+        "example": "python multitool.py paragraphs report.txt --output paragraphs.txt",
+        "flags": "[FILES...]",
+    },
     "ngrams": {
         "summary": "Extracts sequences of words",
         "description": "Gets sequences of words from a file. This is useful for finding common phrases or context around typos. It supports sequences across line boundaries.",
@@ -7379,9 +7442,9 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how often items appear",
-        "description": "Counts how often each word, pair, line, or character appears and sorts the list by frequency. It defaults to the rich 'arrow' format when run in a terminal. Use --pairs to count word pairs, --lines to count raw lines, or --chars to count individual characters. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
+        "description": "Counts how often each word, pair, line, character, or paragraph appears and sorts the list by frequency. It defaults to the rich 'arrow' format when run in a terminal. Use --pairs to count word pairs, --lines to count raw lines, --chars to count individual characters, or --paragraphs to count entire paragraphs. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
         "example": "python multitool.py count . --lines --min-count 5",
-        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-S] [-p|l|c] [-B]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-S] [-p|l|c|G] [-B]",
     },
     "filterfragments": {
         "summary": "Removes words found inside others",
@@ -7599,7 +7662,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "paragraphs", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks", "orphans"],
     }
@@ -8438,6 +8501,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Count frequencies of individual sentences instead of individual words.',
     )
+    unit_group.add_argument(
+        '-G', '--paragraphs',
+        action='store_true',
+        help='Count frequencies of individual paragraphs instead of individual words.',
+    )
     count_options.add_argument(
         '-s', '--mapping',
         type=str,
@@ -8930,6 +8998,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['sentences']['example']}{RESET}",
     )
     _add_common_mode_arguments(sentences_parser)
+
+    paragraphs_parser = subparsers.add_parser(
+        'paragraphs',
+        help=MODE_DETAILS['paragraphs']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['paragraphs']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['paragraphs']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(paragraphs_parser)
 
     ngrams_parser = subparsers.add_parser(
         'ngrams',
@@ -9528,10 +9605,14 @@ def main() -> None:
             args.min_length = 3
         elif args.mode == 'sentences':
             args.min_length = 10
+        elif args.mode == 'paragraphs':
+            args.min_length = 20
         elif args.mode == 'count':
             # Count mode uses 3 for word extraction, 10 for sentences, but 1 for auditing, lines, or character counting
             if getattr(args, 'sentences', False):
                 args.min_length = 10
+            elif getattr(args, 'paragraphs', False):
+                args.min_length = 20
             elif any([getattr(args, 'pairs', False), getattr(args, 'chars', False), getattr(args, 'lines', False),
                     getattr(args, 'mapping', None), getattr(args, 'ad_hoc', None)]):
                 args.min_length = 1
@@ -9731,6 +9812,13 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'paragraphs': (
+            paragraphs_mode,
+            {
+                **common_kwargs,
                 'output_format': output_format,
             },
         ),
@@ -10027,6 +10115,7 @@ def main() -> None:
                 'lines': getattr(args, 'lines', False),
                 'chars': getattr(args, 'chars', False),
                 'sentences': getattr(args, 'sentences', False),
+                'paragraphs': getattr(args, 'paragraphs', False),
                 'mapping_file': getattr(args, 'mapping', None),
                 'ad_hoc': getattr(args, 'ad_hoc', None),
                 'by_file': getattr(args, 'by_file', False),

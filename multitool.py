@@ -146,6 +146,17 @@ def filter_to_letters(text: str) -> str:
     return re.sub("[^a-z]", "", text.lower())
 
 
+def _format_size(size_bytes: int) -> str:
+    """Converts a size in bytes into a human-readable string (KB, MB, GB)."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    for unit in ['KB', 'MB', 'GB', 'TB']:
+        size_bytes /= 1024
+        if size_bytes < 1024:
+            return f"{size_bytes:.1f} {unit}"
+    return f"{size_bytes:.1f} PB"
+
+
 def _slugify(text: str) -> str:
     """
     Converts text into a GitHub-compatible Markdown anchor slug.
@@ -575,12 +586,12 @@ def _format_analysis_summary(
     report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
 
     report.append(
-        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' analyzed:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' analyzed:':<{label_width}}{c_reset} {c_yellow}{raw_count:,}{c_reset}"
     )
 
     filtered_count = len(filtered_items)
     report.append(
-        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count:,}{c_reset}"
     )
 
     if raw_count > 0:
@@ -601,7 +612,7 @@ def _format_analysis_summary(
         unique_count = len(filtered_items)
 
     report.append(
-        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
+        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count:,}{c_reset}"
     )
 
     # Shortest/Longest and stats
@@ -613,6 +624,8 @@ def _format_analysis_summary(
                     return f"{it[0]} -> {it[1]}"
                 if len(it) == 3:
                     return f"{it[0]} -> {it[1]} {it[2]}"
+            if isinstance(it, dict) and 'file' in it:
+                return str(it['file'])
             return str(it)
 
         try:
@@ -3280,9 +3293,9 @@ def count_mode(
 
             # Find max width for common columns
             if pairs:
-                max_count_len = max((len(str(count)) for _, count, _ in final_results), default=5)
+                max_count_len = max((len(f"{count:,}") for _, count, _ in final_results), default=5)
             else:
-                max_count_len = max((len(str(count)) for _, count in final_results), default=5)
+                max_count_len = max((len(f"{count:,}") for _, count in final_results), default=5)
             count_header_label = "Files" if by_file else "Count"
             max_count_len = max(max_count_len, len(count_header_label))
             max_pct = 6  # "100.0%"
@@ -3392,7 +3405,7 @@ def count_mode(
                     row = (
                         f"{padding}{c_out_red}{item[0]:<{max_left}}{c_out_reset} {sep} "
                         f"{c_out_green}{item[1]:<{max_right}}{c_out_reset} {sep} "
-                        f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
+                        f"{c_out_yellow}{count:>{max_count_len},}{c_out_reset} {sep} "
                         f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
                         f"{c_attr}{attr:<{max_attr}}{c_out_reset} {sep} "
                         f"{c_out_blue}{bar}{c_out_reset}"
@@ -3400,7 +3413,7 @@ def count_mode(
                 else:
                     row = (
                         f"{padding}{c_out_green}{str(item):<{max_item}}{c_out_reset} {sep} "
-                        f"{c_out_yellow}{count:>{max_count_len}}{c_out_reset} {sep} "
+                        f"{c_out_yellow}{count:>{max_count_len},}{c_out_reset} {sep} "
                         f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
                         f"{c_out_blue}{bar}{c_out_reset}"
                     )
@@ -3558,6 +3571,10 @@ def fileinfo_mode(
         results = results[:limit]
 
     if output_format == 'arrow':
+        total_size = sum(r['size'] for r in results)
+        total_lines = sum(r['lines'] for r in results)
+        total_words = sum(r['words'] for r in results)
+
         with smart_open_output(output_file) as out:
             if not results:
                 return
@@ -3567,8 +3584,11 @@ def fileinfo_mode(
 
             max_widths = [len(h) for h in headers]
             for res in results:
-                for i, col in enumerate(cols):
-                    max_widths[i] = max(max_widths[i], len(str(res[col])))
+                max_widths[0] = max(max_widths[0], len(str(res['file'])))
+                max_widths[1] = max(max_widths[1], len(f"{res['size']:,}"))
+                max_widths[2] = max(max_widths[2], len(f"{res['lines']:,}"))
+                max_widths[3] = max(max_widths[3], len(f"{res['words']:,}"))
+                max_widths[4] = max(max_widths[4], len(str(res['encoding'])))
 
             div_len = sum(max_widths) + 14
 
@@ -3592,12 +3612,28 @@ def fileinfo_mode(
             for res in results:
                 row_parts = []
                 row_parts.append(f"{c_green}{res['file']:<{max_widths[0]}}{c_reset}")
-                row_parts.append(f"{c_yellow}{str(res['size']):>{max_widths[1]}}{c_reset}")
-                row_parts.append(f"{c_yellow}{str(res['lines']):>{max_widths[2]}}{c_reset}")
-                row_parts.append(f"{c_yellow}{str(res['words']):>{max_widths[3]}}{c_reset}")
+                row_parts.append(f"{c_yellow}{res['size']:>{max_widths[1]},}{c_reset}")
+                row_parts.append(f"{c_yellow}{res['lines']:>{max_widths[2]},}{c_reset}")
+                row_parts.append(f"{c_yellow}{res['words']:>{max_widths[3]},}{c_reset}")
                 row_parts.append(f"{c_blue}{res['encoding']:<{max_widths[4]}}{c_reset}")
                 out.write(f"{padding}" + f" {sep} ".join(row_parts) + "\n")
             out.write("\n")
+
+            extra_metrics = {
+                "Total size": f"{total_size:,} bytes ({_format_size(total_size)})",
+                "Total lines": f"{total_lines:,}",
+                "Total words": f"{total_words:,}",
+            }
+            summary = _format_analysis_summary(
+                len(results),
+                results,
+                item_label="file",
+                start_time=start_time,
+                use_color=show_color,
+                extra_metrics=extra_metrics,
+                title="FILE INFO SUMMARY"
+            )
+            out.write("\n".join(summary) + "\n")
     elif output_format == 'csv':
         with smart_open_output(output_file, newline='') as out:
             writer = csv.DictWriter(out, fieldnames=["file", "size", "lines", "words", "encoding"])

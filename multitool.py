@@ -5429,6 +5429,39 @@ def zip_mode(
     )
 
 
+def unzip_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    right_side: bool = False,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Splits paired data into two lists (extracts one side)."""
+    def extractor(f, quiet=False):
+        for left, right in _extract_pairs([f], quiet=quiet):
+            yield right if right_side else left
+
+    _process_items(
+        extractor,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'Unzip',
+        f"Successfully extracted {'right' if right_side else 'left'} side from pairs.",
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+    )
+
+
 def _process_pairs(
     input_files: Sequence[str],
     output_file: str,
@@ -7437,6 +7470,12 @@ MODE_DETAILS = {
         "example": "python multitool.py zip typos.txt corrections.txt --output-format table --output typos.toml",
         "flags": "[FILES...] FILE2",
     },
+    "unzip": {
+        "summary": "Splits paired data into two lists",
+        "description": "Extracts the left or right side of paired data (like 'typo -> correction', CSV columns, or JSON objects). It saves the left side by default. Use --right to save the right side instead.",
+        "example": "python multitool.py unzip typos.csv --right --output corrections.txt",
+        "flags": "[FILES...] [--right]",
+    },
     "swap": {
         "summary": "Reverses the order of pairs",
         "description": "Flips the left and right elements of pairs (for example, 'typo -> correction' becomes 'correction -> typo'). Supports Arrow, Table, CSV, and Markdown formats.",
@@ -7600,7 +7639,7 @@ def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "ngrams", "regex"],
-        "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "swap", "pairs", "scrub", "standardize"],
+        "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "unzip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks", "orphans"],
     }
 
@@ -9209,6 +9248,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(zip_parser)
 
+    unzip_parser = subparsers.add_parser(
+        'unzip',
+        help=MODE_DETAILS['unzip']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['unzip']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['unzip']['example']}{RESET}",
+    )
+    unzip_options = unzip_parser.add_argument_group(f"{BLUE}UNZIP OPTIONS{RESET}")
+    unzip_options.add_argument(
+        '--right',
+        action='store_true',
+        help="Get the right side of the pair (the correction) instead of the left side (the typo).",
+    )
+    _add_common_mode_arguments(unzip_parser)
+
     swap_parser = subparsers.add_parser(
         'swap',
         help=MODE_DETAILS['swap']['summary'],
@@ -10071,6 +10125,14 @@ def main() -> None:
                 'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             }
+        ),
+        'unzip': (
+            unzip_mode,
+            {
+                **common_kwargs,
+                'right_side': right_side,
+                'output_format': output_format,
+            },
         ),
         'search': (
             search_mode,

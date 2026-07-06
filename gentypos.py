@@ -831,7 +831,7 @@ def main() -> None:
     """
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description=f"{BOLD}Create lists of common typing mistakes by simulating keyboard slips and common patterns like swapping, skipping, or doubling letters.{RESET}",
+        description=f"{BOLD}Create lists of common typing mistakes by simulating errors from hitting nearby keys and common patterns like swapping, skipping, or doubling letters.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python gentypos.py "hello" "world"{RESET}

@@ -327,7 +327,7 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
     Creates a map of keys that are next to each other on a QWERTY keyboard.
 
-    This is used to find typos caused by a finger slipping to a nearby key.
+    This is used to find typos caused by hitting a nearby key.
 
     Args:
         include_diagonals: Whether to count keys that are diagonal to each other.
@@ -1050,7 +1050,7 @@ def main() -> None:
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python typostats.py typos.txt -t{RESET}          # Find swapped letters (like 'teh' -> 'the')
   {GREEN}python typostats.py typos.txt --1to2 --2to1{RESET}  # Find multi-letter mistakes (like 'rn' -> 'm')
-  {GREEN}python typostats.py typos.txt -k -n 20{RESET}       # Find top 20 keyboard slips
+  {GREEN}python typostats.py typos.txt -k -n 20{RESET}       # Find top 20 nearby key errors
   {GREEN}python typostats.py typos.txt -a{RESET}             # Run all analysis modes at once
 """,
     )

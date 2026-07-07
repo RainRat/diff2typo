@@ -12,7 +12,7 @@ def run_multitool(args):
 def test_standardize_filters():
     test_file = 'test_standardize.txt'
     with open(test_file, 'w') as f:
-        # 'above' is frequent, 'abovf' is rare and a keyboard slip (f is next to e)
+        # 'above' is frequent, 'abovf' is rare and a nearby key error (f is next to e)
         # 'the' is frequent, 'teh' is rare and a transposition
         content = (
             "above above above above above above above above above above\n"

@@ -7796,9 +7796,15 @@ def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> No
                     option_flags = ", ".join(action.option_strings)
                     metavar = ""
                     if action.metavar:
-                        metavar = f" {action.metavar}"
+                        if isinstance(action.metavar, tuple):
+                            metavar = f" {' '.join(map(str, action.metavar))}"
+                        else:
+                            metavar = f" {action.metavar}"
                     elif action.choices:
                         metavar = f" {{{','.join(map(str, action.choices))}}}"
+                    elif action.nargs != 0:
+                        # Use destination name as default metavar if it's not a boolean flag
+                        metavar = f" {action.dest.upper().replace('_', '-')}"
 
                     option_help = action.help or ""
                     group_actions.append((option_flags + metavar, option_help))
@@ -7806,8 +7812,8 @@ def show_mode_help(mode_name: str | None, parser: argparse.ArgumentParser) -> No
                 if group_actions:
                     block.append(f"\n{label_color}{group.title + ':':<15}{RESET}")
 
-                    flag_col_width = 30
-                    help_indent_width = 35 # 2 (initial indent) + 30 (flag_col) + 3 (gap)
+                    flag_col_width = 34
+                    help_indent_width = 39 # 2 (initial indent) + 34 (flag_col) + 3 (gap)
                     help_indent = ' ' * help_indent_width
 
                     for flags, help_text in group_actions:

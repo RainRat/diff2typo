@@ -253,6 +253,11 @@ Use these modes to transform or combine your data.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, `toml`, and `xml`.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
+- **`unzip`**
+  - Splits paired data into two lists by extracting one side. It saves the left side by default.
+  - **Options:** Use the `--right` flag to save the right side instead.
+  - **Example:** `python multitool.py unzip typos.csv --right --output corrections.txt`
+
 - **`swap`**
   - Reverses the order of elements in paired data (for example, `typo -> correction` becomes `correction -> typo`).
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, `toml`, and `xml`.

@@ -1,5 +1,6 @@
 import os
 import subprocess
+import shlex
 try:
     import yaml
     _YAML_AVAILABLE = True
@@ -138,7 +139,7 @@ def run_command_in_folders(
     # Iterate through each item in the main folder
     for item in iterator:
         item_path = os.path.join(main_folder, item)
-        current_command = command.replace("{}", item)
+        current_command = command.replace("{}", shlex.quote(item))
 
         if dry_run:
             logging.warning(f"Dry run: would run command '{current_command}' in '{item}'")

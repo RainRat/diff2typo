@@ -2803,9 +2803,7 @@ def orphans_mode(
 
         # 1. Use standard detailed extractor for explicit links
         for text, url, line_num in _extract_markdown_links_detailed(md_file, quiet=True):
-            if url.startswith("ref:"):
-                used_labels[md_file].add(url[4:])
-            elif url.startswith("broken-ref:"):
+            if url.startswith("broken-ref:"):
                 used_labels[md_file].add(url[11:])
             elif not url.startswith(("http://", "https://", "mailto:", "ftp:", "#")):
                 file_path = url.split('#', 1)[0].split('?')[0]
@@ -4968,9 +4966,6 @@ def _format_search_line(
             parts.append(f"{style}{MAGENTA}{filename}{RESET}")
         if line_numbers:
             parts.append(f"{style}{GREEN}{line_idx + 1}{RESET}")
-
-        if not parts:
-            return line_content
 
         prefix = f"{c_sep}{sep_char}{RESET}".join(parts) + f"{c_sep}{sep_char}{RESET}"
         return f"{prefix} {line_content}"

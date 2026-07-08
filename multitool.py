@@ -7802,7 +7802,7 @@ def get_mode_summary_text() -> str:
     width_mode = max((len(m) for m in all_modes), default=15)
 
     # Summary width - we allow some growth but cap it to keep the table readable
-    width_summary = 35
+    width_summary = 45
 
     # Flags width - dynamic based on content
     width_flags = max((len(MODE_DETAILS[m].get('flags', '')) for m in all_modes), default=15)

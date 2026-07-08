@@ -1,5 +1,6 @@
 import os
 import shutil
+import hashlib
 import argparse
 import csv
 import glob
@@ -434,6 +435,24 @@ def detect_encoding(file_path: str) -> str | None:
 
     logging.warning("Failed to reliably detect encoding for '%s'.", file_path)
     return None
+
+def _compute_file_hash(path: str) -> str:
+    """Compute SHA-256 hash of a file for duplicate detection."""
+    sha256 = hashlib.sha256()
+    try:
+        if path == '-':
+            # For standard input, use the cache if available
+            lines = _read_file_lines_robust('-')
+            content = "".join(lines).encode('utf-8')
+            sha256.update(content)
+        else:
+            with open(path, 'rb') as f:
+                while chunk := f.read(8192):
+                    sha256.update(chunk)
+    except (OSError, IOError):
+        return ""
+    return sha256.hexdigest()
+
 
 def _get_total_line_count(input_files: Sequence[str]) -> int:
     """Efficiently counts total lines across multiple files, respecting the stdin cache."""
@@ -1137,6 +1156,10 @@ def _write_paired_output(
     elif mode_label == "CodeBlocks":
         left_header = "Language"
         right_header = "Content"
+    elif mode_label == "Duplicates":
+        left_header = "Duplicate"
+        right_header = "Original"
+        attr_header = "Size"
 
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
@@ -3652,6 +3675,80 @@ def fileinfo_mode(
     duration = time.perf_counter() - start_time
     if not quiet:
         logging.info(f"[FileInfo Mode] Processed {len(results)} files in {duration:.3f}s.")
+
+
+def duplicates_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """Finds identical files by content using SHA-256 hashing."""
+    start_time = time.perf_counter()
+
+    # 1. Group files by size (fast initial filter)
+    size_groups = defaultdict(list)
+    total_scanned = 0
+
+    for path in tqdm(input_files, desc="Scanning files", unit="file", disable=quiet):
+        if path != '-' and not os.path.isfile(path):
+            continue
+
+        try:
+            if path == '-':
+                # Handle stdin: we need to read it to get its size/hash
+                content = "".join(_read_file_lines_robust('-'))
+                size = len(content.encode('utf-8'))
+            else:
+                size = os.path.getsize(path)
+
+            if size < min_length or size > max_length:
+                continue
+
+            size_groups[size].append(path)
+            total_scanned += 1
+        except (OSError, IOError):
+            continue
+
+    # 2. For groups with >1 file, group by content hash
+    duplicates = []
+    total_files_analyzed = 0
+
+    for size, paths in size_groups.items():
+        if len(paths) < 2:
+            continue
+
+        hash_groups = defaultdict(list)
+        for path in paths:
+            total_files_analyzed += 1
+            file_hash = _compute_file_hash(path)
+            if file_hash:
+                hash_groups[file_hash].append(path)
+
+        for file_hash, group in hash_groups.items():
+            if len(group) > 1:
+                # The first file is considered the "original", others are duplicates
+                original = group[0]
+                for dup in group[1:]:
+                    duplicates.append((dup, original, f"{size:,} bytes"))
+
+    _write_paired_output(
+        duplicates,
+        output_file,
+        output_format,
+        "Duplicates",
+        quiet,
+        limit=limit
+    )
+
+    # Use duplicate paths for processing stats
+    stats_items = [d[0] for d in duplicates]
+    print_processing_stats(
+        total_scanned, stats_items, item_label="duplicate", start_time=start_time
+    )
 
 
 def stats_mode(
@@ -7624,6 +7721,12 @@ MODE_DETAILS = {
         "example": "python multitool.py fileinfo . -f arrow",
         "flags": "[FILES...]",
     },
+    "duplicates": {
+        "summary": "Finds identical files",
+        "description": "Identifies files with identical content by computing SHA-256 hashes. It first groups files by size to quickly filter out unique files, then performs full content hashing on potential candidates. It supports large-scale scans and handles standard input.",
+        "example": "python multitool.py duplicates . --min-length 1024",
+        "flags": "[FILES...]",
+    },
     "scrub": {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.",
@@ -7680,7 +7783,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "unzip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "brokenlinks", "orphans"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "duplicates", "brokenlinks", "orphans"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -9476,6 +9579,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(fileinfo_parser, include_process_output=False, include_limit=True)
 
+    duplicates_parser = subparsers.add_parser(
+        'duplicates',
+        help=MODE_DETAILS['duplicates']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['duplicates']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['duplicates']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(duplicates_parser, include_process_output=False, include_limit=True)
+
     resolve_parser = subparsers.add_parser(
         'resolve',
         help=MODE_DETAILS['resolve']['summary'],
@@ -10309,6 +10421,18 @@ def main() -> None:
                 'ignore_case': getattr(args, 'ignore_case', False),
                 'smart_case': getattr(args, 'smart_case', False),
                 'diff': getattr(args, 'diff', False),
+                'limit': limit,
+            }
+        ),
+        'duplicates': (
+            duplicates_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'min_length': args.min_length,
+                'max_length': args.max_length,
+                'output_format': output_format,
+                'quiet': args.quiet,
                 'limit': limit,
             }
         ),

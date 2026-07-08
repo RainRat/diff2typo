@@ -418,6 +418,10 @@ Use these modes to analyze your data.
   - Gathers metadata such as file size, number of lines, word count, and detected encoding for the specified files.
   - **Example:** `python multitool.py fileinfo . --output-format arrow`
 
+- **`duplicates`**
+  - Identifies files with identical content by computing SHA-256 hashes. It first groups files by size to quickly filter out unique files, then performs full content hashing on potential candidates. It supports large-scale scans and handles standard input.
+  - **Example:** `python multitool.py duplicates . --min-length 1024`
+
 ## Common Options
 
 These options work with most modes:

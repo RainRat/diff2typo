@@ -3734,6 +3734,139 @@ def fileinfo_mode(
         logging.info(f"[FileInfo Mode] Processed {len(results)} files in {duration:.3f}s.")
 
 
+def extensions_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    output_format: str = 'arrow',
+    quiet: bool = False,
+    limit: int | None = None,
+) -> None:
+    """Analyzes disk usage aggregated by file extension."""
+    start_time = time.perf_counter()
+    ext_stats = defaultdict(lambda: {"count": 0, "size": 0})
+    total_size = 0
+    total_files = 0
+
+    for path in input_files:
+        if path == '-':
+            continue
+        if not os.path.isfile(path):
+            continue
+
+        try:
+            size = os.path.getsize(path)
+            ext = os.path.splitext(path)[1].lower()
+            if not ext:
+                ext = "(no extension)"
+
+            ext_stats[ext]["count"] += 1
+            ext_stats[ext]["size"] += size
+            total_size += size
+            total_files += 1
+        except Exception as e:
+            logging.warning(f"Failed to get info for '{path}': {e}")
+
+    # Convert to list for sorting and formatting
+    results = []
+    for ext, stats in ext_stats.items():
+        results.append({
+            "extension": ext,
+            "count": stats["count"],
+            "size": stats["size"],
+            "percentage": (stats["size"] / total_size * 100) if total_size > 0 else 0
+        })
+
+    # Sort by size descending
+    results.sort(key=lambda x: x["size"], reverse=True)
+
+    if limit is not None:
+        results = results[:limit]
+
+    if output_format == 'arrow':
+        with smart_open_output(output_file) as out:
+            if not results:
+                return
+
+            headers = ["Extension", "Files", "Size", "%", "Visual"]
+            cols = ["extension", "count", "size", "percentage"]
+
+            # Prep formatted results for display and width calculation
+            display_results = []
+            for res in results:
+                display_results.append({
+                    "extension": res["extension"],
+                    "count": f"{res['count']:,}",
+                    "size": _format_size(res["size"]),
+                    "percentage": f"{res['percentage']:>5.1f}%",
+                    "bar": _render_visual_bar(res["percentage"], 20)
+                })
+
+            max_widths = [len(h) for h in headers]
+            for res in display_results:
+                max_widths[0] = max(max_widths[0], len(str(res["extension"])))
+                max_widths[1] = max(max_widths[1], len(str(res["count"])))
+                max_widths[2] = max(max_widths[2], len(str(res["size"])))
+                max_widths[3] = max(max_widths[3], len(str(res["percentage"])))
+                # Bar is constant 20
+
+            div_len = sum(max_widths[:4]) + 20 + 14
+
+            show_color = _should_enable_color(out)
+            c_bold = BOLD if show_color else ""
+            c_blue = BLUE if show_color else ""
+            c_green = GREEN if show_color else ""
+            c_yellow = YELLOW if show_color else ""
+            c_reset = RESET if show_color else ""
+
+            padding = "  "
+            sep = f"{c_bold}{c_blue}│{c_reset}"
+
+            header_parts = []
+            for i, h in enumerate(headers):
+                width = max_widths[i] if i < 4 else 20
+                header_parts.append(f"{c_bold}{c_blue}{h:<{width}}{c_reset}")
+
+            out.write(f"\n{padding}" + f" {sep} ".join(header_parts) + "\n")
+            out.write(f"{padding}{c_bold}{c_blue}{'─' * div_len}{c_reset}\n")
+
+            for res in display_results:
+                row = (
+                    f"{padding}{c_green}{res['extension']:<{max_widths[0]}}{c_reset} {sep} "
+                    f"{c_yellow}{res['count']:>{max_widths[1]}}{c_reset} {sep} "
+                    f"{c_yellow}{res['size']:>{max_widths[2]}}{c_reset} {sep} "
+                    f"{c_green}{res['percentage']:>{max_widths[3]}}{c_reset} {sep} "
+                    f"{c_blue}{res['bar']}{c_reset}"
+                )
+                out.write(row + "\n")
+            out.write("\n")
+
+            extra_metrics = {
+                "Total files analyzed": f"{total_files:,}",
+                "Total project size": f"{total_size:,} bytes ({_format_size(total_size)})",
+            }
+            summary_lines = _format_analysis_summary(
+                len(input_files),
+                results,
+                item_label="extension",
+                start_time=start_time,
+                use_color=show_color,
+                extra_metrics=extra_metrics,
+                title="EXTENSIONS ANALYSIS SUMMARY"
+            )
+            out.write("\n".join(summary_lines) + "\n")
+    elif output_format == 'csv':
+        with smart_open_output(output_file, newline='') as out:
+            writer = csv.DictWriter(out, fieldnames=["extension", "count", "size", "percentage"])
+            writer.writeheader()
+            writer.writerows(results)
+    else:
+        _write_structured_data(results, output_file, output_format, root_tag="extensions")
+
+    duration = time.perf_counter() - start_time
+    if not quiet:
+        logging.info(f"[Extensions Mode] Analyzed {total_files} files in {duration:.3f}s.")
+
+
 def duplicates_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -7790,6 +7923,12 @@ MODE_DETAILS = {
         "example": "python multitool.py duplicates . --min-length 1024",
         "flags": "[FILES...]",
     },
+    "extensions": {
+        "summary": "Analyzes disk usage by extension",
+        "description": "Reports a summary of disk usage aggregated by file extension. It calculates the count of files, total size, and percentage of total project size for each extension, helping you see which file types consume the most space.",
+        "example": "python multitool.py extensions . --output-format arrow",
+        "flags": "[FILES...]",
+    },
     "scrub": {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.",
@@ -7846,7 +7985,7 @@ def get_mode_summary_text() -> str:
     categories = {
         "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "paragraphs", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "unzip", "swap", "pairs", "scrub", "standardize"],
-        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "duplicates", "brokenlinks", "orphans"],
+        "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "duplicates", "extensions", "brokenlinks", "orphans"],
     }
 
     use_color = _should_enable_color(sys.stdout)
@@ -9665,6 +9804,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_common_mode_arguments(duplicates_parser, include_process_output=False, include_limit=True)
 
+    extensions_parser = subparsers.add_parser(
+        'extensions',
+        help=MODE_DETAILS['extensions']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['extensions']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['extensions']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(extensions_parser, include_process_output=False, include_limit=True)
+
     resolve_parser = subparsers.add_parser(
         'resolve',
         help=MODE_DETAILS['resolve']['summary'],
@@ -9990,7 +10138,7 @@ def main() -> None:
         # Analysis modes should default to 'arrow' when run in a terminal for better UX
         analysis_modes = {
             'count', 'stats', 'classify', 'similarity', 'near_duplicates',
-            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo', 'brokenlinks', 'orphans', 'search', 'scan'
+            'fuzzymatch', 'discovery', 'casing', 'repeated', 'conflict', 'cycles', 'fileinfo', 'duplicates', 'extensions', 'brokenlinks', 'orphans', 'search', 'scan'
         }
         if args.mode in analysis_modes and args.output == '-' and sys.stdout.isatty():
             default_format = 'arrow'
@@ -10510,6 +10658,16 @@ def main() -> None:
                 'ignore_case': getattr(args, 'ignore_case', False),
                 'smart_case': getattr(args, 'smart_case', False),
                 'diff': getattr(args, 'diff', False),
+                'limit': limit,
+            }
+        ),
+        'extensions': (
+            extensions_mode,
+            {
+                'input_files': args.input,
+                'output_file': args.output,
+                'output_format': output_format,
+                'quiet': args.quiet,
                 'limit': limit,
             }
         ),

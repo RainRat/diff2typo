@@ -427,6 +427,10 @@ Use these modes to analyze your data.
   - Identifies files with identical content by computing SHA-256 hashes. It first groups files by size to quickly filter out unique files, then performs full content hashing on potential candidates. It supports large-scale scans and handles standard input.
   - **Example:** `python multitool.py duplicates . --min-length 1024`
 
+- **`extensions`**
+  - Reports a summary of disk usage aggregated by file extension. It calculates the count of files, total size, and percentage of total project size for each extension.
+  - **Example:** `python multitool.py extensions . --output-format arrow`
+
 ## Common Options
 
 These options work with most modes:

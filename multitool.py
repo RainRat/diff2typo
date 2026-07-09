@@ -643,37 +643,51 @@ def _format_analysis_summary(
     # Shortest/Longest and stats
     if filtered_items:
 
-        def format_item(it: Any) -> str:
+        def format_item_summary(it: Any) -> str:
+            """Format an item for display in the summary, ensuring it is a single clean line."""
             if isinstance(it, dict) and "file" in it:
-                return str(it["file"])
-            if isinstance(it, tuple):
+                res = str(it["file"])
+            elif isinstance(it, tuple):
                 if len(it) == 2:
-                    return f"{it[0]} -> {it[1]}"
-                if len(it) == 3:
-                    return f"{it[0]} -> {it[1]} {it[2]}"
-            return str(it)
+                    res = f"{it[0]} -> {it[1]}"
+                elif len(it) == 3:
+                    res = f"{it[0]} -> {it[1]} {it[2]}"
+                else:
+                    res = str(it)
+            else:
+                res = str(it)
+
+            # Replace newlines/tabs with spaces and strip
+            res = res.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').strip()
+            return res
+
+        def truncate_item(text: str, limit: int = 50) -> str:
+            """Truncate text to a given limit with an ellipsis."""
+            if len(text) <= limit:
+                return text
+            return text[:limit - 3] + "..."
 
         try:
-            lengths = [len(format_item(it)) for it in filtered_items]
+            lengths = [len(format_item_summary(it)) for it in filtered_items]
             if lengths:
                 min_len = min(lengths)
                 max_len = max(lengths)
                 avg_len = sum(lengths) / len(lengths)
                 report.append(
-                    f"  {c_bold}{c_blue}{'Min/Max/Avg length:':<{label_width}}{c_reset} {min_len} / {max_len} / {avg_len:.1f}"
+                    f"  {c_bold}{c_blue}{'Min/Max/Avg length:':<{label_width}}{c_reset} {min_len:,} / {max_len:,} / {avg_len:,.1f}"
                 )
 
-            shortest = min(filtered_items, key=lambda x: len(format_item(x)))
-            longest = max(filtered_items, key=lambda x: len(format_item(x)))
+            shortest = min(filtered_items, key=lambda x: len(format_item_summary(x)))
+            longest = max(filtered_items, key=lambda x: len(format_item_summary(x)))
 
-            s_display = format_item(shortest)
-            l_display = format_item(longest)
+            s_display = format_item_summary(shortest)
+            l_display = format_item_summary(longest)
 
             report.append(
-                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
+                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{truncate_item(s_display)}' (length: {len(s_display):,})"
             )
             report.append(
-                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
+                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{truncate_item(l_display)}' (length: {len(l_display):,})"
             )
         except (ValueError, TypeError):
             pass
@@ -690,7 +704,7 @@ def _format_analysis_summary(
                 max_dist = max(distances)
                 avg_dist = sum(distances) / len(distances)
                 report.append(
-                    f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist} / {max_dist} / {avg_dist:.1f}"
+                    f"  {c_bold}{c_blue}{'Min/Max/Avg changes:':<{label_width}}{c_reset} {min_dist:,} / {max_dist:,} / {avg_dist:,.1f}"
                 )
         except (ValueError, TypeError):
             pass
@@ -3541,7 +3555,7 @@ def count_mode(
 
     c_tag, c_count, c_reset = _get_status_colors()
     logging.info(
-        f"{c_tag}[Count Mode]{c_reset} Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
+        f"{c_tag}[Count Mode]{c_reset} Word frequencies ({len(final_results):,} items) have been written to '{output_file}' in {output_format} format."
     )
 
 
@@ -5413,8 +5427,8 @@ def search_mode(
     c_reset = RESET if _should_enable_color(sys.stderr) else ""
 
     logging.info(
-        f"{c_blue}[Search Mode]{c_reset} Completed search in {len(input_files)} file(s) for \"{query}\". "
-        f"Found {c_green}{total_matches}{c_reset} match(es) in {c_green}{matched_files_count}{c_reset} of {len(input_files)} files. "
+        f"{c_blue}[Search Mode]{c_reset} Completed search in {len(input_files):,} file(s) for \"{query}\". "
+        f"Found {c_green}{total_matches:,}{c_reset} match(es) in {c_green}{matched_files_count:,}{c_reset} of {len(input_files):,} files. "
         f"Output written to \"{output_file}\". Processing time: {duration:.3f}s"
     )
 

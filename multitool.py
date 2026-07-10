@@ -1978,6 +1978,25 @@ def _extract_comment_items(input_file: str, quiet: bool = False) -> Iterable[str
             yield match.group(1).strip()
 
 
+def _extract_todo_items(input_file: str, quiet: bool = False) -> Iterable[str]:
+    """Yields TODO and FIXME items extracted from a file."""
+    lines = _read_file_lines_robust(input_file)
+    # Common TODO markers: TODO, FIXME, XXX, BUG, HACK
+    # We look for the marker followed by optional colon/whitespace and then the text.
+    todo_pattern = re.compile(r'\b(TODO|FIXME|XXX|BUG|HACK)[:\s]+(.*)', re.IGNORECASE)
+
+    for line in tqdm(lines, desc=f'Processing {input_file} (todo)', unit=' lines', disable=quiet):
+        match = todo_pattern.search(line)
+        if match:
+            text = match.group(2).strip()
+            # If the TODO is at the end of a comment, it might have trailing comment markers
+            # but _process_items/clean_items usually handles that if requested.
+            # However, common markers like */ or --> should be stripped if they are at the end.
+            text = re.sub(r'\s*(\*/|-->|"{3}|\'{3})$', '', text).strip()
+            if text:
+                yield text
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2686,6 +2705,35 @@ def comments_mode(
         clean_items=clean_items,
         limit=limit,
         item_label="comment",
+    )
+
+
+def todo_mode(
+    input_files: Sequence[str],
+    output_file: str,
+    min_length: int,
+    max_length: int,
+    process_output: bool,
+    output_format: str = 'line',
+    quiet: bool = False,
+    clean_items: bool = True,
+    limit: int | None = None,
+) -> None:
+    """Extracts TODO and FIXME items from source files."""
+    _process_items(
+        _extract_todo_items,
+        input_files,
+        output_file,
+        min_length,
+        max_length,
+        process_output,
+        'TODOs',
+        'TODOs extracted successfully.',
+        output_format,
+        quiet,
+        clean_items=clean_items,
+        limit=limit,
+        item_label="todo",
     )
 
 
@@ -7562,6 +7610,12 @@ MODE_DETAILS = {
         "example": "python multitool.py comments src/ --output comments.txt",
         "flags": "[FILES...]",
     },
+    "todo": {
+        "summary": "Extracts TODO and FIXME items",
+        "description": "Finds TODO, FIXME, XXX, BUG, and HACK items in source files. It extracts the text following the marker, cleaning up common comment endings.",
+        "example": "python multitool.py todo src/ --output tasks.txt",
+        "flags": "[FILES...]",
+    },
     "flatten": {
         "summary": "Flattens nested data structures",
         "description": "Transforms nested JSON, YAML, or TOML structures into a flat list of dot-separated paths (for example, 'user.name = value'). It supports multi-document YAML and JSON Lines (JSONL).",
@@ -7844,7 +7898,7 @@ MODE_DETAILS = {
 def get_mode_summary_text() -> str:
     """Return a formatted summary table of all available modes as a string."""
     categories = {
-        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "paragraphs", "ngrams", "regex"],
+        "GET DATA": ["arrow", "table", "backtick", "quoted", "between", "csv", "markdown", "frontmatter", "md-table", "headings", "toc", "links", "codeblocks", "comments", "todo", "json", "yaml", "toml", "xml", "paths", "flatten", "line", "words", "sentences", "paragraphs", "ngrams", "regex"],
         "CHANGE DATA": ["combine", "unique", "sort", "shuffle", "replace", "unflatten", "convert", "diff", "highlight", "resolve", "align", "rename", "filterfragments", "set_operation", "sample", "map", "case", "zip", "unzip", "swap", "pairs", "scrub", "standardize"],
         "CHECK & ANALYZE": ["count", "check", "conflict", "cycles", "similarity", "near_duplicates", "fuzzymatch", "stats", "classify", "discovery", "casing", "repeated", "anomalies", "search", "scan", "verify", "fileinfo", "duplicates", "brokenlinks", "orphans"],
     }
@@ -8426,6 +8480,15 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['comments']['example']}{RESET}",
     )
     _add_common_mode_arguments(comments_parser)
+
+    todo_parser = subparsers.add_parser(
+        'todo',
+        help=MODE_DETAILS['todo']['summary'],
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=MODE_DETAILS['todo']['description'],
+        epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['todo']['example']}{RESET}",
+    )
+    _add_common_mode_arguments(todo_parser)
 
     links_parser = subparsers.add_parser(
         'links',
@@ -10024,6 +10087,13 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'output_format': output_format,
+            },
+        ),
+        'todo': (
+            todo_mode,
+            {
+                **common_kwargs,
                 'output_format': output_format,
             },
         ),

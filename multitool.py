@@ -654,6 +654,14 @@ def _format_analysis_summary(
             return str(it)
 
         try:
+            def format_item_summary(text: str, max_len: int = 50) -> str:
+                """Clean and truncate string for summary display."""
+                # Replace all whitespace characters with a single space
+                cleaned = re.sub(r'\s+', ' ', text).strip()
+                if len(cleaned) <= max_len:
+                    return cleaned
+                return cleaned[:max_len-3] + "..."
+
             lengths = [len(format_item(it)) for it in filtered_items]
             if lengths:
                 min_len = min(lengths)
@@ -666,14 +674,14 @@ def _format_analysis_summary(
             shortest = min(filtered_items, key=lambda x: len(format_item(x)))
             longest = max(filtered_items, key=lambda x: len(format_item(x)))
 
-            s_display = format_item(shortest)
-            l_display = format_item(longest)
+            s_display = format_item_summary(format_item(shortest))
+            l_display = format_item_summary(format_item(longest))
 
             report.append(
-                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
+                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {min_len:,})"
             )
             report.append(
-                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
+                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {max_len:,})"
             )
         except (ValueError, TypeError):
             pass

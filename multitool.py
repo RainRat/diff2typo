@@ -7923,7 +7923,7 @@ def get_mode_summary_text() -> str:
                     display_flags = display_flags[:width_flags-3] + "..."
 
                 row = (
-                    f"{padding}{c_bold}{c_green}{mode:<{width_mode}}{c_reset} {sep} "
+                    f"{padding}{c_bold}{color}{mode:<{width_mode}}{c_reset} {sep} "
                     f"{summary:<{width_summary}} {sep} "
                     f"{c_yellow}{display_flags:<{width_flags}}{c_reset}"
                 )
@@ -7945,7 +7945,7 @@ def get_mode_summary_text() -> str:
         ("--limit (-L)", "Restrict the number of items in the output")
     ]
     for flag, desc in tips:
-        lines.append(f"{padding}{c_bold}{c_green}{flag:<20}{c_reset} {desc}")
+        lines.append(f"{padding}{c_bold}{c_yellow}{flag:<20}{c_reset} {desc}")
 
     lines.append(f"\n{padding}{c_bold}{c_blue}Note:{c_reset} All modes accept one or more {c_bold}FILES{c_reset} as arguments or read from standard input.")
     lines.append(f"\nRun '{c_bold}python multitool.py help <mode>{c_reset}' for details on a specific mode.\n")

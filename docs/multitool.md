@@ -139,6 +139,10 @@ Use these modes to pull specific data from a file.
   - Extracts individual sentences from a file using a regex-based heuristic. It handles multi-line sentences by joining lines with spaces before splitting.
   - **Example:** `python multitool.py sentences report.txt --output sentences.txt`
 
+- **`paragraphs`**
+  - Extracts text blocks separated by one or more blank lines. It automatically joins multi-line blocks into single lines and cleans up extra whitespace.
+  - **Example:** `python multitool.py paragraphs report.txt --output paragraphs.txt`
+
 - **`ngrams`**
   - Extracts sequences of words. This is useful for finding phrases or context around typos. It supports sequences across line boundaries.
   - **Options:** Use `-n` to pick the number of words in each sequence (default is 2). Like the `words` mode, it supports custom delimiters and smart word splitting.
@@ -321,6 +325,7 @@ Use these modes to analyze your data.
     - `-l`, `--lines`: Count frequencies of raw lines.
     - `-c`, `--chars`: Count frequencies of individual characters.
     - `-E`, `--sentences`: Count frequencies of individual sentences.
+    - `-G`, `--paragraphs`: Count frequencies of individual paragraphs.
     - `-B`, `--by-file`: Count how many files contain each item.
   - **Visual Report:** Use `--output-format arrow` for a rich report with metrics and bar charts.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, `line`, and `xml`.

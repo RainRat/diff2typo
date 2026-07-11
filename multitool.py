@@ -269,6 +269,26 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
+def _get_best_suggestion(target: str, candidates: Iterable[str], max_dist: int = 2) -> Optional[str]:
+    """Find the string in candidates that is closest to target within max_dist."""
+    best_candidate = None
+    best_dist = max_dist + 1
+
+    for cand in candidates:
+        if cand == target:
+            continue
+        dist = levenshtein_distance(target, cand)
+        if dist < best_dist:
+            best_dist = dist
+            best_candidate = cand
+        elif dist == best_dist:
+            # If distances are equal, pick the shorter one or lexicographically first
+            if best_candidate is None or len(cand) < len(best_candidate) or (len(cand) == len(best_candidate) and cand < best_candidate):
+                best_candidate = cand
+
+    return best_candidate if best_dist <= max_dist else None
+
+
 def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
     Returns a dictionary of adjacent keys on a QWERTY keyboard.
@@ -2722,8 +2742,12 @@ def brokenlinks_mode(
             elif url.startswith("#"):
                 # Internal anchor in the same file
                 slug = url[1:].split('?')[0] # Strip possible query params
-                if slug not in anchor_map.get(input_file, set()):
+                file_anchors = anchor_map.get(input_file, set())
+                if slug not in file_anchors:
                     reason = f"Anchor not found: {url}"
+                    suggestion = _get_best_suggestion(slug, file_anchors)
+                    if suggestion:
+                        reason += f" (Did you mean: #{suggestion}?)"
             else:
                 # Local file reference (might include an anchor)
                 parts = url.split('#', 1)
@@ -2748,17 +2772,35 @@ def brokenlinks_mode(
 
                     if not os.path.exists(target_path):
                         reason = f"File not found: {file_path}"
+                        # Suggest similar filename in the same directory
+                        search_dir = os.path.dirname(target_path) or "."
+                        if os.path.isdir(search_dir):
+                            try:
+                                candidates = [f for f in os.listdir(search_dir) if os.path.isfile(os.path.join(search_dir, f))]
+                                suggestion = _get_best_suggestion(os.path.basename(file_path), candidates)
+                                if suggestion:
+                                    reason += f" (Did you mean: {suggestion}?)"
+                            except OSError:
+                                pass
                     elif anchor and target_path in anchor_map:
-                        if anchor not in anchor_map[target_path]:
+                        target_anchors = anchor_map[target_path]
+                        if anchor not in target_anchors:
                             reason = f"Anchor not found in {file_path}: #{anchor}"
+                            suggestion = _get_best_suggestion(anchor, target_anchors)
+                            if suggestion:
+                                reason += f" (Did you mean: #{suggestion}?)"
                     elif anchor and target_path.lower().endswith(('.md', '.markdown')):
                         # If the file exists but isn't in our anchor map (maybe it wasn't in input_files),
                         # we can try to scan it on the fly.
                         temp_map = _get_markdown_anchor_map([target_path], quiet=True)
                         if target_path in temp_map:
                             anchor_map.update(temp_map)
-                            if anchor not in anchor_map[target_path]:
+                            target_anchors = anchor_map[target_path]
+                            if anchor not in target_anchors:
                                 reason = f"Anchor not found in {file_path}: #{anchor}"
+                                suggestion = _get_best_suggestion(anchor, target_anchors)
+                                if suggestion:
+                                    reason += f" (Did you mean: #{suggestion}?)"
 
             if reason:
                 location = f"{input_file}:{line_num}"

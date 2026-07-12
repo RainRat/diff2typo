@@ -48,14 +48,14 @@ except ImportError:  # pragma: no cover - optional dependency
     chardet = None
     _CHARDET_AVAILABLE = False
 
+import importlib.util
 try:
     import tomllib
     _TOMLLIB_AVAILABLE = True
-    _TOML_AVAILABLE = False
 except ImportError:
     _TOMLLIB_AVAILABLE = False
-    import importlib.util
-    _TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
+
+_TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
 
 # Cache for standard input to allow multiple passes
 _STDIN_CACHE: List[str] | None = None
@@ -833,15 +833,17 @@ def _write_structured_data(
                 out.write('\n')
         elif output_format == 'toml':
             if not isinstance(data, dict):
+                logging.warning("TOML output requires a dictionary root. Falling back to JSON.")
+                json.dump(data, out, indent=2)
+            elif not _TOML_AVAILABLE:
+                logging.error("TOML output requires the 'toml' package. Falling back to JSON.")
                 json.dump(data, out, indent=2)
             else:
                 try:
-                    if _TOMLLIB_AVAILABLE or _TOML_AVAILABLE:
-                        import toml
-                        toml.dump(data, out)
-                    else:
-                        json.dump(data, out, indent=2)
-                except Exception:
+                    import toml
+                    toml.dump(data, out)
+                except Exception as e:
+                    logging.error(f"Failed to write TOML: {e}. Falling back to JSON.")
                     json.dump(data, out, indent=2)
             out.write('\n')
         elif output_format == 'xml':

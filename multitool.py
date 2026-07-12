@@ -7243,7 +7243,7 @@ def _add_common_mode_arguments(
         '-m', '--min-length',
         type=int,
         default=argparse.SUPPRESS,
-        help="Skip items shorter than this (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').",
+        help="Skip items shorter than this (default: 1 for most modes, 3 for words, 10 for sentences, and 20 for paragraphs).",
     )
     proc_group.add_argument(
         '-M', '--max-length',
@@ -8151,7 +8151,7 @@ def _build_parser() -> argparse.ArgumentParser:
         '-m', '--min-length',
         type=int,
         default=None,
-        help="Skip items shorter than this (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count').",
+        help="Skip items shorter than this (default: 1 for most modes, 3 for words, 10 for sentences, and 20 for paragraphs).",
     )
     proc_group.add_argument(
         '-M', '--max-length',

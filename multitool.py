@@ -583,6 +583,15 @@ def _load_and_clean_file(
     return raw_items, cleaned_items, unique_items
 
 
+def _format_item_summary(text: str, max_len: int = 50) -> str:
+    """Sanitizes and truncates a string for safe display in summaries."""
+    # Replace all whitespace with spaces to prevent terminal breakage
+    clean_text = " ".join(text.split())
+    if len(clean_text) > max_len:
+        return clean_text[:max_len - 3] + "..."
+    return clean_text
+
+
 def _format_analysis_summary(
     raw_count: int,
     filtered_items: Sequence[Any],
@@ -666,14 +675,17 @@ def _format_analysis_summary(
             shortest = min(filtered_items, key=lambda x: len(format_item(x)))
             longest = max(filtered_items, key=lambda x: len(format_item(x)))
 
-            s_display = format_item(shortest)
-            l_display = format_item(longest)
+            s_raw = format_item(shortest)
+            l_raw = format_item(longest)
+
+            s_display = _format_item_summary(s_raw)
+            l_display = _format_item_summary(l_raw)
 
             report.append(
-                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
+                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_raw)})"
             )
             report.append(
-                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
+                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_raw)})"
             )
         except (ValueError, TypeError):
             pass

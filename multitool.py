@@ -6367,7 +6367,6 @@ def standardize_mode(
         for line in tqdm(file_lines, desc=f"Analyzing {input_file}", unit=" lines", disable=quiet):
             parts = pattern.findall(line)
             for part in parts:
-                raw_word_count += 1
                 # Collect candidates for analysis (full word and any sub-parts)
                 candidates = [part]
                 sub_parts = _smart_split(part)
@@ -6375,6 +6374,7 @@ def standardize_mode(
                     candidates.extend(sub_parts)
 
                 for cand in candidates:
+                    raw_word_count += 1
                     norm = filter_to_letters(cand) if clean_items else cand.lower()
                     if norm and min_length <= len(norm) <= max_length:
                         variation_counts[norm][cand] += 1

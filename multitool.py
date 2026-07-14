@@ -3263,6 +3263,20 @@ def count_mode(
         mapping = _resolve_full_mapping(mapping_file, ad_hoc, clean_items, quiet=quiet)
         pairs = True  # Automatically enable pairs for mapping audit
 
+    # Determine item label for reports and logs
+    if pairs:
+        item_label = "pair"
+    elif lines:
+        item_label = "line"
+    elif chars:
+        item_label = "character"
+    elif sentences:
+        item_label = "sentence"
+    elif paragraphs:
+        item_label = "paragraph"
+    else:
+        item_label = "word"
+
     if mapping:
         # Audit mode: Count matches of mapped typos in input files
         for input_file in input_files:
@@ -3456,16 +3470,7 @@ def count_mode(
                 # 3 chars for each " │ " (total 5 * 3 = 15)
                 visible_header_len = max_left + max_right + max_count_len + max_pct + max_attr + max_bar + 15
             else:
-                if lines:
-                    item_header = "Line"
-                elif chars:
-                    item_header = "Character"
-                elif sentences:
-                    item_header = "Sentence"
-                elif paragraphs:
-                    item_header = "Paragraph"
-                else:
-                    item_header = "Word"
+                item_header = item_label.capitalize()
 
                 max_item = max((len(str(item)) for item, _ in final_results), default=len(item_header))
                 max_item = max(max_item, len(item_header))
@@ -3483,20 +3488,6 @@ def count_mode(
 
             divider = f"{padding}{c_out_bold}{c_out_blue}{'─' * visible_header_len}{c_out_reset}"
             header_block = f"\n{header}\n{divider}\n"
-
-            # Determine labels for summary
-            if pairs:
-                item_label = "pair"
-            elif lines:
-                item_label = "line"
-            elif chars:
-                item_label = "character"
-            elif sentences:
-                item_label = "sentence"
-            elif paragraphs:
-                item_label = "paragraph"
-            else:
-                item_label = "word"
 
             # Write the table header for arrow format (suppressed in quiet mode for console)
             if not quiet or output_file != '-':
@@ -3567,19 +3558,6 @@ def count_mode(
                 out_file.write(f"{label}: {count}\n")
 
     if output_format != 'arrow':
-        if pairs:
-            item_label = "pair"
-        elif lines:
-            item_label = "line"
-        elif chars:
-            item_label = "character"
-        elif sentences:
-            item_label = "sentence"
-        elif paragraphs:
-            item_label = "paragraph"
-        else:
-            item_label = "word"
-
         print_processing_stats(
             raw_count,
             filtered_items,
@@ -3588,8 +3566,9 @@ def count_mode(
         )
 
     c_tag, c_count, c_reset = _get_status_colors()
+    label_plural = f"{item_label.capitalize()} frequencies"
     logging.info(
-        f"{c_tag}[Count Mode]{c_reset} Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
+        f"{c_tag}[Count Mode]{c_reset} {label_plural} ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
     )
 
 

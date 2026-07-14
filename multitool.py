@@ -269,6 +269,24 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
+def _get_best_suggestion(query: str, candidates: Iterable[str], max_dist: int = 2) -> Optional[str]:
+    """Find the closest match for a query among a set of candidates."""
+    best_match = None
+    best_dist = max_dist + 1
+
+    for candidate in candidates:
+        dist = levenshtein_distance(query, candidate)
+        if dist < best_dist:
+            best_dist = dist
+            best_match = candidate
+        elif dist == best_dist and best_match is not None:
+            # If distances are equal, prefer shorter candidate or alphabetical order
+            if len(candidate) < len(best_match) or (len(candidate) == len(best_match) and candidate < best_match):
+                best_match = candidate
+
+    return best_match if best_dist <= max_dist else None
+
+
 def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
     Returns a dictionary of adjacent keys on a QWERTY keyboard.
@@ -2696,7 +2714,10 @@ def brokenlinks_mode(
     quiet: bool = False,
     limit: int | None = None,
 ) -> None:
-    """Finds broken internal anchors and missing local file references in Markdown."""
+    """
+    Finds broken internal anchors and missing local file references in Markdown.
+    Provides fuzzy suggestions for broken links based on available anchors and filenames.
+    """
     start_time = time.perf_counter()
     anchor_map = _get_markdown_anchor_map(input_files, quiet=quiet)
 
@@ -2724,6 +2745,9 @@ def brokenlinks_mode(
                 slug = url[1:].split('?')[0] # Strip possible query params
                 if slug not in anchor_map.get(input_file, set()):
                     reason = f"Anchor not found: {url}"
+                    suggestion = _get_best_suggestion(slug, anchor_map.get(input_file, set()))
+                    if suggestion:
+                        reason += f" (Did you mean: #{suggestion}?)"
             else:
                 # Local file reference (might include an anchor)
                 parts = url.split('#', 1)
@@ -2748,9 +2772,22 @@ def brokenlinks_mode(
 
                     if not os.path.exists(target_path):
                         reason = f"File not found: {file_path}"
+                        # Try to suggest a correct filename from the same directory
+                        search_dir = os.path.dirname(target_path) or "."
+                        if os.path.isdir(search_dir):
+                            try:
+                                candidates = os.listdir(search_dir)
+                                suggestion = _get_best_suggestion(os.path.basename(file_path), candidates)
+                                if suggestion:
+                                    reason += f" (Did you mean: {suggestion}?)"
+                            except OSError:
+                                pass
                     elif anchor and target_path in anchor_map:
                         if anchor not in anchor_map[target_path]:
                             reason = f"Anchor not found in {file_path}: #{anchor}"
+                            suggestion = _get_best_suggestion(anchor, anchor_map[target_path])
+                            if suggestion:
+                                reason += f" (Did you mean: #{suggestion}?)"
                     elif anchor and target_path.lower().endswith(('.md', '.markdown')):
                         # If the file exists but isn't in our anchor map (maybe it wasn't in input_files),
                         # we can try to scan it on the fly.
@@ -2759,6 +2796,9 @@ def brokenlinks_mode(
                             anchor_map.update(temp_map)
                             if anchor not in anchor_map[target_path]:
                                 reason = f"Anchor not found in {file_path}: #{anchor}"
+                                suggestion = _get_best_suggestion(anchor, anchor_map[target_path])
+                                if suggestion:
+                                    reason += f" (Did you mean: #{suggestion}?)"
 
             if reason:
                 location = f"{input_file}:{line_num}"
@@ -7540,7 +7580,7 @@ MODE_DETAILS = {
     },
     "brokenlinks": {
         "summary": "Finds broken anchors and file links",
-        "description": "Checks Markdown files for broken internal anchors (like '#missing-heading') and missing local file references. It builds a project-wide map of all headings to correctly validate cross-file links.",
+        "description": "Checks Markdown files for broken internal anchors (like '#missing-heading') and missing local file references. It builds a project-wide map of all headings to correctly validate cross-file links and provides fuzzy suggestions for broken links.",
         "example": "python multitool.py brokenlinks docs/ --output-format arrow",
         "flags": "[FILES...]",
     },

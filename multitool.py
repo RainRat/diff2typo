@@ -181,6 +181,23 @@ def _slugify(text: str) -> str:
     return slug
 
 
+def _truncate_text(text: str, max_width: int = 50) -> str:
+    """
+    Sanitizes text (removes newlines/tabs) and truncates to max_width.
+    Appends an ellipsis if truncated.
+    """
+    if not text:
+        return ""
+    # Replace newlines and tabs with spaces
+    sanitized = text.replace('\n', ' ').replace('\t', ' ').replace('\r', '')
+    # Collapse multiple spaces
+    sanitized = re.sub(r'\s+', ' ', sanitized).strip()
+
+    if len(sanitized) <= max_width:
+        return sanitized
+    return sanitized[:max_width - 3] + "..."
+
+
 def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
     """
     Detect the output format based on the file extension.
@@ -670,10 +687,10 @@ def _format_analysis_summary(
             l_display = format_item(longest)
 
             report.append(
-                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{s_display}' (length: {len(s_display)})"
+                f"  {c_bold}{c_blue}{'Shortest ' + item_label + ':':<{label_width}}{c_reset} '{_truncate_text(s_display)}' (length: {len(s_display)})"
             )
             report.append(
-                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{l_display}' (length: {len(l_display)})"
+                f"  {c_bold}{c_blue}{'Longest ' + item_label + ':':<{label_width}}{c_reset} '{_truncate_text(l_display)}' (length: {len(l_display)})"
             )
         except (ValueError, TypeError):
             pass
@@ -3387,12 +3404,9 @@ def count_mode(
                 item_header_left = "Typo"
                 item_header_right = "Correction"
                 item_header_attr = "Attr"
-                max_left = max((len(str(item[0])) for item, _, _ in final_results), default=len(item_header_left))
-                max_left = max(max_left, len(item_header_left))
-                max_right = max((len(str(item[1])) for item, _, _ in final_results), default=len(item_header_right))
-                max_right = max(max_right, len(item_header_right))
+                max_left = max((len(_truncate_text(str(item[0]))) for item, _, _ in final_results), default=len(item_header_left))
+                max_right = max((len(_truncate_text(str(item[1]))) for item, _, _ in final_results), default=len(item_header_right))
                 max_attr = max((len(str(attr)) for _, _, attr in final_results), default=len(item_header_attr))
-                max_attr = max(max_attr, len(item_header_attr))
 
                 max_count_len = max((len(f"{count:,}") for _, count, _ in final_results), default=len(count_header_label))
                 max_count_len = max(max_count_len, len(count_header_label))
@@ -3419,8 +3433,7 @@ def count_mode(
                 else:
                     item_header = "Word"
 
-                max_item = max((len(str(item)) for item, _ in final_results), default=len(item_header))
-                max_item = max(max_item, len(item_header))
+                max_item = max((len(_truncate_text(str(item))) for item, _ in final_results), default=len(item_header))
 
                 max_count_len = max((len(f"{count:,}") for _, count in final_results), default=len(count_header_label))
                 max_count_len = max(max_count_len, len(count_header_label))
@@ -3478,19 +3491,19 @@ def count_mode(
                         c_attr = c_out_yellow
 
                     row = (
-                        f"{padding}{c_out_red}{item[0]:<{max_left}}{c_out_reset} {sep} "
-                        f"{c_out_green}{item[1]:<{max_right}}{c_out_reset} {sep} "
+                        f"{padding}{c_out_red}{_truncate_text(str(item[0]), max_left):<{max_left}}{c_out_reset} {sep} "
+                        f"{c_out_green}{_truncate_text(str(item[1]), max_right):<{max_right}}{c_out_reset} {sep} "
                         f"{c_out_yellow}{count:>{max_count_len},}{c_out_reset} {sep} "
                         f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
                         f"{c_attr}{attr:<{max_attr}}{c_out_reset} {sep} "
-                        f"{c_out_blue}{bar}{c_out_reset}"
+                        f"{c_out_cyan}{bar}{c_out_reset}"
                     )
                 else:
                     row = (
-                        f"{padding}{c_out_green}{str(item):<{max_item}}{c_out_reset} {sep} "
+                        f"{padding}{c_out_green}{_truncate_text(str(item), max_item):<{max_item}}{c_out_reset} {sep} "
                         f"{c_out_yellow}{count:>{max_count_len},}{c_out_reset} {sep} "
                         f"{c_out_green}{percent:>5.1f}%{c_out_reset} {sep} "
-                        f"{c_out_blue}{bar}{c_out_reset}"
+                        f"{c_out_cyan}{bar}{c_out_reset}"
                     )
                 out_file.write(f"{row}\n")
             out_file.write("\n")
@@ -3541,7 +3554,7 @@ def count_mode(
 
     c_tag, c_count, c_reset = _get_status_colors()
     logging.info(
-        f"{c_tag}[Count Mode]{c_reset} Word frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
+        f"{c_tag}[Count Mode]{c_reset} {item_label.capitalize()} frequencies ({len(final_results)} items) have been written to '{output_file}' in {output_format} format."
     )
 
 
@@ -7614,7 +7627,7 @@ MODE_DETAILS = {
         "summary": "Counts how often items appear",
         "description": "Counts how often each word, pair, line, character, or paragraph appears and sorts the list by frequency. It defaults to the rich 'arrow' format when run in a terminal. Use --pairs to count word pairs, --lines to count raw lines, --chars to count individual characters, or --paragraphs to count entire paragraphs. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
         "example": "python multitool.py count . --lines --min-count 5",
-        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-S] [-p|l|c|G] [-B]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-S] [-p|l|c|E|G] [-B]",
     },
     "filterfragments": {
         "summary": "Removes words found inside others",

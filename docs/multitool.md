@@ -101,6 +101,10 @@ Use these modes to pull specific data from a file.
   - Extracts comments from source files. It identifies single-line comments (`#`, `//`, `--`) and multi-line comments (`/* */`, `<!-- -->`, and triple quotes) in various programming and markup languages.
   - **Example:** `python multitool.py comments src/ --output comments.txt`
 
+- **`todo`**
+  - Extracts TODO, FIXME, XXX, BUG, and HACK items from source files. It identifies the text following these markers and cleans up common comment endings.
+  - **Example:** `python multitool.py todo src/ --output tasks.txt`
+
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.
   - **Example:** `python multitool.py json report.json --key replacements.typo`

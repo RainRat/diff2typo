@@ -51,11 +51,11 @@ except ImportError:  # pragma: no cover - optional dependency
 try:
     import tomllib
     _TOMLLIB_AVAILABLE = True
-    _TOML_AVAILABLE = False
 except ImportError:
     _TOMLLIB_AVAILABLE = False
-    import importlib.util
-    _TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
+
+import importlib.util
+_TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
 
 # Cache for standard input to allow multiple passes
 _STDIN_CACHE: List[str] | None = None
@@ -832,17 +832,11 @@ def _write_structured_data(
                 json.dump(data, out, indent=2)
                 out.write('\n')
         elif output_format == 'toml':
-            if not isinstance(data, dict):
-                json.dump(data, out, indent=2)
+            if isinstance(data, dict) and _TOML_AVAILABLE:
+                import toml
+                toml.dump(data, out)
             else:
-                try:
-                    if _TOMLLIB_AVAILABLE or _TOML_AVAILABLE:
-                        import toml
-                        toml.dump(data, out)
-                    else:
-                        json.dump(data, out, indent=2)
-                except Exception:
-                    json.dump(data, out, indent=2)
+                json.dump(data, out, indent=2)
             out.write('\n')
         elif output_format == 'xml':
             def build_xml(parent, data):

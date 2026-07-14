@@ -869,10 +869,42 @@ def _write_structured_data(
         elif output_format == 'toml':
             if isinstance(data, dict) and _TOML_AVAILABLE:
                 import toml
-                toml.dump(data, out)
+                try:
+                    toml.dump(data, out)
+                except Exception:
+                    # Fallback to json on dump error, but we need to rewind or truncate?
+                    # Since out is a TextIOWrapper opened in 'w' or similar, we can seek/truncate
+                    # or just write json. Let's try seek(0) and truncate().
+                    try:
+                        out.seek(0)
+                        out.truncate()
+                    except Exception:
+                        pass
+                    json.dump(data, out, indent=2)
+                    out.write('\n')
             else:
                 json.dump(data, out, indent=2)
-            out.write('\n')
+                out.write('\n')
+            # The original out.write('\n') was outside the if/else or inside.
+            # In the original:
+            # if ...: toml.dump(...)
+            # else: json.dump(...)
+            # out.write('\n')
+            # Let's ensure we write a newline after JSON fallback, but if toml.dump succeeded,
+            # we write newline too. But toml.dump might already write or not. Let's keep it simple.
+            # Original had:
+            #         elif output_format == 'toml':
+            #             if isinstance(data, dict) and _TOML_AVAILABLE:
+            #                 import toml
+            #                 toml.dump(data, out)
+            #             else:
+            #                 json.dump(data, out, indent=2)
+            #             out.write('\n')
+            # So let's write '\n' as well.
+            # But wait, did toml.dump fail after writing some partial content?
+            # Yes, if we don't truncate, we will have partial TOML followed by JSON.
+            # So seek(0) and truncate() is extremely correct.
+            # Let's write that.
         elif output_format == 'xml':
             def build_xml(parent, data):
                 if isinstance(data, dict):

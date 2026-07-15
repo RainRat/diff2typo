@@ -5874,7 +5874,7 @@ def unzip_mode(
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Splits paired data into two lists (extracts one side). By default, it changes text to lowercase and filters to letters."""
+    """Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use --right for the right side and --raw to keep the original text."""
     def extractor(f, quiet=False):
         for left, right in _extract_pairs([f], quiet=quiet):
             yield right if right_side else left
@@ -7917,7 +7917,7 @@ MODE_DETAILS = {
     },
     "unzip": {
         "summary": "Splits paired data into two lists",
-        "description": "Extracts the left or right side of paired data (like 'typo -> correction', CSV columns, or JSON objects). It saves the left side by default. By default, it changes text to lowercase and removes non-alphabetic characters. Use --right to save the right side instead, and --raw to preserve original text.",
+        "description": "Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use --right for the right side and --raw to keep the original text.",
         "example": "python multitool.py unzip typos.csv --right --output corrections.txt",
         "flags": "[FILES...] [--right] [--raw]",
     },

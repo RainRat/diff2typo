@@ -70,3 +70,25 @@ if __name__ == "__main__":
         print(f"Test failed: {e}")
         traceback.print_exc()
         exit(1)
+
+def test_unflatten_ambiguous_numeric_keys():
+    # Test that non-sequential or zero-padded numeric keys do not cause a crash
+    # and are correctly preserved as a dictionary.
+    input_content = 'root.0 -> a\nroot.01 -> b\n'
+    with open("test_input_ambiguous.txt", "w") as f:
+        f.write(input_content)
+
+    result = subprocess.run(
+        ["python3", "multitool.py", "unflatten", "test_input_ambiguous.txt", "--output-format", "json", "--raw"],
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        print(f"Error: {result.stderr}")
+    assert result.returncode == 0
+    data = json.loads(result.stdout)
+    # Since keys are '0' and '01', they don't form a simple [0, 1] sequence of string keys
+    # and should be kept as a dictionary.
+    assert data == {"root": {"0": "a", "01": "b"}}
+    os.remove("test_input_ambiguous.txt")

@@ -123,6 +123,33 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
     return default
 
 
+def _expand_directories(input_paths: Sequence[str]) -> List[str]:
+    """
+    Recursively expand directories in input_paths, skipping common ignored folders.
+    Preserves '-' for standard input. Returns sorted list of files.
+    """
+    ignored_dirs = {
+        '.git', 'node_modules', 'venv', '.venv',
+        '.pytest_cache', '.ruff_cache', '.vscode', '.idea',
+        '__pycache__', 'dist', 'build'
+    }
+    expanded = []
+    for path in input_paths:
+        if path == '-':
+            expanded.append(path)
+        elif os.path.isdir(path):
+            dir_files = []
+            for root, dirs, files in os.walk(path):
+                # Modify dirs in-place to skip ignored directories recursively
+                dirs[:] = sorted([d for d in dirs if d not in ignored_dirs])
+                for file in sorted(files):
+                    dir_files.append(os.path.join(root, file))
+            expanded.extend(dir_files)
+        else:
+            expanded.append(path)
+    return expanded
+
+
 def levenshtein_distance(s1: str, s2: str) -> int:
     """Calculate the number of character changes needed to turn one string into another."""
     if len(s1) < len(s2):
@@ -1052,6 +1079,7 @@ def main() -> None:
   {GREEN}python typostats.py typos.txt --1to2 --2to1{RESET}  # Find multi-letter mistakes (like 'rn' -> 'm')
   {GREEN}python typostats.py typos.txt -k -n 20{RESET}       # Find top 20 nearby key errors
   {GREEN}python typostats.py typos.txt -a{RESET}             # Run all analysis modes at once
+  {GREEN}python typostats.py my_typos_dir/ -a{RESET}         # Analyze all typo files in a directory recursively
 """,
     )
 
@@ -1066,7 +1094,7 @@ def main() -> None:
     io_group.add_argument(
         'input_files',
         nargs='*',
-        help="One or more files containing typo corrections (txt, csv, json, yaml, md). If empty, it reads from standard input.",
+        help="One or more files or directories containing typo corrections (txt, csv, json, yaml, md). Directories are scanned recursively. If empty, it reads from standard input.",
     )
     io_group.add_argument('-o', '--output', help="Save the report to this file instead of printing it.")
     io_group.add_argument(
@@ -1185,6 +1213,8 @@ def main() -> None:
 
     if not input_files:
         input_files = ['-']
+    else:
+        input_files = _expand_directories(input_files)
 
     start_time = time.perf_counter()
     all_counts = defaultdict(int)

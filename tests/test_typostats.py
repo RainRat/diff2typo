@@ -788,3 +788,56 @@ def test_main_stdin_path_explicit(capsys):
         typostats.main()
         out = capsys.readouterr().out
         assert "Total word pairs analyzed:" in out
+
+
+def test_expand_directories_recursive(tmp_path):
+    # Create nested directories
+    nested = tmp_path / "subdir"
+    nested.mkdir()
+
+    # Create a couple of valid typo files
+    file1 = tmp_path / "typos1.txt"
+    file1.write_text("teh -> the\n", encoding="utf-8")
+
+    file2 = nested / "typos2.txt"
+    file2.write_text("recieve -> receive\n", encoding="utf-8")
+
+    # Create ignored directories and files inside them
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+    git_file = git_dir / "ignored.txt"
+    git_file.write_text("should_be_ignored -> ignored\n", encoding="utf-8")
+
+    node_dir = nested / "node_modules"
+    node_dir.mkdir()
+    node_file = node_dir / "npm.txt"
+    node_file.write_text("should_be_ignored -> ignored\n", encoding="utf-8")
+
+    # Run _expand_directories on the root directory
+    expanded = typostats._expand_directories([str(tmp_path)])
+
+    # Should find file1 and file2 but NOT git_file or node_file
+    expected = sorted([str(file1), str(file2)])
+    assert sorted(expanded) == expected
+
+
+def test_main_with_directory_input(tmp_path, capsys):
+    # Create directory with typo files
+    nested = tmp_path / "subdir"
+    nested.mkdir()
+
+    file1 = tmp_path / "typos1.txt"
+    file1.write_text("teh -> the\n", encoding="utf-8")
+
+    file2 = nested / "typos2.txt"
+    file2.write_text("recieve -> receive\n", encoding="utf-8")
+
+    # Run typostats via main with directory argument
+    with patch('sys.argv', ['typostats.py', str(tmp_path), '-a']):
+        typostats.main()
+
+    out = capsys.readouterr().out
+    assert "Total word pairs analyzed:          2" in out
+    # 'teh -> the' transposition is ('he', 'eh')
+    # 'recieve -> receive' insertion is ('ei', 'e') or transposition depending on rules, but we ran -a so both are extracted
+    assert "he" in out or "eh" in out

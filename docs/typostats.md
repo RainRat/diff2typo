@@ -13,9 +13,25 @@ python typostats.py my_typos.txt
 # Read from multiple files
 python typostats.py file1.txt file2.txt
 
+# Read from a directory recursively
+python typostats.py my_typos_directory/
+
 # Pipe from another tool
 git diff | python diff2typo.py | python typostats.py
 ```
+
+### Directory Processing
+
+You can provide directories as input. `typostats.py` will automatically scan directories recursively, extracting typo-correction pairs from any supported files (like `.txt`, `.csv`, `.json`, `.yaml`, `.yml`, `.md`).
+
+To ensure efficiency, common system and environment folders are automatically ignored during recursive directory scanning, including:
+- **`.git`**
+- **`node_modules`**
+- **`venv`** and **`.venv`**
+- **`.pytest_cache`** and **`.ruff_cache`**
+- **`.vscode`** and **`.idea`**
+- **`__pycache__`**
+- **`dist`** and **`build`**
 
 ## Input Format
 

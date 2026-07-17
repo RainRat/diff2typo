@@ -580,6 +580,20 @@ def _read_git_diff(git_args: Optional[str]) -> str:
         sys.exit(1)
 
 
+def _is_git_repository() -> bool:
+    """Check if the current working directory is inside a Git repository worktree."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
     """Return concatenated diff text from standard input or the provided file patterns."""
 
@@ -941,6 +955,18 @@ def main():
 
     if args.git is not None:
         diff_text = _read_git_diff(args.git)
+    elif not input_files and sys.stdin.isatty():
+        # Friction reduction: automatically use git diff if in a git repo and stdin is interactive
+        if _is_git_repository():
+            logging.info("Standard input is an interactive terminal and no input files specified. Automatically fetching Git diff...")
+            diff_text = _read_git_diff("")
+        else:
+            logging.error(
+                "No input files or diff patterns provided, stdin is an interactive terminal, and "
+                "no Git repository was detected. Please specify an input file, pipe a diff, or run "
+                "from within a Git repository."
+            )
+            sys.exit(1)
     else:
         diff_text = _read_diff_sources(input_files)
 

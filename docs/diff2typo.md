@@ -30,6 +30,9 @@ git diff | python diff2typo.py [OPTIONS]
 | `--mode` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
 | `--min-length`, `-m` | `2` | Ignore words shorter than this length. |
 | `--max-dist` | None | Only include typos with a number of character changes up to this value. Useful for filtering out intentional word changes. |
+| `--min-count` | `1` | Minimum occurrences of a typo in the diff to include it in the output. |
+| `--sort` | `alpha` | Choose how to sort the results: `count` (most frequent first) or `alpha` (alphabetical, default). |
+| `--limit`, `-L` | None | Limit the number of typos in the output. |
 | `--dictionary`, `-d` | `words.csv` | A file containing the large dictionary of correct words. The tool uses this to make sure the "fix" is a real word. |
 | `--allowed` | `allowed.csv` | A list of words to explicitly ignore, even if they look like typos. |
 | `--typos-path` | `typos` | The path to the external `typos` tool. |
@@ -59,6 +62,20 @@ python diff2typo.py --git "HEAD~5" --output recent_typos.txt
 
 ```bash
 git diff | python diff2typo.py --output found_typos.txt --mode both
+```
+
+**Sort and limit output:**
+
+To get only the top 10 most common typos sorted by frequency:
+```bash
+python diff2typo.py recent_changes.diff --sort count --limit 10
+```
+
+**Filter typos by minimum occurrence count:**
+
+To ignore rare mistakes and only output typos that occur at least 3 times in the diff:
+```bash
+python diff2typo.py recent_changes.diff --min-count 3
 ```
 
 **Find patterns with typostats:**

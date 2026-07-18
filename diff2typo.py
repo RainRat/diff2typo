@@ -584,6 +584,23 @@ def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
     """Return concatenated diff text from standard input or the provided file patterns."""
 
     if not input_files:
+        if sys.stdin.isatty():
+            try:
+                res = subprocess.run(
+                    ["git", "rev-parse", "--is-inside-work-tree"],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if res.returncode == 0 and res.stdout.strip() == "true":
+                    logging.info("Interactive terminal detected and no input files specified. Defaulting to 'git diff' in active Git repository.")
+                    return _read_git_diff("")
+            except FileNotFoundError:
+                pass
+
+            logging.error("No input files or piped diff specified, and standard input is an interactive terminal.")
+            logging.error("Please provide a diff file, pipe standard input (e.g. 'git diff | python diff2typo.py'), or run inside a Git repository.")
+            sys.exit(1)
         return _read_stdin_text()
 
     contents: List[str] = []

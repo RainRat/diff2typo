@@ -942,7 +942,29 @@ def main():
     if args.git is not None:
         diff_text = _read_git_diff(args.git)
     else:
-        diff_text = _read_diff_sources(input_files)
+        if not input_files and sys.stdin.isatty():
+            try:
+                res = subprocess.run(
+                    ["git", "rev-parse", "--is-inside-work-tree"],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                is_git = res.returncode == 0 and res.stdout.strip() == "true"
+            except FileNotFoundError:
+                is_git = False
+
+            if is_git:
+                logging.info("Standard input is an interactive terminal. Automatically running 'git diff'...")
+                diff_text = _read_git_diff(None)
+            else:
+                logging.error(
+                    "No input files specified and standard input is an interactive terminal.\n"
+                    "Please provide input files, pipe diff data, or run inside a Git repository."
+                )
+                sys.exit(1)
+        else:
+            diff_text = _read_diff_sources(input_files)
 
     # Load the large dictionary (words mapping) once.
     # If the file is missing, we don't exit. Instead we just warn and continue without filtering.

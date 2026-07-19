@@ -2432,11 +2432,10 @@ def unflatten_mode(
         if not new_d:
             return new_d
 
-        # Check if all keys are numeric and form a continuous sequence starting at 0
-        if all(k.isdigit() for k in new_d.keys()):
-            indices = sorted(int(k) for k in new_d.keys())
-            if indices == list(range(len(indices))):
-                return [new_d[str(i)] for i in range(len(indices))]
+        # Check if all keys are exactly the string representations of the indices from 0 to N-1
+        expected_keys = {str(i) for i in range(len(new_d))}
+        if set(new_d.keys()) == expected_keys:
+            return [new_d[str(i)] for i in range(len(new_d))]
 
         return new_d
 

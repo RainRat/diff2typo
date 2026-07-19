@@ -4,7 +4,7 @@
 
 ## Usage
 
-Process one or more files or send data directly to the tool using a pipe.
+Process one or more files/directories or send data directly to the tool using a pipe.
 
 ```bash
 # Read from a file
@@ -12,6 +12,11 @@ python typostats.py my_typos.txt
 
 # Read from multiple files
 python typostats.py file1.txt file2.txt
+
+# Read from a directory recursively
+# This scans all supported files (.txt, .csv, .json, .yaml, .yml, .md) under the directory,
+# while ignoring common development and environment folders (like .git, node_modules, .venv).
+python typostats.py my_typos_directory/
 
 # Pipe from another tool
 git diff | python diff2typo.py | python typostats.py

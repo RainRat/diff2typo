@@ -12,10 +12,16 @@
 
 ## Usage
 
-To use the tool, provide the path to your configuration file:
+You can run the tool either by providing a YAML configuration file or by specifying the parameters directly on the command line.
 
+**Using a configuration file:**
 ```bash
 python cmdrunner.py config.yaml
+```
+
+**Direct execution using command-line arguments:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status"
 ```
 
 ## Configuration
@@ -40,6 +46,10 @@ excluded_folders:
 
 ## Options
 
+- `CONFIG_PATH`: (Optional) The path to your YAML configuration file.
+- `-m`, `--main-folder`: The main folder containing your projects. Overrides config file if provided.
+- `-c`, `--command-to-run`: The command to run in each folder. Overrides config file if provided.
+- `-e`, `--excluded-folders`: A space-separated list of folders to skip. Overrides config file if provided.
 - `--dry-run`: Shows which folders would be processed and which command would run without actually doing it. Use this to test your setup safely.
 - `--quiet`: Hides status messages and progress bars.
 
@@ -64,6 +74,16 @@ In this example, if the tool processes a folder named `my-web-app`, it will run 
 4. **Report:** It shows you the results of each command or any errors that occurred.
 
 ## Examples
+
+**Run a command across your projects directly without a config file:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status"
+```
+
+**Override configuration file settings from the command line:**
+```bash
+python cmdrunner.py config.yaml --command-to-run "git pull"
+```
 
 **Test your configuration without running commands:**
 ```bash

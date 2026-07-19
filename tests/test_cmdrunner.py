@@ -486,3 +486,64 @@ def test_tqdm_fallback():
 
     # Restore cmdrunner to original state for other tests
     importlib.reload(cmdrunner)
+
+
+def test_cli_only_execution(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    included = base_dir / 'proj1'
+    excluded = base_dir / 'skip'
+    included.mkdir()
+    excluded.mkdir()
+
+    command = "python3 -c \"from pathlib import Path; Path('cli_test.txt').write_text('cli_ok')\""
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-m', str(base_dir), '-c', command, '-e', 'skip'])
+
+    cmdrunner.main()
+
+    assert (included / 'cli_test.txt').exists()
+    assert (included / 'cli_test.txt').read_text() == 'cli_ok'
+    assert not (excluded / 'cli_test.txt').exists()
+
+
+def test_cli_overrides_config(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj = base_dir / 'proj1'
+    proj.mkdir()
+
+    config_data = {
+        'main_folder': str(base_dir),
+        'command_to_run': 'echo dummy',
+    }
+    config_file = tmp_path / 'config.yaml'
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    override_command = "python3 -c \"from pathlib import Path; Path('override_test.txt').write_text('override_ok')\""
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file), '-c', override_command])
+
+    cmdrunner.main()
+
+    assert (proj / 'override_test.txt').exists()
+    assert (proj / 'override_test.txt').read_text() == 'override_ok'
+
+
+def test_cli_missing_options(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py'])
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 1
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-m', '/tmp'])
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 1
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-c', 'echo 1'])
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 1

@@ -191,7 +191,33 @@ def parse_arguments() -> argparse.Namespace:
         'config',
         metavar='CONFIG_PATH',
         type=str,
+        nargs='?',
         help='The path to your YAML configuration file.'
+    )
+
+    # Direct Execution / Overrides Group
+    direct_group = parser.add_argument_group(f"{BLUE}CLI OVERRIDES / DIRECT OPTIONS{RESET}")
+    direct_group.add_argument(
+        '-m', '--main-folder',
+        type=str,
+        help='The main folder containing your projects. Overrides config file if provided.'
+    )
+    direct_group.add_argument(
+        '-b', '--base-directory',
+        type=str,
+        help='Legacy alias for main folder. Overrides config file if provided.'
+    )
+    direct_group.add_argument(
+        '-c', '--command-to-run',
+        dest='command_to_run',
+        type=str,
+        help='The command you want to run in each folder. Overrides config file if provided.'
+    )
+    direct_group.add_argument(
+        '-e', '--excluded-folders',
+        dest='excluded_folders',
+        nargs='+',
+        help='Folders you want the tool to skip. Overrides config file if provided.'
     )
 
     # Execution Options Group
@@ -220,21 +246,34 @@ def main() -> None:
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
     logging.basicConfig(level=log_level, handlers=[handler])
 
-    # Load configuration
-    try:
-        config = load_config(config_file)
-    except FileNotFoundError:
-        logging.error(f"Configuration file '{config_file}' not found.")
-        sys.exit(1)
-    except ConfigError as exc:
-        logging.error(str(exc))
-        sys.exit(1)
+    config = {}
+    if config_file:
+        # Load configuration
+        try:
+            config = load_config(config_file)
+        except FileNotFoundError:
+            logging.error(f"Configuration file '{config_file}' not found.")
+            sys.exit(1)
+        except ConfigError as exc:
+            logging.error(str(exc))
+            sys.exit(1)
 
     # Extract configuration parameters with defaults
-    # Support both 'main_folder' and the legacy 'base_directory'
-    main_folder = config.get('main_folder') or config.get('base_directory', '')
-    command_to_run = config.get('command_to_run', '')
-    excluded = config.get('excluded_folders', [])
+    # Support both 'main_folder' and the legacy 'base_directory', allowing CLI overrides
+    main_folder = args.main_folder or args.base_directory or config.get('main_folder') or config.get('base_directory', '')
+    command_to_run = args.command_to_run or config.get('command_to_run', '')
+    excluded = args.excluded_folders if args.excluded_folders is not None else config.get('excluded_folders', [])
+
+    # Validate that required options are present
+    errors = []
+    if not main_folder:
+        errors.append("main_folder")
+    if not command_to_run:
+        errors.append("command_to_run")
+
+    if errors:
+        logging.error(f"Missing required option(s): {', '.join(errors)}.")
+        sys.exit(1)
 
     # Run the command in the specified folders
     run_command_in_folders(

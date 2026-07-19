@@ -1186,6 +1186,30 @@ def main() -> None:
     if not input_files:
         input_files = ['-']
 
+    # Expand directories recursively
+    expanded_files = []
+    ignored_dirs = {
+        '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
+        '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
+    }
+    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md'}
+
+    for file_path in input_files:
+        if file_path == '-':
+            expanded_files.append('-')
+        elif os.path.isdir(file_path):
+            for root, dirs, files in os.walk(file_path):
+                # Prune ignored directories in-place to avoid walking into them
+                dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                for file in files:
+                    ext = os.path.splitext(file)[1].lower()
+                    if ext in supported_extensions:
+                        expanded_files.append(os.path.join(root, file))
+        else:
+            expanded_files.append(file_path)
+
+    input_files = expanded_files
+
     start_time = time.perf_counter()
     all_counts = defaultdict(int)
     total_lines_all = 0

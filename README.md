@@ -23,16 +23,39 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 
 ## 📦 Installation
 
-1. **Download the code:**
-   ```bash
-   git clone https://github.com/yourusername/diff2typo.git
-   cd diff2typo
-   ```
+Follow these steps to set up the project on your computer.
 
-2. **Install the dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 1. Download the code
+Clone the repository and move into the project directory:
+```bash
+git clone https://github.com/yourusername/diff2typo.git
+cd diff2typo
+```
+
+### 2. Create and activate a virtual environment (Recommended)
+A virtual environment keeps your project dependencies separate from your global Python installation.
+
+*   **On macOS and Linux:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+*   **On Windows (Command Prompt):**
+    ```cmd
+    python -m venv venv
+    venv\Scripts\activate.bat
+    ```
+*   **On Windows (PowerShell):**
+    ```powershell
+    python -m venv venv
+    .\venv\Scripts\Activate.ps1
+    ```
+
+### 3. Install the dependencies
+Install all required Python packages:
+```bash
+pip install -r requirements.txt
+```
 
 ## 🛠️ Tools Overview
 

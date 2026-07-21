@@ -547,3 +547,29 @@ def test_cli_missing_options(monkeypatch):
     with pytest.raises(SystemExit) as excinfo:
         cmdrunner.main()
     assert excinfo.value.code == 1
+
+
+def test_default_config_fallback(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    proj = base_dir / "proj1"
+    proj.mkdir()
+
+    command = "python3 -c \"from pathlib import Path; Path(\\\"fallback_test.txt\\\").write_text(\\\"fallback_ok\\\")\""
+    config_data = {
+        "main_folder": str(base_dir),
+        "command_to_run": command,
+    }
+
+    # Write cmdrunner.yaml into the current directory
+    monkeypatch.chdir(tmp_path)
+    config_file = tmp_path / "cmdrunner.yaml"
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py"])
+
+    cmdrunner.main()
+
+    assert (proj / "fallback_test.txt").exists()
+    assert (proj / "fallback_test.txt").read_text() == "fallback_ok"

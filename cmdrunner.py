@@ -240,6 +240,10 @@ def main() -> None:
     args = parse_arguments()
     config_file = args.config
 
+    has_cli_run = (args.main_folder or args.base_directory) and args.command_to_run
+    if not config_file and not has_cli_run and os.path.exists('cmdrunner.yaml'):
+        config_file = 'cmdrunner.yaml'
+
     log_level = logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()

@@ -90,6 +90,24 @@ Supported formats:
 - **CSV:** Supports the `correct_char,typo_char,count` format from `typostats.py`.
 - **YAML:** Supports the same format as the `custom_substitutions` config section.
 
+## Options
+
+These options control how the tool operates from the command line:
+
+| Argument | Default | Description |
+| :--- | :--- | :--- |
+| `words` | None | One or more words to generate typos for. If you provide words, the tool will ignore the input file in your configuration. |
+| `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
+| `--output`, `-o` | standard output | Save results to this file. Use `-` to print directly to the screen. |
+| `--format`, `-f` | Detected from file extension or `arrow` | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` (typo = "correction"), or `list` (typo only). |
+| `--substitutions`, `-s` | None | A file containing your own typo patterns (JSON, CSV, or YAML). This is useful for using your personal typo history from `typostats.py`. |
+| `--min-length`, `-m` | `8` (from config default) | Ignore words shorter than this length. |
+| `--max-length` | None | Ignore words longer than this length. |
+| `--no-filter` | Off | Do not check typos against the large dictionary (this runs faster). |
+| `--verbose`, `-v` | Off | Show more detailed log messages to help with troubleshooting. |
+| `--quiet`, `-q` | Off | Hide progress bars and status messages. |
+| `--version` | None | Show the tool's version number and exit. |
+
 ## How it Works
 
 1.  **Generation:** The tool applies the selected mistake types to every word in your input.

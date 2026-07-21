@@ -876,6 +876,32 @@ def main() -> None:
         type=str,
         help="A file containing your own typo patterns (JSON, CSV, or YAML). This is useful for using your personal typo history from 'typostats.py'.",
     )
+    io_group.add_argument(
+        '-i', '--input',
+        dest='input_file',
+        type=str,
+        help="The path to an input file containing words to process (one per line).",
+    )
+    # Hidden alias
+    parser.add_argument(
+        '--input-file',
+        dest='input_file',
+        type=str,
+        help=argparse.SUPPRESS,
+    )
+    io_group.add_argument(
+        '-d', '--dictionary',
+        dest='dictionary_file',
+        type=str,
+        help="The path to a large dictionary file used to filter out real words.",
+    )
+    # Hidden alias
+    parser.add_argument(
+        '--dictionary-file',
+        dest='dictionary_file',
+        type=str,
+        help=argparse.SUPPRESS,
+    )
     # Legacy flag, suppressed from help
     parser.add_argument(
         '--word',
@@ -889,6 +915,19 @@ def main() -> None:
         '-m', '--min-length',
         type=int,
         help="Ignore words shorter than this length.",
+    )
+    gen_group.add_argument(
+        '-r', '--repeat',
+        dest='repeat_modifications',
+        type=int,
+        help="Number of times to repeat typo generation, stacking modifications.",
+    )
+    # Hidden alias
+    parser.add_argument(
+        '--repeat-modifications',
+        dest='repeat_modifications',
+        type=int,
+        help=argparse.SUPPRESS,
     )
     gen_group.add_argument(
         '--max-length',
@@ -913,13 +952,13 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Determine if we are in CLI Mode (extra words provided)
+    # Determine if we are in CLI Mode (extra words or input file provided)
     # Support both legacy --word and positional args
     cli_words = args.words or []
     if args.word:
         cli_words.extend(args.word)
 
-    is_cli_mode = bool(cli_words)
+    is_cli_mode = bool(cli_words) or bool(args.input_file)
 
     log_level = logging.DEBUG if args.verbose else logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean
@@ -954,7 +993,11 @@ def main() -> None:
 
     # Apply CLI overrides
     if is_cli_mode:
-        config['input_file'] = None # Will use CLI words
+        if cli_words:
+            config['input_file'] = None # Will use CLI words
+        elif args.input_file:
+            config['input_file'] = args.input_file
+
         # Default to the screen and arrow format for extra usage unless explicit flags are provided.
         # This overrides any persistent settings in the configuration file.
         if not args.output:
@@ -978,6 +1021,10 @@ def main() -> None:
         config['substitutions_file'] = args.substitutions
     if args.no_filter:
         config['dictionary_file'] = None
+    elif args.dictionary_file:
+        config['dictionary_file'] = args.dictionary_file
+    if args.repeat_modifications is not None:
+        config['repeat_modifications'] = args.repeat_modifications
 
     if args.min_length is not None or args.max_length is not None:
         if 'word_length' not in config:
@@ -992,7 +1039,7 @@ def main() -> None:
     settings = _extract_config_settings(config, quiet=args.quiet)
 
     # Load words
-    if is_cli_mode:
+    if cli_words:
         word_list = [w.lower() for w in cli_words]
         logging.info(f"Processing {len(word_list)} words from CLI arguments.")
     else:

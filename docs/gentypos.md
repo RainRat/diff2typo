@@ -24,6 +24,21 @@ Use a configuration file to process a large word list and save the results.
 python gentypos.py --config gentypos.yaml
 ```
 
+## Options
+
+| Argument | Default | Description |
+| :--- | :--- | :--- |
+| `words` | None | One or more words to generate typos for. If provided, the tool ignores the input file in your configuration. |
+| `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
+| `--output`, `-o` | None | Save results to this file. Use `-` to print to the screen. |
+| `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` (typo = "correction"), or `list` (typo). By default, it is automatically detected from the output file extension. |
+| `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, or YAML). Useful for loading your personal typo history from `typostats.py`. |
+| `--min-length`, `-m` | None | Ignore words shorter than this length. |
+| `--max-length` | None | Ignore words longer than this length. |
+| `--no-filter` | Off | Do not check typos against the large dictionary (makes generation faster). |
+| `--verbose`, `-v` | Off | Show more detailed log messages. |
+| `--quiet`, `-q` | Off | Hide progress bars and status messages. |
+
 ## Configuration (`gentypos.yaml`)
 
 The tool uses a YAML file to control how typos are generated.

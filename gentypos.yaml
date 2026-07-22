@@ -1,4 +1,4 @@
-# Configuration for Fake Typo Generator
+# Configuration for Typo Generator
 
 # File Paths
 input_file: "wordlist_small.txt"       # Path to the small dictionary (one per line)

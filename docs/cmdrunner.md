@@ -42,6 +42,12 @@ excluded_folders:
   - "node_modules"
   - ".git"
   - "venv"
+
+# (Optional) Stop execution immediately if any command fails or times out
+fail_fast: false
+
+# (Optional) The maximum execution time in seconds for the command in each folder
+timeout: 10.5
 ```
 
 ## Options
@@ -52,6 +58,8 @@ excluded_folders:
 - `-e`, `--excluded-folders`: A space-separated list of folders to skip. Overrides config file if provided.
 - `--dry-run`: Shows which folders would be processed and which command would run without actually doing it. Use this to test your setup safely.
 - `--quiet`: Hides status messages and progress bars.
+- `--fail-fast`: Stop execution immediately if any command fails or times out. Overrides config file if provided.
+- `--timeout`: The maximum execution time in seconds for the command in each folder. Overrides config file if provided.
 
 ## Dynamic Commands
 

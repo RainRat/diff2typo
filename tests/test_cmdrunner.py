@@ -547,3 +547,70 @@ def test_cli_missing_options(monkeypatch):
     with pytest.raises(SystemExit) as excinfo:
         cmdrunner.main()
     assert excinfo.value.code == 1
+
+
+def test_main_fallback_to_default_config_file(tmp_path, monkeypatch):
+    # Create projects folder inside tmp_path
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    # Write cmdrunner.yaml to the directory
+    config_data = {
+        'main_folder': str(base_dir),
+        'command_to_run': "python3 -c \"from pathlib import Path; Path('fallback_test.txt').write_text('fallback_ok')\"",
+    }
+    config_file = tmp_path / 'cmdrunner.yaml'
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    # Change directory to tmp_path so 'cmdrunner.yaml' is in the current directory
+    monkeypatch.chdir(tmp_path)
+
+    # Set argv to just ['cmdrunner.py'] (no config path, no direct options)
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py'])
+
+    cmdrunner.main()
+
+    # Verify that the command was run in the projects subfolder, which implies cmdrunner.yaml was loaded
+    assert (base_dir / 'proj1' / 'fallback_test.txt').exists()
+    assert (base_dir / 'proj1' / 'fallback_test.txt').read_text() == 'fallback_ok'
+
+
+def test_main_no_fallback_when_default_config_missing(tmp_path, monkeypatch):
+    # Change directory to a clean tmp_path with no cmdrunner.yaml
+    monkeypatch.chdir(tmp_path)
+
+    # Set argv to just ['cmdrunner.py']
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py'])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 1
+
+
+def test_main_no_fallback_when_direct_options_provided(tmp_path, monkeypatch):
+    # Create projects folder inside tmp_path
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    # Write a dummy cmdrunner.yaml in tmp_path that should NOT be loaded (or would fail if loaded)
+    bad_config_data = {
+        'main_folder': '/invalid/path/that/does/not/exist',
+        'command_to_run': 'echo bad',
+    }
+    config_file = tmp_path / 'cmdrunner.yaml'
+    config_file.write_text(yaml.safe_dump(bad_config_data))
+
+    # Change directory to tmp_path
+    monkeypatch.chdir(tmp_path)
+
+    # Provide full direct options
+    command = "python3 -c \"from pathlib import Path; Path('direct_test.txt').write_text('direct_ok')\""
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-m', str(base_dir), '-c', command])
+
+    cmdrunner.main()
+
+    # Verify that the direct option was run instead of the bad config file path
+    assert (base_dir / 'proj1' / 'direct_test.txt').exists()
+    assert (base_dir / 'proj1' / 'direct_test.txt').read_text() == 'direct_ok'

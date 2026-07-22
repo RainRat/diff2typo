@@ -247,6 +247,17 @@ def main() -> None:
     logging.basicConfig(level=log_level, handlers=[handler])
 
     config = {}
+    if not config_file:
+        # Friction reduction: if no configuration file path is specified via the command line,
+        # and direct run parameters (both main folder and command to run) are not fully provided as CLI overrides,
+        # automatically fall back to loading 'cmdrunner.yaml' from the current working directory if it exists.
+        has_direct = bool(args.main_folder or args.base_directory) and bool(args.command_to_run)
+        if not has_direct:
+            default_config_path = "cmdrunner.yaml"
+            if os.path.isfile(default_config_path):
+                config_file = default_config_path
+                logging.info(f"No configuration file specified and direct options incomplete. Falling back to loading '{default_config_path}'...")
+
     if config_file:
         # Load configuration
         try:

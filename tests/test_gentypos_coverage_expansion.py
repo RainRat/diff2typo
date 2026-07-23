@@ -302,3 +302,16 @@ def test_generate_typos_by_replacement_multi_char():
     result_multi = gentypos.generate_typos_by_replacement('phph', adjacent, custom)
     assert 'fph' in result_multi
     assert 'phf' in result_multi
+
+def test_main_piped_stdin_fallback(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", StringIO("hello\n"))
+    monkeypatch.setattr(sys, "argv", ["gentypos.py"])
+
+    # Mock os.path.exists to return False for config, input, and dictionary files
+    monkeypatch.setattr("os.path.exists", lambda path: False)
+
+    with patch("gentypos._run_typo_generation", return_value={"hallo": "hello"}) as mock_gen:
+        gentypos.main()
+        assert mock_gen.called
+        captured = capsys.readouterr()
+        assert "hallo -> hello" in captured.out

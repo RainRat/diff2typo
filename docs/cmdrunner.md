@@ -52,6 +52,8 @@ excluded_folders:
 - `-e`, `--excluded-folders`: A space-separated list of folders to skip. Overrides config file if provided.
 - `--dry-run`: Shows which folders would be processed and which command would run without actually doing it. Use this to test your setup safely.
 - `--quiet`: Hides status messages and progress bars.
+- `-o`, `--output`: Where to save the execution report. If not provided, no report is saved.
+- `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`). If not provided, it is automatically detected from the output file extension.
 
 ## Dynamic Commands
 

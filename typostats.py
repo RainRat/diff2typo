@@ -1184,7 +1184,11 @@ def main() -> None:
     limit = args.limit
 
     if not input_files:
-        input_files = ['-']
+        if sys.stdin.isatty():
+            logging.info("Standard input is an interactive terminal. Automatically scanning the current directory...")
+            input_files = ['.']
+        else:
+            input_files = ['-']
 
     # Expand directories recursively
     expanded_files = []

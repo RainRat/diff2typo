@@ -139,3 +139,30 @@ def test_main_max_length_only(tmp_path, monkeypatch):
         assert config['word_length']['max_length'] == 10
         # min_length is set to 0 by default in CLI mode if not provided
         assert config['word_length']['min_length'] == 0
+
+
+def test_stdin_no_input_file_missing_dict(tmp_path, monkeypatch):
+    import io
+    config_file = tmp_path / "test_config.yaml"
+    config_file.write_text("dictionary_file: 'non_existent_dict_file_abc123.txt'\n")
+
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("hello\n"))
+    monkeypatch.setattr(sys, "argv", ["gentypos.py", "--config", str(config_file)])
+
+    original_validate_config = gentypos.validate_config
+    captured_config = []
+
+    def mock_validate(config, cli_mode, config_defaults=None):
+        captured_config.append(config.copy())
+        original_validate_config(config, cli_mode, config_defaults)
+
+    monkeypatch.setattr(gentypos, "validate_config", mock_validate)
+
+    with patch("gentypos._run_typo_generation", return_value={}), patch("builtins.print"):
+        gentypos.main()
+
+    assert len(captured_config) == 1
+    assert captured_config[0].get('dictionary_file') is None
+    assert captured_config[0].get('input_file') == '-'
+    assert captured_config[0].get('output_file') == '-'

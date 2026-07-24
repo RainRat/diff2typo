@@ -97,14 +97,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if not config.get("command_to_run"):
         errors.append("Missing required configuration field: 'command_to_run'.")
 
-    if "main_folder" in config and not isinstance(config["main_folder"], str):
-        errors.append("'main_folder' must be a string.")
-
-    if "base_directory" in config and not isinstance(config["base_directory"], str):
-        errors.append("'base_directory' must be a string.")
-
-    if "command_to_run" in config and not isinstance(config["command_to_run"], str):
-        errors.append("'command_to_run' must be a string.")
+    for field in ["main_folder", "base_directory", "command_to_run"]:
+        if field in config and not isinstance(config[field], str):
+            errors.append(f"'{field}' must be a string.")
 
     if "excluded_folders" in config and not isinstance(config["excluded_folders"], list):
         errors.append("'excluded_folders' must be a list if provided.")

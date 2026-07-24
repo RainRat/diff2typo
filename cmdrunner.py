@@ -255,7 +255,6 @@ def run_command_in_folders(
         except Exception as e:
             logging.error(f"Failed to write report to '{output_file}': {e}")
             sys.exit(1)
->>>>>>> pr-865
 
 def parse_arguments() -> argparse.Namespace:
     """

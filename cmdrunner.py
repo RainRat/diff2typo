@@ -115,6 +115,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "timeout" in config and (isinstance(config["timeout"], bool) or not isinstance(config["timeout"], (int, float))):
         errors.append("'timeout' must be a number.")
 
+    if "require_file" in config and not isinstance(config["require_file"], str):
+        errors.append("'require_file' must be a string if provided.")
+
     if errors:
         raise ConfigError(" ".join(errors))
 
@@ -130,6 +133,7 @@ def run_command_in_folders(
     timeout: Optional[float] = None,
     output_file: Optional[str] = None,
     output_format: Optional[str] = None,
+    require_file: Optional[str] = None,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -143,7 +147,9 @@ def run_command_in_folders(
 
     directories = sorted([
         item for item in os.listdir(main_folder)
-        if os.path.isdir(os.path.join(main_folder, item)) and item not in excluded_folders
+        if os.path.isdir(os.path.join(main_folder, item))
+        and item not in excluded_folders
+        and (not require_file or os.path.isfile(os.path.join(main_folder, item, require_file)))
     ])
 
     iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
@@ -313,6 +319,12 @@ def parse_arguments() -> argparse.Namespace:
         nargs='+',
         help='Folders you want the tool to skip. Overrides config file if provided.'
     )
+    direct_group.add_argument(
+        '-r', '--require-file',
+        dest='require_file',
+        type=str,
+        help='Only process folders that contain this specific file. Overrides config file if provided.'
+    )
 
     # Execution Options Group
     options_group = parser.add_argument_group(f"{BLUE}EXECUTION OPTIONS{RESET}")
@@ -392,6 +404,7 @@ def main() -> None:
     main_folder = args.main_folder or args.base_directory or config.get('main_folder') or config.get('base_directory', '')
     command_to_run = args.command_to_run or config.get('command_to_run', '')
     excluded = args.excluded_folders if args.excluded_folders is not None else config.get('excluded_folders', [])
+    require_file = args.require_file or config.get('require_file', None)
 
     # Prioritize CLI values over config file values
     fail_fast = args.fail_fast if args.fail_fast is not None else config.get('fail_fast', False)
@@ -419,6 +432,7 @@ def main() -> None:
         timeout=timeout,
         output_file=args.output,
         output_format=args.format,
+        require_file=require_file,
     )
 
 if __name__ == "__main__":

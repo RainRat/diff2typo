@@ -48,6 +48,9 @@ fail_fast: false
 
 # (Optional) The maximum execution time in seconds for the command in each folder
 timeout: 10.5
+
+# (Optional) Only process folders containing this specific file
+require_file: "package.json"
 ```
 
 ## Options
@@ -61,6 +64,7 @@ timeout: 10.5
 - `--quiet`: Hides status messages and progress bars.
 - `--fail-fast`: Stop execution immediately if any command fails or times out. Overrides config file if provided.
 - `--timeout`: The maximum execution time in seconds for the command in each folder. Overrides config file if provided.
+- `-r`, `--require-file`: Only process folders that contain this specific file. Overrides config file if provided.
 - `-o`, `--output`: Where to save the execution report. If not provided, no report is saved.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`). If not provided, it is automatically detected from the output file extension.
 

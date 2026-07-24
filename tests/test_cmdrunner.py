@@ -832,3 +832,87 @@ def test_main_no_fallback_when_direct_options_provided(tmp_path, monkeypatch):
     # Verify that the direct option was run instead of the bad config file path
     assert (base_dir / 'proj1' / 'direct_test.txt').exists()
     assert (base_dir / 'proj1' / 'direct_test.txt').read_text() == 'direct_ok'
+
+
+def test_load_config_require_file_validation(tmp_path):
+    config_file = tmp_path / "config.yaml"
+
+    # Valid config with require_file
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "require_file": "package.json"
+    }))
+    assert cmdrunner.load_config(str(config_file))["require_file"] == "package.json"
+
+    # Invalid configurations (must be a string)
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "require_file": 123
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="'require_file' must be a string if provided."):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_run_command_require_file_filtering(tmp_path):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    # Setup directories
+    p1 = base_dir / "proj_with_file"
+    p2 = base_dir / "proj_without_file"
+    p1.mkdir()
+    p2.mkdir()
+
+    # Place required file only in p1
+    (p1 / "package.json").write_text("{}")
+
+    # Command that touches a file to verify execution
+    command = "python3 -c \"from pathlib import Path; Path('touched.txt').write_text('yes')\""
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        require_file="package.json"
+    )
+
+    # Verification: p1 should have 'touched.txt', but p2 should NOT since it was skipped
+    assert (p1 / "touched.txt").exists()
+    assert not (p2 / "touched.txt").exists()
+
+
+def test_main_cli_overrides_require_file(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    p1 = base_dir / "proj1"
+    p2 = base_dir / "proj2"
+    p1.mkdir()
+    p2.mkdir()
+
+    # Place require_file "requirements.txt" in p1 and "package.json" in p2
+    (p1 / "requirements.txt").write_text("")
+    (p2 / "package.json").write_text("")
+
+    # Configuration file specifies "requirements.txt"
+    config_data = {
+        "main_folder": str(base_dir),
+        "command_to_run": "python3 -c \"from pathlib import Path; Path('run.txt').write_text('run')\"",
+        "require_file": "requirements.txt"
+    }
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    # CLI override specifies "package.json"
+    monkeypatch.setattr(sys, "argv", [
+        "cmdrunner.py",
+        str(config_file),
+        "-r", "package.json"
+    ])
+
+    cmdrunner.main()
+
+    # Since CLI overrides configuration, only p2 (which has package.json) should have been run.
+    assert not (p1 / "run.txt").exists()
+    assert (p2 / "run.txt").exists()

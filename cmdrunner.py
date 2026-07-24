@@ -286,7 +286,7 @@ def parse_arguments() -> argparse.Namespace:
         metavar='CONFIG_PATH',
         type=str,
         nargs='?',
-        help='The path to your YAML configuration file.'
+        help='The path to your YAML configuration file. If omitted, the tool automatically falls back to loading "cmdrunner.yaml" from the current working directory if it exists.'
     )
 
     # Direct Execution / Overrides Group

@@ -987,6 +987,15 @@ def main() -> None:
     if is_cli_mode and not config_loaded:
         config = {}
 
+    if not is_cli_mode and not sys.stdin.isatty():
+        if not config.get('input_file'):
+            config['input_file'] = '-'
+            if not args.output:
+                config['output_file'] = '-'
+            dict_file = config.get('dictionary_file')
+            if dict_file and not os.path.exists(dict_file):
+                config['dictionary_file'] = None
+
     # Prepare defaults for this run
     # Avoid mutating global DEFAULT_CONFIG to ensure thread/process safety and testability
     run_defaults = copy.deepcopy(DEFAULT_CONFIG)
@@ -1034,7 +1043,7 @@ def main() -> None:
         if args.max_length is not None:
             config['word_length']['max_length'] = args.max_length
 
-    validate_config(config, cli_mode=is_cli_mode, config_defaults=run_defaults)
+    validate_config(config, cli_mode=is_cli_mode or (not is_cli_mode and not sys.stdin.isatty()), config_defaults=run_defaults)
 
     settings = _extract_config_settings(config, quiet=args.quiet)
 

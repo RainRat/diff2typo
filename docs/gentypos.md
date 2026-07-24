@@ -18,11 +18,33 @@ python gentypos.py apple banana orange --no-filter
 ```
 
 ### 2. Process words from a file
-Use a configuration file to process a large word list and save the results.
+Use a configuration file or specify an input file directly from the command line.
 
 ```bash
+# Process words using a configuration file
 python gentypos.py --config gentypos.yaml
+
+# Process words directly from a text file
+python gentypos.py --input words.txt --output typos.txt
 ```
+
+## Options
+
+| Argument | Default | Description |
+| :--- | :--- | :--- |
+| `WORDS` | None | One or more words to generate typos for. |
+| `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
+| `--output`, `-o` | the screen | Save results to this file. Use `-` to print to the screen. |
+| `--format`, `-f` | `arrow` | Choose an output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
+| `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, or YAML). |
+| `--input`, `-i` | None | The path to an input file containing words to process (one per line). |
+| `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
+| `--min-length`, `-m` | None | Ignore words shorter than this length. |
+| `--max-length` | None | Ignore words longer than this length. |
+| `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |
+| `--no-filter` | Off | Do not check typos against the large dictionary. |
+| `--verbose`, `-v` | Off | Show more detailed log messages. |
+| `--quiet`, `-q` | Off | Hide progress bars and status messages. |
 
 ## Configuration (`gentypos.yaml`)
 

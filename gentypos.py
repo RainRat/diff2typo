@@ -988,7 +988,7 @@ def main() -> None:
         config = {}
 
     if not is_cli_mode and not sys.stdin.isatty():
-        if not config.get('input_file'):
+        if args.config == "gentypos.yaml" or not config.get('input_file'):
             config['input_file'] = '-'
             if not args.output:
                 config['output_file'] = '-'

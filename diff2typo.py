@@ -548,18 +548,6 @@ def _read_stdin_text() -> str:
     return _decode_with_fallback(data, "input diff from standard input")
 
 
-def _read_diff_file(file_path: str) -> str:
-    """Return diff text from ``file_path`` with encoding fallback."""
-
-    try:
-        with open(file_path, "rb") as file_handle:
-            data = file_handle.read()
-        return _decode_with_fallback(data, f"input diff file '{file_path}'")
-    except FileNotFoundError:
-        logging.error(f"Input file '{file_path}' not found. Exiting.")
-        sys.exit(1)
-
-
 def _read_git_diff(git_args: Optional[str]) -> str:
     """Fetch diff directly from Git using the provided arguments."""
     command = ["git", "diff"]
@@ -601,7 +589,9 @@ def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
             if not os.path.isfile(match):
                 logging.error(f"Input file '{match}' not found. Exiting.")
                 sys.exit(1)
-            contents.append(_read_diff_file(match))
+            with open(match, "rb") as file_handle:
+                data = file_handle.read()
+            contents.append(_decode_with_fallback(data, f"input diff file '{match}'"))
 
     return "\n".join(contents)
 

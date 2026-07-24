@@ -67,9 +67,9 @@ def test_read_stdin_text_str(monkeypatch, caplog):
         assert text == "text input"
         assert "Successfully read input diff from standard input" in caplog.text
 
-def test_read_diff_file_not_found():
+def test_read_diff_sources_not_found():
     with pytest.raises(SystemExit) as excinfo:
-        diff2typo._read_diff_file("missing.diff")
+        diff2typo._read_diff_sources(["missing.diff"])
     assert excinfo.value.code == 1
 
 def test_read_diff_sources_no_files(monkeypatch):

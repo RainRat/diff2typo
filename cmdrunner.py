@@ -107,6 +107,12 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "excluded_folders" in config and not isinstance(config["excluded_folders"], list):
         errors.append("'excluded_folders' must be a list if provided.")
 
+    if "fail_fast" in config and not isinstance(config["fail_fast"], bool):
+        errors.append("'fail_fast' must be a boolean.")
+
+    if "timeout" in config and (isinstance(config["timeout"], bool) or not isinstance(config["timeout"], (int, float))):
+        errors.append("'timeout' must be a number.")
+
     if errors:
         raise ConfigError(" ".join(errors))
 
@@ -118,6 +124,8 @@ def run_command_in_folders(
     excluded_folders: Optional[List[str]] = None,
     dry_run: bool = False,
     quiet: bool = False,
+    fail_fast: bool = False,
+    timeout: Optional[float] = None,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -156,11 +164,18 @@ def run_command_in_folders(
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True  # Automatically decode to string
+                text=True,
+                timeout=timeout,
             )
             logging.info(f"Command output for '{item}':\n{result.stdout}")
+        except subprocess.TimeoutExpired as e:
+            logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
+            if fail_fast:
+                sys.exit(1)
         except subprocess.CalledProcessError as e:
             logging.error(f"The command failed in '{item}':\n{e.stderr}")
+            if fail_fast:
+                sys.exit(1)
 
 def parse_arguments() -> argparse.Namespace:
     """
@@ -232,6 +247,17 @@ def parse_arguments() -> argparse.Namespace:
         action='store_true',
         help='Hide progress bars and status messages.'
     )
+    options_group.add_argument(
+        '--fail-fast',
+        action='store_true',
+        default=None,
+        help='Stop execution immediately if any command fails.'
+    )
+    options_group.add_argument(
+        '--timeout',
+        type=float,
+        help='The maximum execution time in seconds for the command in each folder.'
+    )
 
     return parser.parse_args()
 
@@ -275,6 +301,10 @@ def main() -> None:
     command_to_run = args.command_to_run or config.get('command_to_run', '')
     excluded = args.excluded_folders if args.excluded_folders is not None else config.get('excluded_folders', [])
 
+    # Prioritize CLI values over config file values
+    fail_fast = args.fail_fast if args.fail_fast is not None else config.get('fail_fast', False)
+    timeout = args.timeout if args.timeout is not None else config.get('timeout', None)
+
     # Validate that required options are present
     errors = []
     if not main_folder:
@@ -293,6 +323,8 @@ def main() -> None:
         excluded,
         dry_run=args.dry_run,
         quiet=args.quiet,
+        fail_fast=fail_fast,
+        timeout=timeout,
     )
 
 if __name__ == "__main__":

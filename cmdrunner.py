@@ -1,6 +1,8 @@
 import os
 import subprocess
 import shlex
+import csv
+import json
 try:
     import yaml
     _YAML_AVAILABLE = True
@@ -126,6 +128,8 @@ def run_command_in_folders(
     quiet: bool = False,
     fail_fast: bool = False,
     timeout: Optional[float] = None,
+    output_file: Optional[str] = None,
+    output_format: Optional[str] = None,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -144,6 +148,8 @@ def run_command_in_folders(
 
     iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
 
+    report_data = []
+
     # Iterate through each item in the main folder
     for item in iterator:
         item_path = os.path.join(main_folder, item)
@@ -151,6 +157,14 @@ def run_command_in_folders(
 
         if dry_run:
             logging.warning(f"Dry run: would run command '{current_command}' in '{item}'")
+            report_data.append({
+                "folder": item,
+                "command": current_command,
+                "status": "dry-run",
+                "return_code": 0,
+                "stdout": "",
+                "stderr": "",
+            })
             continue
 
         logging.info(f"Running command in: {item}")
@@ -168,14 +182,80 @@ def run_command_in_folders(
                 timeout=timeout,
             )
             logging.info(f"Command output for '{item}':\n{result.stdout}")
+            report_data.append({
+                "folder": item,
+                "command": current_command,
+                "status": "success",
+                "return_code": 0,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            })
         except subprocess.TimeoutExpired as e:
             logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
+            report_data.append({
+                "folder": item,
+                "command": current_command,
+                "status": "timeout",
+                "return_code": -1,
+                "stdout": e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
+                "stderr": e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or ""),
+            })
             if fail_fast:
                 sys.exit(1)
         except subprocess.CalledProcessError as e:
             logging.error(f"The command failed in '{item}':\n{e.stderr}")
+            report_data.append({
+                "folder": item,
+                "command": current_command,
+                "status": "failed",
+                "return_code": e.returncode,
+                "stdout": e.stdout or "",
+                "stderr": e.stderr or "",
+            })
             if fail_fast:
                 sys.exit(1)
+
+    if output_file:
+        # Determine the format
+        fmt = output_format
+        if not fmt:
+            ext = os.path.splitext(output_file)[1].lower().lstrip('.')
+            if ext in ['json', 'csv', 'txt']:
+                fmt = ext
+            else:
+                fmt = 'txt'
+
+        try:
+            with open(output_file, 'w', encoding='utf-8', newline='') as f:
+                if fmt == 'json':
+                    json.dump(report_data, f, indent=2)
+                elif fmt == 'csv':
+                    writer = csv.DictWriter(f, fieldnames=["folder", "command", "status", "return_code", "stdout", "stderr"])
+                    writer.writeheader()
+                    for row in report_data:
+                        writer.writerow(row)
+                else:  # txt
+                    for row in report_data:
+                        f.write(f"Folder: {row['folder']}\n")
+                        f.write(f"Command: {row['command']}\n")
+                        f.write(f"Status: {row['status']}\n")
+                        f.write(f"Return Code: {row['return_code']}\n")
+                        if row['stdout'].strip():
+                            f.write("Stdout:\n")
+                            f.write(row['stdout'])
+                            if not row['stdout'].endswith('\n'):
+                                f.write('\n')
+                        if row['stderr'].strip():
+                            f.write("Stderr:\n")
+                            f.write(row['stderr'])
+                            if not row['stderr'].endswith('\n'):
+                                f.write('\n')
+                        f.write("=" * 40 + "\n")
+            logging.info(f"Execution report saved to '{output_file}' in {fmt} format.")
+        except Exception as e:
+            logging.error(f"Failed to write report to '{output_file}': {e}")
+            sys.exit(1)
+>>>>>>> pr-865
 
 def parse_arguments() -> argparse.Namespace:
     """
@@ -259,6 +339,19 @@ def parse_arguments() -> argparse.Namespace:
         help='The maximum execution time in seconds for the command in each folder.'
     )
 
+    # Output Options Group
+    output_group = parser.add_argument_group(f"{BLUE}OUTPUT OPTIONS{RESET}")
+    output_group.add_argument(
+        '-o', '--output',
+        type=str,
+        help='Where to save the execution report. If not provided, no report is saved.'
+    )
+    output_group.add_argument(
+        '-f', '--format',
+        choices=['json', 'csv', 'txt'],
+        help='Choose the format for the output report (default: txt).'
+    )
+
     return parser.parse_args()
 
 def main() -> None:
@@ -325,6 +418,8 @@ def main() -> None:
         quiet=args.quiet,
         fail_fast=fail_fast,
         timeout=timeout,
+        output_file=args.output,
+        output_format=args.format,
     )
 
 if __name__ == "__main__":

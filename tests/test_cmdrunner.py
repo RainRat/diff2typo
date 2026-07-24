@@ -2,6 +2,8 @@ import sys
 import logging
 import os
 import importlib
+import json
+import csv
 from pathlib import Path
 from unittest.mock import patch
 
@@ -537,6 +539,222 @@ def test_cli_missing_options(monkeypatch):
     with pytest.raises(SystemExit) as excinfo:
         cmdrunner.main()
     assert excinfo.value.code == 1
+
+
+def test_report_generation_json(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+    (base_dir / 'proj2').mkdir()
+
+    output_file = tmp_path / 'report.json'
+
+    # Run command and save json report
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo hello-{}",
+        output_file=str(output_file),
+        output_format='json'
+    )
+
+    assert output_file.exists()
+    with open(output_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    assert len(data) == 2
+    assert data[0]['folder'] == 'proj1'
+    assert data[0]['status'] == 'success'
+    assert data[0]['return_code'] == 0
+    assert "hello-proj1" in data[0]['stdout']
+
+
+def test_report_generation_csv(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.csv'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo hello",
+        output_file=str(output_file),
+        output_format='csv'
+    )
+
+    assert output_file.exists()
+    with open(output_file, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+    assert len(rows) == 1
+    assert rows[0]['folder'] == 'proj1'
+    assert rows[0]['status'] == 'success'
+    assert "hello" in rows[0]['stdout']
+
+
+def test_report_generation_txt_and_auto_format(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.txt'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "python3 -c 'import sys; sys.stdout.write(\"hello-txt\")'",
+        output_file=str(output_file)
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+    assert "Folder: proj1" in content
+    assert "Status: success" in content
+    assert "Stdout:" in content
+    assert "hello-txt" in content
+
+
+def test_report_generation_dry_run(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.json'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo hello",
+        dry_run=True,
+        output_file=str(output_file),
+        output_format='json'
+    )
+
+    assert output_file.exists()
+    with open(output_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    assert len(data) == 1
+    assert data[0]['folder'] == 'proj1'
+    assert data[0]['status'] == 'dry-run'
+    assert data[0]['stdout'] == ""
+
+
+def test_report_generation_failed(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.json'
+
+    # Run command that will fail (exit 1)
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "python3 -c 'import sys; sys.exit(12)'",
+        output_file=str(output_file),
+        output_format='json'
+    )
+
+    assert output_file.exists()
+    with open(output_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    assert len(data) == 1
+    assert data[0]['folder'] == 'proj1'
+    assert data[0]['status'] == 'failed'
+    assert data[0]['return_code'] == 12
+
+
+def test_report_write_exception(tmp_path, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    # Invalid path that cannot be written to
+    invalid_output = tmp_path / 'nonexistent_dir' / 'report.json'
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.run_command_in_folders(
+            str(base_dir),
+            "echo hello",
+            output_file=str(invalid_output)
+        )
+
+    assert excinfo.value.code == 1
+    assert any("Failed to write report" in message for message in caplog.messages)
+
+
+def test_report_auto_format_fallback(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.unsupported'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo fallback-test",
+        output_file=str(output_file)
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+    # Should fall back to txt format
+    assert "Folder: proj1" in content
+    assert "fallback-test" in content
+
+
+def test_report_generation_with_stderr(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.txt'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "python3 -c 'import sys; sys.stderr.write(\"error output with no trailing newline\")'",
+        output_file=str(output_file),
+        output_format='txt'
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+    assert "Folder: proj1" in content
+    assert "Stderr:" in content
+    assert "error output with no trailing newline" in content
+
+
+def test_main_with_output_integration(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.json'
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'cmdrunner.py',
+            '-m',
+            str(base_dir),
+            '-c',
+            'echo integration-ok',
+            '-o',
+            str(output_file),
+            '-f',
+            'json'
+        ]
+    )
+
+    cmdrunner.main()
+
+    assert output_file.exists()
+    with open(output_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    assert len(data) == 1
+    assert data[0]['folder'] == 'proj1'
+    assert "integration-ok" in data[0]['stdout']
 
     monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-m', '/tmp'])
     with pytest.raises(SystemExit) as excinfo:

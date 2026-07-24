@@ -26,7 +26,7 @@ python cmdrunner.py --main-folder /home/user/projects --command-to-run "git stat
 
 ## Configuration
 
-The tool uses a YAML file to know where to look and what to do.
+The tool uses a YAML file to know where to look and what to do. Both `main_folder` and the legacy key `base_directory` are fully supported to specify the folder to scan.
 
 ### Example Configuration (`config.yaml`)
 
@@ -48,6 +48,7 @@ excluded_folders:
 
 - `CONFIG_PATH`: (Optional) The path to your YAML configuration file.
 - `-m`, `--main-folder`: The main folder containing your projects. Overrides config file if provided.
+- `-b`, `--base-directory`: Legacy alias for the main folder containing your projects. Overrides config file if provided.
 - `-c`, `--command-to-run`: The command to run in each folder. Overrides config file if provided.
 - `-e`, `--excluded-folders`: A space-separated list of folders to skip. Overrides config file if provided.
 - `--dry-run`: Shows which folders would be processed and which command would run without actually doing it. Use this to test your setup safely.

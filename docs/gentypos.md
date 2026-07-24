@@ -32,17 +32,17 @@ python gentypos.py --input words.txt --output typos.txt
 
 | Argument | Default | Description |
 | :--- | :--- | :--- |
-| `WORDS` | None | One or more words to generate typos for. |
+| `WORDS` | None | One or more words to generate typos for. If provided, the tool ignores the input file in your configuration. |
 | `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
-| `--output`, `-o` | the screen | Save results to this file. Use `-` to print to the screen. |
-| `--format`, `-f` | `arrow` | Choose an output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
-| `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, or YAML). |
+| `--output`, `-o` | None | Save results to this file. Use `-` to print to the screen. |
+| `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` (typo = "correction"), or `list` (typo). By default, it is automatically detected from the output file extension. |
+| `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, or YAML). Useful for loading your personal typo history from `typostats.py`. |
 | `--input`, `-i` | None | The path to an input file containing words to process (one per line). |
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
 | `--min-length`, `-m` | None | Ignore words shorter than this length. |
 | `--max-length` | None | Ignore words longer than this length. |
 | `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |
-| `--no-filter` | Off | Do not check typos against the large dictionary. |
+| `--no-filter` | Off | Do not check typos against the large dictionary (makes generation faster). |
 | `--verbose`, `-v` | Off | Show more detailed log messages. |
 | `--quiet`, `-q` | Off | Hide progress bars and status messages. |
 

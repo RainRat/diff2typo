@@ -225,33 +225,6 @@ def filter_to_letters(text: str) -> str:
     return re.sub("[^a-z]", "", text.lower())
 
 
-def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
-    """
-    Detect the output format based on the file extension.
-    Returns the default if no match is found or no extension is present.
-    """
-    if not path or path == '-':
-        return default
-
-    ext = os.path.splitext(path)[1].lower().lstrip('.')
-    if not ext:
-        return default
-
-    # Map common extensions to tool-supported formats
-    mapping = {
-        'txt': 'arrow',
-        'csv': 'csv',
-        'table': 'table',
-        'toml': 'table',
-        'list': 'list',
-        'arrow': 'arrow',
-    }
-
-    detected = mapping.get(ext)
-    if detected in allowed:
-        return detected
-
-    return default
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -912,8 +885,22 @@ def main():
 
     # Resolve output format if not provided
     if args.output_format is None:
+        default_fmt = 'arrow'
         allowed_formats = ['arrow', 'csv', 'table', 'list']
-        args.output_format = _detect_format_from_extension(args.output_file, allowed_formats, 'arrow')
+        if args.output_file and args.output_file != '-':
+            ext = os.path.splitext(args.output_file)[1].lower().lstrip('.')
+            mapping = {
+                'txt': 'arrow',
+                'csv': 'csv',
+                'table': 'table',
+                'toml': 'table',
+                'list': 'list',
+                'arrow': 'arrow',
+            }
+            detected = mapping.get(ext)
+            args.output_format = detected if detected in allowed_formats else default_fmt
+        else:
+            args.output_format = default_fmt
 
     log_level = logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean

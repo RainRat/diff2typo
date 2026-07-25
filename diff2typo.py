@@ -777,7 +777,7 @@ def main():
         help="One or more input Git diff files or patterns. Use '-' to read from standard input.",
     )
     io_group.add_argument(
-        '--git',
+        '-g', '--git',
         nargs='?',
         const='',
         help="Fetch diff directly from Git. Optional arguments are passed to 'git diff'.",
@@ -820,7 +820,7 @@ def main():
     # Analysis Options
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
     analysis_group.add_argument(
-        '--mode',
+        '-M', '--mode',
         type=str,
         choices=['typos', 'corrections', 'both', 'audit'],
         default='typos',
@@ -844,14 +844,14 @@ def main():
     parser.add_argument('--min_length', type=int, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
-        '--max-dist',
+        '-D', '--max-dist',
         type=int,
         default=None,
         help='Only include typos with a number of character changes up to this value (default: no limit).',
     )
 
     analysis_group.add_argument(
-        '--min-count',
+        '-c', '--min-count',
         type=int,
         default=1,
         help='Minimum occurrences of a typo in the diff to include it in the output (default: 1).',

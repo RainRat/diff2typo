@@ -24,13 +24,13 @@ git diff | python diff2typo.py [OPTIONS]
 | Argument | Default | Description |
 | :--- | :--- | :--- |
 | `FILE` | standard input | One or more input Git diff files. Use `-` to read from standard input. |
-| `--git` | None | Fetch diff directly from Git. Optional arguments are passed to `git diff` (for example, `--git "HEAD~3"`). |
+| `--git`, `-g` | None | Fetch diff directly from Git. Optional arguments are passed to `git diff` (for example, `-g "HEAD~3"`). |
 | `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
-| `--mode` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
+| `--mode`, `-M` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
 | `--min-length`, `-m` | `2` | Ignore words shorter than this length. |
-| `--max-dist` | None | Only include typos with a number of character changes up to this value. Useful for filtering out intentional word changes. |
-| `--min-count` | `1` | Minimum occurrences of a typo in the diff to include it in the output. |
+| `--max-dist`, `-D` | None | Only include typos with a number of character changes up to this value. Useful for filtering out intentional word changes. |
+| `--min-count`, `-c` | `1` | Minimum occurrences of a typo in the diff to include it in the output. |
 | `--sort` | `alpha` | How to sort the results: `count` (most frequent first) or `alpha` (alphabetical). |
 | `--limit`, `-L` | None | Limit the number of typos in the output. |
 | `--dictionary`, `-d` | `words.csv` | A file containing the large dictionary of correct words. The tool uses this to make sure the "fix" is a real word. |

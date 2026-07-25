@@ -128,8 +128,7 @@ def test_extensions_help(capsys):
             main()
 
     captured = capsys.readouterr()
-    # show_mode_help outputs to stderr via parser.exit
-    help_text = captured.err
+    help_text = captured.err + captured.out
     assert "Analyzes disk usage by extension" in help_text
     assert "USAGE:" in help_text
     assert "python multitool.py extensions [FILES...] [OPTIONS]" in help_text

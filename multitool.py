@@ -8347,6 +8347,7 @@ def _build_parser() -> argparse.ArgumentParser:
     mode_summary = get_mode_summary_text()
 
     parser = argparse.ArgumentParser(
+        prog="multitool.py",
         description="A multipurpose tool for cleaning, getting, and analyzing text files.",
         epilog=dedent(
             f"""

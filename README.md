@@ -12,7 +12,7 @@ The **diff2typo Suite** is a set of tools to help you find and fix typos in your
 
 - **Python 3.10 or newer:** The suite uses recent Python features.
 - **Git:** Required to use `diff2typo.py` with your repository history.
-- **Dependencies:** The following Python packages are required and will be installed in step 2:
+- **Dependencies:** The following Python packages are required and will be installed in step 3:
   - `PyYAML`: Handles configuration files.
   - `pyahocorasick`: Performs fast string matching.
   - `tqdm`: Displays progress bars for long tasks.

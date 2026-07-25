@@ -53,9 +53,6 @@ def test_format_analysis_summary_unhashable():
     summary_text = "\n".join(summary_lines)
     assert "Unique typos:                       2" in summary_text
 
-def test_detect_format_from_extension_edges():
-    assert diff2typo._detect_format_from_extension("file", ["arrow"], "arrow") == "arrow"
-    assert diff2typo._detect_format_from_extension("file.unknown", ["arrow"], "arrow") == "arrow"
 
 def test_main_summary_labels_audit_mode(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

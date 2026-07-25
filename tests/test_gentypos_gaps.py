@@ -139,3 +139,15 @@ def test_main_max_length_only(tmp_path, monkeypatch):
         assert config['word_length']['max_length'] == 10
         # min_length is set to 0 by default in CLI mode if not provided
         assert config['word_length']['min_length'] == 0
+
+
+def test_stdin_no_input_file_missing_dict(tmp_path, monkeypatch, capsys):
+    import io
+    config_file = tmp_path / "config_missing_dict.yaml"
+    config_file.write_text("dictionary_file: 'non_existent_dict.txt'\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["gentypos.py", "-c", str(config_file)])
+    monkeypatch.setattr(sys, "stdin", io.StringIO("pineapple\n"))
+    gentypos.main()
+    captured = capsys.readouterr()
+    assert len(captured.out) > 0
+    assert "-> pineapple" in captured.out

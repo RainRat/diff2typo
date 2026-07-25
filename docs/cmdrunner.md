@@ -24,6 +24,10 @@ python cmdrunner.py config.yaml
 python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status"
 ```
 
+**Automatic Fallback:**
+
+If you run the tool with no configuration file and do not specify the required arguments directly on the command line, it will automatically search for a default configuration file named `cmdrunner.yaml` in the current working directory. If it is found, the tool loads it automatically to simplify your workflow.
+
 ## Configuration
 
 The tool uses a YAML file to know where to look and what to do. Both `main_folder` and the legacy key `base_directory` are fully supported to specify the folder to scan.
@@ -52,7 +56,7 @@ timeout: 10.5
 
 ## Options
 
-- `CONFIG_PATH`: (Optional) The path to your YAML configuration file.
+- `CONFIG_PATH`: (Optional) The path to your YAML configuration file. If omitted and direct options are incomplete, the tool automatically falls back to loading `cmdrunner.yaml` from the current working directory if it exists.
 - `-m`, `--main-folder`: The main folder containing your projects. Overrides config file if provided.
 - `-b`, `--base-directory`: Legacy alias for the main folder containing your projects. Overrides config file if provided.
 - `-c`, `--command-to-run`: The command to run in each folder. Overrides config file if provided.

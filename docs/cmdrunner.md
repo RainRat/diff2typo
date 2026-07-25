@@ -48,6 +48,9 @@ fail_fast: false
 
 # (Optional) The maximum execution time in seconds for the command in each folder
 timeout: 10.5
+
+# (Optional) Only run the command in folders that contain this specific file or path
+if_exists: "package.json"
 ```
 
 ## Options
@@ -61,6 +64,7 @@ timeout: 10.5
 - `--quiet`: Hides status messages and progress bars.
 - `--fail-fast`: Stop execution immediately if any command fails or times out. Overrides config file if provided.
 - `--timeout`: The maximum execution time in seconds for the command in each folder. Overrides config file if provided.
+- `--if-exists`: Only run the command in folders that contain this specific file or path (e.g., `package.json` or `requirements.txt`). Overrides config file if provided.
 - `-o`, `--output`: Where to save the execution report. If not provided, no report is saved.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`). If not provided, it is automatically detected from the output file extension.
 
@@ -80,7 +84,7 @@ In this example, if the tool processes a folder named `my-web-app`, it will run 
 ## How it Works
 
 1. **Find Folders:** The tool looks inside your `main_folder` and finds every sub-folder.
-2. **Filter:** It removes any folders you listed in `excluded_folders`.
+2. **Filter:** It removes any folders you listed in `excluded_folders`, and filters remaining folders to only those containing the specified `--if-exists` file or path (if provided).
 3. **Execute:** It enters each remaining folder and runs your `command_to_run`.
 4. **Report:** It shows you the results of each command or any errors that occurred.
 
@@ -104,4 +108,9 @@ python cmdrunner.py my_setup.yaml --dry-run
 **Run a command across your projects quietly:**
 ```bash
 python cmdrunner.py config.yaml --quiet
+```
+
+**Only run commands in projects containing a `package.json` file:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm run build" --if-exists package.json
 ```

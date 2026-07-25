@@ -115,6 +115,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "timeout" in config and (isinstance(config["timeout"], bool) or not isinstance(config["timeout"], (int, float))):
         errors.append("'timeout' must be a number.")
 
+    if "if_exists" in config and not isinstance(config["if_exists"], str):
+        errors.append("'if_exists' must be a string.")
+
     if errors:
         raise ConfigError(" ".join(errors))
 
@@ -130,6 +133,7 @@ def run_command_in_folders(
     timeout: Optional[float] = None,
     output_file: Optional[str] = None,
     output_format: Optional[str] = None,
+    if_exists: Optional[str] = None,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -145,6 +149,12 @@ def run_command_in_folders(
         item for item in os.listdir(main_folder)
         if os.path.isdir(os.path.join(main_folder, item)) and item not in excluded_folders
     ])
+
+    if if_exists:
+        directories = [
+            item for item in directories
+            if os.path.exists(os.path.join(main_folder, item, if_exists))
+        ]
 
     iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
 
@@ -313,6 +323,11 @@ def parse_arguments() -> argparse.Namespace:
         nargs='+',
         help='Folders you want the tool to skip. Overrides config file if provided.'
     )
+    direct_group.add_argument(
+        '--if-exists',
+        type=str,
+        help='Only run the command in folders that contain this specific file or path (e.g., package.json).'
+    )
 
     # Execution Options Group
     options_group = parser.add_argument_group(f"{BLUE}EXECUTION OPTIONS{RESET}")
@@ -396,6 +411,7 @@ def main() -> None:
     # Prioritize CLI values over config file values
     fail_fast = args.fail_fast if args.fail_fast is not None else config.get('fail_fast', False)
     timeout = args.timeout if args.timeout is not None else config.get('timeout', None)
+    if_exists = args.if_exists or config.get('if_exists', None)
 
     # Validate that required options are present
     errors = []
@@ -419,6 +435,7 @@ def main() -> None:
         timeout=timeout,
         output_file=args.output,
         output_format=args.format,
+        if_exists=if_exists,
     )
 
 if __name__ == "__main__":

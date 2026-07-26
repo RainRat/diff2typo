@@ -1,8 +1,19 @@
-import pytest
+import sys
 import json
 import os
+import subprocess
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+import pytest
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+import multitool
 from multitool import unflatten_mode
+
+@pytest.fixture(autouse=True)
+def disable_tqdm(monkeypatch):
+    monkeypatch.setattr(multitool, "tqdm", lambda iterable=None, *_, **__: iterable if iterable is not None else MagicMock())
 
 def test_unflatten_mode_json(tmp_path):
     input_file = tmp_path / "input.txt"
@@ -49,9 +60,7 @@ def test_unflatten_mode_yaml(tmp_path):
 def test_unflatten_mode_toml(tmp_path):
     pytest.importorskip("toml")
     toml_input = tmp_path / "input.toml"
-    # _extract_pairs for TOML only yields top-level simple key-values if 'replacements' is not present
     toml_input.write_text("a = \"b\"\nkey = \"val\"\n")
-
     output_file = tmp_path / "output.toml"
 
     unflatten_mode(
@@ -147,22 +156,14 @@ def test_unflatten_mode_clean_and_filter(tmp_path):
         process_output=False,
         output_format='json',
         quiet=True,
-        clean_items=True # This will strip non-letters
+        clean_items=True
     )
 
     with open(output_file) as f:
         data = json.load(f)
-    # 'valid' is 5 letters.
-    # '123!@#' cleaned is empty string, which is < min_length 2.
-    # 'toolong' is 7 letters, > max_length 5.
     assert data == {"a": "valid"}
 
 def test_unflatten_mode_xml_numeric_keys_fixed(tmp_path):
-    """
-    This test verifies that numeric keys are handled by prefixing with underscore.
-    XML tags cannot start with a digit.
-    We use a non-continuous sequence so dict_to_lists doesn't turn it into a list.
-    """
     input_file = tmp_path / "input.txt"
     input_file.write_text("data.0 -> first\ndata.2 -> second\n")
     output_file = tmp_path / "output.xml"
@@ -185,11 +186,6 @@ def test_unflatten_mode_xml_numeric_keys_fixed(tmp_path):
     assert data.find("_2").text == "second"
 
 def test_unflatten_mode_xml_list_items(tmp_path):
-    """
-    Tests how lists are handled in XML.
-    dict_to_lists converts numeric key dicts to lists.
-    The current implementation of build_xml handles lists by using 'item' tags.
-    """
     input_file = tmp_path / "input.txt"
     input_file.write_text("items.0 -> first\nitems.1 -> second\n")
     output_file = tmp_path / "output.xml"
@@ -225,14 +221,13 @@ def test_unflatten_mode_exact_key_skip(tmp_path):
         max_length=100,
         process_output=False,
         key="user",
-        output_format='line', # Test line -> json fallback
+        output_format='line',
         quiet=True,
         clean_items=False
     )
 
     with open(output_file) as f:
         data = json.load(f)
-    # 'user -> Alice' is skipped because p == key
     assert data == {"name": "Bob"}
 
 def test_unflatten_mode_empty(tmp_path):
@@ -246,7 +241,7 @@ def test_unflatten_mode_empty(tmp_path):
         min_length=1,
         max_length=100,
         process_output=False,
-        output_format='unknown', # Test fallback
+        output_format='unknown',
         quiet=True,
         clean_items=False
     )
@@ -272,20 +267,15 @@ def test_unflatten_mode_toml_list(tmp_path):
         clean_items=False
     )
 
-    # Since it's a list, it should fallback to JSON for TOML output
     with open(output_file) as f:
         data = json.load(f)
     assert data == ["a", "b"]
 
 def test_unflatten_mode_yaml_no_pyyaml(tmp_path, monkeypatch):
-    import sys
-    from unittest.mock import patch
-
     input_file = tmp_path / "input.txt"
     input_file.write_text("a -> b\n")
     output_file = tmp_path / "output.yaml"
 
-    # Patching 'yaml' module inside multitool to raise ImportError when imported
     with patch("builtins.__import__", side_effect=lambda name, *args, **kwargs:
                (exec("raise ImportError") if name == 'yaml' else __import__(name, *args, **kwargs))):
         unflatten_mode(
@@ -299,7 +289,6 @@ def test_unflatten_mode_yaml_no_pyyaml(tmp_path, monkeypatch):
             clean_items=False
         )
 
-    # Should fallback to JSON
     content = output_file.read_text()
     data = json.loads(content)
     assert data == {"a": "b"}
@@ -324,7 +313,6 @@ def test_unflatten_mode_toml_no_toml(tmp_path, monkeypatch):
         clean_items=False
     )
 
-    # Should fallback to JSON
     with open(output_file) as f:
         data = json.load(f)
     assert data == {"a": "b"}
@@ -351,7 +339,6 @@ def test_unflatten_mode_toml_exception(tmp_path, monkeypatch):
         clean_items=False
     )
 
-    # Should fallback to JSON
     with open(output_file) as f:
         data = json.load(f)
     assert data == {"a": "b"}
@@ -380,3 +367,127 @@ def test_unflatten_mode_toml_alternate_available(tmp_path, monkeypatch):
     with open(output_file) as f:
         data = toml.load(f)
     assert data == {"a": "b"}
+
+def test_unflatten_filters_and_lengths(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("a.b -> short\na.c -> verylongvalue\n")
+    output_file = tmp_path / "output.json"
+
+    unflatten_mode([str(input_file)], str(output_file), min_length=10, max_length=100, process_output=True)
+    with open(output_file) as f:
+        data = json.load(f)
+    assert data == {"a": {"c": "verylongvalue"}}
+
+    unflatten_mode([str(input_file)], str(output_file), min_length=1, max_length=5, process_output=True)
+    with open(output_file) as f:
+        data = json.load(f)
+    assert data == {"a": {"b": "short"}}
+
+def test_unflatten_clean_items_disabled(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("a.b -> Value With Spaces 123\n")
+    output_file = tmp_path / "output.json"
+
+    unflatten_mode([str(input_file)], str(output_file), min_length=1, max_length=100, process_output=True, clean_items=False)
+    with open(output_file) as f:
+        data = json.load(f)
+    assert data == {"a": {"b": "Value With Spaces 123"}}
+
+def test_unflatten_key_edge_case(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("root -> somevalue\nroot.sub -> other\nother.data -> 123\n")
+    output_file = tmp_path / "output.json"
+
+    unflatten_mode([str(input_file)], str(output_file), min_length=1, max_length=100, process_output=True, key="root")
+    with open(output_file) as f:
+        data = json.load(f)
+    assert data == {"sub": "other"}
+
+def test_unflatten_format_line_resolves_to_json(tmp_path):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("a -> b\n")
+    output_file = tmp_path / "output.txt"
+
+    unflatten_mode([str(input_file)], str(output_file), min_length=1, max_length=100, process_output=True, output_format='line')
+    with open(output_file) as f:
+        data = json.load(f)
+    assert data == {"a": "b"}
+
+def test_unflatten_xml_input(tmp_path):
+    input_file = tmp_path / "input.xml"
+    input_file.write_text("""
+<root>
+  <pair>
+    <left>user.name</left>
+    <right>John</right>
+  </pair>
+  <pair>
+    <typo>user.age</typo>
+    <correction>30</correction>
+  </pair>
+  <pair>
+    <typo>user.city</typo>
+    <correct>New York</correct>
+  </pair>
+</root>
+""")
+    output_file = tmp_path / "output.json"
+    unflatten_mode([str(input_file)], str(output_file), min_length=1, max_length=100, process_output=True, clean_items=False)
+    with open(output_file) as f:
+        data = json.load(f)
+    assert data == {"user": {"name": "John", "age": "30", "city": "New York"}}
+
+def test_unflatten_xml_input_malformed(tmp_path):
+    input_file = tmp_path / "input.xml"
+    input_file.write_text("<root><pair><left>...</root>")
+    output_file = tmp_path / "output.json"
+    unflatten_mode([str(input_file)], str(output_file), min_length=1, max_length=100, process_output=True)
+    with open(output_file) as f:
+        data = json.load(f)
+    assert data == {}
+
+def test_unflatten_cli_subprocess_integration(tmp_path):
+    input_file = tmp_path / "test_input.txt"
+    input_file.write_text("user.name -> John\nuser.age -> 30\n")
+
+    result = subprocess.run(
+        ["python3", "multitool.py", "unflatten", str(input_file), "--output-format", "json", "--raw"],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    data = json.loads(result.stdout)
+    assert data == {"user": {"name": "John", "age": "30"}}
+
+    input_file_list = tmp_path / "test_input_list.txt"
+    input_file_list.write_text("items.0 -> apple\nitems.1 -> banana\n")
+    result_list = subprocess.run(
+        ["python3", "multitool.py", "unflatten", str(input_file_list), "--output-format", "json", "--raw"],
+        capture_output=True,
+        text=True
+    )
+    assert result_list.returncode == 0
+    data_list = json.loads(result_list.stdout)
+    assert data_list == {"items": ["apple", "banana"]}
+
+    input_file_key = tmp_path / "test_input_key.txt"
+    input_file_key.write_text("users.0.name -> Alice\nusers.1.name -> Bob\nother.data -> 123\n")
+    result_key = subprocess.run(
+        ["python3", "multitool.py", "unflatten", str(input_file_key), "-k", "users", "--output-format", "json", "--raw"],
+        capture_output=True,
+        text=True
+    )
+    assert result_key.returncode == 0
+    data_key = json.loads(result_key.stdout)
+    assert data_key == [{"name": "Alice"}, {"name": "Bob"}]
+
+    input_file_ambig = tmp_path / "test_input_ambig.txt"
+    input_file_ambig.write_text("root.0 -> a\nroot.01 -> b\n")
+    result_ambig = subprocess.run(
+        ["python3", "multitool.py", "unflatten", str(input_file_ambig), "--output-format", "json", "--raw"],
+        capture_output=True,
+        text=True
+    )
+    assert result_ambig.returncode == 0
+    data_ambig = json.loads(result_ambig.stdout)
+    assert data_ambig == {"root": {"0": "a", "01": "b"}}

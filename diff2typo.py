@@ -34,6 +34,7 @@ import argparse
 from collections import Counter
 import contextlib
 import csv
+import fnmatch
 import glob
 import logging
 import os
@@ -403,7 +404,21 @@ def process_diff_block(
     return _compare_word_lists(before_words, after_words, min_length, max_dist)
 
 
-def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = None) -> List[str]:
+def _is_file_excluded(filepath: str, patterns: Optional[List[str]]) -> bool:
+    if not patterns or not filepath:
+        return False
+    for pattern in patterns:
+        if fnmatch.fnmatch(filepath, pattern) or fnmatch.fnmatch(os.path.basename(filepath), pattern):
+            return True
+    return False
+
+
+def find_typos(
+    diff_text: str,
+    min_length: int = 2,
+    max_dist: Optional[int] = None,
+    exclude_patterns: Optional[List[str]] = None,
+) -> List[str]:
     """
     Parses the diff text to find typo corrections.
 
@@ -411,6 +426,7 @@ def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = No
         diff_text (str): The Git diff text.
         min_length (int): Minimum length of differing substrings to consider as typos.
         max_dist (int, optional): Maximum Levenshtein distance for typos.
+        exclude_patterns (list, optional): List of file/path patterns to exclude.
 
     Returns:
         list: A list of typo candidates in the format "before -> after".
@@ -419,24 +435,69 @@ def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = No
     lines = diff_text.split("\n")
     removals: List[str] = []
     additions: List[str] = []
+    current_file: Optional[str] = None
+    skip_current_file = False
 
     for line in lines:
+        if line.startswith('diff --git '):
+            if not skip_current_file:
+                typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+            removals = []
+            additions = []
+
+            current_file = None
+            skip_current_file = False
+            try:
+                parts = shlex.split(line)
+            except ValueError:
+                parts = line.split(' ')
+            if len(parts) >= 4:
+                p = parts[2]
+                if p.startswith('a/') or p.startswith('b/'):
+                    current_file = p[2:]
+                else:
+                    current_file = p
+                if current_file.startswith('"') and current_file.endswith('"'):
+                    current_file = current_file[1:-1]
+            if current_file and _is_file_excluded(current_file, exclude_patterns):
+                skip_current_file = True
+            continue
+
         # Handle file renames and copies
         if line.startswith('rename from ') or line.startswith('copy from '):
             path = line.split(' from ', 1)[1].strip()
+            if path.startswith('"') and path.endswith('"'):
+                path = path[1:-1]
             removals.append(path)
             continue
         if line.startswith('rename to ') or line.startswith('copy to '):
             path = line.split(' to ', 1)[1].strip()
+            if path.startswith('"') and path.endswith('"'):
+                path = path[1:-1]
             additions.append(path)
-            # Renames/copies are typically paired immediately in the diff header
-            typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+            if not (skip_current_file or _is_file_excluded(path, exclude_patterns)):
+                typos.extend(process_diff_block(removals, additions, min_length, max_dist))
             removals = []
             additions = []
             continue
 
         if line.startswith('---') or line.startswith('+++'):
+            p_match = re.match(r'^(?:---|\+\+\+)\s+[ab]/(.*)$', line)
+            if p_match:
+                path = p_match.group(1).strip()
+                if path.startswith('"') and path.endswith('"'):
+                    path = path[1:-1]
+                current_file = path
+                if not skip_current_file:
+                    typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+                removals = []
+                additions = []
+                skip_current_file = _is_file_excluded(current_file, exclude_patterns)
             continue
+
+        if skip_current_file:
+            continue
+
         if line.startswith('-'):
             removals.append(line[1:].strip())
         elif line.startswith('+'):
@@ -446,7 +507,8 @@ def find_typos(diff_text: str, min_length: int = 2, max_dist: Optional[int] = No
             removals = []
             additions = []
 
-    typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+    if not skip_current_file:
+        typos.extend(process_diff_block(removals, additions, min_length, max_dist))
 
     return typos
 
@@ -793,6 +855,12 @@ def main():
     # Analysis Options
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
     analysis_group.add_argument(
+        '-e', '--exclude',
+        nargs='+',
+        default=None,
+        help="One or more file patterns (e.g., '*.json', 'tests/*') to exclude from typo scanning.",
+    )
+    analysis_group.add_argument(
         '-M', '--mode',
         type=str,
         choices=['typos', 'corrections', 'both', 'audit'],
@@ -960,7 +1028,12 @@ def main():
 
     # Find candidate typo corrections from the diff.
     logging.info("Finding typo corrections from the diff...")
-    candidates_raw = find_typos(diff_text, min_length=args.min_length, max_dist=args.max_dist)
+    candidates_raw = find_typos(
+        diff_text,
+        min_length=args.min_length,
+        max_dist=args.max_dist,
+        exclude_patterns=args.exclude,
+    )
     counts = Counter(candidates_raw)
 
     unique_candidates = sorted(counts.keys())

@@ -937,8 +937,7 @@ def generate_report(
                     marker_text = "[2:1]"
 
             if marker_text == "     ":
-                # If no specific classification, use neutral blue for the bar
-                marker_color_for_bar = c_blue
+                marker_color_for_bar = c_cyan
             else:
                 marker_color_for_bar = marker_color
 

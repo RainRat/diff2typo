@@ -473,6 +473,14 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     return lines
 
 
+def _get_typo_correction(item: Any) -> Tuple[str | None, str | None]:
+    if isinstance(item, dict) and 'typo' in item:
+        correct = item.get('correct', item.get('correction'))
+        if correct is not None:
+            return str(item['typo']), str(correct)
+    return None, None
+
+
 def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[Tuple[str, str]]:
     """Yield (left, right) pairs from input files, supporting multiple formats."""
     for input_file in input_files:
@@ -485,19 +493,17 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                     if isinstance(data, dict):
                         if 'replacements' in data and isinstance(data['replacements'], list):
                             for item in data['replacements']:
-                                if isinstance(item, dict) and 'typo' in item:
-                                    correct = item.get('correct', item.get('correction'))
-                                    if correct is not None:
-                                        yield str(item['typo']), str(correct)
+                                typo, correct = _get_typo_correction(item)
+                                if typo is not None:
+                                    yield typo, correct
                         else:
                             for k, v in data.items():
                                 yield str(k), str(v)
                     elif isinstance(data, list):
                         for item in data:
-                            if isinstance(item, dict) and 'typo' in item:
-                                correct = item.get('correct', item.get('correction'))
-                                if correct is not None:
-                                    yield str(item['typo']), str(correct)
+                            typo, correct = _get_typo_correction(item)
+                            if typo is not None:
+                                yield typo, correct
                 except Exception as e:
                     logging.error(f"Failed to parse JSON in '{input_file}': {e}")
             continue
@@ -514,12 +520,11 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                             yield str(k), str(v)
                     elif isinstance(doc, list):
                         for item in doc:
+                            typo, correct = _get_typo_correction(item)
+                            if typo is not None:
+                                yield typo, correct
+                                continue
                             if isinstance(item, dict):
-                                if 'typo' in item:
-                                    correct = item.get('correct', item.get('correction'))
-                                    if correct is not None:
-                                        yield str(item['typo']), str(correct)
-                                        continue
                                 for k, v in item.items():
                                     yield str(k), str(v)
             except Exception as e:

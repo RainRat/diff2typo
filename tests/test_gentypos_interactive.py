@@ -44,3 +44,21 @@ def test_gentypos_non_interactive_reads_stdin_instead_of_default_config(capsys, 
     assert len(stdout_lines) > 0
     # verify that typos like "ehllo" (transposition) or "gello" (adjacent replacement of 'h') are generated
     assert "ehllo" in stdout_lines or "gello" in stdout_lines
+
+
+def test_gentypos_interactive_missing_input_exits_gracefully(caplog, monkeypatch):
+    # Ensure config loading returns empty or references a non-existent file
+    monkeypatch.setattr(gentypos, "parse_yaml_config", lambda path: {})
+    # Mock exists to return False for configuration files or input files
+    monkeypatch.setattr(os.path, "exists", lambda path: False)
+
+    test_args = ["gentypos.py"]
+
+    with patch("sys.stdin.isatty", return_value=True), \
+         patch("sys.argv", test_args), \
+         pytest.raises(SystemExit) as excinfo:
+        gentypos.main()
+
+    assert excinfo.value.code == 1
+    # Check that our user-friendly error is in logs
+    assert any("No input words or valid input file provided" in record.message for record in caplog.records)

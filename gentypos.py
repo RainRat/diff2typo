@@ -1043,6 +1043,19 @@ def main() -> None:
         if args.max_length is not None:
             config['word_length']['max_length'] = args.max_length
 
+    if sys.stdin.isatty() and not cli_words:
+        resolved_input = config.get('input_file')
+        if not resolved_input or (resolved_input != '-' and not os.path.exists(resolved_input)):
+            logging.error(
+                "No input words or valid input file provided.\n"
+                "Please specify words as arguments, pipe them to stdin, or provide a valid input file.\n\n"
+                "Examples:\n"
+                "  python gentypos.py \"hello\" \"world\"\n"
+                "  echo \"hello\" | python gentypos.py\n"
+                "  python gentypos.py --input words.txt"
+            )
+            sys.exit(1)
+
     validate_config(config, cli_mode=is_cli_mode or (not is_cli_mode and not sys.stdin.isatty()), config_defaults=run_defaults)
 
     settings = _extract_config_settings(config, quiet=args.quiet)

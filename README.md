@@ -92,6 +92,25 @@ Use `multitool.py` to fix the found typos in your current project files. The `--
 python multitool.py scrub . --mapping my_typos.txt --in-place --diff
 ```
 
+## 🧪 Running Tests
+
+This project has a full suite of tests to make sure everything works correctly.
+
+To run all the tests in the repository, run this command:
+```bash
+pytest
+```
+
+To run a specific test file, provide the path to that file:
+```bash
+pytest tests/test_typostats.py
+```
+
+To see more details about each test while it runs, use the verbose flag:
+```bash
+pytest -v
+```
+
 ## 📄 License
 
 This project is available under the MIT License and the Apache 2.0 License.

@@ -128,34 +128,6 @@ def _merge_defaults(
                 logging.debug(f"Applying default for '{dotted_path}': {default_value}")
             config.setdefault(key, default_value)
 
-def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
-    """
-    Detect the output format based on the file extension.
-    Returns the default if no match is found or no extension is present.
-    """
-    if not path or path == '-':
-        return default
-
-    ext = os.path.splitext(path)[1].lower().lstrip('.')
-    if not ext:
-        return default
-
-    # Map common extensions to tool-supported formats
-    mapping = {
-        'txt': 'arrow',
-        'csv': 'csv',
-        'table': 'table',
-        'toml': 'table',
-        'list': 'list',
-        'arrow': 'arrow',
-    }
-
-    detected = mapping.get(ext)
-    if detected in allowed:
-        return detected
-
-    return default
-
 
 def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     """
@@ -1024,8 +996,26 @@ def main() -> None:
     if args.format:
         config['output_format'] = args.format
     elif config.get('output_format') is None:
+        default_fmt = 'arrow'
         allowed_formats = ['arrow', 'csv', 'table', 'list']
-        config['output_format'] = _detect_format_from_extension(config.get('output_file'), allowed_formats, 'arrow')
+        output_file = config.get('output_file')
+        if output_file and output_file != '-':
+            ext = os.path.splitext(output_file)[1].lower().lstrip('.')
+            if ext:
+                mapping = {
+                    'txt': 'arrow',
+                    'csv': 'csv',
+                    'table': 'table',
+                    'toml': 'table',
+                    'list': 'list',
+                    'arrow': 'arrow',
+                }
+                detected = mapping.get(ext)
+                config['output_format'] = detected if detected in allowed_formats else default_fmt
+            else:
+                config['output_format'] = default_fmt
+        else:
+            config['output_format'] = default_fmt
     if args.substitutions:
         config['substitutions_file'] = args.substitutions
     if args.no_filter:

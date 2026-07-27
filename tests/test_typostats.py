@@ -788,3 +788,13 @@ def test_main_stdin_path_explicit(capsys):
         typostats.main()
         out = capsys.readouterr().out
         assert "Total word pairs analyzed:" in out
+
+
+def test_generate_report_neutral_bar_color(capsys):
+    import os
+    counts = {("a", "b"): 1}
+    with patch('sys.stdout.isatty', return_value=True), \
+         patch.dict(os.environ, {}, clear=True):
+        typostats.generate_report(counts, output_format='arrow', quiet=False)
+        out = capsys.readouterr().out
+        assert "\033[1;36m" in out

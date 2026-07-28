@@ -113,6 +113,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "if_exists" in config and not isinstance(config["if_exists"], str):
         errors.append("'if_exists' must be a string.")
 
+    if "if_not_exists" in config and not isinstance(config["if_not_exists"], str):
+        errors.append("'if_not_exists' must be a string.")
+
     if errors:
         raise ConfigError(" ".join(errors))
 
@@ -129,6 +132,7 @@ def run_command_in_folders(
     output_file: Optional[str] = None,
     output_format: Optional[str] = None,
     if_exists: Optional[str] = None,
+    if_not_exists: Optional[str] = None,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -149,6 +153,12 @@ def run_command_in_folders(
         directories = [
             item for item in directories
             if os.path.exists(os.path.join(main_folder, item, if_exists))
+        ]
+
+    if if_not_exists:
+        directories = [
+            item for item in directories
+            if not os.path.exists(os.path.join(main_folder, item, if_not_exists))
         ]
 
     iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
@@ -323,6 +333,11 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         help='Only run the command in folders that contain this specific file or path (e.g., package.json).'
     )
+    direct_group.add_argument(
+        '--if-not-exists',
+        type=str,
+        help='Only run the command in folders that do not contain this specific file or path (e.g., package.json).'
+    )
 
     # Execution Options Group
     options_group = parser.add_argument_group(f"{BLUE}EXECUTION OPTIONS{RESET}")
@@ -407,6 +422,7 @@ def main() -> None:
     fail_fast = args.fail_fast if args.fail_fast is not None else config.get('fail_fast', False)
     timeout = args.timeout if args.timeout is not None else config.get('timeout', None)
     if_exists = args.if_exists or config.get('if_exists', None)
+    if_not_exists = args.if_not_exists or config.get('if_not_exists', None)
 
     # Validate that required options are present
     errors = []
@@ -431,6 +447,7 @@ def main() -> None:
         output_file=args.output,
         output_format=args.format,
         if_exists=if_exists,
+        if_not_exists=if_not_exists,
     )
 
 if __name__ == "__main__":

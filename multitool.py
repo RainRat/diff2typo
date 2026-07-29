@@ -10246,6 +10246,38 @@ def main() -> None:
         logging.error("Search mode requires a search query (provide QUERY positionally or use --query).")
         sys.exit(1)
 
+    # Default to scanning current directory recursively if standard input is an interactive terminal and no input files are specified
+    stdin_is_tty = hasattr(sys.stdin, 'isatty') and sys.stdin.isatty()
+    if not isinstance(stdin_is_tty, bool):
+        stdin_is_tty = False
+    if args.input == ['-'] and stdin_is_tty:
+        explicit_stdin = '-' in pos_inputs or '-' in flag_inputs
+        if not explicit_stdin:
+            logging.info("Standard input is an interactive terminal. Automatically scanning the current directory...")
+            expanded_paths = []
+            exclude = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.vscode', '.idea', 'dist', 'build'}
+            for root, dirs, files in os.walk('.', topdown=(args.mode not in ('rename', 'paths'))):
+                if any(part in exclude for part in root.split(os.sep)):
+                    dirs[:] = []
+                    continue
+
+                if args.mode not in ('rename', 'paths'):
+                    dirs[:] = [d for d in dirs if d not in exclude]
+
+                if args.mode in ('rename', 'paths'):
+                    for d in sorted(dirs):
+                        if d not in exclude:
+                            expanded_paths.append(os.path.join(root, d))
+                for f in sorted(files):
+                    expanded_paths.append(os.path.join(root, f))
+
+            if args.mode in ('rename', 'paths'):
+                expanded_paths.append('.')
+
+            args.input = list(dict.fromkeys(expanded_paths))
+            if not args.input:
+                args.input = ['-']
+
     operation = getattr(args, 'operation', None)
     first_column = getattr(args, 'first_column', False)
     delimiter = getattr(args, 'delimiter', None)

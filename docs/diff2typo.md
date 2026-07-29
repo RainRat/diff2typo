@@ -12,6 +12,12 @@ python diff2typo.py my_changes.diff [OPTIONS]
 git diff | python diff2typo.py [OPTIONS]
 ```
 
+### Automatic Git Fallback
+
+If you do not specify any input files or pipe data from another command, the tool will automatically check if you are inside a Git repository:
+- **Inside a Git repository:** It automatically runs `git diff` to find typos in your current unstaged changes.
+- **Outside a Git repository:** It exits with a helpful message instead of waiting indefinitely.
+
 ## Core Features
 
 1. **Find typos in diffs:** Reads Git diff files or data sent directly from other commands to find words you have corrected. This includes finding typos corrected by renaming or copying files.

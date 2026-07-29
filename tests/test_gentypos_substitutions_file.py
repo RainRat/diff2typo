@@ -76,3 +76,116 @@ def test_load_substitutions_malformed_json(tmp_path):
     path.write_text("{invalid json}")
     with pytest.raises(SystemExit):
         gentypos._load_substitutions_file(str(path))
+
+def test_load_substitutions_txt_arrow(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("e -> a\no -> i\n")
+    # Default is typo -> correction, meaning correct is on the right, typo is on the left.
+    # So mapping correct -> [typo] will be a -> [e], i -> [o]
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_txt_equal(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text('e = "a"\no = "i"\n')
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_txt_colon(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("e: a\no: i\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_txt_csv_fallback(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("e,a\no,i\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_txt_header_correct_left(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("correct -> typo\na -> e\ni -> o\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_txt_header_typo_left(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("typo -> correction\ne -> a\no -> i\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_md_table(tmp_path):
+    path = tmp_path / "subs.md"
+    content = (
+        "| Typo | Correction |\n"
+        "| :--- | :--- |\n"
+        "| e | a |\n"
+        "| o | i |\n"
+    )
+    path.write_text(content)
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_md_table_correct_left(tmp_path):
+    path = tmp_path / "subs.md"
+    content = (
+        "| Correct | Typo |\n"
+        "| :--- | :--- |\n"
+        "| a | e |\n"
+        "| i | o |\n"
+    )
+    path.write_text(content)
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_toml_plain(tmp_path):
+    path = tmp_path / "subs.toml"
+    path.write_text('ph = ["f", "v"]\nsh = "s"\n')
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"ph": ["f", "v"], "sh": ["s"]}
+
+def test_load_substitutions_toml_replacements(tmp_path):
+    path = tmp_path / "subs.toml"
+    content = """
+    [[replacements]]
+    typo = "e"
+    correct = "a"
+
+    [[replacements]]
+    typo = "o"
+    correction = "i"
+    """
+    path.write_text(content)
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_toml_no_dependency(tmp_path, monkeypatch):
+    import importlib.util
+    original_find_spec = importlib.util.find_spec
+    def mock_find_spec(name):
+        if name == "toml":
+            return None
+        return original_find_spec(name)
+    monkeypatch.setattr(importlib.util, "find_spec", mock_find_spec)
+    monkeypatch.setitem(sys.modules, "tomllib", None)
+    monkeypatch.setitem(sys.modules, "toml", None)
+
+    path = tmp_path / "subs.toml"
+    path.write_text('ph = "f"')
+
+    with pytest.raises(SystemExit):
+        gentypos._load_substitutions_file(str(path))
+
+def test_load_substitutions_txt_latin1(tmp_path):
+    path = tmp_path / "subs.txt"
+    # Write some characters that are valid in Latin-1 but not in UTF-8 (e.g. \xe9)
+    path.write_bytes(b"e \xe9 -> a\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e \xe9"]}
+
+def test_load_substitutions_invalid_txt(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("invalid_line_without_separators\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {}

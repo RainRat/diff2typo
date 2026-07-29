@@ -20,6 +20,7 @@ Usage:
 '''
 
 import sys
+import re
 import argparse
 try:
     import yaml
@@ -205,6 +206,37 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     return adjacent
 
 
+def _parse_markdown_table_row(line: str) -> list[str] | None:
+    """
+    Parses a single line as a Markdown table row.
+    Returns a list of cell contents if it's a valid data row, otherwise None.
+    """
+    content = line.strip()
+    if not (content.startswith('|') and content.count('|') >= 2):
+        return None
+
+    parts = [p.strip() for p in content.split('|')]
+    # Filter out empty parts from edges if they exist
+    if parts and not parts[0]:
+        parts = parts[1:]
+    if parts and not parts[-1]:
+        parts = parts[:-1]
+
+    if len(parts) < 2:
+        return None
+
+    # Skip divider lines like | --- | --- |
+    if all(re.match(r'^:?-+:?$', p) for p in parts):
+        return None
+
+    # Skip header line if it contains generic labels
+    if parts[0].lower() in ('typo', 'left', 'word 1', 'item') and \
+       parts[1].lower() in ('correction', 'right', 'word 2', 'count', 'corrections'):
+        return None
+
+    return parts
+
+
 def _add_mapping_to_subs(data: dict, subs: dict[str, list[str]]) -> None:
     for k, v in data.items():
         if isinstance(v, list):
@@ -215,7 +247,7 @@ def _add_mapping_to_subs(data: dict, subs: dict[str, list[str]]) -> None:
 
 def _load_substitutions_file(path: str) -> dict[str, list[str]]:
     """
-    Load substitution rules from a file. Supports JSON, CSV, and YAML.
+    Load substitution rules from a file. Supports JSON, CSV, YAML, TOML, and various plain text formats.
     JSON and CSV formats match the output of typostats.py.
     """
     subs = defaultdict(list)
@@ -271,8 +303,40 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                                 continue
 
                         subs[str(row[idx_correct])].append(str(row[idx_typo]))
-        else:
-            # Assume YAML
+        elif ext == '.toml':
+            try:
+                import tomllib
+                _TOMLLIB_AVAILABLE = True
+            except ImportError:
+                _TOMLLIB_AVAILABLE = False
+            _TOML_AVAILABLE = False
+            if not _TOMLLIB_AVAILABLE:
+                import importlib.util
+                _TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
+
+            if not _TOMLLIB_AVAILABLE and not _TOML_AVAILABLE:
+                logging.error("TOML support requires Python 3.11+ or the 'toml' package.")
+                sys.exit(1)
+
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                if _TOMLLIB_AVAILABLE:
+                    data = tomllib.loads(content)
+                else:
+                    import toml
+                    data = toml.loads(content)
+
+                if isinstance(data, dict):
+                    # We can support 'replacements' key or plain dict
+                    if 'replacements' in data and isinstance(data['replacements'], list):
+                        for item in data['replacements']:
+                            if isinstance(item, dict) and 'typo' in item:
+                                correct = item.get('correct', item.get('correction'))
+                                if correct is not None:
+                                    subs[str(correct)].append(str(item['typo']))
+                    else:
+                        _add_mapping_to_subs(data, subs)
+        elif ext in ('.yaml', '.yml'):
             if not _YAML_AVAILABLE:
                 logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML files.")
                 sys.exit(1)
@@ -280,6 +344,72 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                 data = yaml.safe_load(f)
                 if isinstance(data, dict):
                     _add_mapping_to_subs(data, subs)
+        else:
+            # Assume line-oriented text format
+            is_correct_left = False  # Default: typo -> correction (so right -> left for correct -> typo)
+            lines = []
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+            except UnicodeDecodeError:
+                with open(path, 'r', encoding='latin-1') as f:
+                    lines = f.readlines()
+
+            first_line_checked = False
+            for line in lines:
+                content = line.strip()
+                if not content or content.startswith('#'):
+                    continue
+
+                # Strip Markdown bullet points if present to handle list items consistently
+                content = re.sub(r'^\s*[-*+]\s+', '', content)
+
+                # Check for Markdown table rows
+                table_parts = _parse_markdown_table_row(line)
+                if table_parts:
+                    left, right = table_parts[0], table_parts[1]
+                elif " -> " in content:
+                    parts = content.split(" -> ", 1)
+                    left, right = parts[0].strip(), parts[1].strip()
+                elif ' = "' in content:
+                    parts = content.split(' = "', 1)
+                    left, right = parts[0].strip(), parts[1].rsplit('"', 1)[0]
+                elif ": " in content:
+                    parts = content.split(": ", 1)
+                    left, right = parts[0].strip(), parts[1].strip()
+                else:
+                    try:
+                        reader = csv.reader([content])
+                        row = next(reader)
+                        if len(row) >= 2:
+                            left, right = row[0].strip(), row[1].strip()
+                        else:
+                            continue
+                    except (csv.Error, StopIteration):
+                        continue
+
+                # Detect headers on the first valid line
+                if not first_line_checked:
+                    first_line_checked = True
+                    left_lower = left.lower()
+                    right_lower = right.lower()
+                    correct_indicators = {'correction', 'correct', 'correct_char', 'after', 'right', 'correction_char'}
+                    typo_indicators = {'typo', 'typo_char', 'before', 'left'}
+
+                    if left_lower in correct_indicators and right_lower in typo_indicators:
+                        is_correct_left = True
+                        continue
+                    elif left_lower in typo_indicators and right_lower in correct_indicators:
+                        is_correct_left = False
+                        continue
+
+                # Map to subs: key is correct, value is typo
+                if is_correct_left:
+                    correct, typo = left, right
+                else:
+                    correct, typo = right, left
+
+                subs[correct].append(typo)
     except Exception as e:
         logging.error(f"Error loading substitutions from '{path}': {e}")
         sys.exit(1)

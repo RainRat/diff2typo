@@ -94,35 +94,6 @@ def _should_enable_color(stream: Any) -> bool:
     return hasattr(stream, 'isatty') and stream.isatty()
 
 
-def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
-    """
-    Detect the output format based on the file extension.
-    Returns the default if no match is found or no extension is present.
-    """
-    if not path or path == '-':
-        return default
-
-    ext = os.path.splitext(path)[1].lower().lstrip('.')
-    if not ext:
-        return default
-
-    # Map common extensions to tool-supported formats
-    mapping = {
-        'txt': 'arrow',
-        'json': 'json',
-        'csv': 'csv',
-        'yaml': 'yaml',
-        'yml': 'yaml',
-        'arrow': 'arrow',
-    }
-
-    detected = mapping.get(ext)
-    if detected in allowed:
-        return detected
-
-    return default
-
-
 def levenshtein_distance(s1: str, s2: str) -> int:
     """Calculate the number of character changes needed to turn one string into another."""
     if len(s1) < len(s2):
@@ -1168,7 +1139,26 @@ def main() -> None:
     output_format = args.format
     if output_format is None:
         allowed_formats = ['arrow', 'yaml', 'json', 'csv']
-        output_format = _detect_format_from_extension(output_file, allowed_formats, 'arrow')
+        if not output_file or output_file == '-':
+            output_format = 'arrow'
+        else:
+            ext = os.path.splitext(output_file)[1].lower().lstrip('.')
+            if not ext:
+                output_format = 'arrow'
+            else:
+                mapping = {
+                    'txt': 'arrow',
+                    'json': 'json',
+                    'csv': 'csv',
+                    'yaml': 'yaml',
+                    'yml': 'yaml',
+                    'arrow': 'arrow',
+                }
+                detected = mapping.get(ext)
+                if detected in allowed_formats:
+                    output_format = detected
+                else:
+                    output_format = 'arrow'
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1
     include_deletions = args.include_deletions

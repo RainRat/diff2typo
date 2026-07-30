@@ -2,7 +2,6 @@ import sys
 from unittest.mock import MagicMock, patch
 from typostats import (
     _should_enable_color,
-    _detect_format_from_extension,
     is_one_letter_replacement,
     _read_file_lines_robust,
     main
@@ -27,25 +26,34 @@ def test_should_enable_color(monkeypatch):
     mock_stream.isatty.return_value = False
     assert _should_enable_color(mock_stream) is False
 
-def test_detect_format_from_extension():
-    allowed = ["json", "csv", "yaml", "arrow"]
+@patch("typostats.generate_report")
+def test_typostats_main_format_detection(mock_generate_report, tmp_path):
+    input_file = tmp_path / "input.csv"
+    input_file.write_text("typo,correction\nteh,the")
 
-    assert _detect_format_from_extension("test.json", allowed, "arrow") == "json"
-    assert _detect_format_from_extension("test.csv", allowed, "arrow") == "csv"
-    assert _detect_format_from_extension("test.yaml", allowed, "arrow") == "yaml"
-    assert _detect_format_from_extension("test.yml", allowed, "arrow") == "yaml"
-    assert _detect_format_from_extension("test.arrow", allowed, "arrow") == "arrow"
-    assert _detect_format_from_extension("test.txt", allowed, "arrow") == "arrow"
+    cases = [
+        ("test.json", "json"),
+        ("test.csv", "csv"),
+        ("test.yaml", "yaml"),
+        ("test.yml", "yaml"),
+        ("test.arrow", "arrow"),
+        ("test.txt", "arrow"),
+        ("test.unknown", "arrow"),
+        ("testfile", "arrow"),
+        ("-", "arrow"),
+        ("", "arrow"),
+    ]
 
-    # Unknown extension
-    assert _detect_format_from_extension("test.unknown", allowed, "default") == "default"
-
-    # No extension
-    assert _detect_format_from_extension("testfile", allowed, "default") == "default"
-
-    # Special cases
-    assert _detect_format_from_extension("-", allowed, "default") == "default"
-    assert _detect_format_from_extension("", allowed, "default") == "default"
+    for filename, expected_format in cases:
+        mock_generate_report.reset_mock()
+        with patch("sys.argv", ["typostats.py", str(input_file), "-o", filename]):
+            try:
+                main()
+            except SystemExit:
+                pass
+        mock_generate_report.assert_called_once()
+        kwargs = mock_generate_report.call_args[1]
+        assert kwargs["output_format"] == expected_format
 
 def test_is_one_letter_replacement_disallowed_patterns():
     # To hit line 594: (allow_1to2 or include_deletions) must be True, but allow_1to2 False.

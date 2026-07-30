@@ -837,6 +837,8 @@ def main() -> None:
   {GREEN}python gentypos.py "hello" "world"{RESET}
   {GREEN}python gentypos.py --config my_config.yaml --output typos.txt{RESET}
   {GREEN}python gentypos.py word1 word2 --format csv --no-filter{RESET}
+  {GREEN}python gentypos.py "hello" -t{RESET}            # Only generate transpositions for 'hello'
+  {GREEN}python gentypos.py "world" --deletion -k{RESET}    # Generate deletions and keyboard replacements
 """,
     )
 
@@ -911,6 +913,27 @@ def main() -> None:
 
     # Generation Options
     gen_group = parser.add_argument_group(f"{BLUE}GENERATION OPTIONS{RESET}")
+    gen_group.add_argument(
+        '-t', '--transposition',
+        action='store_true',
+        help="Generate transpositions (swapped letters, e.g., 'word' to 'wrod').",
+    )
+    gen_group.add_argument(
+        '--deletion',
+        action='store_true',
+        help="Generate deletions (skipping a letter, e.g., 'word' to 'wrd').",
+    )
+    gen_group.add_argument(
+        '--duplication',
+        action='store_true',
+        help="Generate duplications (typing a letter twice, e.g., 'word' to 'woord').",
+    )
+    gen_group.add_argument(
+        '-k', '--keyboard', '--replacement',
+        dest='replacement',
+        action='store_true',
+        help="Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' to 'wprd').",
+    )
     gen_group.add_argument(
         '-m', '--min-length',
         type=int,
@@ -1044,6 +1067,17 @@ def main() -> None:
             config['word_length']['max_length'] = args.max_length
 
     validate_config(config, cli_mode=is_cli_mode or (not is_cli_mode and not sys.stdin.isatty()), config_defaults=run_defaults)
+
+    cli_typo_types = {
+        'deletion': args.deletion,
+        'transposition': args.transposition,
+        'replacement': args.replacement,
+        'duplication': args.duplication,
+    }
+    if any(cli_typo_types.values()):
+        config['typo_types'] = {
+            t_type: bool(val) for t_type, val in cli_typo_types.items()
+        }
 
     settings = _extract_config_settings(config, quiet=args.quiet)
 

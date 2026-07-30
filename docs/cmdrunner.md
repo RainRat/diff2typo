@@ -55,6 +55,9 @@ timeout: 10.5
 
 # (Optional) Only run the command in folders that contain this specific file or path
 if_exists: "package.json"
+
+# (Optional) Only run the command in folders that do not contain this specific file or path
+if_not_exists: "package.json"
 ```
 
 ## Options
@@ -69,6 +72,7 @@ if_exists: "package.json"
 - `--fail-fast`: Stop execution immediately if any command fails or times out. Overrides config file if provided.
 - `--timeout`: The maximum execution time in seconds for the command in each folder. Overrides config file if provided.
 - `--if-exists`: Only run the command in folders that contain this specific file or path (e.g., `package.json` or `requirements.txt`). Overrides config file if provided.
+- `--if-not-exists`: Only run the command in folders that do not contain this specific file or path (e.g., `package.json` or `requirements.txt`). Overrides config file if provided.
 - `-o`, `--output`: Where to save the execution report. If not provided, no report is saved.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`). If not provided, it is automatically detected from the output file extension.
 
@@ -117,4 +121,9 @@ python cmdrunner.py config.yaml --quiet
 **Only run commands in projects containing a `package.json` file:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm run build" --if-exists package.json
+```
+
+**Only run commands in projects that do not contain a `package.json` file:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command-to-run "echo 'non-npm project'" --if-not-exists package.json
 ```

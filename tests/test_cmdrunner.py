@@ -933,3 +933,104 @@ def test_main_with_if_exists_config(tmp_path, monkeypatch):
 
     assert not (proj1 / 'out_conf.txt').exists()
     assert (proj2 / 'out_conf.txt').exists()
+
+
+def test_load_config_invalid_if_not_exists(tmp_path):
+    config_file = tmp_path / 'config_invalid_if_not_exists.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': str(tmp_path),
+                'command_to_run': 'echo test',
+                'if_not_exists': 123,  # Invalid type (must be string)
+            }
+        )
+    )
+
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    assert "'if_not_exists' must be a string." in exc_info.value.args[0]
+
+
+def test_run_command_if_not_exists_filtering(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj_with_file = base_dir / 'proj_with_file'
+    proj_without_file = base_dir / 'proj_without_file'
+    proj_with_file.mkdir()
+    proj_without_file.mkdir()
+
+    # Create target file only in one folder
+    (proj_with_file / 'target.txt').write_text('exists')
+
+    command = "python3 -c \"open('test_file.txt','w').write('ran')\""
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        if_not_exists='target.txt'
+    )
+
+    # Should NOT run in proj_with_file because it contains target.txt
+    assert not (proj_with_file / 'test_file.txt').exists()
+
+    # Should run in proj_without_file because it does not contain target.txt
+    assert (proj_without_file / 'test_file.txt').exists()
+    assert (proj_without_file / 'test_file.txt').read_text() == 'ran'
+
+
+def test_main_with_if_not_exists_cli_override(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    (proj1 / 'special.json').write_text('{}')
+
+    command = "python3 -c \"open('out.txt','w').write('ok')\""
+
+    # CLI override --if-not-exists
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['cmdrunner.py', '-m', str(base_dir), '-c', command, '--if-not-exists', 'special.json']
+    )
+
+    cmdrunner.main()
+
+    assert not (proj1 / 'out.txt').exists()
+    assert (proj2 / 'out.txt').exists()
+
+
+def test_main_with_if_not_exists_config(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    (proj2 / 'config.ini').write_text('')
+
+    command = "python3 -c \"open('out_conf.txt','w').write('ok')\""
+
+    config_data = {
+        'main_folder': str(base_dir),
+        'command_to_run': command,
+        'if_not_exists': 'config.ini',
+    }
+    config_file = tmp_path / 'config.yaml'
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
+
+    cmdrunner.main()
+
+    assert (proj1 / 'out_conf.txt').exists()
+    assert not (proj2 / 'out_conf.txt').exists()

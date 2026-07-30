@@ -12,6 +12,18 @@ python diff2typo.py my_changes.diff [OPTIONS]
 git diff | python diff2typo.py [OPTIONS]
 ```
 
+## Automatic Git Fallback
+
+If you run `diff2typo.py` without any input files, and you do not pipe any data to it, the tool automatically checks if you are inside a Git project:
+- **Inside a Git project:** It automatically runs `git diff` to analyze your current changes.
+- **Outside a Git project:** It stops and shows a helpful message telling you to provide input files or pipe diff data.
+
+This means you can simply run:
+```bash
+python diff2typo.py
+```
+This will scan your current working changes for typos without needing any extra files or flags.
+
 ## Core Features
 
 1. **Find typos in diffs:** Reads Git diff files or data sent directly from other commands to find words you have corrected. This includes finding typos corrected by renaming or copying files.

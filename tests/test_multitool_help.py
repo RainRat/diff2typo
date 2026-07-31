@@ -106,3 +106,30 @@ def test_search_standard_help(monkeypatch, capsys):
     assert "A typo-aware search tool." in output
     assert "Example:" in output
     assert "python multitool.py search 'teh' report.txt" in output
+
+
+def test_invalid_mode_scrb_suggestion(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'scrb'])
+
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+
+    assert excinfo.value.code == 2
+
+    captured = capsys.readouterr()
+    assert "'scrb' is not a valid mode" in captured.err
+    assert "Did you mean 'scrub'?" in captured.err
+
+
+def test_invalid_mode_completely_wrong(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'xyzabc'])
+
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+
+    assert excinfo.value.code == 2
+
+    captured = capsys.readouterr()
+    assert "'xyzabc' is not a valid mode" in captured.err
+    assert "See 'python multitool.py help' for a list of available modes." in captured.err
+    assert "choose from" not in captured.err

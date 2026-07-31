@@ -125,6 +125,7 @@ Use these modes to pull specific data from a file.
   - Extracts path components (basename, dirname, extension) from file and directory paths. It also supports smart splitting to find words within filenames.
   - **Options:** Use `--basename`, `--dirname`, or `--extension` to pick specific parts. Use `--smart` to split components into words.
   - **Example:** `python multitool.py paths src/ --basename --smart`
+  - **Detailed Guide:** See the dedicated [paths mode guide](paths.md) for more details.
 
 - **`flatten`**
   - Transforms nested JSON, YAML, or TOML structures into dot-separated `key.path = value` pairs. It supports multi-document YAML and JSON Lines (JSONL). The default output format is `arrow`.

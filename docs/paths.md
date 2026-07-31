@@ -11,14 +11,31 @@ python multitool.py paths [FILES...] [OPTIONS]
 ```
 
 ## Options
+
+### Path Extraction Options
 | Flag | Description |
 | :--- | :--- |
 | `--basename` | Extract the final component of the path (the filename). |
 | `--dirname` | Extract the directory part of the path. |
 | `--extension` | Extract the file extension. |
-| `-S`, `--smart` | Split path components by symbols and capital letters. |
-| `-R`, `--raw` | Keep original text (preserve casing and punctuation in paths). |
+| `-S`, `--smart` | Split path components by symbols and capital letters (e.g., "CamelCase" or "snake_case"). |
+
+### Processing & Filtering Options
+| Flag | Description |
+| :--- | :--- |
+| `-m`, `--min-length` | Skip items shorter than this length (default: 1). |
+| `-M`, `--max-length` | Skip items longer than this length (default: 1000). |
+| `-R`, `--raw` | Keep the original text. Do not change it to lowercase or remove punctuation. |
+| `-L`, `--limit` | Limit the number of items in the output. |
 | `-P`, `--process-output` | Sort the results and remove duplicates. |
+
+### Input/Output & General Options
+| Flag | Description |
+| :--- | :--- |
+| `-i`, `--input` | Path(s) to the input file(s). Supports multiple files. |
+| `-o`, `--output` | Where to save the results. Use `-` to print to the screen (default: the screen). |
+| `-f`, `--format` | Choose the format for the output. Choices: `line`, `json`, `csv`, `markdown`, `md-table`, `arrow`, `table`, `yaml`, `toml`, `xml`. |
+| `-q`, `--quiet` | Hide progress bars and status messages. |
 
 ## Examples
 

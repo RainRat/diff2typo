@@ -545,3 +545,30 @@ def test_main_default_values_preserved(monkeypatch):
     assert args.dictionary_file == 'words.csv'
     assert args.allowed_file == 'allowed.csv'
     assert args.typos_tool_path == 'typos'
+
+
+def test_compare_word_lists_misaligned():
+    before = ["the", "teh", "house"]
+    after = ["the", "big", "the", "house"]
+    assert "teh -> the" in diff2typo._compare_word_lists(before, after, min_length=2)
+
+
+def test_compare_word_lists_misaligned_with_min_length_filter():
+    before = ["the", "teh", "house"]
+    after = ["the", "big", "the", "house"]
+    assert len(diff2typo._compare_word_lists(before, after, min_length=4)) == 0
+
+
+def test_compare_word_lists_misaligned_with_max_dist_filter():
+    before = ["the", "teh", "house"]
+    after = ["the", "big", "the", "house"]
+    assert len(diff2typo._compare_word_lists(before, after, min_length=2, max_dist=0)) == 0
+
+
+def test_find_typos_with_added_word_diff():
+    diff = """--- a/file.txt
++++ b/file.txt
+-the teh house
++the big the house
+"""
+    assert "teh -> the" in diff2typo.find_typos(diff, min_length=2)

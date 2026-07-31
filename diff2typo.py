@@ -603,6 +603,26 @@ def _read_git_diff(git_args: Optional[str]) -> str:
         sys.exit(1)
 
 
+def _read_git_log(git_log_args: Optional[str]) -> str:
+    """Fetch commit history diffs directly from Git using 'git log -p'."""
+    command = ["git", "log", "-p"]
+    if git_log_args:
+        command.extend(shlex.split(git_log_args))
+
+    try:
+        logging.info(f"Running Git log command: {' '.join(command)}")
+        result = subprocess.run(
+            command, capture_output=True, text=True, check=True
+        )
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Git log command failed: {e.stderr}")
+        sys.exit(1)
+    except FileNotFoundError:
+        logging.error("Git executable not found.")
+        sys.exit(1)
+
+
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
     """Return concatenated diff text from standard input or the provided file patterns."""
 
@@ -818,6 +838,12 @@ def main():
         help="Fetch diff directly from Git. Optional arguments are passed to 'git diff'.",
     )
     io_group.add_argument(
+        '-l', '--git-log',
+        nargs='?',
+        const='',
+        help="Fetch commit history diffs directly from Git using 'git log -p'. Optional arguments are passed to 'git log'.",
+    )
+    io_group.add_argument(
         '--input',
         '-i',
         dest='input_files_flag',
@@ -986,6 +1012,8 @@ def main():
 
     if args.git is not None:
         diff_text = _read_git_diff(args.git)
+    elif isinstance(getattr(args, 'git_log', None), str):
+        diff_text = _read_git_log(args.git_log)
     else:
         if not input_files and sys.stdin.isatty():
             try:

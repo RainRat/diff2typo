@@ -25,6 +25,7 @@ git diff | python diff2typo.py [OPTIONS]
 | :--- | :--- | :--- |
 | `FILE` | standard input | One or more input Git diff files. Use `-` to read from standard input. |
 | `--git`, `-g` | None | Fetch diff directly from Git. Optional arguments are passed to `git diff` (for example, `-g "HEAD~3"`). |
+| `--git-log`, `-l` | None | Fetch commit history diffs directly from Git using `git log -p`. Optional arguments are passed to `git log` (for example, `-l "HEAD~5"`). |
 | `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
 | `--mode`, `-M` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
@@ -57,6 +58,12 @@ python diff2typo.py recent_changes.diff --mode audit
 
 ```bash
 python diff2typo.py --git "HEAD~5" --output recent_typos.txt
+```
+
+**Fetch typo corrections from repository commit history:**
+
+```bash
+python diff2typo.py --git-log "HEAD~10" --output history_typos.txt
 ```
 
 **Pipe directly from Git and save to a file:**

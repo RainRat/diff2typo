@@ -1,8 +1,8 @@
 import sys
+import os
 from unittest.mock import MagicMock, patch
 from typostats import (
     _should_enable_color,
-    _detect_format_from_extension,
     is_one_letter_replacement,
     _read_file_lines_robust,
     main
@@ -27,25 +27,37 @@ def test_should_enable_color(monkeypatch):
     mock_stream.isatty.return_value = False
     assert _should_enable_color(mock_stream) is False
 
-def test_detect_format_from_extension():
-    allowed = ["json", "csv", "yaml", "arrow"]
+def test_detect_format_from_extension(tmp_path):
+    input_file = tmp_path / "test.txt"
+    input_file.write_text("teh -> the\n")
 
-    assert _detect_format_from_extension("test.json", allowed, "arrow") == "json"
-    assert _detect_format_from_extension("test.csv", allowed, "arrow") == "csv"
-    assert _detect_format_from_extension("test.yaml", allowed, "arrow") == "yaml"
-    assert _detect_format_from_extension("test.yml", allowed, "arrow") == "yaml"
-    assert _detect_format_from_extension("test.arrow", allowed, "arrow") == "arrow"
-    assert _detect_format_from_extension("test.txt", allowed, "arrow") == "arrow"
+    extensions_to_expected = {
+        "test.json": "json",
+        "test.csv": "csv",
+        "test.yaml": "yaml",
+        "test.yml": "yaml",
+        "test.arrow": "arrow",
+        "test.txt": "arrow",
+        "test.unknown": "arrow",
+        "testfile": "arrow",
+        "-": "arrow",
+        "": "arrow",
+    }
 
-    # Unknown extension
-    assert _detect_format_from_extension("test.unknown", allowed, "default") == "default"
+    for filename, expected_format in extensions_to_expected.items():
+        out_path = str(tmp_path / filename) if filename not in ("-", "") else filename
+        argv_args = ["typostats.py", str(input_file), "--quiet"]
+        if out_path:
+            argv_args.extend(["-o", out_path])
 
-    # No extension
-    assert _detect_format_from_extension("testfile", allowed, "default") == "default"
-
-    # Special cases
-    assert _detect_format_from_extension("-", allowed, "default") == "default"
-    assert _detect_format_from_extension("", allowed, "default") == "default"
+        with patch("sys.argv", argv_args), patch("typostats.generate_report") as mock_report:
+            try:
+                main()
+            except SystemExit:
+                pass
+            assert mock_report.called, f"generate_report not called for output {filename}"
+            kwargs = mock_report.call_args[1]
+            assert kwargs["output_format"] == expected_format, f"Expected {expected_format} for output {filename}, but got {kwargs['output_format']}"
 
 def test_is_one_letter_replacement_disallowed_patterns():
     # To hit line 594: (allow_1to2 or include_deletions) must be True, but allow_1to2 False.

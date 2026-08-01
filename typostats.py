@@ -446,6 +446,7 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
         except UnicodeDecodeError:
             logging.warning("UTF-8 decoding failed for '%s'. Attempting detection...", path)
             detected_encoding = detect_encoding(path)
+            fallback_to_latin1 = True
             if detected_encoding:
                 logging.warning(
                     "Using detected encoding '%s' for '%s'.", detected_encoding, path
@@ -454,17 +455,17 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
                     with open(path, 'r', encoding=detected_encoding, newline=newline) as handle:
                         lines = handle.readlines()
                     used_encoding = detected_encoding
+                    fallback_to_latin1 = False
                 except UnicodeDecodeError:
                     logging.warning(
                         "Detected encoding '%s' failed for '%s'. Fallback to latin-1.",
                         detected_encoding,
                         path,
                     )
-                    with open(path, 'r', encoding='latin-1', newline=newline) as handle:
-                        lines = handle.readlines()
-                    used_encoding = 'latin-1'
             else:
                 logging.warning("Encoding detection failed. Fallback to latin-1 for '%s'.", path)
+
+            if fallback_to_latin1:
                 with open(path, 'r', encoding='latin-1', newline=newline) as handle:
                     lines = handle.readlines()
                 used_encoding = 'latin-1'

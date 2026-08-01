@@ -67,6 +67,43 @@ def test_gentypos_cli_override_dictionary_file_filters_typos(capsys, empty_confi
     assert len(stdout_lines) > 0
     assert not any("spple -> apple" in line for line in stdout_lines)
 
+def test_gentypos_cli_override_add_custom_substitutions(capsys, empty_config_file):
+    # Testing that passing --add "e:a" maps hello -> hallo (replacement of 'e' with 'a')
+    test_args = [
+        "gentypos.py",
+        "hello",
+        "-c", empty_config_file,
+        "--add", "e:a",
+        "--no-filter",
+        "-f", "arrow"
+    ]
+    with patch.object(sys, 'argv', test_args):
+        gentypos.main()
+
+    captured = capsys.readouterr()
+    stdout_lines = captured.out.splitlines()
+    assert len(stdout_lines) > 0
+    # Hello has 'e' which should be replaced with 'a' to produce 'hallo'
+    assert any("hallo -> hello" in line for line in stdout_lines)
+
+def test_gentypos_cli_override_add_multi_char_substitutions(capsys, empty_config_file):
+    # Testing that passing --add "ph:f" maps phone -> fone
+    test_args = [
+        "gentypos.py",
+        "phone",
+        "-c", empty_config_file,
+        "--add", "ph:f",
+        "--no-filter",
+        "-f", "arrow"
+    ]
+    with patch.object(sys, 'argv', test_args):
+        gentypos.main()
+
+    captured = capsys.readouterr()
+    stdout_lines = captured.out.splitlines()
+    assert len(stdout_lines) > 0
+    assert any("fone -> phone" in line for line in stdout_lines)
+
 def test_gentypos_cli_override_repeat_modifications_generates_nested_typos(capsys, empty_config_file, tmp_path):
     words_file = tmp_path / "words.txt"
     words_file.write_text("cat\n", encoding="utf-8")

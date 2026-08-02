@@ -29,6 +29,7 @@ git diff | python diff2typo.py [OPTIONS]
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
 | `--mode`, `-M` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
 | `--exclude`, `-e` | None | One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from typo scanning. |
+| `--include`, `-I` | None | One or more file patterns (e.g., `*.md`, `src/*`) to include in typo scanning (all files are scanned by default). |
 | `--min-length`, `-m` | `2` | Ignore words shorter than this length. |
 | `--max-dist`, `-D` | None | Only include typos with a number of character changes up to this value. Useful for filtering out intentional word changes. |
 | `--min-count`, `-c` | `1` | Minimum occurrences of a typo in the diff to include it in the output. |

@@ -413,11 +413,23 @@ def _is_file_excluded(filepath: str, patterns: Optional[List[str]]) -> bool:
     return False
 
 
+def _is_file_included(filepath: str, patterns: Optional[List[str]]) -> bool:
+    if not patterns:
+        return True
+    if not filepath:
+        return False
+    for pattern in patterns:
+        if fnmatch.fnmatch(filepath, pattern) or fnmatch.fnmatch(os.path.basename(filepath), pattern):
+            return True
+    return False
+
+
 def find_typos(
     diff_text: str,
     min_length: int = 2,
     max_dist: Optional[int] = None,
     exclude_patterns: Optional[List[str]] = None,
+    include_patterns: Optional[List[str]] = None,
 ) -> List[str]:
     """
     Parses the diff text to find typo corrections.
@@ -459,8 +471,9 @@ def find_typos(
                     current_file = p
                 if current_file.startswith('"') and current_file.endswith('"'):
                     current_file = current_file[1:-1]
-            if current_file and _is_file_excluded(current_file, exclude_patterns):
-                skip_current_file = True
+            if current_file:
+                if _is_file_excluded(current_file, exclude_patterns) or not _is_file_included(current_file, include_patterns):
+                    skip_current_file = True
             continue
 
         # Handle file renames and copies
@@ -475,7 +488,7 @@ def find_typos(
             if path.startswith('"') and path.endswith('"'):
                 path = path[1:-1]
             additions.append(path)
-            if not (skip_current_file or _is_file_excluded(path, exclude_patterns)):
+            if not (skip_current_file or _is_file_excluded(path, exclude_patterns) or not _is_file_included(path, include_patterns)):
                 typos.extend(process_diff_block(removals, additions, min_length, max_dist))
             removals = []
             additions = []
@@ -492,7 +505,7 @@ def find_typos(
                     typos.extend(process_diff_block(removals, additions, min_length, max_dist))
                 removals = []
                 additions = []
-                skip_current_file = _is_file_excluded(current_file, exclude_patterns)
+                skip_current_file = _is_file_excluded(current_file, exclude_patterns) or not _is_file_included(current_file, include_patterns)
             continue
 
         if skip_current_file:
@@ -861,6 +874,12 @@ def main():
         help="One or more file patterns (e.g., '*.json', 'tests/*') to exclude from typo scanning.",
     )
     analysis_group.add_argument(
+        '-I', '--include',
+        nargs='+',
+        default=None,
+        help="One or more file patterns (e.g., '*.md', 'src/*') to include in typo scanning (all files are scanned by default).",
+    )
+    analysis_group.add_argument(
         '-M', '--mode',
         type=str,
         choices=['typos', 'corrections', 'both', 'audit'],
@@ -1033,6 +1052,7 @@ def main():
         min_length=args.min_length,
         max_dist=args.max_dist,
         exclude_patterns=args.exclude,
+        include_patterns=args.include,
     )
     counts = Counter(candidates_raw)
 

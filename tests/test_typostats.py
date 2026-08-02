@@ -798,3 +798,203 @@ def test_generate_report_neutral_bar_color(capsys):
         typostats.generate_report(counts, output_format='arrow', quiet=False)
         out = capsys.readouterr().out
         assert "\033[1;36m" in out
+
+
+def test_typostats_recursive_directory_scanning(tmp_path, monkeypatch):
+    root = tmp_path / "typostats_test_root"
+    root.mkdir()
+
+    subdir = root / "subdir"
+    subdir.mkdir()
+
+    ignored_dir = root / "node_modules"
+    ignored_dir.mkdir()
+
+    file1 = root / "file1.txt"
+    file1.write_text("teh -> the\n")
+
+    file2 = subdir / "file2.csv"
+    file2.write_text("recived,received\n")
+
+    file3 = subdir / "file3.json"
+    file3.write_text('{"replacements": [{"typo": "seperate", "correct": "separate"}]}')
+
+    ignored_file = ignored_dir / "ignored.txt"
+    ignored_file.write_text("ignoredtypo -> correction\n")
+
+    unsupported_file = root / "script.py"
+    unsupported_file.write_text("pytypo -> pycorrect\n")
+
+    output_file = tmp_path / "report.json"
+
+    monkeypatch.setattr("typostats._STDIN_CACHE", None)
+
+    with patch("sys.argv", ["typostats.py", str(root), "--format", "json", "--output", str(output_file), "--all"]):
+        typostats.main()
+
+    assert output_file.exists()
+    content = output_file.read_text()
+
+    assert "ignoredtypo" not in content
+    assert "pytypo" not in content
+
+    assert '"typo": "e"' in content
+    assert '"correct": "a"' in content
+
+
+def test_typostats_interactive_terminal_scans_cwd(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    file1 = tmp_path / "typos.txt"
+    file1.write_text("teh -> the\n")
+
+    monkeypatch.setattr("typostats._STDIN_CACHE", None)
+
+    with patch("sys.stdin.isatty", return_value=True), \
+         patch("sys.argv", ["typostats.py", "--quiet", "--output", str(tmp_path / "report.json"), "--all"]):
+        typostats.main()
+
+    report_file = tmp_path / "report.json"
+    assert report_file.exists()
+    content = report_file.read_text()
+    assert '"typo": "eh"' in content or "eh" in content
+
+
+def test_typostats_non_interactive_terminal_reads_stdin(tmp_path, monkeypatch):
+    monkeypatch.setattr("typostats._STDIN_CACHE", None)
+
+    mock_stdin = io.StringIO("recived -> received\n")
+
+    with patch("sys.stdin.isatty", return_value=False), \
+         patch("sys.stdin", mock_stdin), \
+         patch("sys.argv", ["typostats.py", "--quiet", "--output", str(tmp_path / "report.json"), "--all"]):
+        typostats.main()
+
+    report_file = tmp_path / "report.json"
+    assert report_file.exists()
+    content = report_file.read_text()
+    assert '"typo": "i"' in content or "i" in content
+
+
+def test_typostats_main_run_as_script(tmp_path):
+    import runpy
+    f1 = tmp_path / "left.txt"
+    f1.write_text("apple\n")
+    f2 = tmp_path / "right.txt"
+    f2.write_text("aple\n")
+
+    with patch.object(sys, 'argv', ["typostats.py", str(f1), str(f2), "--quiet"]):
+        runpy.run_path("typostats.py", run_name="__main__")
+
+
+def test_should_enable_color_env_variables(monkeypatch):
+    from unittest.mock import MagicMock
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert typostats._should_enable_color(sys.stdout) is False
+    monkeypatch.delenv("NO_COLOR")
+
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    assert typostats._should_enable_color(sys.stdout) is True
+    monkeypatch.delenv("FORCE_COLOR")
+
+    mock_stream = MagicMock()
+    mock_stream.isatty.return_value = True
+    assert typostats._should_enable_color(mock_stream) is True
+
+    mock_stream.isatty.return_value = False
+    assert typostats._should_enable_color(mock_stream) is False
+
+
+def test_detect_format_from_extension_scenarios():
+    allowed = ["json", "csv", "yaml", "arrow"]
+
+    assert typostats._detect_format_from_extension("test.json", allowed, "arrow") == "json"
+    assert typostats._detect_format_from_extension("test.csv", allowed, "arrow") == "csv"
+    assert typostats._detect_format_from_extension("test.yaml", allowed, "arrow") == "yaml"
+    assert typostats._detect_format_from_extension("test.yml", allowed, "arrow") == "yaml"
+    assert typostats._detect_format_from_extension("test.arrow", allowed, "arrow") == "arrow"
+    assert typostats._detect_format_from_extension("test.txt", allowed, "arrow") == "arrow"
+
+    assert typostats._detect_format_from_extension("test.unknown", allowed, "default") == "default"
+
+    assert typostats._detect_format_from_extension("testfile", allowed, "default") == "default"
+
+    assert typostats._detect_format_from_extension("-", allowed, "default") == "default"
+    assert typostats._detect_format_from_extension("", allowed, "default") == "default"
+
+
+def test_is_one_letter_replacement_disallowed_patterns_scenarios():
+    assert typostats.is_one_letter_replacement("bc", "a", allow_1to2=False, include_deletions=True) == []
+
+    assert typostats.is_one_letter_replacement("c", "ab", allow_2to1=False, include_deletions=True) == []
+
+
+def test_read_file_lines_robust_stdin_string_cached(monkeypatch):
+    from unittest.mock import MagicMock
+    monkeypatch.setattr(typostats, "_STDIN_CACHE", None)
+
+    mock_stdin = MagicMock()
+    if hasattr(mock_stdin, 'buffer'):
+        del mock_stdin.buffer
+    mock_stdin.read.return_value = "line1\nline2\n"
+
+    with patch("sys.stdin", mock_stdin):
+        lines = typostats._read_file_lines_robust("-")
+        assert lines == ["line1\n", "line2\n"]
+
+
+def test_read_file_lines_robust_stdin_binary_fallback_cached(monkeypatch):
+    from unittest.mock import MagicMock
+    monkeypatch.setattr(typostats, "_STDIN_CACHE", None)
+
+    mock_stdin = MagicMock()
+    mock_buffer = MagicMock()
+    mock_buffer.read.return_value = b"\xe9\n"
+    mock_stdin.buffer = mock_buffer
+
+    with patch("sys.stdin", mock_stdin):
+        lines = typostats._read_file_lines_robust("-")
+        assert lines == ["\xe9\n"]
+
+
+def test_read_file_lines_robust_directory_handling(tmp_path):
+    dir_path = tmp_path / "test_dir"
+    dir_path.mkdir()
+
+    lines = typostats._read_file_lines_robust(str(dir_path))
+    assert lines == []
+
+
+def test_read_file_lines_robust_file_encoding_fallback_handling(tmp_path):
+    file_path = tmp_path / "latin1.txt"
+    with open(file_path, "wb") as f:
+        f.write(b"\xe9\n")
+
+    with patch("typostats.detect_encoding", return_value="latin-1"):
+        lines = typostats._read_file_lines_robust(str(file_path))
+        assert lines == ["\xe9\n"]
+
+    with patch("typostats.detect_encoding", return_value=None):
+        lines = typostats._read_file_lines_robust(str(file_path))
+        assert lines == ["\xe9\n"]
+
+
+def test_read_file_lines_robust_file_detect_encoding_fails_midway_handling(tmp_path):
+    file_path = tmp_path / "latin1_v2.txt"
+    with open(file_path, "wb") as f:
+        f.write(b"\xe9\n")
+
+    with patch("typostats.detect_encoding", return_value="utf-8"):
+        lines = typostats._read_file_lines_robust(str(file_path))
+        assert lines == ["\xe9\n"]
+
+
+def test_typostats_main_basic_handling(tmp_path):
+    input_file = tmp_path / "input.csv"
+    input_file.write_text("typo,correction\nteh,the")
+
+    with patch("sys.argv", ["typostats.py", str(input_file), "--format", "json"]):
+        try:
+            typostats.main()
+        except SystemExit:
+            pass

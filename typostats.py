@@ -439,6 +439,7 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
             logging.warning(f"Input path '{path}' is a directory. Skipping.")
             return []
 
+        fallback_to_latin1 = False
         try:
             with open(path, 'r', encoding='utf-8', newline=newline) as handle:
                 lines = handle.readlines()
@@ -460,14 +461,15 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
                         detected_encoding,
                         path,
                     )
-                    with open(path, 'r', encoding='latin-1', newline=newline) as handle:
-                        lines = handle.readlines()
-                    used_encoding = 'latin-1'
+                    fallback_to_latin1 = True
             else:
                 logging.warning("Encoding detection failed. Fallback to latin-1 for '%s'.", path)
-                with open(path, 'r', encoding='latin-1', newline=newline) as handle:
-                    lines = handle.readlines()
-                used_encoding = 'latin-1'
+                fallback_to_latin1 = True
+
+        if fallback_to_latin1:
+            with open(path, 'r', encoding='latin-1', newline=newline) as handle:
+                lines = handle.readlines()
+            used_encoding = 'latin-1'
 
     logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
     return lines

@@ -8347,11 +8347,48 @@ class ModeHelpAction(argparse.Action):
         show_mode_help(values, parser)
 
 
+class TypoTolerantArgumentParser(argparse.ArgumentParser):
+    """Custom ArgumentParser subclass that intercepts invalid subcommand and --mode-help choice errors
+    to dynamically suggest the closest valid choice match.
+    """
+
+    def error(self, message: str) -> None:
+        match = re.search(r"argument (mode|--mode-help): invalid choice: '([^']+)'", message)
+        if match:
+            arg_type = match.group(1)
+            invalid_val = match.group(2)
+            if arg_type == "--mode-help":
+                candidates = list(MODE_DETAILS.keys()) + ["all"]
+                suggestion = _get_best_suggestion(invalid_val, candidates, max_dist=3)
+                if suggestion:
+                    self.exit(
+                        status=2,
+                        message=(
+                            f"{RED}Error:{RESET} '{invalid_val}' is not a valid mode for --mode-help.\n"
+                            f"Did you mean: {GREEN}{suggestion}{RESET}?\n\n"
+                            f"Run {GREEN}python multitool.py help{RESET} to see a list of all available commands.\n"
+                        )
+                    )
+            else:
+                candidates = list(MODE_DETAILS.keys()) + ["help"]
+                suggestion = _get_best_suggestion(invalid_val, candidates, max_dist=3)
+                if suggestion:
+                    self.exit(
+                        status=2,
+                        message=(
+                            f"{RED}Error:{RESET} 'multitool.py' has no subcommand '{invalid_val}'.\n"
+                            f"Did you mean: {GREEN}{suggestion}{RESET}?\n\n"
+                            f"Run {GREEN}python multitool.py help{RESET} to see a list of all available commands.\n"
+                        )
+                    )
+        super().error(message)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     # Build a grouped mode summary for the epilog
     mode_summary = get_mode_summary_text()
 
-    parser = argparse.ArgumentParser(
+    parser = TypoTolerantArgumentParser(
         prog="multitool.py",
         description="A multipurpose tool for cleaning, getting, and analyzing text files.",
         epilog=dedent(

@@ -106,3 +106,35 @@ def test_search_standard_help(monkeypatch, capsys):
     assert "A typo-aware search tool." in output
     assert "Example:" in output
     assert "python multitool.py search 'teh' report.txt" in output
+
+def test_invalid_subcommand_suggestion(monkeypatch, capsys):
+    """Test that typing an invalid subcommand suggests the closest valid choice."""
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'checkk'])
+
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+
+    assert excinfo.value.code == 2
+
+    captured = capsys.readouterr()
+    output = captured.err + captured.out
+
+    assert "has no subcommand 'checkk'" in output
+    assert "Did you mean: check" in output
+    assert "Run python multitool.py help to see a list of all available commands." in output
+
+def test_invalid_mode_help_suggestion(monkeypatch, capsys):
+    """Test that typing an invalid --mode-help mode suggests the closest valid choice."""
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', '--mode-help', 'coments'])
+
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+
+    assert excinfo.value.code == 2
+
+    captured = capsys.readouterr()
+    output = captured.err + captured.out
+
+    assert "is not a valid mode for --mode-help" in output
+    assert "Did you mean: comments" in output
+    assert "Run python multitool.py help to see a list of all available commands." in output

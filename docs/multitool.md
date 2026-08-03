@@ -122,7 +122,7 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py xml data.xml -k './/item/name'`
 
 - **`paths`**
-  - Extracts path components (basename, dirname, extension) from file and directory paths. It also supports smart splitting to find words within filenames.
+  - Extracts path components (basename, dirname, extension) from file and directory paths. It also supports smart splitting to find words within filenames. For more details, see the [dedicated paths documentation](paths.md).
   - **Options:** Use `--basename`, `--dirname`, or `--extension` to pick specific parts. Use `--smart` to split components into words.
   - **Example:** `python multitool.py paths src/ --basename --smart`
 

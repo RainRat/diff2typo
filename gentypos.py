@@ -254,13 +254,15 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                     header_keywords = typo_indicators | correct_indicators
 
                     idx_correct, idx_typo = 0, 1  # Default: correct,typo
+                    header_checked = False
 
-                    for i, row in enumerate(reader):
+                    for row in reader:
                         if not row or len(row) < 2:
                             continue
 
-                        # Skip header if first row matches keywords
-                        if i == 0:
+                        # Skip header if first non-empty row matches keywords
+                        if not header_checked:
+                            header_checked = True
                             val1, val2 = row[0].lower(), row[1].lower()
                             if val1 in header_keywords and val2 in header_keywords:
                                 # Determine column order based on headers

@@ -76,3 +76,9 @@ def test_load_substitutions_malformed_json(tmp_path):
     path.write_text("{invalid json}")
     with pytest.raises(SystemExit):
         gentypos._load_substitutions_file(str(path))
+
+def test_load_substitutions_csv_leading_empty_lines(tmp_path):
+    path = tmp_path / "subs_leading.csv"
+    path.write_text("\n\n\ntypo,correct\nteh,value\nmispell,misspell\n", encoding="utf-8")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"value": ["teh"], "misspell": ["mispell"]}

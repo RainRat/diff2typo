@@ -473,6 +473,17 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     return lines
 
 
+def _is_file_excluded(filepath: str, patterns: List[str] | None) -> bool:
+    """Check if the given filepath matches any exclusion patterns."""
+    if not patterns or not filepath:
+        return False
+    import fnmatch
+    for pattern in patterns:
+        if fnmatch.fnmatch(filepath, pattern) or fnmatch.fnmatch(os.path.basename(filepath), pattern):
+            return True
+    return False
+
+
 def _get_typo_correction(item: Any) -> Tuple[str | None, str | None]:
     if isinstance(item, dict) and 'typo' in item:
         correct = item.get('correct', item.get('correction'))
@@ -1074,6 +1085,12 @@ def main() -> None:
     )
     io_group.add_argument('-o', '--output', help="Save the report to this file instead of printing it.")
     io_group.add_argument(
+        '-e', '--exclude',
+        nargs='+',
+        default=None,
+        help="One or more file patterns (e.g., '*.json', 'tests/*') to exclude from scanning.",
+    )
+    io_group.add_argument(
         '-f',
         '--format',
         choices=['arrow', 'yaml', 'json', 'csv'],
@@ -1194,6 +1211,8 @@ def main() -> None:
         else:
             input_files = ['-']
 
+    exclude_patterns = args.exclude
+
     # Expand directories recursively
     expanded_files = []
     ignored_dirs = {
@@ -1210,11 +1229,15 @@ def main() -> None:
                 # Prune ignored directories in-place to avoid walking into them
                 dirs[:] = [d for d in dirs if d not in ignored_dirs]
                 for file in files:
+                    full_path = os.path.join(root, file)
+                    if _is_file_excluded(full_path, exclude_patterns):
+                        continue
                     ext = os.path.splitext(file)[1].lower()
                     if ext in supported_extensions:
-                        expanded_files.append(os.path.join(root, file))
+                        expanded_files.append(full_path)
         else:
-            expanded_files.append(file_path)
+            if not _is_file_excluded(file_path, exclude_patterns):
+                expanded_files.append(file_path)
 
     input_files = expanded_files
 

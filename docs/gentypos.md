@@ -17,15 +17,21 @@ python gentypos.py hello --no-filter
 python gentypos.py apple banana orange --no-filter
 ```
 
-### 2. Process words from a file
-Use a configuration file or specify an input file directly from the command line.
+### 2. Process words from files or directories
+Use a configuration file or specify one or more input files, directories, or glob patterns directly from the command line. The tool will recursively find supported files (like `.txt`, `.csv`, `.log`), ignoring standard development folders like `.git` or `node_modules`, and load all of their words together.
 
 ```bash
 # Process words using a configuration file
 python gentypos.py --config gentypos.yaml
 
-# Process words directly from a text file
-python gentypos.py --input words.txt --output typos.txt
+# Process words from multiple text files
+python gentypos.py --input words1.txt words2.txt --output typos.txt
+
+# Process words from a directory of wordlists
+python gentypos.py --input my_wordlists/ --output typos.txt
+
+# Process words using glob patterns
+python gentypos.py --input "data/*.txt" --output typos.txt
 ```
 
 ## Options
@@ -37,7 +43,7 @@ python gentypos.py --input words.txt --output typos.txt
 | `--output`, `-o` | None | Save results to this file. Use `-` to print to the screen. |
 | `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` (typo = "correction"), or `list` (typo). By default, it is automatically detected from the output file extension. |
 | `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, or YAML). Useful for loading your personal typo history from `typostats.py`. |
-| `--input`, `-i` | None | The path to an input file containing words to process (one per line). |
+| `--input`, `-i` | None | One or more input files, directories, or glob patterns containing words to process (one per line). |
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
 | `--min-length`, `-m` | None | Ignore words shorter than this length. |
 | `--max-length` | None | Ignore words longer than this length. |
@@ -54,7 +60,7 @@ The tool uses a YAML file to control how typos are generated.
 
 ```yaml
 # File Paths
-input_file: "words.txt"           # Small dictionary to process
+input_file: "words.txt"           # Small dictionary to process (can also be a list of files/directories)
 dictionary_file: "dictionary.txt"  # Large dictionary (to filter out real words)
 output_file: "typos.txt"          # Where to save the results
 

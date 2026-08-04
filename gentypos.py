@@ -532,6 +532,57 @@ def load_file(file_path: Optional[str]) -> set[str]:
         sys.exit(1)
 
 
+def _resolve_input_sources(input_files: Sequence[str]) -> list[str]:
+    """
+    Recursively expand directory paths, handle glob patterns,
+    and ignore common development/environment folders.
+    """
+    import glob
+    expanded_files = []
+    ignored_dirs = {
+        '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
+        '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
+    }
+    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.log', '.lst'}
+
+    for path in input_files:
+        if path == '-':
+            expanded_files.append('-')
+            continue
+
+        # Handle glob expansion
+        matches = glob.glob(path)
+        if not matches:
+            matches = [path]
+
+        for match in sorted(matches):
+            if os.path.isdir(match):
+                for root, dirs, files in os.walk(match):
+                    # Prune ignored directories in-place to avoid walking into them
+                    dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                    for file in sorted(files):
+                        ext = os.path.splitext(file)[1].lower()
+                        if ext in supported_extensions:
+                            expanded_files.append(os.path.join(root, file))
+            else:
+                expanded_files.append(match)
+
+    # Deduplicate while preserving order
+    return list(dict.fromkeys(expanded_files))
+
+
+def load_words_from_sources(input_files: Sequence[str]) -> set[str]:
+    """
+    Load words from all resolved input files and combine them.
+    """
+    all_words = set()
+    resolved_paths = _resolve_input_sources(input_files)
+    for path in resolved_paths:
+        words = load_file(path)
+        all_words.update(words)
+    return all_words
+
+
 def parse_yaml_config(config_path: str) -> dict[str, Any]:
     """
     Parse the YAML configuration file.
@@ -615,7 +666,14 @@ def format_typos(
 def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = False) -> SimpleNamespace:
     """Extract validated configuration values into a structured namespace."""
 
-    input_file = config.get('input_file')
+    input_file_val = config.get('input_file')
+    if input_file_val is None:
+        input_files = []
+    elif isinstance(input_file_val, list):
+        input_files = input_file_val
+    else:
+        input_files = [input_file_val]
+
     dictionary_file = config.get('dictionary_file')
     output_file = config.get('output_file')
     output_format = config.get('output_format', 'arrow').lower()
@@ -658,7 +716,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
     max_length = word_length.get('max_length', None)
 
     settings = SimpleNamespace(
-        input_file=input_file,
+        input_files=input_files,
         dictionary_file=dictionary_file,
         output_file=output_file,
         output_format=output_format,
@@ -879,14 +937,14 @@ def main() -> None:
     io_group.add_argument(
         '-i', '--input',
         dest='input_file',
-        type=str,
-        help="The path to an input file containing words to process (one per line).",
+        nargs='+',
+        help="One or more input files, directories, or glob patterns containing words to process (one per line).",
     )
     # Hidden alias
     parser.add_argument(
         '--input-file',
         dest='input_file',
-        type=str,
+        nargs='+',
         help=argparse.SUPPRESS,
     )
     io_group.add_argument(
@@ -1053,12 +1111,16 @@ def main() -> None:
         logging.info(f"Processing {len(word_list)} words from CLI arguments.")
     else:
         logging.info("Loading wordlist (small dictionary)...")
-        word_set = load_file(settings.input_file)
+        word_set = load_words_from_sources(settings.input_files)
         word_list = list(word_set)
+        if len(settings.input_files) == 1:
+            source_desc = f"'{settings.input_files[0]}'"
+        else:
+            source_desc = f"{len(settings.input_files)} source(s)"
         logging.info(
-            "Loaded %d words from the small dictionary ('%s').",
+            "Loaded %d words from the small dictionary (%s).",
             len(word_list),
-            settings.input_file,
+            source_desc,
         )
 
     # Load dictionary if needed

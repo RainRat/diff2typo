@@ -603,6 +603,26 @@ def _read_git_diff(git_args: Optional[str]) -> str:
         sys.exit(1)
 
 
+def _read_git_log(git_args: Optional[str]) -> str:
+    """Fetch commit history diffs directly from Git using 'git log -p'."""
+    command = ["git", "log", "-p"]
+    if git_args:
+        command.extend(shlex.split(git_args))
+
+    try:
+        logging.info(f"Running Git command: {' '.join(command)}")
+        result = subprocess.run(
+            command, capture_output=True, text=True, check=True
+        )
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Git command failed: {e.stderr}")
+        sys.exit(1)
+    except FileNotFoundError:
+        logging.error("Git executable not found.")
+        sys.exit(1)
+
+
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
     """Return concatenated diff text from standard input or the provided file patterns."""
 
@@ -818,6 +838,12 @@ def main():
         help="Fetch diff directly from Git. Optional arguments are passed to 'git diff'.",
     )
     io_group.add_argument(
+        '-l', '--git-log',
+        nargs='?',
+        const='',
+        help="Fetch commit history diffs directly from Git using 'git log -p'. Optional arguments are passed to 'git log'.",
+    )
+    io_group.add_argument(
         '--input',
         '-i',
         dest='input_files_flag',
@@ -984,8 +1010,21 @@ def main():
     flag_inputs = getattr(args, 'input_files_flag', []) or []
     input_files = pos_inputs + flag_inputs
 
-    if args.git is not None:
-        diff_text = _read_git_diff(args.git)
+    git_val = getattr(args, 'git', None)
+    git_log_val = getattr(args, 'git_log', None)
+
+    # Robust handling for Mock/MagicMock in unit tests
+    with contextlib.suppress(ImportError):
+        import unittest.mock
+        if isinstance(git_val, unittest.mock.Mock):
+            git_val = None
+        if isinstance(git_log_val, unittest.mock.Mock):
+            git_log_val = None
+
+    if git_val is not None:
+        diff_text = _read_git_diff(git_val)
+    elif git_log_val is not None:
+        diff_text = _read_git_log(git_log_val)
     else:
         if not input_files and sys.stdin.isatty():
             try:

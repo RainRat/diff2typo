@@ -39,5 +39,5 @@ python multitool.py paths src/ --basename --smart --process-output
 
 ### Get unique folder names in a project
 ```bash
-python multitool.py paths . --dirname --basename --process-output --raw
+python multitool.py paths . --dirname --process-output --raw
 ```

@@ -8347,11 +8347,33 @@ class ModeHelpAction(argparse.Action):
         show_mode_help(values, parser)
 
 
+class TypoTolerantArgumentParser(argparse.ArgumentParser):
+    """Custom ArgumentParser subclass to suggest valid subcommands on typos."""
+
+    def error(self, message: str) -> None:
+        # Check if the error is an invalid choice for the subcommand 'mode'
+        # e.g., "argument mode: invalid choice: 'srub' (choose from help, arrow, ...)"
+        match = re.search(r"argument mode: invalid choice: '([^']+)'", message)
+
+        if match:
+            invalid_choice = match.group(1)
+            candidates = list(MODE_DETAILS.keys()) + ['help']
+            suggestion = _get_best_suggestion(invalid_choice, candidates, max_dist=2)
+            if suggestion:
+                sys.stderr.write(f"multitool.py: error: invalid mode: '{invalid_choice}'. Did you mean '{suggestion}'?\n")
+                sys.exit(2)
+            else:
+                sys.stderr.write(f"multitool.py: error: invalid mode: '{invalid_choice}'. Use 'multitool.py help' to see all available modes.\n")
+                sys.exit(2)
+
+        super().error(message)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     # Build a grouped mode summary for the epilog
     mode_summary = get_mode_summary_text()
 
-    parser = argparse.ArgumentParser(
+    parser = TypoTolerantArgumentParser(
         prog="multitool.py",
         description="A multipurpose tool for cleaning, getting, and analyzing text files.",
         epilog=dedent(

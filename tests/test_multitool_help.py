@@ -106,3 +106,33 @@ def test_search_standard_help(monkeypatch, capsys):
     assert "A typo-aware search tool." in output
     assert "Example:" in output
     assert "python multitool.py search 'teh' report.txt" in output
+
+
+def test_invalid_subcommand_suggestion_close(monkeypatch, capsys):
+    """Test that misspelling a mode suggests the closest match (e.g. srub -> scrub)."""
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'srub'])
+
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+
+    assert excinfo.value.code == 2
+
+    captured = capsys.readouterr()
+    output = captured.err + captured.out
+    assert "invalid mode: 'srub'" in output
+    assert "Did you mean 'scrub'?" in output
+
+
+def test_invalid_subcommand_suggestion_no_close(monkeypatch, capsys):
+    """Test that a completely unrecognizable mode suggests help."""
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', 'non_existent_gibberish'])
+
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+
+    assert excinfo.value.code == 2
+
+    captured = capsys.readouterr()
+    output = captured.err + captured.out
+    assert "invalid mode: 'non_existent_gibberish'" in output
+    assert "Use 'multitool.py help' to see all available modes." in output

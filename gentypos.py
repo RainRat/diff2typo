@@ -205,14 +205,6 @@ def get_adjacent_keys(include_diagonals: bool = True) -> dict[str, set[str]]:
     return adjacent
 
 
-def _add_mapping_to_subs(data: dict, subs: dict[str, list[str]]) -> None:
-    for k, v in data.items():
-        if isinstance(v, list):
-            subs[str(k)].extend([str(i) for i in v])
-        else:
-            subs[str(k)].append(str(v))
-
-
 def _load_substitutions_file(path: str) -> dict[str, list[str]]:
     """
     Load substitution rules from a file. Supports JSON, CSV, and YAML.
@@ -235,7 +227,11 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                             subs[str(item['correct'])].append(str(item['typo']))
                 # Plain mapping: {"a": ["e", "i"], ...}
                 elif isinstance(data, dict):
-                    _add_mapping_to_subs(data, subs)
+                    for k, v in data.items():
+                        if isinstance(v, list):
+                            subs[str(k)].extend([str(i) for i in v])
+                        else:
+                            subs[str(k)].append(str(v))
         elif ext == '.csv':
             with open(path, 'r', encoding='utf-8') as f:
                 # Use a simple check for typostats header instead of complex sniffing
@@ -279,7 +275,11 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
             with open(path, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 if isinstance(data, dict):
-                    _add_mapping_to_subs(data, subs)
+                    for k, v in data.items():
+                        if isinstance(v, list):
+                            subs[str(k)].extend([str(i) for i in v])
+                        else:
+                            subs[str(k)].append(str(v))
     except Exception as e:
         logging.error(f"Error loading substitutions from '{path}': {e}")
         sys.exit(1)

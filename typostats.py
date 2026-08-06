@@ -94,6 +94,35 @@ def _should_enable_color(stream: Any) -> bool:
     return hasattr(stream, 'isatty') and stream.isatty()
 
 
+def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
+    """
+    Detect the output format based on the file extension.
+    Returns the default if no match is found or no extension is present.
+    """
+    if not path or path == '-':
+        return default
+
+    ext = os.path.splitext(path)[1].lower().lstrip('.')
+    if not ext:
+        return default
+
+    # Map common extensions to tool-supported formats
+    mapping = {
+        'txt': 'arrow',
+        'json': 'json',
+        'csv': 'csv',
+        'yaml': 'yaml',
+        'yml': 'yaml',
+        'arrow': 'arrow',
+    }
+
+    detected = mapping.get(ext)
+    if detected in allowed:
+        return detected
+
+    return default
+
+
 def levenshtein_distance(s1: str, s2: str) -> int:
     """Calculate the number of character changes needed to turn one string into another."""
     if len(s1) < len(s2):
@@ -382,10 +411,10 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
 
     if path == '-':
         if _STDIN_CACHE is not None:
-            logging.info("Using cached input data...")
+            logging.info("Using cached standard input...")
             return list(_STDIN_CACHE)
 
-        logging.info("Reading from input data...")
+        logging.info("Reading from standard input...")
         stream = getattr(sys.stdin, "buffer", sys.stdin)
         data = stream.read()
         if isinstance(data, str):
@@ -410,6 +439,7 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
             logging.warning(f"Input path '{path}' is a directory. Skipping.")
             return []
 
+        fallback_to_latin1 = False
         try:
             with open(path, 'r', encoding='utf-8', newline=newline) as handle:
                 lines = handle.readlines()
@@ -417,7 +447,6 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
         except UnicodeDecodeError:
             logging.warning("UTF-8 decoding failed for '%s'. Attempting detection...", path)
             detected_encoding = detect_encoding(path)
-            fallback_to_latin1 = True
             if detected_encoding:
                 logging.warning(
                     "Using detected encoding '%s' for '%s'.", detected_encoding, path
@@ -426,20 +455,21 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
                     with open(path, 'r', encoding=detected_encoding, newline=newline) as handle:
                         lines = handle.readlines()
                     used_encoding = detected_encoding
-                    fallback_to_latin1 = False
                 except UnicodeDecodeError:
                     logging.warning(
                         "Detected encoding '%s' failed for '%s'. Fallback to latin-1.",
                         detected_encoding,
                         path,
                     )
+                    fallback_to_latin1 = True
             else:
                 logging.warning("Encoding detection failed. Fallback to latin-1 for '%s'.", path)
+                fallback_to_latin1 = True
 
-            if fallback_to_latin1:
-                with open(path, 'r', encoding='latin-1', newline=newline) as handle:
-                    lines = handle.readlines()
-                used_encoding = 'latin-1'
+        if fallback_to_latin1:
+            with open(path, 'r', encoding='latin-1', newline=newline) as handle:
+                lines = handle.readlines()
+            used_encoding = 'latin-1'
 
     logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
     return lines
@@ -1139,25 +1169,8 @@ def main() -> None:
     sort_by = args.sort
     output_format = args.format
     if output_format is None:
-        default_fmt = 'arrow'
         allowed_formats = ['arrow', 'yaml', 'json', 'csv']
-        if output_file and output_file != '-':
-            ext = os.path.splitext(output_file)[1].lower().lstrip('.')
-            if ext:
-                mapping = {
-                    'txt': 'arrow',
-                    'json': 'json',
-                    'csv': 'csv',
-                    'yaml': 'yaml',
-                    'yml': 'yaml',
-                    'arrow': 'arrow',
-                }
-                detected = mapping.get(ext)
-                output_format = detected if detected in allowed_formats else default_fmt
-            else:
-                output_format = default_fmt
-        else:
-            output_format = default_fmt
+        output_format = _detect_format_from_extension(output_file, allowed_formats, 'arrow')
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1
     include_deletions = args.include_deletions
@@ -1178,7 +1191,7 @@ def main() -> None:
 
     if not input_files:
         if sys.stdin.isatty():
-            logging.info("No input files specified. Automatically scanning the current directory for typo logs...")
+            logging.info("Standard input is an interactive terminal. Automatically scanning the current directory...")
             input_files = ['.']
         else:
             input_files = ['-']

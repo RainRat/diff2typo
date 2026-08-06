@@ -19,6 +19,13 @@ git diff | python diff2typo.py [OPTIONS]
 3. **Smart Filtering:** Uses a large dictionary of correct words and a list of "allowed" words to prevent the tool from reporting correct words as typos.
 4. **Integration:** Can check your findings against the external `typos` tool to ensure your list only contains mistakes.
 
+## Automatic Git Fallback
+
+If you run the tool without specifying any input files or piping any changes, it will automatically check if you are inside a Git repository.
+
+- **Inside a Git Repository:** The tool automatically runs `git diff` to get your unstaged changes and scans them for typos. This means you do not need to generate a diff file or pipe the output yourself.
+- **Outside a Git Repository:** The tool prints a helpful error message and exits. It will ask you to provide input files, pipe diff data, or run the command inside a Git repository.
+
 ## Options
 
 | Argument | Default | Description |

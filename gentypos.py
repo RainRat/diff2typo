@@ -673,6 +673,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
         max_length=max_length,
         custom_substitutions_config=config.get('custom_substitutions', {}),
         substitutions_file=config.get('substitutions_file'),
+        ad_hoc=config.get('ad_hoc'),
         quiet=quiet,
     )
 
@@ -704,6 +705,27 @@ def _setup_generation_tools(
                     custom_subs_raw[k] = [existing] + v
             else:
                 custom_subs_raw[k] = v
+
+    # Merge substitutions from --add / -a if provided
+    ad_hoc_pairs = getattr(settings, 'ad_hoc', None)
+    if ad_hoc_pairs:
+        for pair in ad_hoc_pairs:
+            if ":" in pair:
+                k, v = pair.split(":", 1)
+                k = k.strip().lower()
+                v = v.strip().lower()
+                if k in custom_subs_raw:
+                    existing = custom_subs_raw[k]
+                    if existing is None:
+                        custom_subs_raw[k] = [v]
+                    elif isinstance(existing, list):
+                        if v not in [str(x).lower() for x in existing]:
+                            existing.append(v)
+                    else:
+                        if str(existing).lower() != v:
+                            custom_subs_raw[k] = [existing, v]
+                else:
+                    custom_subs_raw[k] = [v]
 
     enable_custom_substitutions = getattr(settings, 'enable_custom_substitutions', True)
     if not enable_custom_substitutions:
@@ -940,6 +962,14 @@ def main() -> None:
         help="Ignore words shorter than this length.",
     )
     gen_group.add_argument(
+        '-a', '--add',
+        dest='ad_hoc',
+        type=str,
+        nargs='+',
+        metavar='KEY:VALUE',
+        help='Extra substitution pairs (for example "ph:f" or "th:teh") to use during typo generation.',
+    )
+    gen_group.add_argument(
         '-r', '--repeat',
         dest='repeat_modifications',
         type=int,
@@ -1057,6 +1087,8 @@ def main() -> None:
         config['dictionary_file'] = args.dictionary_file
     if args.repeat_modifications is not None:
         config['repeat_modifications'] = args.repeat_modifications
+    if args.ad_hoc:
+        config['ad_hoc'] = args.ad_hoc
 
     if args.min_length is not None or args.max_length is not None:
         if 'word_length' not in config:

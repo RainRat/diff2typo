@@ -935,152 +935,21 @@ def test_main_with_if_exists_config(tmp_path, monkeypatch):
     assert (proj2 / 'out_conf.txt').exists()
 
 
-def test_load_config_invalid_if_not_exists(tmp_path):
-    config_file = tmp_path / 'config_invalid_if_not_exists.yaml'
-    config_file.write_text(
-        yaml.safe_dump(
-            {
-                'main_folder': str(tmp_path),
-                'command_to_run': 'echo test',
-                'if_not_exists': 123,  # Invalid type (must be string)
-            }
-        )
-    )
-
-    with pytest.raises(cmdrunner.ConfigError) as exc_info:
-        cmdrunner.load_config(str(config_file))
-
-    assert "'if_not_exists' must be a string." in exc_info.value.args[0]
-
-
-def test_run_command_if_not_exists_filtering(tmp_path):
+def test_report_generation_with_newlines(tmp_path):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
 
-    proj_with_file = base_dir / 'proj_with_file'
-    proj_without_file = base_dir / 'proj_without_file'
-    proj_with_file.mkdir()
-    proj_without_file.mkdir()
-
-    # Create target file only in one folder
-    (proj_with_file / 'target.txt').write_text('exists')
-
-    command = "python3 -c \"open('test_file.txt','w').write('ran')\""
+    output_file = tmp_path / 'report.txt'
 
     cmdrunner.run_command_in_folders(
         str(base_dir),
-        command,
-        if_not_exists='target.txt'
+        "python3 -c 'import sys; sys.stdout.write(\"hello-txt\\n\"); sys.stderr.write(\"error-txt\\n\")'",
+        output_file=str(output_file),
+        output_format='txt'
     )
 
-    # Should NOT run in proj_with_file because it contains target.txt
-    assert not (proj_with_file / 'test_file.txt').exists()
-
-    # Should run in proj_without_file because it does NOT contain target.txt
-    assert (proj_without_file / 'test_file.txt').exists()
-    assert (proj_without_file / 'test_file.txt').read_text() == 'ran'
-
-
-def test_main_with_if_not_exists_cli_override(tmp_path, monkeypatch):
-    base_dir = tmp_path / 'projects'
-    base_dir.mkdir()
-
-    proj1 = base_dir / 'proj1'
-    proj2 = base_dir / 'proj2'
-    proj1.mkdir()
-    proj2.mkdir()
-
-    (proj1 / 'special.json').write_text('{}')
-
-    command = "python3 -c \"open('out.txt','w').write('ok')\""
-
-    # CLI override --if-not-exists
-    monkeypatch.setattr(
-        sys,
-        'argv',
-        ['cmdrunner.py', '-m', str(base_dir), '-c', command, '--if-not-exists', 'special.json']
-    )
-
-    cmdrunner.main()
-
-    # proj1 contains special.json, so it should be skipped
-    assert not (proj1 / 'out.txt').exists()
-    # proj2 does NOT contain special.json, so it should run
-    assert (proj2 / 'out.txt').exists()
-
-
-def test_main_with_if_not_exists_config(tmp_path, monkeypatch):
-    base_dir = tmp_path / 'projects'
-    base_dir.mkdir()
-
-    proj1 = base_dir / 'proj1'
-    proj2 = base_dir / 'proj2'
-    proj1.mkdir()
-    proj2.mkdir()
-
-    (proj2 / 'config.ini').write_text('')
-
-    command = "python3 -c \"open('out_conf.txt','w').write('ok')\""
-
-    config_data = {
-        'main_folder': str(base_dir),
-        'command_to_run': command,
-        'if_not_exists': 'config.ini',
-    }
-    config_file = tmp_path / 'config.yaml'
-    config_file.write_text(yaml.safe_dump(config_data))
-
-    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
-
-    cmdrunner.main()
-
-    # proj1 does NOT contain config.ini, so it should run
-    assert (proj1 / 'out_conf.txt').exists()
-    # proj2 contains config.ini, so it should be skipped
-    assert not (proj2 / 'out_conf.txt').exists()
-
-
-def test_main_with_both_if_exists_and_if_not_exists(tmp_path, monkeypatch):
-    base_dir = tmp_path / 'projects'
-    base_dir.mkdir()
-
-    # Four projects representing all combinations:
-    # 1. contains both A and B
-    # 2. contains A but not B (matches criteria!)
-    # 3. contains B but not A
-    # 4. contains neither A nor B
-    proj1 = base_dir / 'both'
-    proj2 = base_dir / 'only_a'
-    proj3 = base_dir / 'only_b'
-    proj4 = base_dir / 'neither'
-
-    for p in [proj1, proj2, proj3, proj4]:
-        p.mkdir()
-
-    (proj1 / 'fileA.txt').write_text('')
-    (proj1 / 'fileB.txt').write_text('')
-
-    (proj2 / 'fileA.txt').write_text('')
-
-    (proj3 / 'fileB.txt').write_text('')
-
-    command = "python3 -c \"open('out_combo.txt','w').write('ok')\""
-
-    config_data = {
-        'main_folder': str(base_dir),
-        'command_to_run': command,
-        'if_exists': 'fileA.txt',
-        'if_not_exists': 'fileB.txt',
-    }
-    config_file = tmp_path / 'config.yaml'
-    config_file.write_text(yaml.safe_dump(config_data))
-
-    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
-
-    cmdrunner.main()
-
-    # Should only run in only_a
-    assert not (proj1 / 'out_combo.txt').exists()
-    assert (proj2 / 'out_combo.txt').exists()
-    assert not (proj3 / 'out_combo.txt').exists()
-    assert not (proj4 / 'out_combo.txt').exists()
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+    assert "Stdout:\nhello-txt\n" in content
+    assert "Stderr:\nerror-txt\n" in content

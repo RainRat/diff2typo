@@ -151,3 +151,50 @@ def test_stdin_no_input_file_missing_dict(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert len(captured.out) > 0
     assert "-> pineapple" in captured.out
+
+
+def test_validate_config_all_present():
+    config = {
+        'input_file': 'in.txt',
+        'dictionary_file': 'dict.txt',
+        'output_file': 'out.txt',
+        'output_format': 'arrow',
+    }
+    # Should run and validate successfully, not exit
+    gentypos.validate_config(config, cli_mode=False)
+    assert config['output_format'] == 'arrow'
+
+
+def test_stdin_no_input_file_with_output(tmp_path, monkeypatch):
+    import io
+    output_file = tmp_path / "out.txt"
+    monkeypatch.setattr(sys, "argv", ["gentypos.py", "-o", str(output_file), "--no-filter", "--format", "arrow"])
+    monkeypatch.setattr(sys, "stdin", io.StringIO("pineapple\n"))
+
+    with patch("sys.stdin.isatty", return_value=False):
+        gentypos.main()
+
+    assert output_file.exists()
+    assert "-> pineapple" in output_file.read_text()
+
+
+def test_cli_mode_with_input_file_flag(tmp_path, monkeypatch):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("pineapple\n")
+
+    output_file = tmp_path / "out.txt"
+
+    # Run with -i instead of positional words, so cli_words is empty
+    monkeypatch.setattr(sys, "argv", [
+        "gentypos.py",
+        "-i", str(input_file),
+        "-o", str(output_file),
+        "--no-filter",
+        "--min-length", "0",
+        "--format", "arrow"
+    ])
+
+    gentypos.main()
+
+    assert output_file.exists()
+    assert "-> pineapple" in output_file.read_text()

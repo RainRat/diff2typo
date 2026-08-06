@@ -47,6 +47,18 @@ def test_load_substitutions_csv_plain_header(tmp_path):
     # 'a' is the correction, 'e' is the typo. Mapping should be correction -> [typo]
     assert result == {"a": ["e"], "i": ["o"]}
 
+def test_load_substitutions_csv_reversed_header(tmp_path):
+    path = tmp_path / "subs.csv"
+    path.write_text("correction,typo\na,e\ni,o\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_csv_both_typo_headers(tmp_path):
+    path = tmp_path / "subs.csv"
+    path.write_text("typo,before\na,e\ni,o\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
 def test_load_substitutions_csv_plain_no_header(tmp_path):
     path = tmp_path / "subs.csv"
     path.write_text("x,y\nz,w\n")

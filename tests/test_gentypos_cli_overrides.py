@@ -67,6 +67,89 @@ def test_gentypos_cli_override_dictionary_file_filters_typos(capsys, empty_confi
     assert len(stdout_lines) > 0
     assert not any("spple -> apple" in line for line in stdout_lines)
 
+def test_gentypos_cli_override_transposition_only(capsys, empty_config_file):
+    test_args = [
+        "gentypos.py",
+        "-c", empty_config_file,
+        "hello",
+        "-t",
+        "--no-filter",
+        "-f", "arrow"
+    ]
+    with patch.object(sys, 'argv', test_args):
+        gentypos.main()
+
+    captured = capsys.readouterr()
+    stdout_lines = captured.out.splitlines()
+    assert len(stdout_lines) > 0
+    assert all(" -> hello" in line for line in stdout_lines)
+    typos = [line.split(" -> ")[0] for line in stdout_lines]
+    assert set(typos) == {"ehllo", "helol", "hlelo"}
+
+def test_gentypos_cli_override_deletion_only(capsys, empty_config_file):
+    test_args = [
+        "gentypos.py",
+        "-c", empty_config_file,
+        "hello",
+        "--deletion",
+        "--no-filter",
+        "-f", "arrow"
+    ]
+    with patch.object(sys, 'argv', test_args):
+        gentypos.main()
+
+    captured = capsys.readouterr()
+    stdout_lines = captured.out.splitlines()
+    assert len(stdout_lines) > 0
+    assert all(" -> hello" in line for line in stdout_lines)
+    typos = [line.split(" -> ")[0] for line in stdout_lines]
+    assert set(typos) == {"ello", "hllo", "helo", "hell"}
+
+def test_gentypos_cli_override_duplication_only(capsys, empty_config_file):
+    test_args = [
+        "gentypos.py",
+        "-c", empty_config_file,
+        "hello",
+        "--duplication",
+        "--no-filter",
+        "-f", "arrow"
+    ]
+    with patch.object(sys, 'argv', test_args):
+        gentypos.main()
+
+    captured = capsys.readouterr()
+    stdout_lines = captured.out.splitlines()
+    assert len(stdout_lines) > 0
+    assert all(" -> hello" in line for line in stdout_lines)
+    typos = [line.split(" -> ")[0] for line in stdout_lines]
+    assert "hhello" in typos
+    assert "heello" in typos
+    assert "helllo" in typos
+    assert "helloo" in typos
+
+def test_gentypos_cli_override_replacement_only(capsys, empty_config_file):
+    test_args = [
+        "gentypos.py",
+        "-c", empty_config_file,
+        "hello",
+        "-k",
+        "--no-filter",
+        "-f", "arrow"
+    ]
+    with patch.object(sys, 'argv', test_args):
+        gentypos.main()
+
+    captured = capsys.readouterr()
+    stdout_lines = captured.out.splitlines()
+    assert len(stdout_lines) > 0
+    assert all(" -> hello" in line for line in stdout_lines)
+    typos = [line.split(" -> ")[0] for line in stdout_lines]
+    # Check that none of the transpositions or deletions are present
+    assert "ehllo" not in typos
+    assert "ello" not in typos
+    # It should contain adjacent keys or custom replacements
+    assert "jello" in typos or "gello" in typos
+
 def test_gentypos_cli_override_repeat_modifications_generates_nested_typos(capsys, empty_config_file, tmp_path):
     words_file = tmp_path / "words.txt"
     words_file.write_text("cat\n", encoding="utf-8")

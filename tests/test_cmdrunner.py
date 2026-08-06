@@ -933,3 +933,23 @@ def test_main_with_if_exists_config(tmp_path, monkeypatch):
 
     assert not (proj1 / 'out_conf.txt').exists()
     assert (proj2 / 'out_conf.txt').exists()
+
+
+def test_report_generation_with_newlines(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.txt'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "python3 -c 'import sys; sys.stdout.write(\"hello-txt\\n\"); sys.stderr.write(\"error-txt\\n\")'",
+        output_file=str(output_file),
+        output_format='txt'
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+    assert "Stdout:\nhello-txt\n" in content
+    assert "Stderr:\nerror-txt\n" in content

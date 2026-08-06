@@ -215,7 +215,8 @@ def _add_mapping_to_subs(data: dict, subs: dict[str, list[str]]) -> None:
 
 def _load_substitutions_file(path: str) -> dict[str, list[str]]:
     """
-    Load substitution rules from a file. Supports JSON, CSV, and YAML.
+    Load substitution rules from a file. Supports JSON, CSV, YAML, TOML, and
+    various line-oriented plain-text mapping formats (such as arrow, table, colon, etc.).
     JSON and CSV formats match the output of typostats.py.
     """
     subs = defaultdict(list)
@@ -272,14 +273,108 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
 
                         subs[str(row[idx_correct])].append(str(row[idx_typo]))
         else:
-            # Assume YAML
-            if not _YAML_AVAILABLE:
+            # For backwards-compatibility with tests expecting SystemExit on YAML with PyYAML missing
+            if not _YAML_AVAILABLE and ext in ('.yaml', '.yml'):
                 logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML files.")
                 sys.exit(1)
-            with open(path, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f)
-                if isinstance(data, dict):
-                    _add_mapping_to_subs(data, subs)
+
+            # Check if valid YAML/JSON dict is parsed first
+            data = None
+            if _YAML_AVAILABLE:
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        data = yaml.safe_load(f)
+                except Exception:
+                    pass
+
+            if isinstance(data, dict):
+                _add_mapping_to_subs(data, subs)
+            else:
+                # Fallback to line-oriented plain-text / TOML / arrow / markdown table parser
+                typo_indicators = {'typo', 'typo_char', 'before', 'incorrect', 'incorrect_word', 'bad'}
+                correct_indicators = {'correction', 'correct', 'correct_char', 'after', 'word', 'good', 'right'}
+
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                except UnicodeDecodeError:
+                    with open(path, 'r', encoding='latin-1') as f:
+                        lines = f.readlines()
+
+                cleaned_lines = []
+                for line in lines:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    # Standardize vertical bars to standard pipe
+                    line = line.replace('│', '|')
+                    cleaned_lines.append(line)
+
+                is_bar_table = False
+                if cleaned_lines and cleaned_lines[0].count('|') >= 1:
+                    is_bar_table = True
+
+                rows = []
+                if is_bar_table:
+                    for line in cleaned_lines:
+                        # Split by '|' and strip cells
+                        parts = [p.strip() for p in line.split('|') if p.strip()]
+                        # Skip divider rows like |---|---| or ───────┼────────────┼───────
+                        if parts and all(all(c in ('-', '─', ':', ' ') for c in p) for p in parts):
+                            continue
+                        if len(parts) >= 2:
+                            rows.append([parts[0], parts[1]])
+                else:
+                    for line in cleaned_lines:
+                        # Detect separators in order of specificity
+                        if ' = "' in line:
+                            parts = line.split(' = "', 1)
+                            val = parts[1].rstrip('"')
+                            rows.append([parts[0].strip(), val])
+                        elif ' = [' in line or ' = \'' in line or ' = ' in line:
+                            parts = line.split(' = ', 1)
+                            rows.append([parts[0].strip(), parts[1].strip()])
+                        elif '->' in line:
+                            parts = line.split('->', 1)
+                            rows.append([parts[0].strip(), parts[1].strip()])
+                        elif ':' in line:
+                            parts = line.split(':', 1)
+                            rows.append([parts[0].strip(), parts[1].strip()])
+                        else:
+                            parts = line.split(',', 1)
+                            if len(parts) == 2:
+                                rows.append([parts[0].strip(), parts[1].strip()])
+
+                direction = 'left_to_right'  # Default: correct -> typo
+                has_header = False
+
+                if rows:
+                    p1, p2 = rows[0][0].lower(), rows[0][1].lower()
+                    if p1 in typo_indicators and p2 in correct_indicators:
+                        direction = 'right_to_left'
+                        has_header = True
+                    elif p1 in correct_indicators and p2 in typo_indicators:
+                        direction = 'left_to_right'
+                        has_header = True
+
+                    start_idx = 1 if has_header else 0
+                    for r in rows[start_idx:]:
+                        key, val_str = r[0], r[1]
+                        val_str = val_str.strip()
+                        vals = []
+                        if val_str.startswith('[') and val_str.endswith(']'):
+                            for item in val_str[1:-1].split(','):
+                                item_clean = item.strip().strip('"').strip("'")
+                                if item_clean:
+                                    vals.append(item_clean)
+                        else:
+                            vals = [val_str.strip('"').strip("'")]
+
+                        if direction == 'left_to_right':
+                            subs[key].extend(vals)
+                        else:
+                            for v in vals:
+                                subs[v].append(key)
     except Exception as e:
         logging.error(f"Error loading substitutions from '{path}': {e}")
         sys.exit(1)

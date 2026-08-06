@@ -77,8 +77,51 @@ def test_load_substitutions_malformed_json(tmp_path):
     with pytest.raises(SystemExit):
         gentypos._load_substitutions_file(str(path))
 
-def test_load_substitutions_csv_leading_empty_lines(tmp_path):
-    path = tmp_path / "subs_leading.csv"
-    path.write_text("\n\n\ntypo,correct\nteh,value\nmispell,misspell\n", encoding="utf-8")
+def test_load_substitutions_arrow(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("ph -> f\nth -> teh\n")
     result = gentypos._load_substitutions_file(str(path))
-    assert result == {"value": ["teh"], "misspell": ["mispell"]}
+    assert result == {"ph": ["f"], "th": ["teh"]}
+
+def test_load_substitutions_colon(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("ph: f\nth: teh\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"ph": ["f"], "th": ["teh"]}
+
+def test_load_substitutions_toml_table(tmp_path):
+    path = tmp_path / "subs.toml"
+    path.write_text('ph = "f"\nth = ["teh", "t"]\n')
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"ph": ["f"], "th": ["teh", "t"]}
+
+def test_load_substitutions_markdown_table(tmp_path):
+    path = tmp_path / "subs.md"
+    content = """
+| typo | correction |
+|------|------------|
+| teh  | the        |
+| wrod | word       |
+"""
+    path.write_text(content)
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"the": ["teh"], "word": ["wrod"]}
+
+def test_load_substitutions_typostats_table(tmp_path):
+    path = tmp_path / "subs.txt"
+    content = """
+  Typo │ Correction │ Count │      % │ Visual
+───────┼────────────┼───────┼────────┼────────
+  o    │ e          │     5 │  15.0% │ ▊
+  teh  │ the        │    10 │  30.0% │ █
+"""
+    path.write_text(content)
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"e": ["o"], "the": ["teh"]}
+
+def test_load_substitutions_latin1_fallback(tmp_path):
+    path = tmp_path / "subs.txt"
+    content = "é -> e\n"
+    path.write_bytes(content.encode("latin-1"))
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"é": ["e"]}

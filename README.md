@@ -96,19 +96,21 @@ python multitool.py scrub . --mapping my_typos.txt --in-place --diff
 
 This project has a full suite of tests to make sure everything works correctly.
 
-To run all the tests in the repository, run this command:
+Always use `python -m pytest` instead of running `pytest` directly. This ensures that Python can find all project modules and avoids path errors.
+
+To run all the tests in the repository:
 ```bash
-pytest
+python -m pytest
 ```
 
 To run a specific test file, provide the path to that file:
 ```bash
-pytest tests/test_typostats.py
+python -m pytest tests/test_typostats.py
 ```
 
 To see more details about each test while it runs, use the verbose flag:
 ```bash
-pytest -v
+python -m pytest -v
 ```
 
 ## 📄 License

@@ -65,7 +65,7 @@ def test_read_stdin_text_str(monkeypatch, caplog):
     with caplog.at_level(logging.INFO):
         text = diff2typo._read_stdin_text()
         assert text == "text input"
-        assert "Successfully read input diff from standard input" in caplog.text
+        assert "Successfully read input diff." in caplog.text
 
 def test_read_diff_sources_not_found():
     with pytest.raises(SystemExit) as excinfo:

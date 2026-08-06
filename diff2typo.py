@@ -578,9 +578,9 @@ def _read_stdin_text() -> str:
     stream = getattr(sys.stdin, "buffer", sys.stdin)
     data = stream.read()
     if isinstance(data, str):
-        logging.info("Successfully read input diff from standard input.")
+        logging.info("Successfully read input diff.")
         return data
-    return _decode_with_fallback(data, "input diff from standard input")
+    return _decode_with_fallback(data, "input diff")
 
 
 def _read_git_diff(git_args: Optional[str]) -> str:
@@ -1018,12 +1018,12 @@ def main():
                 is_git = False
 
             if is_git:
-                logging.info("Standard input is an interactive terminal. Automatically running 'git diff'...")
+                logging.info("No files specified. Running in a Git repository; automatically checking your recent changes (git diff)...")
                 diff_text = _read_git_diff(None)
             else:
                 logging.error(
-                    "No input files specified and standard input is an interactive terminal.\n"
-                    "Please provide input files, pipe diff data, or run inside a Git repository."
+                    "No files specified and not running inside a Git repository.\n"
+                    "Please specify one or more input files, run inside a Git repository, or pipe a diff command into this tool."
                 )
                 sys.exit(1)
         else:

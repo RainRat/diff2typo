@@ -411,10 +411,10 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
 
     if path == '-':
         if _STDIN_CACHE is not None:
-            logging.info("Using cached standard input...")
+            logging.info("Using cached input data...")
             return list(_STDIN_CACHE)
 
-        logging.info("Reading from standard input...")
+        logging.info("Reading from input data...")
         stream = getattr(sys.stdin, "buffer", sys.stdin)
         data = stream.read()
         if isinstance(data, str):
@@ -1189,7 +1189,7 @@ def main() -> None:
 
     if not input_files:
         if sys.stdin.isatty():
-            logging.info("Standard input is an interactive terminal. Automatically scanning the current directory...")
+            logging.info("No input files specified. Automatically scanning the current directory for typo logs...")
             input_files = ['.']
         else:
             input_files = ['-']

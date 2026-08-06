@@ -610,6 +610,12 @@ def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
         return _read_stdin_text()
 
     contents: List[str] = []
+    ignored_dirs = {
+        '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
+        '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
+    }
+    supported_extensions = {'.diff', '.patch', '.txt', '.log'}
+
     for pattern in input_files:
         if pattern == "-":
             contents.append(_read_stdin_text())
@@ -621,12 +627,24 @@ def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
             sys.exit(1)
 
         for match in matches:
-            if not os.path.isfile(match):
+            if os.path.isdir(match):
+                for root, dirs, files in os.walk(match):
+                    # Prune ignored directories in-place to avoid walking into them
+                    dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                    for file in sorted(files):
+                        ext = os.path.splitext(file)[1].lower()
+                        if ext in supported_extensions:
+                            file_path = os.path.join(root, file)
+                            with open(file_path, "rb") as file_handle:
+                                data = file_handle.read()
+                            contents.append(_decode_with_fallback(data, f"input diff file '{file_path}'"))
+            elif os.path.isfile(match):
+                with open(match, "rb") as file_handle:
+                    data = file_handle.read()
+                contents.append(_decode_with_fallback(data, f"input diff file '{match}'"))
+            else:
                 logging.error(f"Input file '{match}' not found. Exiting.")
                 sys.exit(1)
-            with open(match, "rb") as file_handle:
-                data = file_handle.read()
-            contents.append(_decode_with_fallback(data, f"input diff file '{match}'"))
 
     return "\n".join(contents)
 

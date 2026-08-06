@@ -78,9 +78,9 @@ def test_read_diff_sources_no_files(monkeypatch):
 
 def test_read_diff_sources_not_a_file(tmp_path):
     (tmp_path / "subdir").mkdir()
-    with pytest.raises(SystemExit) as excinfo:
-        diff2typo._read_diff_sources([str(tmp_path / "subdir")])
-    assert excinfo.value.code == 1
+    # Now that directory inputs are supported recursively, passing a directory
+    # should return an empty string/content successfully rather than exiting.
+    assert diff2typo._read_diff_sources([str(tmp_path / "subdir")]) == ""
 
 def test_filter_known_typos_write_fail(caplog):
     with patch("builtins.open", side_effect=OSError("write error")):

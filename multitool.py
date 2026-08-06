@@ -636,6 +636,7 @@ def _format_analysis_summary(
     c_blue = BLUE if use_color else ""
     c_green = GREEN if use_color else ""
     c_yellow = YELLOW if use_color else ""
+    c_cyan = CYAN if use_color else ""
     c_reset = RESET if use_color else ""
 
     padding = "  "
@@ -661,7 +662,7 @@ def _format_analysis_summary(
         bar = _render_visual_bar(retention, max_bar)
 
         report.append(
-            f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_blue}{bar}{c_reset}"
+            f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_cyan}{bar}{c_reset}"
         )
 
     # Unique Items

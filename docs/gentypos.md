@@ -13,6 +13,9 @@ Pass words as arguments to see what typos are generated. By default, results are
 # Generate typos for a single word
 python gentypos.py hello --no-filter
 
+# Generate typos using all typo generation methods
+python gentypos.py hello --all --no-filter
+
 # Generate typos for multiple words
 python gentypos.py apple banana orange --no-filter
 ```
@@ -45,6 +48,11 @@ python gentypos.py --input "data/*.txt" --output typos.txt
 | `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, or YAML). Useful for loading your personal typo history from `typostats.py`. |
 | `--input`, `-i` | None | One or more input files, directories, or glob patterns containing words to process (one per line). |
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
+| `--all`, `-A` | Off | Generate all typo types (deletions, transpositions, replacements, and duplications). |
+| `--transposition`, `-t` | Off | Generate transpositions (swapped letters, e.g., 'word' to 'wrod'). |
+| `--deletion` | Off | Generate deletions (skipping a letter, e.g., 'word' to 'wrd'). |
+| `--duplication` | Off | Generate duplications (typing a letter twice, e.g., 'word' to 'woord'). |
+| `--keyboard`, `-k`, `--replacement` | Off | Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' to 'wprd'). |
 | `--min-length`, `-m` | None | Ignore words shorter than this length. |
 | `--max-length` | None | Ignore words longer than this length. |
 | `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |

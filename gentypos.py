@@ -1091,6 +1091,11 @@ def main() -> None:
     # Generation Options
     gen_group = parser.add_argument_group(f"{BLUE}GENERATION OPTIONS{RESET}")
     gen_group.add_argument(
+        '-A', '--all',
+        action='store_true',
+        help="Generate all typo types (deletions, transpositions, replacements, and duplications).",
+    )
+    gen_group.add_argument(
         '-t', '--transposition',
         action='store_true',
         help="Generate transpositions (swapped letters, e.g., 'word' to 'wrod').",
@@ -1267,6 +1272,12 @@ def main() -> None:
             sys.exit(1)
 
     validate_config(config, cli_mode=is_cli_mode or (not is_cli_mode and not sys.stdin.isatty()), config_defaults=run_defaults)
+
+    if args.all:
+        args.deletion = True
+        args.transposition = True
+        args.replacement = True
+        args.duplication = True
 
     cli_typo_types = {
         'deletion': args.deletion,

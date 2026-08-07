@@ -35,11 +35,15 @@ def test_minimal_formatter_error_tty():
         assert "\033[1;31mERROR\033[0m" in formatted
         assert "Error message" in formatted
 
-def test_read_csv_rows_required_missing(tmp_path):
+def test_read_words_mapping_required_missing(tmp_path):
     missing_file = tmp_path / "missing.csv"
     with pytest.raises(SystemExit) as excinfo:
-        diff2typo._read_csv_rows(str(missing_file), "Test file", required=True)
+        diff2typo.read_words_mapping(str(missing_file), required=True)
     assert excinfo.value.code == 1
+
+def test_read_words_mapping_not_required_missing(tmp_path):
+    missing_file = tmp_path / "missing.csv"
+    assert diff2typo.read_words_mapping(str(missing_file), required=False) == {}
 
 def test_split_into_subwords_no_match():
     assert diff2typo.split_into_subwords("!!!") == ["!!!"]
@@ -201,3 +205,14 @@ def test_main_output_write_fail(tmp_path, monkeypatch):
         with pytest.raises(SystemExit) as excinfo:
             diff2typo.main()
         assert excinfo.value.code == 1
+
+def test_read_words_mapping_exception_required():
+    with patch("builtins.open", side_effect=OSError("Permission denied")):
+        with pytest.raises(SystemExit) as excinfo:
+            diff2typo.read_words_mapping("fake.csv", required=True)
+        assert excinfo.value.code == 1
+
+def test_read_words_mapping_exception_not_required():
+    with patch("builtins.open", side_effect=OSError("Permission denied")):
+        result = diff2typo.read_words_mapping("fake.csv", required=False)
+        assert result == {}

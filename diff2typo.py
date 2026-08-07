@@ -247,26 +247,6 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
-def _read_csv_rows(file_path, description, required=False):
-    """Return CSV rows from ``file_path`` with shared error handling."""
-
-    try:
-        with open(file_path, "r", encoding="utf-8") as file_handle:
-            return list(csv.reader(file_handle))
-    except FileNotFoundError:
-        message = f"{description} '{file_path}' not found."
-        if required:
-            logging.error(message)
-            sys.exit(1)
-        logging.warning(message + " Skipping.")
-        return []
-    except Exception as exc:  # pragma: no cover - extremely unlikely
-        logging.error(f"Error reading {description.lower()} '{file_path}': {exc}")
-        if required:
-            sys.exit(1)
-        return []
-
-
 def read_allowed_words(allowed_file: str) -> Set[str]:
     """
     Reads allowed words from a CSV file and returns a set of lowercase words.
@@ -278,7 +258,16 @@ def read_allowed_words(allowed_file: str) -> Set[str]:
     Returns:
         set: A set of allowed words in lowercase.
     """
-    rows = _read_csv_rows(allowed_file, "Allowed words file", required=False)
+    try:
+        with open(allowed_file, "r", encoding="utf-8") as file_handle:
+            rows = list(csv.reader(file_handle))
+    except FileNotFoundError:
+        logging.warning(f"Allowed words file '{allowed_file}' not found. Skipping.")
+        rows = []
+    except Exception as exc:
+        logging.error(f"Error reading allowed words file '{allowed_file}': {exc}")
+        rows = []
+
     allowed_words = {row[0].strip().lower() for row in rows if row}
     if rows:
         logging.info(f"Loaded {len(allowed_words)} allowed words from '{allowed_file}'.")
@@ -311,8 +300,23 @@ def read_words_mapping(file_path: str, required: bool = True) -> Dict[str, Set[s
     We can also accept a list of words for the large dictionary. They will
         not have any corrections.
     """
+    try:
+        with open(file_path, "r", encoding="utf-8") as file_handle:
+            rows = list(csv.reader(file_handle))
+    except FileNotFoundError:
+        message = f"Large dictionary file '{file_path}' not found."
+        if required:
+            logging.error(message)
+            sys.exit(1)
+        logging.warning(message + " Skipping.")
+        rows = []
+    except Exception as exc:
+        logging.error(f"Error reading large dictionary file '{file_path}': {exc}")
+        if required:
+            sys.exit(1)
+        rows = []
+
     mapping: Dict[str, Set[str]] = {}
-    rows = _read_csv_rows(file_path, "Large dictionary file", required=required)
     for row in rows:
         if row:
             incorrect = row[0].strip().lower()

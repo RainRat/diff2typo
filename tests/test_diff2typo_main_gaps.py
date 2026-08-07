@@ -280,10 +280,10 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
         self.assertEqual(result, [])
 
     def test_read_words_mapping_empty_row(self):
-        # Target 176->175: empty row
-        with patch('diff2typo._read_csv_rows', return_value=[[], ["teh", "the"]]):
-            result = diff2typo.read_words_mapping("fake.csv")
-            self.assertEqual(result, {"teh": {"the"}})
+        with patch('builtins.open', return_value=io.StringIO("teh,the\n")):
+            with patch('csv.reader', return_value=[[], ["teh", "the"]]):
+                result = diff2typo.read_words_mapping("fake.csv")
+                self.assertEqual(result, {"teh": {"the"}})
 
     def test_minimal_formatter_no_color(self):
         # Target 80->83: color is None

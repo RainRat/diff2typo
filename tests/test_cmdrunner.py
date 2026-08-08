@@ -1050,3 +1050,140 @@ def test_main_with_if_not_exists_config(tmp_path, monkeypatch):
 
     assert (proj1 / 'out_conf.txt').exists()
     assert not (proj2 / 'out_conf.txt').exists()
+
+
+def test_load_config_invalid_jobs(tmp_path):
+    config_file = tmp_path / 'config_invalid_jobs.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': str(tmp_path),
+                'command_to_run': 'echo test',
+                'jobs': 'not-an-int',
+            }
+        )
+    )
+
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    assert "'jobs' must be an integer greater than or equal to 1." in exc_info.value.args[0]
+
+
+def test_load_config_jobs_less_than_one(tmp_path):
+    config_file = tmp_path / 'config_invalid_jobs_val.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': str(tmp_path),
+                'command_to_run': 'echo test',
+                'jobs': 0,
+            }
+        )
+    )
+
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    assert "'jobs' must be an integer greater than or equal to 1." in exc_info.value.args[0]
+
+
+def test_run_command_parallel_success(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    command = "python3 -c \"open('parallel_out.txt','w').write('ok')\""
+
+    # Execute with 2 parallel jobs
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        jobs=2
+    )
+
+    assert (proj1 / 'parallel_out.txt').exists()
+    assert (proj1 / 'parallel_out.txt').read_text() == 'ok'
+    assert (proj2 / 'parallel_out.txt').exists()
+    assert (proj2 / 'parallel_out.txt').read_text() == 'ok'
+
+
+def test_main_parallel_cli_override(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    command = "python3 -c \"open('cli_parallel_out.txt','w').write('ok')\""
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['cmdrunner.py', '-m', str(base_dir), '-c', command, '--jobs', '3']
+    )
+
+    cmdrunner.main()
+
+    assert (proj1 / 'cli_parallel_out.txt').exists()
+    assert (proj2 / 'cli_parallel_out.txt').exists()
+
+
+def test_parallel_fail_fast(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    # command that fails (exit 1)
+    command = "python3 -c \"import sys; sys.exit(1)\""
+
+    with pytest.raises(SystemExit) as exc_info:
+        cmdrunner.run_command_in_folders(
+            str(base_dir),
+            command,
+            jobs=2,
+            fail_fast=True
+        )
+
+    assert exc_info.value.code == 1
+
+
+def test_parallel_exceptions_handled(tmp_path, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj1.mkdir()
+
+    # Force run_single inside ThreadPoolExecutor to raise an Exception or timeout
+    # Let's use an extremely low timeout value so it raises subprocess.TimeoutExpired
+    command = "python3 -c \"import time; time.sleep(2)\""
+
+    output_file = tmp_path / 'report.json'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        jobs=2,
+        timeout=0.01,
+        output_file=str(output_file),
+        output_format='json'
+    )
+
+    assert output_file.exists()
+    with open(output_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    assert len(data) == 1
+    assert data[0]['folder'] == 'proj1'
+    assert data[0]['status'] == 'timeout'

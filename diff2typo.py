@@ -409,7 +409,7 @@ def process_diff_block(
     return _compare_word_lists(before_words, after_words, min_length, max_dist)
 
 
-def _is_file_excluded(filepath: str, patterns: Optional[List[str]]) -> bool:
+def _match_pattern(filepath: str, patterns: Optional[List[str]]) -> bool:
     if not patterns or not filepath:
         return False
     for pattern in patterns:
@@ -418,15 +418,14 @@ def _is_file_excluded(filepath: str, patterns: Optional[List[str]]) -> bool:
     return False
 
 
+def _is_file_excluded(filepath: str, patterns: Optional[List[str]]) -> bool:
+    return _match_pattern(filepath, patterns)
+
+
 def _is_file_included(filepath: str, patterns: Optional[List[str]]) -> bool:
     if not patterns:
         return True
-    if not filepath:
-        return False
-    for pattern in patterns:
-        if fnmatch.fnmatch(filepath, pattern) or fnmatch.fnmatch(os.path.basename(filepath), pattern):
-            return True
-    return False
+    return _match_pattern(filepath, patterns)
 
 
 def find_typos(

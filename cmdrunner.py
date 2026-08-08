@@ -11,6 +11,7 @@ except ImportError:  # pragma: no cover - optional dependency
 import sys
 import argparse
 import logging
+import concurrent.futures
 from typing import List, Dict, Any, Optional
 
 try:
@@ -116,6 +117,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "if_not_exists" in config and not isinstance(config["if_not_exists"], str):
         errors.append("'if_not_exists' must be a string.")
 
+    if "jobs" in config and (isinstance(config["jobs"], bool) or not isinstance(config["jobs"], int) or config["jobs"] < 1):
+        errors.append("'jobs' must be an integer greater than or equal to 1.")
+
     if errors:
         raise ConfigError(" ".join(errors))
 
@@ -133,6 +137,7 @@ def run_command_in_folders(
     output_format: Optional[str] = None,
     if_exists: Optional[str] = None,
     if_not_exists: Optional[str] = None,
+    jobs: int = 1,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -161,30 +166,25 @@ def run_command_in_folders(
             if not os.path.exists(os.path.join(main_folder, item, if_not_exists))
         ]
 
-    iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
-
     report_data = []
 
-    # Iterate through each item in the main folder
-    for item in iterator:
+    def run_single(item: str) -> Dict[str, Any]:
         item_path = os.path.join(main_folder, item)
         current_command = command.replace("{}", shlex.quote(item))
 
         if dry_run:
             logging.warning(f"Dry run: would run command '{current_command}' in '{item}'")
-            report_data.append({
+            return {
                 "folder": item,
                 "command": current_command,
                 "status": "dry-run",
                 "return_code": 0,
                 "stdout": "",
                 "stderr": "",
-            })
-            continue
+            }
 
         logging.info(f"Running command in: {item}")
 
-        # Run the command in the directory
         try:
             result = subprocess.run(
                 current_command,
@@ -197,37 +197,91 @@ def run_command_in_folders(
                 timeout=timeout,
             )
             logging.info(f"Command output for '{item}':\n{result.stdout}")
-            report_data.append({
+            return {
                 "folder": item,
                 "command": current_command,
                 "status": "success",
                 "return_code": 0,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-            })
+            }
         except subprocess.TimeoutExpired as e:
             logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
-            report_data.append({
+            return {
                 "folder": item,
                 "command": current_command,
                 "status": "timeout",
                 "return_code": -1,
                 "stdout": e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
                 "stderr": e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or ""),
-            })
-            if fail_fast:
-                sys.exit(1)
+            }
         except subprocess.CalledProcessError as e:
             logging.error(f"The command failed in '{item}':\n{e.stderr}")
-            report_data.append({
+            return {
                 "folder": item,
                 "command": current_command,
                 "status": "failed",
                 "return_code": e.returncode,
                 "stdout": e.stdout or "",
                 "stderr": e.stderr or "",
-            })
-            if fail_fast:
+            }
+
+    if jobs > 1 and len(directories) > 1:
+        failed = False
+        futures_map = {}
+        results_by_folder = {}
+
+        iterator = tqdm(total=len(directories), desc="Processing folders", unit="folder", disable=dry_run or quiet)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+            for item in directories:
+                if fail_fast and failed:
+                    break
+                future = executor.submit(run_single, item)
+                futures_map[future] = item
+
+            for future in concurrent.futures.as_completed(futures_map):
+                item = futures_map[future]
+                try:
+                    res = future.result()
+                    results_by_folder[item] = res
+                    if fail_fast and res["status"] in ("failed", "timeout"):
+                        failed = True
+                        for f in futures_map:
+                            f.cancel()
+                except Exception as exc:
+                    logging.error(f"Task generated an exception in '{item}': {exc}")
+                    results_by_folder[item] = {
+                        "folder": item,
+                        "command": command.replace("{}", shlex.quote(item)),
+                        "status": "failed",
+                        "return_code": -1,
+                        "stdout": "",
+                        "stderr": str(exc),
+                    }
+                    if fail_fast:
+                        failed = True
+                        for f in futures_map:
+                            f.cancel()
+
+                iterator.update(1)
+
+        iterator.close()
+
+        # Reconstruct report_data in the exact sorted directory order
+        for item in directories:
+            if item in results_by_folder:
+                report_data.append(results_by_folder[item])
+
+        if fail_fast and failed:
+            sys.exit(1)
+
+    else:
+        iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
+        for item in iterator:
+            res = run_single(item)
+            report_data.append(res)
+            if fail_fast and res["status"] in ("failed", "timeout"):
                 sys.exit(1)
 
     if output_file:
@@ -342,6 +396,11 @@ def parse_arguments() -> argparse.Namespace:
     # Execution Options Group
     options_group = parser.add_argument_group(f"{BLUE}EXECUTION OPTIONS{RESET}")
     options_group.add_argument(
+        '-j', '--jobs',
+        type=int,
+        help='The number of concurrent jobs to run in parallel (default: 1).'
+    )
+    options_group.add_argument(
         '--dry-run',
         action='store_true',
         help='Show which folders would be checked without executing the command.'
@@ -423,6 +482,7 @@ def main() -> None:
     timeout = args.timeout if args.timeout is not None else config.get('timeout', None)
     if_exists = args.if_exists or config.get('if_exists', None)
     if_not_exists = args.if_not_exists or config.get('if_not_exists', None)
+    jobs = args.jobs if args.jobs is not None else config.get('jobs', 1)
 
     # Validate that required options are present
     errors = []
@@ -448,6 +508,7 @@ def main() -> None:
         output_format=args.format,
         if_exists=if_exists,
         if_not_exists=if_not_exists,
+        jobs=jobs,
     )
 
 if __name__ == "__main__":

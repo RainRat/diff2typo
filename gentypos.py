@@ -34,7 +34,7 @@ import json
 import csv
 from collections import defaultdict
 from types import SimpleNamespace
-from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Optional
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Optional, List
 try:
     from tqdm import tqdm  # For progress bars; install via `pip install tqdm`
 except ImportError:
@@ -54,26 +54,47 @@ except ImportError:
 VERSION = "1.1.0"
 
 
-# ANSI Color Codes
-BLUE = "\033[1;34m"
-GREEN = "\033[1;32m"
-RED = "\033[1;31m"
-YELLOW = "\033[1;33m"
-RESET = "\033[0m"
-BOLD = "\033[1m"
+# ANSI Color Codes (Internal constants)
+_BLUE = "\033[1;34m"
+_GREEN = "\033[1;32m"
+_RED = "\033[1;31m"
+_YELLOW = "\033[1;33m"
+_MAGENTA = "\033[1;35m"
+_CYAN = "\033[1;36m"
+_RESET = "\033[0m"
+_BOLD = "\033[1m"
+
+# Global color constants for general use (legacy support)
+BLUE = _BLUE
+GREEN = _GREEN
+RED = _RED
+YELLOW = _YELLOW
+MAGENTA = _MAGENTA
+CYAN = _CYAN
+RESET = _RESET
+BOLD = _BOLD
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
-if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
-    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+if (not sys.stdout.isatty() and 'FORCE_COLOR' not in os.environ) or 'NO_COLOR' in os.environ:
+    BLUE = GREEN = RED = YELLOW = MAGENTA = CYAN = RESET = BOLD = ""
+
+
+def _should_enable_color(stream: Any) -> bool:
+    """Check if color should be enabled for a given stream."""
+    if os.environ.get('NO_COLOR'):
+        return False
+    if os.environ.get('FORCE_COLOR'):
+        return True
+    return hasattr(stream, 'isatty') and stream.isatty()
 
 
 class MinimalFormatter(logging.Formatter):
     """A logging formatter that removes prefixes for INFO level messages."""
 
     LEVEL_COLORS = {
-        logging.WARNING: YELLOW,
-        logging.ERROR: RED,
-        logging.CRITICAL: RED,
+        logging.WARNING: _YELLOW,
+        logging.ERROR: _RED,
+        logging.CRITICAL: _RED,
     }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -82,12 +103,108 @@ class MinimalFormatter(logging.Formatter):
 
         levelname = record.levelname
         # Colorize the level name if stderr is a terminal and color is available
-        if sys.stderr.isatty() and levelname:
+        if _should_enable_color(sys.stderr) and levelname:
             color = self.LEVEL_COLORS.get(record.levelno)
             if color:
-                levelname = f"{color}{levelname}{RESET}"
+                levelname = f"{color}{levelname}{_RESET}"
 
         return f"{levelname}: {record.getMessage()}"
+
+
+def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
+    """
+    Creates a high-resolution visual bar using Unicode block characters.
+    """
+    total_blocks = (percentage * max_bar) / 100
+    full_blocks = int(total_blocks)
+    fraction = total_blocks - full_blocks
+    blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+    frac_idx = int(fraction * 8)
+
+    bar = "█" * full_blocks
+    if full_blocks < max_bar:
+        bar += blocks[frac_idx]
+        bar += " " * (max_bar - full_blocks - 1)
+    return bar
+
+
+def _format_analysis_summary(
+    raw_count: int,
+    filtered_items: Sequence[Any],
+    item_label: str = "item",
+    start_time: Optional[float] = None,
+    use_color: bool = False,
+    extra_metrics: Optional[Mapping[str, Any]] = None,
+    title: str = "ANALYSIS SUMMARY",
+    total_input_items: Optional[int] = None,
+) -> List[str]:
+    """
+    Standardizes the "ANALYSIS SUMMARY" block with consistent colors and a visual retention bar.
+    Returns a list of formatted lines.
+    """
+    item_label_plural = f"{item_label}s"
+    c_bold = _BOLD if use_color else ""
+    c_blue = _BLUE if use_color else ""
+    c_green = _GREEN if use_color else ""
+    c_yellow = _YELLOW if use_color else ""
+    c_cyan = _CYAN if use_color else ""
+    c_reset = _RESET if use_color else ""
+
+    padding = "  "
+    label_width = 35
+    report = []
+
+    report.append(f"\n{padding}{c_bold}{c_blue}{title}{c_reset}")
+    report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
+
+    if total_input_items is not None:
+        report.append(
+            f"  {c_bold}{c_blue}{'Input words processed:':<{label_width}}{c_reset} {c_yellow}{total_input_items}{c_reset}"
+        )
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ' generated:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
+    )
+
+    filtered_count = len(filtered_items)
+    report.append(
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
+    )
+
+    if raw_count > 0:
+        retention = (filtered_count / raw_count) * 100
+        # High-res visual bar for retention
+        max_bar = 20
+        bar = _render_visual_bar(retention, max_bar)
+
+        report.append(
+            f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_cyan}{bar}{c_reset}"
+        )
+
+    # Unique Items
+    try:
+        unique_count = len(set(filtered_items))
+    except (TypeError, ValueError):
+        unique_count = len(filtered_items)
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ':':<{label_width}}{c_reset} {c_green}{unique_count}{c_reset}"
+    )
+
+    # Extra metrics
+    if extra_metrics:
+        for label, value in extra_metrics.items():
+            report.append(f"  {c_bold}{c_blue}{label + ':':<{label_width}}{c_reset} {value}")
+
+    # Processing Time
+    if start_time is not None:
+        duration = time.perf_counter() - start_time
+        report.append(
+            f"  {c_bold}{c_blue}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+        )
+
+    report.append("")
+    return report
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -998,6 +1115,7 @@ def _run_typo_generation(
         for typo, correct_words in typo_to_correct_word.items():
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
+    _run_typo_generation.total_generated = total_typos_generated
     sorted_typos = sorted(filtered_typo_to_correct_word.items())
     return dict(sorted_typos)
 
@@ -1006,6 +1124,7 @@ def main() -> None:
     """
     Main function to generate likely typos and save them to a file based on YAML configuration.
     """
+    start_time = time.perf_counter()
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
         description=f"{BOLD}Create lists of common typing mistakes by simulating nearby key errors and common patterns like swapping, skipping, or doubling letters.{RESET}",
@@ -1359,14 +1478,37 @@ def main() -> None:
                     file.write(settings.output_header + "\n")
                 for typo in formatted_typos:
                     file.write(f"{typo}\n")
-            logging.info(
-                "Successfully generated %d likely typos and saved to '%s'.",
-                len(formatted_typos),
-                output_target,
-            )
     except Exception as e:
         logging.error("Error writing to '%s': %s", settings.output_file, e)
         sys.exit(1)
+
+    # Display analysis summary to stderr
+    if not args.quiet:
+        use_color = _should_enable_color(sys.stderr)
+        total_generated = getattr(_run_typo_generation, 'total_generated', None)
+        if not isinstance(total_generated, int) or isinstance(total_generated, bool):
+            total_generated = len(sorted_typo_dict)
+
+        extra_metrics = {}
+        extra_metrics["Filtered out (real words)"] = total_generated - len(sorted_typo_dict)
+        extra_metrics["Generation repeat count"] = settings.repeat_modifications
+
+        summary = _format_analysis_summary(
+            total_generated,
+            list(sorted_typo_dict.keys()),
+            item_label="typo",
+            start_time=start_time,
+            use_color=use_color,
+            extra_metrics=extra_metrics,
+            title="TYPO GENERATION SUMMARY",
+            total_input_items=len(word_list)
+        )
+        sys.stderr.write("\n".join(summary) + "\n")
+
+        dest_label = "the screen" if settings.output_file == "-" else f"'{settings.output_file}'"
+        c_blue = (_BOLD + _BLUE) if use_color else ""
+        c_reset = _RESET if use_color else ""
+        logging.info(f"{c_blue}[gentypos]{c_reset} Wrote {len(formatted_typos)} line(s) to {dest_label}.\n")
 
 
 if __name__ == "__main__":

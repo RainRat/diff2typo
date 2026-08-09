@@ -92,29 +92,29 @@ def load_config(config_path: str) -> Dict[str, Any]:
     # Support both 'main_folder' and the legacy 'base_directory'
     main_folder = config.get("main_folder") or config.get("base_directory")
     if not main_folder:
-        errors.append("Missing required configuration field: 'main_folder'.")
+        errors.append("The configuration file is missing the required field 'main_folder'.")
 
     if not config.get("command_to_run"):
-        errors.append("Missing required configuration field: 'command_to_run'.")
+        errors.append("The configuration file is missing the required field 'command_to_run'.")
 
     for field in ["main_folder", "base_directory", "command_to_run"]:
         if field in config and not isinstance(config[field], str):
-            errors.append(f"'{field}' must be a string.")
+            errors.append(f"The field '{field}' must be a string.")
 
     if "excluded_folders" in config and not isinstance(config["excluded_folders"], list):
-        errors.append("'excluded_folders' must be a list if provided.")
+        errors.append("The field 'excluded_folders' must be a list if you provide it.")
 
     if "fail_fast" in config and not isinstance(config["fail_fast"], bool):
-        errors.append("'fail_fast' must be a boolean.")
+        errors.append("The field 'fail_fast' must be a boolean.")
 
     if "timeout" in config and (isinstance(config["timeout"], bool) or not isinstance(config["timeout"], (int, float))):
-        errors.append("'timeout' must be a number.")
+        errors.append("The field 'timeout' must be a number.")
 
     if "if_exists" in config and not isinstance(config["if_exists"], str):
-        errors.append("'if_exists' must be a string.")
+        errors.append("The field 'if_exists' must be a string.")
 
     if "if_not_exists" in config and not isinstance(config["if_not_exists"], str):
-        errors.append("'if_not_exists' must be a string.")
+        errors.append("The field 'if_not_exists' must be a string.")
 
     if errors:
         raise ConfigError(" ".join(errors))
@@ -301,7 +301,7 @@ def parse_arguments() -> argparse.Namespace:
         metavar='CONFIG_PATH',
         type=str,
         nargs='?',
-        help='The path to your YAML configuration file. If omitted, the tool automatically falls back to loading "cmdrunner.yaml" from the current working directory if it exists.'
+        help='The path to your YAML configuration file. If you do not specify this, the tool automatically loads "cmdrunner.yaml" from your current directory if it exists.'
     )
 
     # Direct Execution / Overrides Group
@@ -309,34 +309,34 @@ def parse_arguments() -> argparse.Namespace:
     direct_group.add_argument(
         '-m', '--main-folder',
         type=str,
-        help='The main folder containing your projects. Overrides config file if provided.'
+        help='The main folder containing your projects. This overrides the configuration file.'
     )
     direct_group.add_argument(
         '-b', '--base-directory',
         type=str,
-        help='Legacy alias for main folder. Overrides config file if provided.'
+        help='Legacy name for the main folder. This overrides the configuration file.'
     )
     direct_group.add_argument(
         '-c', '--command-to-run',
         dest='command_to_run',
         type=str,
-        help='The command you want to run in each folder. Overrides config file if provided.'
+        help='The command you want to run in each folder. This overrides the configuration file.'
     )
     direct_group.add_argument(
         '-e', '--excluded-folders',
         dest='excluded_folders',
         nargs='+',
-        help='Folders you want the tool to skip. Overrides config file if provided.'
+        help='Folders you want the tool to skip. This overrides the configuration file.'
     )
     direct_group.add_argument(
         '--if-exists',
         type=str,
-        help='Only run the command in folders that contain this specific file or path (e.g., package.json).'
+        help='Only run the command in folders that contain this file or path (for example, "package.json").'
     )
     direct_group.add_argument(
         '--if-not-exists',
         type=str,
-        help='Only run the command in folders that do NOT contain this specific file or path (e.g., initialized.log).'
+        help='Only run the command in folders that do not contain this file or path (for example, "initialized.log").'
     )
 
     # Execution Options Group
@@ -344,23 +344,23 @@ def parse_arguments() -> argparse.Namespace:
     options_group.add_argument(
         '--dry-run',
         action='store_true',
-        help='Show which folders would be checked without executing the command.'
+        help='Show which folders the tool will check without running any command.'
     )
     options_group.add_argument(
         '--quiet',
         action='store_true',
-        help='Hide progress bars and status messages.'
+        help='Hide status messages and progress bars.'
     )
     options_group.add_argument(
         '--fail-fast',
         action='store_true',
         default=None,
-        help='Stop execution immediately if any command fails.'
+        help='Stop running commands immediately if any command fails.'
     )
     options_group.add_argument(
         '--timeout',
         type=float,
-        help='The maximum execution time in seconds for the command in each folder.'
+        help='Set the maximum time in seconds for the command to run in each folder.'
     )
 
     # Output Options Group
@@ -368,7 +368,7 @@ def parse_arguments() -> argparse.Namespace:
     output_group.add_argument(
         '-o', '--output',
         type=str,
-        help='Where to save the execution report. If not provided, no report is saved.'
+        help='Save the execution report to this file. If you do not specify this, the tool will not save a report.'
     )
     output_group.add_argument(
         '-f', '--format',

@@ -62,19 +62,19 @@ if_not_exists: "initialized.log"
 
 ## Options
 
-- `CONFIG_PATH`: (Optional) The path to your YAML configuration file. If omitted and direct options are incomplete, the tool automatically falls back to loading `cmdrunner.yaml` from the current working directory if it exists.
-- `-m`, `--main-folder`: The main folder containing your projects. Overrides config file if provided.
-- `-b`, `--base-directory`: Legacy alias for the main folder containing your projects. Overrides config file if provided.
-- `-c`, `--command-to-run`: The command to run in each folder. Overrides config file if provided.
-- `-e`, `--excluded-folders`: A space-separated list of folders to skip. Overrides config file if provided.
-- `--dry-run`: Shows which folders would be processed and which command would run without actually doing it. Use this to test your setup safely.
-- `--quiet`: Hides status messages and progress bars.
-- `--fail-fast`: Stop execution immediately if any command fails or times out. Overrides config file if provided.
-- `--timeout`: The maximum execution time in seconds for the command in each folder. Overrides config file if provided.
-- `--if-exists`: Only run the command in folders that contain this specific file or path (e.g., `package.json` or `requirements.txt`). Overrides config file if provided.
-- `--if-not-exists`: Only run the command in folders that do NOT contain this specific file or path (e.g., `initialized.log`). Overrides config file if provided.
-- `-o`, `--output`: Where to save the execution report. If not provided, no report is saved.
-- `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`). If not provided, it is automatically detected from the output file extension.
+- `CONFIG_PATH`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
+- `-m`, `--main-folder`: The main folder containing your projects. This overrides the configuration file.
+- `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
+- `-c`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
+- `-e`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
+- `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
+- `--quiet`: Hide status messages and progress bars.
+- `--fail-fast`: Stop running commands immediately if any command fails. This overrides the configuration file.
+- `--timeout`: Set the maximum time in seconds for the command to run in each folder. This overrides the configuration file.
+- `--if-exists`: Only run the command in folders that contain this file or path (for example, `package.json`). This overrides the configuration file.
+- `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
+- `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
+- `-f`, `--format`: Choose the format for the output report (`json`, `csv`, or `txt`). If you do not specify this, the tool detects the format from the output file's extension.
 
 ## Dynamic Commands
 

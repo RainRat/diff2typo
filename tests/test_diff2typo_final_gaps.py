@@ -2,6 +2,7 @@ import sys
 import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import diff2typo
@@ -108,3 +109,46 @@ def test_main_sort_by_alpha(tmp_path, monkeypatch):
 
     results = output_file.read_text().strip().splitlines()
     assert results == ["aaa -> abc", "zzz -> zed"]
+
+
+def test_read_diff_sources_else_branch():
+    with patch("glob.glob", return_value=["fake_item"]), \
+         patch("os.path.isdir", return_value=False), \
+         patch("os.path.isfile", return_value=False):
+        with pytest.raises(SystemExit) as excinfo:
+            diff2typo._read_diff_sources(["fake_pattern"])
+        assert excinfo.value.code == 1
+
+
+def test_main_git_log_val_mock(monkeypatch):
+    mock_git = MagicMock()
+    mock_git_log = MagicMock()
+    monkeypatch.setattr(sys, "argv", ["diff2typo.py", "--quiet"])
+    class MockArgs:
+        version = False
+        input_files = []
+        git = mock_git
+        git_log = mock_git_log
+        input_files_flag = []
+        output_file = "-"
+        output_format = "arrow"
+        exclude = None
+        include = None
+        mode = "typos"
+        min_length = 2
+        max_dist = None
+        min_count = 1
+        sort = "alpha"
+        limit = None
+        dictionary_file = "words.csv"
+        allowed_file = "allowed.csv"
+        typos_tool_path = "typos"
+        quiet = True
+
+    with patch("argparse.ArgumentParser.parse_args", return_value=MockArgs()), \
+         patch("diff2typo.read_words_mapping", return_value={}), \
+         patch("diff2typo.read_allowed_words", return_value=set()), \
+         patch("diff2typo.find_typos", return_value=[]), \
+         patch("sys.stdin.isatty", return_value=False), \
+         patch("diff2typo._read_stdin_text", return_value=""):
+        diff2typo.main()

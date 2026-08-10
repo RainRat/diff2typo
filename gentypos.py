@@ -90,6 +90,110 @@ class MinimalFormatter(logging.Formatter):
         return f"{levelname}: {record.getMessage()}"
 
 
+def _should_enable_color(stream: Any) -> bool:
+    """Check if color should be enabled for a given stream."""
+    if os.environ.get('NO_COLOR'):
+        return False
+    if os.environ.get('FORCE_COLOR'):
+        return True
+    return hasattr(stream, 'isatty') and stream.isatty()
+
+
+def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
+    """
+    Creates a high-resolution visual bar using Unicode block characters.
+    """
+    total_blocks = (percentage * max_bar) / 100
+    full_blocks = int(total_blocks)
+    fraction = total_blocks - full_blocks
+    blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+    frac_idx = int(fraction * 8)
+
+    bar = "█" * full_blocks
+    if full_blocks < max_bar:
+        bar += blocks[frac_idx]
+        bar += " " * (max_bar - full_blocks - 1)
+    return bar
+
+
+def _format_analysis_summary(
+    raw_count: int,
+    filtered_items: Sequence[Any],
+    item_label: str = "item",
+    start_time: Optional[float] = None,
+    use_color: bool = False,
+    extra_metrics: Optional[Mapping[str, Any]] = None,
+    title: str = "TYPO GENERATION SUMMARY",
+    total_input_items: Optional[int] = None,
+) -> list[str]:
+    """
+    Standardizes the "TYPO GENERATION SUMMARY" block with consistent colors and a visual retention bar.
+    Returns a list of formatted lines.
+    """
+    _BLUE = "\033[1;34m"
+    _GREEN = "\033[1;32m"
+    _RED = "\033[1;31m"
+    _YELLOW = "\033[1;33m"
+    _MAGENTA = "\033[1;35m"
+    _CYAN = "\033[1;36m"
+    _RESET = "\033[0m"
+    _BOLD = "\033[1m"
+
+    item_label_plural = f"{item_label}s"
+    c_bold = _BOLD if use_color else ""
+    c_blue = _BLUE if use_color else ""
+    c_green = _GREEN if use_color else ""
+    c_yellow = _YELLOW if use_color else ""
+    c_cyan = _CYAN if use_color else ""
+    c_reset = _RESET if use_color else ""
+
+    padding = "  "
+    label_width = 35
+    report = []
+
+    report.append(f"\n{padding}{c_bold}{c_blue}{title}{c_reset}")
+    report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
+
+    if total_input_items is not None:
+        report.append(
+            f"  {c_bold}{c_blue}{'Total input words processed:':<{label_width}}{c_reset} {c_yellow}{total_input_items}{c_reset}"
+        )
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Total ' + item_label_plural + ' generated:':<{label_width}}{c_reset} {c_yellow}{raw_count}{c_reset}"
+    )
+
+    filtered_count = len(filtered_items)
+    report.append(
+        f"  {c_bold}{c_blue}{'Unique ' + item_label_plural + ' after filtering:':<{label_width}}{c_reset} {c_green}{filtered_count}{c_reset}"
+    )
+
+    if raw_count > 0:
+        retention = (filtered_count / raw_count) * 100
+        # High-res visual bar for retention
+        max_bar = 20
+        bar = _render_visual_bar(retention, max_bar)
+
+        report.append(
+            f"  {c_bold}{c_blue}{'Retention rate:':<{label_width}}{c_reset} {c_green}{retention:>5.1f}%{c_reset} {c_cyan}{bar}{c_reset}"
+        )
+
+    # Extra metrics
+    if extra_metrics:
+        for label, value in extra_metrics.items():
+            report.append(f"  {c_bold}{c_blue}{label + ':':<{label_width}}{c_reset} {value}")
+
+    # Processing Time
+    if start_time is not None:
+        duration = time.perf_counter() - start_time
+        report.append(
+            f"  {c_bold}{c_blue}{'Processing time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+        )
+
+    report.append("")
+    return report
+
+
 DEFAULT_CONFIG: dict[str, Any] = {
     'typo_types': {
         'deletion': True,
@@ -999,6 +1103,8 @@ def _run_typo_generation(
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
     sorted_typos = sorted(filtered_typo_to_correct_word.items())
+    settings.total_typos_generated = total_typos_generated
+    settings.filtered_typos_count = filtered_typos_count
     return dict(sorted_typos)
 
 
@@ -1164,6 +1270,7 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    start_time = time.perf_counter()
 
     # Determine if we are in CLI Mode (extra words or input file provided)
     # Support both legacy --word and positional args
@@ -1359,11 +1466,31 @@ def main() -> None:
                     file.write(settings.output_header + "\n")
                 for typo in formatted_typos:
                     file.write(f"{typo}\n")
-            logging.info(
-                "Successfully generated %d likely typos and saved to '%s'.",
-                len(formatted_typos),
-                output_target,
+
+        if not args.quiet:
+            use_color = _should_enable_color(sys.stderr)
+            raw_count = getattr(settings, 'total_typos_generated', len(sorted_typo_dict))
+            filtered_count = getattr(settings, 'filtered_typos_count', 0)
+
+            # Generate the formatted summary
+            summary = _format_analysis_summary(
+                raw_count=raw_count,
+                filtered_items=list(sorted_typo_dict.keys()),
+                item_label="typo",
+                start_time=start_time,
+                use_color=use_color,
+                extra_metrics={"Filtered by dictionary": filtered_count} if all_words else None,
+                total_input_items=len(word_list),
             )
+            sys.stderr.write("\n".join(summary))
+
+            dest_label = "the screen" if output_target == "-" else f"'{output_target}'"
+            _BLUE = "\033[1;34m"
+            _RESET = "\033[0m"
+            _BOLD = "\033[1m"
+            c_blue = (_BOLD + _BLUE) if use_color else ""
+            c_reset = _RESET if use_color else ""
+            logging.info(f"{c_blue}[gentypos]{c_reset} Wrote {len(formatted_typos)} line(s) to {dest_label}.\n")
     except Exception as e:
         logging.error("Error writing to '%s': %s", settings.output_file, e)
         sys.exit(1)

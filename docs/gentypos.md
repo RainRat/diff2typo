@@ -37,6 +37,20 @@ python gentypos.py --input my_wordlists/ --output typos.txt
 python gentypos.py --input "data/*.txt" --output typos.txt
 ```
 
+### 3. Piping words (Standard Input)
+You can pipe a list of words from another command directly into the tool. When standard input is not a terminal, the tool automatically reads words from standard input (one word per line).
+
+```bash
+# Pipe words from another command
+echo "hello" | python gentypos.py
+
+# Pipe a list of words and save the output
+cat words.txt | python gentypos.py --output typos.txt
+
+# Pipe words and use specific generation options
+echo "banana" | python gentypos.py --all --no-filter
+```
+
 ## Options
 
 | Argument | Default | Description |

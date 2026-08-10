@@ -1050,3 +1050,128 @@ def test_main_with_if_not_exists_config(tmp_path, monkeypatch):
 
     assert (proj1 / 'out_conf.txt').exists()
     assert not (proj2 / 'out_conf.txt').exists()
+
+
+def test_load_config_invalid_jobs(tmp_path):
+    config_file = tmp_path / 'config_invalid_jobs.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': str(tmp_path),
+                'command_to_run': 'echo test',
+                'jobs': 'not-an-int',
+            }
+        )
+    )
+
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    assert "'jobs' must be an integer of 1 or more." in exc_info.value.args[0]
+
+
+def test_load_config_jobs_bool(tmp_path):
+    config_file = tmp_path / 'config_invalid_jobs_bool.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': str(tmp_path),
+                'command_to_run': 'echo test',
+                'jobs': True,
+            }
+        )
+    )
+
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    assert "'jobs' must be an integer of 1 or more." in exc_info.value.args[0]
+
+
+def test_load_config_jobs_less_than_1(tmp_path):
+    config_file = tmp_path / 'config_invalid_jobs_zero.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': str(tmp_path),
+                'command_to_run': 'echo test',
+                'jobs': 0,
+            }
+        )
+    )
+
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    assert "'jobs' must be an integer of 1 or more." in exc_info.value.args[0]
+
+
+def test_run_command_parallel_success(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+    (base_dir / 'proj2').mkdir()
+
+    command = "python3 -c \"open('test_parallel.txt','w').write('parallel')\""
+
+    cmdrunner.run_command_in_folders(str(base_dir), command, jobs=3)
+
+    for name in ['proj1', 'proj2']:
+        test_file = base_dir / name / 'test_parallel.txt'
+        assert test_file.exists()
+        assert test_file.read_text() == 'parallel'
+
+
+def test_run_command_parallel_fail_fast(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+    (base_dir / 'proj2').mkdir()
+
+    command = "python3 -c 'import sys; sys.exit(1)'"
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.run_command_in_folders(str(base_dir), command, fail_fast=True, jobs=2)
+    assert excinfo.value.code == 1
+
+
+def test_main_parallel_cli_override(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    command = "python3 -c \"open('cli_parallel.txt','w').write('cli')\""
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['cmdrunner.py', '-m', str(base_dir), '-c', command, '-j', '2']
+    )
+
+    cmdrunner.main()
+
+    assert (base_dir / 'proj1' / 'cli_parallel.txt').exists()
+    assert (base_dir / 'proj1' / 'cli_parallel.txt').read_text() == 'cli'
+
+
+def test_main_parallel_config(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    command = "python3 -c \"open('config_parallel.txt','w').write('config')\""
+
+    config_data = {
+        'main_folder': str(base_dir),
+        'command_to_run': command,
+        'jobs': 4,
+    }
+    config_file = tmp_path / 'config.yaml'
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
+
+    cmdrunner.main()
+
+    assert (base_dir / 'proj1' / 'config_parallel.txt').exists()
+    assert (base_dir / 'proj1' / 'config_parallel.txt').read_text() == 'config'

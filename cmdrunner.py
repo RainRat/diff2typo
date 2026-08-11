@@ -1,4 +1,5 @@
 import os
+import time
 import subprocess
 import shlex
 import csv
@@ -66,6 +67,32 @@ class MinimalFormatter(logging.Formatter):
                 levelname = f"{color}{levelname}{RESET}"
 
         return f"{levelname}: {record.getMessage()}"
+
+
+def _should_enable_color(stream: Any) -> bool:
+    """Check if color should be enabled for a given stream."""
+    if os.environ.get('NO_COLOR'):
+        return False
+    if os.environ.get('FORCE_COLOR'):
+        return True
+    return hasattr(stream, 'isatty') and stream.isatty()
+
+
+def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
+    """
+    Creates a high-resolution visual bar using Unicode block characters.
+    """
+    total_blocks = (percentage * max_bar) / 100
+    full_blocks = int(total_blocks)
+    fraction = total_blocks - full_blocks
+    blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+    frac_idx = int(fraction * 8)
+
+    bar = "█" * full_blocks
+    if full_blocks < max_bar:
+        bar += blocks[frac_idx]
+        bar += " " * (max_bar - full_blocks - 1)
+    return bar
 
 
 class ConfigError(Exception):
@@ -144,9 +171,14 @@ def run_command_in_folders(
         logging.error(f"The main folder '{main_folder}' does not exist or is not a folder.")
         sys.exit(1)
 
-    directories = sorted([
+    all_subdirs = [
         item for item in os.listdir(main_folder)
-        if os.path.isdir(os.path.join(main_folder, item)) and item not in excluded_folders
+        if os.path.isdir(os.path.join(main_folder, item))
+    ]
+    total_found = len(all_subdirs)
+
+    directories = sorted([
+        item for item in all_subdirs if item not in excluded_folders
     ])
 
     if if_exists:
@@ -161,9 +193,18 @@ def run_command_in_folders(
             if not os.path.exists(os.path.join(main_folder, item, if_not_exists))
         ]
 
+    processed = len(directories)
+    skipped = total_found - processed
+
     iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
 
     report_data = []
+
+    start_time = time.perf_counter()
+    success_count = 0
+    failed_count = 0
+    timeout_count = 0
+    dry_run_count = 0
 
     # Iterate through each item in the main folder
     for item in iterator:
@@ -180,6 +221,7 @@ def run_command_in_folders(
                 "stdout": "",
                 "stderr": "",
             })
+            dry_run_count += 1
             continue
 
         logging.info(f"Running command in: {item}")
@@ -205,6 +247,7 @@ def run_command_in_folders(
                 "stdout": result.stdout,
                 "stderr": result.stderr,
             })
+            success_count += 1
         except subprocess.TimeoutExpired as e:
             logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
             report_data.append({
@@ -215,6 +258,7 @@ def run_command_in_folders(
                 "stdout": e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
                 "stderr": e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or ""),
             })
+            timeout_count += 1
             if fail_fast:
                 sys.exit(1)
         except subprocess.CalledProcessError as e:
@@ -227,8 +271,70 @@ def run_command_in_folders(
                 "stdout": e.stdout or "",
                 "stderr": e.stderr or "",
             })
+            failed_count += 1
             if fail_fast:
                 sys.exit(1)
+
+    if not quiet:
+        use_color = _should_enable_color(sys.stderr)
+        c_bold = BOLD if use_color else ""
+        c_blue = BLUE if use_color else ""
+        c_green = GREEN if use_color else ""
+        c_yellow = YELLOW if use_color else ""
+        c_red = RED if use_color else ""
+        c_cyan = "\033[1;36m" if use_color else ""
+        c_reset = RESET if use_color else ""
+
+        padding = "  "
+        label_width = 35
+        report = []
+
+        report.append(f"\n{padding}{c_bold}{c_blue}EXECUTION SUMMARY{c_reset}")
+        report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
+
+        report.append(
+            f"  {c_bold}{c_blue}{'Total folders found:':<{label_width}}{c_reset} {c_yellow}{total_found}{c_reset}"
+        )
+        report.append(
+            f"  {c_bold}{c_blue}{'Total folders skipped:':<{label_width}}{c_reset} {c_yellow}{skipped}{c_reset}"
+        )
+        report.append(
+            f"  {c_bold}{c_blue}{'Total folders processed:':<{label_width}}{c_reset} {c_green if processed > 0 else c_yellow}{processed}{c_reset}"
+        )
+        report.append("")
+        report.append(
+            f"  {c_bold}{c_blue}{'Successes:':<{label_width}}{c_reset} {c_green}{success_count}{c_reset}"
+        )
+        report.append(
+            f"  {c_bold}{c_blue}{'Failures:':<{label_width}}{c_reset} {c_red if failed_count > 0 else c_reset}{failed_count}{c_reset}"
+        )
+        report.append(
+            f"  {c_bold}{c_blue}{'Timeouts:':<{label_width}}{c_reset} {c_red if timeout_count > 0 else c_reset}{timeout_count}{c_reset}"
+        )
+
+        if dry_run_count > 0:
+            report.append(
+                f"  {c_bold}{c_blue}{'Dry run commands:':<{label_width}}{c_reset} {c_yellow}{dry_run_count}{c_reset}"
+            )
+
+        if processed > 0 and not dry_run:
+            success_rate = (success_count / processed) * 100
+            max_bar = 20
+            bar = _render_visual_bar(success_rate, max_bar)
+            c_rate = c_green if success_rate == 100 else (c_yellow if success_rate >= 50 else c_red)
+
+            report.append("")
+            report.append(
+                f"  {c_bold}{c_blue}{'Success rate:':<{label_width}}{c_reset} {c_rate}{success_rate:>5.1f}%{c_reset} {c_cyan}{bar}{c_reset}"
+            )
+
+        duration = time.perf_counter() - start_time
+        report.append(
+            f"  {c_bold}{c_blue}{'Execution time:':<{label_width}}{c_reset} {c_green}{duration:.3f}s{c_reset}"
+        )
+        report.append("")
+
+        sys.stderr.write("\n".join(report) + "\n")
 
     if output_file:
         # Determine the format

@@ -1050,3 +1050,94 @@ def test_main_with_if_not_exists_config(tmp_path, monkeypatch):
 
     assert (proj1 / 'out_conf.txt').exists()
     assert not (proj2 / 'out_conf.txt').exists()
+
+
+def test_should_enable_color_env_overrides():
+    with patch.dict(os.environ, {"NO_COLOR": "1"}):
+        assert not cmdrunner._should_enable_color(sys.stderr)
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True):
+        assert cmdrunner._should_enable_color(sys.stderr)
+
+
+def test_render_visual_bar_calculations():
+    bar_100 = cmdrunner._render_visual_bar(100.0, 10)
+    assert bar_100 == "█" * 10
+    bar_0 = cmdrunner._render_visual_bar(0.0, 10)
+    assert bar_0 == " " * 10
+    bar_50 = cmdrunner._render_visual_bar(50.0, 10)
+    assert bar_50 == "█" * 5 + " " * 5
+
+
+def test_run_command_execution_summary_stdout_stderr(tmp_path, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+    (base_dir / 'proj2').mkdir()
+    (base_dir / 'proj3').mkdir()
+
+    (base_dir / 'proj1' / 'package.json').write_text('{}')
+    (base_dir / 'proj2' / 'package.json').write_text('{}')
+
+    command = "python3 -c \"import os; import sys; sys.exit(1 if 'proj2' in os.getcwd() else 0)\""
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        if_exists='package.json'
+    )
+
+    captured = capsys.readouterr()
+    err_output = captured.err
+
+    assert "EXECUTION SUMMARY" in err_output
+    assert "Total folders found:                3" in err_output
+    assert "Total folders skipped:              1" in err_output
+    assert "Total folders processed:            2" in err_output
+    assert "Successes:                          1" in err_output
+    assert "Failures:                           1" in err_output
+    assert "Success rate:                        50.0%" in err_output
+
+
+def test_run_command_execution_summary_dry_run(tmp_path, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo 1",
+        dry_run=True
+    )
+
+    captured = capsys.readouterr()
+    err_output = captured.err
+    assert "Dry run commands:                   1" in err_output
+    assert "Success rate:" not in err_output
+
+
+def test_run_command_execution_summary_rates(tmp_path, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    cmdrunner.run_command_in_folders(str(base_dir), "echo 1")
+    captured = capsys.readouterr()
+    assert "Success rate:                       100.0%" in captured.err
+
+    cmdrunner.run_command_in_folders(str(base_dir), "python3 -c 'import sys; sys.exit(1)'")
+    captured = capsys.readouterr()
+    assert "Success rate:                         0.0%" in captured.err
+
+
+def test_run_command_execution_summary_timeouts(tmp_path, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "python3 -c 'import time; time.sleep(5)'",
+        timeout=0.1
+    )
+    captured = capsys.readouterr()
+    assert "Timeouts:                           1" in captured.err

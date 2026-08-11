@@ -46,6 +46,7 @@ python gentypos.py --input "data/*.txt" --output typos.txt
 | `--all`, `-A` | Off | Generate all typo types (deletions, transpositions, replacements, and duplications). |
 | `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
 | `--deletion` | Off | Generate deletions (skipping a letter, e.g., 'word' becomes 'wrd'). |
+| `--dry-run` | Off | Show configuration details and a sample preview of typo generation without writing files. |
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
 | `--duplication` | Off | Generate duplications (typing a letter twice, e.g., 'word' becomes 'woord'). |
 | `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` (typo = "correction"), or `list` (typo). By default, it is automatically detected from the output file extension. |

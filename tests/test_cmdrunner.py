@@ -973,6 +973,100 @@ def test_load_config_invalid_if_not_exists(tmp_path):
     assert "'if_not_exists' must be a string." in exc_info.value.args[0]
 
 
+def test_load_config_invalid_included_folders(tmp_path):
+    config_file = tmp_path / 'config_invalid_included_folders.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': str(tmp_path),
+                'command_to_run': 'echo test',
+                'included_folders': 'not-a-list',
+            }
+        )
+    )
+
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    assert "'included_folders' must be a list if provided." in exc_info.value.args[0]
+
+
+def test_run_command_included_folders_filtering(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    command = "python3 -c \"open('test_file.txt','w').write('ran')\""
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        included_folders=['proj1']
+    )
+
+    # Should run in proj1
+    assert (proj1 / 'test_file.txt').exists()
+    assert (proj1 / 'test_file.txt').read_text() == 'ran'
+
+    # Should NOT run in proj2
+    assert not (proj2 / 'test_file.txt').exists()
+
+
+def test_main_with_included_folders_cli_override(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    command = "python3 -c \"open('out.txt','w').write('ok')\""
+
+    # CLI override --included-folders
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['cmdrunner.py', '-m', str(base_dir), '-c', command, '--included-folders', 'proj1']
+    )
+
+    cmdrunner.main()
+
+    assert (proj1 / 'out.txt').exists()
+    assert not (proj2 / 'out.txt').exists()
+
+
+def test_main_with_included_folders_config(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    command = "python3 -c \"open('out_conf.txt','w').write('ok')\""
+
+    config_data = {
+        'main_folder': str(base_dir),
+        'command_to_run': command,
+        'included_folders': ['proj2'],
+    }
+    config_file = tmp_path / 'config.yaml'
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
+
+    cmdrunner.main()
+
+    assert not (proj1 / 'out_conf.txt').exists()
+    assert (proj2 / 'out_conf.txt').exists()
+
+
 def test_run_command_if_not_exists_filtering(tmp_path):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

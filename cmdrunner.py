@@ -119,6 +119,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "if_not_exists" in config and not isinstance(config["if_not_exists"], str):
         errors.append("The field 'if_not_exists' must be a string.")
 
+    if "jobs" in config and (isinstance(config["jobs"], bool) or not isinstance(config["jobs"], int) or config["jobs"] < 1):
+        errors.append("'jobs' must be an integer of 1 or more.")
+
     if errors:
         raise ConfigError(" ".join(errors))
 
@@ -137,6 +140,7 @@ def run_command_in_folders(
     if_exists: Optional[str] = None,
     if_not_exists: Optional[str] = None,
     included_folders: Optional[List[str]] = None,
+    jobs: int = 1,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -168,26 +172,22 @@ def run_command_in_folders(
             if not os.path.exists(os.path.join(main_folder, item, if_not_exists))
         ]
 
-    iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
-
     report_data = []
 
-    # Iterate through each item in the main folder
-    for item in iterator:
+    def run_single_folder(item: str) -> Dict[str, Any]:
         item_path = os.path.join(main_folder, item)
         current_command = command.replace("{}", shlex.quote(item))
 
         if dry_run:
             logging.warning(f"Dry run: would run command '{current_command}' in '{item}'")
-            report_data.append({
+            return {
                 "folder": item,
                 "command": current_command,
                 "status": "dry-run",
                 "return_code": 0,
                 "stdout": "",
                 "stderr": "",
-            })
-            continue
+            }
 
         logging.info(f"Running command in: {item}")
 
@@ -204,38 +204,73 @@ def run_command_in_folders(
                 timeout=timeout,
             )
             logging.info(f"Command output for '{item}':\n{result.stdout}")
-            report_data.append({
+            return {
                 "folder": item,
                 "command": current_command,
                 "status": "success",
                 "return_code": 0,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-            })
+            }
         except subprocess.TimeoutExpired as e:
             logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
-            report_data.append({
+            return {
                 "folder": item,
                 "command": current_command,
                 "status": "timeout",
                 "return_code": -1,
                 "stdout": e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
                 "stderr": e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or ""),
-            })
-            if fail_fast:
-                sys.exit(1)
+            }
         except subprocess.CalledProcessError as e:
             logging.error(f"The command failed in '{item}':\n{e.stderr}")
-            report_data.append({
+            return {
                 "folder": item,
                 "command": current_command,
                 "status": "failed",
                 "return_code": e.returncode,
                 "stdout": e.stdout or "",
                 "stderr": e.stderr or "",
-            })
-            if fail_fast:
+            }
+
+    if jobs > 1 and not dry_run:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+            future_to_item = {
+                executor.submit(run_single_folder, item): item
+                for item in directories
+            }
+            # Progress bar tracking
+            for future in tqdm(
+                concurrent.futures.as_completed(future_to_item),
+                total=len(future_to_item),
+                desc="Processing folders",
+                unit="folder",
+                disable=quiet,
+            ):
+                item = future_to_item[future]
+                try:
+                    result = future.result()
+                    report_data.append(result)
+                    if fail_fast and result["status"] in ("failed", "timeout"):
+                        # Shutdown executor immediately without waiting for other jobs
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        sys.exit(1)
+                except Exception as exc:
+                    logging.error(f"An unexpected error occurred in folder '{item}': {exc}")
+                    if fail_fast:
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        sys.exit(1)
+    else:
+        iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
+        for item in iterator:
+            res = run_single_folder(item)
+            report_data.append(res)
+            if fail_fast and res["status"] in ("failed", "timeout"):
                 sys.exit(1)
+
+    # Sort report_data by folder name to ensure consistent deterministic output
+    report_data.sort(key=lambda x: x["folder"])
 
     if output_file:
         # Determine the format
@@ -375,6 +410,11 @@ def parse_arguments() -> argparse.Namespace:
         type=float,
         help='Set the maximum time in seconds for the command to run in each folder.'
     )
+    options_group.add_argument(
+        '-j', '--jobs',
+        type=int,
+        help='Run commands concurrently using this many jobs.'
+    )
 
     # Output Options Group
     output_group = parser.add_argument_group(f"{BLUE}OUTPUT OPTIONS{RESET}")
@@ -437,6 +477,7 @@ def main() -> None:
     timeout = args.timeout if args.timeout is not None else config.get('timeout', None)
     if_exists = args.if_exists or config.get('if_exists', None)
     if_not_exists = args.if_not_exists or config.get('if_not_exists', None)
+    jobs = args.jobs if args.jobs is not None else config.get('jobs', 1)
 
     # Validate that required options are present
     errors = []
@@ -463,6 +504,7 @@ def main() -> None:
         if_exists=if_exists,
         if_not_exists=if_not_exists,
         included_folders=included,
+        jobs=jobs,
     )
 
 if __name__ == "__main__":

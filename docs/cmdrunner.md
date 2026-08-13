@@ -63,6 +63,9 @@ if_exists: "package.json"
 
 # (Optional) Only run the command in folders that do NOT contain this specific file or path
 if_not_exists: "initialized.log"
+
+# (Optional) Run commands concurrently using this many jobs
+jobs: 4
 ```
 
 ## Options
@@ -79,6 +82,7 @@ if_not_exists: "initialized.log"
 - `--timeout`: Set the maximum time in seconds for the command to run in each folder. This overrides the configuration file.
 - `--if-exists`: Only run the command in folders that contain this file or path (for example, `package.json`). This overrides the configuration file.
 - `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
+- `-j`, `--jobs`: Run commands concurrently using this many jobs. This overrides the configuration file.
 - `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, or `txt`). If you do not specify this, the tool detects the format from the output file's extension.
 

@@ -177,6 +177,65 @@ def test_stdin_no_input_file_with_output(tmp_path, monkeypatch):
     assert output_file.exists()
     assert "-> pineapple" in output_file.read_text()
 
+def test_load_substitutions_text_colon_and_comma(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("a:e\ni,o\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"], "i": ["o"]}
+
+def test_load_substitutions_text_left_to_right_header(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("correct:typo\na:e\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["e"]}
+
+def test_load_words_from_sources_no_matches():
+    import pytest
+    with patch("glob.glob", return_value=[]):
+        with pytest.raises(SystemExit):
+            gentypos.load_words_from_sources(["nonexistent_pattern"])
+
+def test_setup_substitutions_merging_gaps():
+    from unittest.mock import MagicMock
+    settings = MagicMock()
+    settings.custom_substitutions_config = {"a": None}
+    settings.substitutions_file = None
+    settings.ad_hoc = ["a:e"]
+    settings.enable_custom_substitutions = True
+    _, custom_subs = gentypos._setup_generation_tools(settings)
+    assert "a" in custom_subs
+
+    settings = MagicMock()
+    settings.custom_substitutions_config = {"a": ["e"]}
+    settings.substitutions_file = None
+    settings.ad_hoc = ["a:e", "a:o"]
+    settings.enable_custom_substitutions = True
+    _, custom_subs = gentypos._setup_generation_tools(settings)
+    assert custom_subs["a"] == {"e", "o"}
+
+    settings = MagicMock()
+    settings.custom_substitutions_config = {"a": "e"}
+    settings.substitutions_file = None
+    settings.ad_hoc = ["a:o", "a:e"]
+    settings.enable_custom_substitutions = True
+    _, custom_subs = gentypos._setup_generation_tools(settings)
+    assert custom_subs["a"] == {"e", "o"}
+
+def test_gentypos_main_multiple_input_files(tmp_path, monkeypatch):
+    input_file1 = tmp_path / "in1.txt"
+    input_file1.write_text("pineapple\n")
+    input_file2 = tmp_path / "in2.txt"
+    input_file2.write_text("apple\n")
+
+    monkeypatch.setattr(sys, "argv", [
+        "gentypos.py",
+        "-i", str(input_file1), str(input_file2),
+        "--no-filter",
+        "--format", "arrow"
+    ])
+
+    gentypos.main()
+
 
 def test_cli_mode_with_input_file_flag(tmp_path, monkeypatch):
     input_file = tmp_path / "input.txt"

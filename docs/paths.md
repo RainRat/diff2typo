@@ -4,7 +4,7 @@ Extract components from file and directory paths.
 
 ## Summary
 
-The `paths` mode helps you analyze your project structure. It extracts specific parts of file and folder paths. You can use it to get the filename, the folder path, or the file extension.
+The `paths` mode is a feature of the [Multitool](multitool.md) utility. It helps you analyze your project structure by extracting specific parts of file and folder paths. You can use it to get the filename, the folder path, or the file extension.
 
 ## Usage
 

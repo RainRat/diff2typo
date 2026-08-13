@@ -104,6 +104,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "excluded_folders" in config and not isinstance(config["excluded_folders"], list):
         errors.append("The field 'excluded_folders' must be a list if you provide it.")
 
+    if "included_folders" in config and not isinstance(config["included_folders"], list):
+        errors.append("'included_folders' must be a list if provided.")
+
     if "fail_fast" in config and not isinstance(config["fail_fast"], bool):
         errors.append("The field 'fail_fast' must be a boolean.")
 
@@ -133,6 +136,7 @@ def run_command_in_folders(
     output_format: Optional[str] = None,
     if_exists: Optional[str] = None,
     if_not_exists: Optional[str] = None,
+    included_folders: Optional[List[str]] = None,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -148,6 +152,9 @@ def run_command_in_folders(
         item for item in os.listdir(main_folder)
         if os.path.isdir(os.path.join(main_folder, item)) and item not in excluded_folders
     ])
+
+    if included_folders:
+        directories = [item for item in directories if item in included_folders]
 
     if if_exists:
         directories = [
@@ -329,6 +336,12 @@ def parse_arguments() -> argparse.Namespace:
         help='Folders you want the tool to skip. This overrides the configuration file.'
     )
     direct_group.add_argument(
+        '-i', '--included-folders',
+        dest='included_folders',
+        nargs='+',
+        help='Specific folders you want to run the command on. Overrides config file if provided.'
+    )
+    direct_group.add_argument(
         '--if-exists',
         type=str,
         help='Only run the command in folders that contain this file or path (for example, "package.json").'
@@ -417,6 +430,7 @@ def main() -> None:
     main_folder = args.main_folder or args.base_directory or config.get('main_folder') or config.get('base_directory', '')
     command_to_run = args.command_to_run or config.get('command_to_run', '')
     excluded = args.excluded_folders if args.excluded_folders is not None else config.get('excluded_folders', [])
+    included = args.included_folders if args.included_folders is not None else config.get('included_folders', None)
 
     # Prioritize CLI values over config file values
     fail_fast = args.fail_fast if args.fail_fast is not None else config.get('fail_fast', False)
@@ -448,6 +462,7 @@ def main() -> None:
         output_format=args.format,
         if_exists=if_exists,
         if_not_exists=if_not_exists,
+        included_folders=included,
     )
 
 if __name__ == "__main__":

@@ -47,6 +47,11 @@ excluded_folders:
   - ".git"
   - "venv"
 
+# (Optional) Specific folders you want to run the command on
+included_folders:
+  - "my-app-1"
+  - "my-app-2"
+
 # (Optional) Stop execution immediately if any command fails or times out
 fail_fast: false
 
@@ -67,6 +72,7 @@ if_not_exists: "initialized.log"
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
 - `-c`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
 - `-e`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
+- `-i`, `--included-folders`: A list of folders you want to run the command on. This overrides the configuration file.
 - `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
 - `--quiet`: Hide status messages and progress bars.
 - `--fail-fast`: Stop running commands immediately if any command fails. This overrides the configuration file.
@@ -92,7 +98,7 @@ In this example, if the tool processes a folder named `my-web-app`, it will run 
 ## How it Works
 
 1. **Find Folders:** The tool looks inside your `main_folder` and finds every sub-folder.
-2. **Filter:** It removes any folders you listed in `excluded_folders`, and filters remaining folders to only those containing the specified `--if-exists` file or path (if provided) and not containing the specified `--if-not-exists` file or path (if provided).
+2. **Filter:** It removes any folders you listed in `excluded_folders`, limits to those folders specified in `included_folders` (if provided), and filters remaining folders to only those containing the specified `--if-exists` file or path (if provided) and not containing the specified `--if-not-exists` file or path (if provided).
 3. **Execute:** It enters each remaining folder and runs your `command_to_run`.
 4. **Report:** It shows you the results of each command or any errors that occurred.
 
@@ -126,4 +132,9 @@ python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm run 
 **Only run commands in projects that do NOT contain a `setup.log` file:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command-to-run "bash setup.sh && touch setup.log" --if-not-exists setup.log
+```
+
+**Only run commands in specific folders:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm run build" --included-folders proj1 proj2
 ```

@@ -107,3 +107,90 @@ def test_multitool_explicit_stdin_via_flag_in_interactive_terminal(tmp_path, mon
 
     # It should NOT log the directory scan message
     assert not any("Standard input is an interactive terminal. Automatically scanning the current directory..." in record.message for record in caplog.records)
+
+
+def test_multitool_interactive_terminal_scans_cwd_excludes_folders(tmp_path, monkeypatch, caplog):
+    # Set the temporary directory as the current working directory
+    monkeypatch.chdir(tmp_path)
+
+    # Create an excluded directory and a file inside it
+    node_modules_dir = tmp_path / "node_modules"
+    node_modules_dir.mkdir()
+    excluded_file = node_modules_dir / "ignored.txt"
+    excluded_file.write_text("should not be read\n")
+
+    # Create a valid file
+    file1 = tmp_path / "words_test.txt"
+    file1.write_text("hello world interactive\n")
+
+    # Clear STDIN cache
+    monkeypatch.setattr("multitool._STDIN_CACHE", None)
+
+    # Output file
+    out_file = tmp_path / "output.txt"
+
+    # Use paths mode so we don't prune node_modules early, allowing walk to hit the exclusion condition on root
+    with patch("sys.stdin.isatty", return_value=True), \
+         patch("sys.argv", ["multitool.py", "--quiet", "--output", str(out_file), "paths"]), \
+         caplog.at_level(logging.INFO):
+        multitool.main()
+
+    # Verify that the output exists and does not contain excluded content
+    assert out_file.exists()
+    content = out_file.read_text()
+    assert "words_test" in content or "wordstesttxt" in content
+    assert "ignored" not in content
+    assert "ignoredtxt" not in content
+
+
+def test_multitool_interactive_terminal_scans_cwd_paths_mode(tmp_path, monkeypatch, caplog):
+    # Set the temporary directory as the current working directory
+    monkeypatch.chdir(tmp_path)
+
+    # Create a subfolder and a file in it
+    sub_dir = tmp_path / "subfolder"
+    sub_dir.mkdir()
+    valid_file = sub_dir / "file.txt"
+    valid_file.write_text("content\n")
+
+    # Clear STDIN cache
+    monkeypatch.setattr("multitool._STDIN_CACHE", None)
+
+    # Output file
+    out_file = tmp_path / "output.txt"
+
+    with patch("sys.stdin.isatty", return_value=True), \
+         patch("sys.argv", ["multitool.py", "--quiet", "--output", str(out_file), "paths"]), \
+         caplog.at_level(logging.INFO):
+        multitool.main()
+
+    # In paths mode, it will list folders and files
+    assert out_file.exists()
+    content = out_file.read_text()
+    # Path outputs should include subfolder and subfolder/file.txt (which is cleaned to subfolderfiletxt)
+    assert "subfolder" in content
+    assert "subfolderfiletxt" in content
+
+
+def test_multitool_interactive_terminal_scans_cwd_empty_input_fallback(tmp_path, monkeypatch, caplog):
+    # Set the temporary directory as the current working directory
+    monkeypatch.chdir(tmp_path)
+
+    # Clear STDIN cache
+    monkeypatch.setattr("multitool._STDIN_CACHE", None)
+
+    # Output file
+    out_file = tmp_path / "output.txt"
+
+    # Setup mock stdin with isatty returning True
+    mock_stdin = io.StringIO("")
+    mock_stdin.isatty = lambda: True
+
+    with patch("sys.stdin", mock_stdin), \
+         patch("os.walk", return_value=[]), \
+         patch("sys.argv", ["multitool.py", "--quiet", "--output", str(out_file), "words"]), \
+         caplog.at_level(logging.INFO):
+        multitool.main()
+
+    assert out_file.exists()
+    assert out_file.read_text() == ""

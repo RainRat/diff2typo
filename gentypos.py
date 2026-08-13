@@ -1168,6 +1168,11 @@ def main() -> None:
         help="Do not check typos against the large dictionary (this is faster).",
     )
     gen_group.add_argument(
+        '--dry-run',
+        action='store_true',
+        help="Show configuration details and a sample preview of typo generation without writing files.",
+    )
+    gen_group.add_argument(
         '-v', '--verbose',
         action='store_true',
         help="Show more detailed log messages.",
@@ -1345,6 +1350,61 @@ def main() -> None:
             )
 
     adjacent_keys, custom_subs = _setup_generation_tools(settings)
+
+    if args.dry_run:
+        logging.info(f"{BOLD}{BLUE}--- GENTYPOS DRY RUN ---{RESET}")
+        input_desc = settings.input_files if not cli_words else f"CLI Words: {cli_words}"
+        logging.info(f"Input: {input_desc}")
+        logging.info(f"Output File: {settings.output_file} (Format: {settings.output_format})")
+        logging.info(f"Min Word Length: {settings.min_length} | Max Word Length: {settings.max_length}")
+        logging.info(f"Repeat Modifications: {settings.repeat_modifications}")
+        enabled_types = [t for t, enabled in settings.typo_types.items() if enabled]
+        logging.info(f"Enabled Typo Types: {', '.join(enabled_types)}")
+        logging.info(f"Large Dictionary: {settings.dictionary_file or 'None'}")
+
+        # Sample Preview
+        logging.info(f"\n{BOLD}{BLUE}Sample Typo Generation Preview:{RESET}")
+        sample_words = word_list[:5]
+        for word in sample_words:
+            # Generate typos just for this word
+            typos_current = {word}
+            accumulated_typos = set()
+            for _ in range(settings.repeat_modifications):
+                new_typos = set()
+                for base_word in typos_current:
+                    new_typos.update(
+                        generate_all_typos(
+                            base_word,
+                            adjacent_keys,
+                            custom_subs,
+                            settings.typo_types,
+                            settings.transposition_distance,
+                            settings.enable_adjacent_substitutions,
+                            settings.enable_custom_substitutions,
+                        )
+                    )
+                accumulated_typos.update(new_typos)
+                typos_current = new_typos
+
+            # Show a preview of up to 10 accumulated typos
+            preview_typos = sorted(list(accumulated_typos))
+            kept = []
+            filtered = []
+            for t in preview_typos:
+                if all_words and t in all_words:
+                    filtered.append(t)
+                else:
+                    kept.append(t)
+
+            logging.info(f"  {BOLD}{word}{RESET}:")
+            logging.info(f"    Generated: {', '.join(preview_typos[:10])}{'...' if len(preview_typos) > 10 else ''}")
+            if all_words:
+                logging.info(f"    Kept:      {', '.join(kept[:10])}{'...' if len(kept) > 10 else ''}")
+                logging.info(f"    Filtered:  {', '.join(filtered[:10])}{'...' if len(filtered) > 10 else ''}")
+            logging.info("")
+
+        logging.info(f"{BOLD}{GREEN}Dry run complete. No files were written.{RESET}")
+        sys.exit(0)
 
     sorted_typo_dict = _run_typo_generation(
         word_list,

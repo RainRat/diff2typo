@@ -1050,3 +1050,186 @@ def test_main_with_if_not_exists_config(tmp_path, monkeypatch):
 
     assert (proj1 / 'out_conf.txt').exists()
     assert not (proj2 / 'out_conf.txt').exists()
+
+
+def test_load_config_jobs_validation(tmp_path):
+    config_file = tmp_path / "config.yaml"
+
+    # Valid config
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "jobs": 4
+    }))
+    assert cmdrunner.load_config(str(config_file))["jobs"] == 4
+
+    # Invalid config (must be integer, not string)
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "jobs": "four"
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="'jobs' must be an integer of 1 or more."):
+        cmdrunner.load_config(str(config_file))
+
+    # Invalid config (bool is not allowed)
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "jobs": True
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="'jobs' must be an integer of 1 or more."):
+        cmdrunner.load_config(str(config_file))
+
+    # Invalid config (less than 1 is not allowed)
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "jobs": 0
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="'jobs' must be an integer of 1 or more."):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_run_command_in_folders_parallel_success(tmp_path):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    for name in ["proj1", "proj2", "proj3"]:
+        (base_dir / name).mkdir()
+
+    command = "python3 -c \"open('test_parallel.txt','w').write('parallel')\""
+
+    cmdrunner.run_command_in_folders(str(base_dir), command, jobs=3)
+
+    for name in ["proj1", "proj2", "proj3"]:
+        test_file = base_dir / name / "test_parallel.txt"
+        assert test_file.exists()
+        assert test_file.read_text() == "parallel"
+
+
+def test_run_command_in_folders_parallel_fail_fast(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    for name in ["proj1", "proj2", "proj3"]:
+        (base_dir / name).mkdir()
+
+    # Create a command that always fails
+    command = "python3 -c \"import sys; sys.exit(1)\""
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.run_command_in_folders(
+                str(base_dir),
+                command,
+                fail_fast=True,
+                jobs=3
+            )
+        assert excinfo.value.code == 1
+
+    # At least one project failure should be recorded before we stop
+    assert any("The command failed" in msg for msg in caplog.messages)
+
+
+def test_run_command_in_folders_parallel_timeout(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    (base_dir / "proj1").mkdir()
+
+    command = "python3 -c \"import time; time.sleep(5)\""
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.run_command_in_folders(
+                str(base_dir),
+                command,
+                fail_fast=True,
+                timeout=0.1,
+                jobs=2
+            )
+        assert excinfo.value.code == 1
+
+    assert any("timed out after 0.1 seconds" in msg for msg in caplog.messages)
+
+
+def test_main_cli_overrides_jobs(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    config_data = {
+        "main_folder": str(base_dir),
+        "command_to_run": "echo jobs_test",
+        "jobs": 1
+    }
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, "argv", [
+        "cmdrunner.py",
+        str(config_file),
+        "--jobs", "4"
+    ])
+
+    # We mock run_command_in_folders to verify that jobs=4 is indeed passed
+    with patch("cmdrunner.run_command_in_folders") as mock_run:
+        cmdrunner.main()
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args[1]
+        assert kwargs["jobs"] == 4
+
+
+def test_run_command_in_folders_parallel_dry_run(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    for name in ["proj1", "proj2"]:
+        (base_dir / name).mkdir()
+
+    command = "python3 -c \"open('dry_run_parallel.txt','w').write('dry')\""
+
+    with caplog.at_level('INFO'):
+        cmdrunner.run_command_in_folders(str(base_dir), command, jobs=2, dry_run=True)
+
+    for name in ["proj1", "proj2"]:
+        assert not (base_dir / name / "dry_run_parallel.txt").exists()
+
+    assert any("Dry run: would run command" in msg for msg in caplog.messages)
+
+
+def test_run_command_in_folders_parallel_unexpected_exception(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    from concurrent.futures import Future
+
+    mock_future = Future()
+    mock_future.set_exception(ValueError("unexpected crash"))
+
+    with patch("concurrent.futures.ThreadPoolExecutor.submit", return_value=mock_future):
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(SystemExit) as excinfo:
+                cmdrunner.run_command_in_folders(str(base_dir), "echo test", jobs=2, fail_fast=True)
+            assert excinfo.value.code == 1
+
+        assert any("An unexpected error occurred" in msg for msg in caplog.messages)
+
+
+def test_run_command_in_folders_parallel_unexpected_exception_no_fail_fast(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    from concurrent.futures import Future
+
+    mock_future = Future()
+    mock_future.set_exception(ValueError("unexpected crash"))
+
+    with patch("concurrent.futures.ThreadPoolExecutor.submit", return_value=mock_future):
+        with caplog.at_level(logging.ERROR):
+            cmdrunner.run_command_in_folders(str(base_dir), "echo test", jobs=2, fail_fast=False)
+
+        assert any("An unexpected error occurred" in msg for msg in caplog.messages)

@@ -113,6 +113,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "if_exists" in config and not isinstance(config["if_exists"], str):
         errors.append("'if_exists' must be a string.")
 
+    if "jobs" in config and (isinstance(config["jobs"], bool) or not isinstance(config["jobs"], int) or config["jobs"] < 1):
+        errors.append("'jobs' must be an integer of 1 or more.")
+
     if "if_not_exists" in config and not isinstance(config["if_not_exists"], str):
         errors.append("'if_not_exists' must be a string.")
 
@@ -133,6 +136,7 @@ def run_command_in_folders(
     output_format: Optional[str] = None,
     if_exists: Optional[str] = None,
     if_not_exists: Optional[str] = None,
+    jobs: int = 1,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -161,74 +165,173 @@ def run_command_in_folders(
             if not os.path.exists(os.path.join(main_folder, item, if_not_exists))
         ]
 
-    iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
-
     report_data = []
 
-    # Iterate through each item in the main folder
-    for item in iterator:
-        item_path = os.path.join(main_folder, item)
-        current_command = command.replace("{}", shlex.quote(item))
+    if jobs > 1:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        if dry_run:
-            logging.warning(f"Dry run: would run command '{current_command}' in '{item}'")
-            report_data.append({
-                "folder": item,
-                "command": current_command,
-                "status": "dry-run",
-                "return_code": 0,
-                "stdout": "",
-                "stderr": "",
-            })
-            continue
+        futures = {}
+        with ThreadPoolExecutor(max_workers=jobs) as executor:
+            for item in directories:
+                item_path = os.path.join(main_folder, item)
+                current_command = command.replace("{}", shlex.quote(item))
 
-        logging.info(f"Running command in: {item}")
+                if dry_run:
+                    def run_dry(it, cmd):
+                        return {
+                            "folder": it,
+                            "command": cmd,
+                            "status": "dry-run",
+                            "return_code": 0,
+                            "stdout": "",
+                            "stderr": "",
+                        }
+                    futures[executor.submit(run_dry, item, current_command)] = item
+                else:
+                    def run_cmd(it, it_path, cmd):
+                        try:
+                            result = subprocess.run(
+                                cmd,
+                                cwd=it_path,
+                                shell=True,
+                                check=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True,
+                                timeout=timeout,
+                            )
+                            return {
+                                "folder": it,
+                                "command": cmd,
+                                "status": "success",
+                                "return_code": 0,
+                                "stdout": result.stdout,
+                                "stderr": result.stderr,
+                            }
+                        except subprocess.TimeoutExpired as e:
+                            return {
+                                "folder": it,
+                                "command": cmd,
+                                "status": "timeout",
+                                "return_code": -1,
+                                "stdout": e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
+                                "stderr": e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or ""),
+                            }
+                        except subprocess.CalledProcessError as e:
+                            return {
+                                "folder": it,
+                                "command": cmd,
+                                "status": "failed",
+                                "return_code": e.returncode,
+                                "stdout": e.stdout or "",
+                                "stderr": e.stderr or "",
+                            }
 
-        # Run the command in the directory
-        try:
-            result = subprocess.run(
-                current_command,
-                cwd=item_path,
-                shell=True,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=timeout,
-            )
-            logging.info(f"Command output for '{item}':\n{result.stdout}")
-            report_data.append({
-                "folder": item,
-                "command": current_command,
-                "status": "success",
-                "return_code": 0,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-            })
-        except subprocess.TimeoutExpired as e:
-            logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
-            report_data.append({
-                "folder": item,
-                "command": current_command,
-                "status": "timeout",
-                "return_code": -1,
-                "stdout": e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
-                "stderr": e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or ""),
-            })
-            if fail_fast:
-                sys.exit(1)
-        except subprocess.CalledProcessError as e:
-            logging.error(f"The command failed in '{item}':\n{e.stderr}")
-            report_data.append({
-                "folder": item,
-                "command": current_command,
-                "status": "failed",
-                "return_code": e.returncode,
-                "stdout": e.stdout or "",
-                "stderr": e.stderr or "",
-            })
-            if fail_fast:
-                sys.exit(1)
+                    futures[executor.submit(run_cmd, item, item_path, current_command)] = item
+
+            iterator = as_completed(futures)
+            if not (dry_run or quiet):
+                iterator = tqdm(iterator, total=len(futures), desc="Processing folders", unit="folder")
+
+            for future in iterator:
+                item = futures[future]
+                try:
+                    result_item = future.result()
+                    if result_item["status"] == "dry-run":
+                        logging.warning(f"Dry run: would run command '{result_item['command']}' in '{result_item['folder']}'")
+                    elif result_item["status"] == "success":
+                        logging.info(f"Running command in: {item}")
+                        logging.info(f"Command output for '{item}':\n{result_item['stdout']}")
+                    elif result_item["status"] == "timeout":
+                        logging.info(f"Running command in: {item}")
+                        logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
+                        if fail_fast:
+                            for f in futures:
+                                f.cancel()
+                            sys.exit(1)
+                    elif result_item["status"] == "failed":
+                        logging.info(f"Running command in: {item}")
+                        logging.error(f"The command failed in '{item}':\n{result_item['stderr']}")
+                        if fail_fast:
+                            for f in futures:
+                                f.cancel()
+                            sys.exit(1)
+
+                    report_data.append(result_item)
+                except Exception as e:
+                    logging.error(f"An unexpected error occurred in task '{item}': {e}")
+                    if fail_fast:
+                        sys.exit(1)
+    else:
+        iterator = tqdm(directories, desc="Processing folders", unit="folder", disable=dry_run or quiet)
+
+        # Iterate through each item in the main folder
+        for item in iterator:
+            item_path = os.path.join(main_folder, item)
+            current_command = command.replace("{}", shlex.quote(item))
+
+            if dry_run:
+                logging.warning(f"Dry run: would run command '{current_command}' in '{item}'")
+                report_data.append({
+                    "folder": item,
+                    "command": current_command,
+                    "status": "dry-run",
+                    "return_code": 0,
+                    "stdout": "",
+                    "stderr": "",
+                })
+                continue
+
+            logging.info(f"Running command in: {item}")
+
+            # Run the command in the directory
+            try:
+                result = subprocess.run(
+                    current_command,
+                    cwd=item_path,
+                    shell=True,
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=timeout,
+                )
+                logging.info(f"Command output for '{item}':\n{result.stdout}")
+                report_data.append({
+                    "folder": item,
+                    "command": current_command,
+                    "status": "success",
+                    "return_code": 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                })
+            except subprocess.TimeoutExpired as e:
+                logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
+                report_data.append({
+                    "folder": item,
+                    "command": current_command,
+                    "status": "timeout",
+                    "return_code": -1,
+                    "stdout": e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
+                    "stderr": e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or ""),
+                })
+                if fail_fast:
+                    sys.exit(1)
+            except subprocess.CalledProcessError as e:
+                logging.error(f"The command failed in '{item}':\n{e.stderr}")
+                report_data.append({
+                    "folder": item,
+                    "command": current_command,
+                    "status": "failed",
+                    "return_code": e.returncode,
+                    "stdout": e.stdout or "",
+                    "stderr": e.stderr or "",
+                })
+                if fail_fast:
+                    sys.exit(1)
+
+    # Sort report_data by folder name to ensure deterministic order (especially important for parallel mode)
+    report_data.sort(key=lambda x: x["folder"])
 
     if output_file:
         # Determine the format
@@ -362,6 +465,11 @@ def parse_arguments() -> argparse.Namespace:
         type=float,
         help='The maximum execution time in seconds for the command in each folder.'
     )
+    options_group.add_argument(
+        '-j', '--jobs',
+        type=int,
+        help='The number of concurrent jobs/threads to run in parallel. Defaults to 1 (sequential).'
+    )
 
     # Output Options Group
     output_group = parser.add_argument_group(f"{BLUE}OUTPUT OPTIONS{RESET}")
@@ -421,6 +529,7 @@ def main() -> None:
     # Prioritize CLI values over config file values
     fail_fast = args.fail_fast if args.fail_fast is not None else config.get('fail_fast', False)
     timeout = args.timeout if args.timeout is not None else config.get('timeout', None)
+    jobs = args.jobs if args.jobs is not None else config.get('jobs', 1)
     if_exists = args.if_exists or config.get('if_exists', None)
     if_not_exists = args.if_not_exists or config.get('if_not_exists', None)
 
@@ -448,6 +557,7 @@ def main() -> None:
         output_format=args.format,
         if_exists=if_exists,
         if_not_exists=if_not_exists,
+        jobs=jobs,
     )
 
 if __name__ == "__main__":

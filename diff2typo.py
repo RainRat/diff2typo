@@ -1091,6 +1091,15 @@ def main():
         else:
             diff_text = _read_diff_sources(input_files)
 
+    if not diff_text.strip():
+        logging.warning("The input diff is empty (no changes detected).")
+        if git_log_val is not None:
+            logging.info("Tip: Try checking a different commit range, e.g. '-l HEAD~5'.")
+        elif git_val is not None or (not input_files and sys.stdin.isatty()):
+            logging.info("Tip: If you have no unstaged changes, try checking staged changes with '-g --cached', or previous commits with '-l HEAD~5'.")
+        else:
+            logging.info("Tip: Ensure the specified input files or piped input contain a valid Git diff or patch.")
+
     # Load the large dictionary (words mapping) once.
     # If the file is missing, we don't exit. Instead we just warn and continue without filtering.
     large_dictionary_mapping = read_words_mapping(args.dictionary_file, required=False)

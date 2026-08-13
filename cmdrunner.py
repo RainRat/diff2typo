@@ -3,6 +3,7 @@ import subprocess
 import shlex
 import csv
 import json
+import time
 try:
     import yaml
     _YAML_AVAILABLE = True
@@ -37,12 +38,13 @@ BLUE = "\033[1;34m"
 GREEN = "\033[1;32m"
 RED = "\033[1;31m"
 YELLOW = "\033[1;33m"
+CYAN = "\033[1;36m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
 if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
-    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+    BLUE = GREEN = RED = YELLOW = CYAN = RESET = BOLD = ""
 
 
 class MinimalFormatter(logging.Formatter):
@@ -70,6 +72,104 @@ class MinimalFormatter(logging.Formatter):
 
 class ConfigError(Exception):
     """Raised when a configuration file is invalid."""
+
+
+def _should_enable_color(stream: Any) -> bool:
+    """Check if color should be enabled for a given stream."""
+    if os.environ.get('NO_COLOR'):
+        return False
+    if os.environ.get('FORCE_COLOR'):
+        return True
+    return hasattr(stream, 'isatty') and stream.isatty()
+
+
+def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
+    """
+    Creates a high-resolution visual bar using Unicode block characters.
+    """
+    total_blocks = (percentage * max_bar) / 100
+    full_blocks = int(total_blocks)
+    fraction = total_blocks - full_blocks
+    blocks = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+    frac_idx = int(fraction * 8)
+
+    bar = "█" * full_blocks
+    if full_blocks < max_bar:
+        bar += blocks[frac_idx]
+        bar += " " * (max_bar - full_blocks - 1)
+    return bar
+
+
+def _format_execution_summary(
+    total_found: int,
+    skipped: int,
+    processed: int,
+    success: int,
+    failed: int,
+    timeout_count: int,
+    dry_run_count: int,
+    elapsed_time: float,
+    use_color: bool = False,
+) -> List[str]:
+    """
+    Standardizes the "EXECUTION SUMMARY" block with consistent colors and a visual success rate bar.
+    """
+    c_bold = BOLD if use_color else ""
+    c_blue = BLUE if use_color else ""
+    c_green = GREEN if use_color else ""
+    c_yellow = YELLOW if use_color else ""
+    c_red = RED if use_color else ""
+    c_cyan = CYAN if use_color else ""
+    c_reset = RESET if use_color else ""
+
+    padding = "  "
+    label_width = 35
+    report = []
+
+    report.append(f"\n{padding}{c_bold}{c_blue}EXECUTION SUMMARY{c_reset}")
+    report.append(f"{padding}{c_bold}{c_blue}───────────────────────────────────────────────────────{c_reset}")
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Total folders found:':<{label_width}}{c_reset} {c_yellow}{total_found}{c_reset}"
+    )
+    if skipped > 0:
+        report.append(
+            f"  {c_bold}{c_blue}{'Folders skipped:':<{label_width}}{c_reset} {c_yellow}{skipped}{c_reset}"
+        )
+    report.append(
+        f"  {c_bold}{c_blue}{'Folders processed:':<{label_width}}{c_reset} {c_yellow}{processed}{c_reset}"
+    )
+
+    if processed > 0:
+        if dry_run_count > 0:
+            report.append(
+                f"  {c_bold}{c_blue}{'Dry-runs executed:':<{label_width}}{c_reset} {c_yellow}{dry_run_count}{c_reset}"
+            )
+        else:
+            report.append(
+                f"  {c_bold}{c_blue}{'Successful runs:':<{label_width}}{c_reset} {c_green}{success}{c_reset}"
+            )
+            if failed > 0:
+                report.append(
+                    f"  {c_bold}{c_blue}{'Failed runs:':<{label_width}}{c_reset} {c_red}{failed}{c_reset}"
+                )
+            if timeout_count > 0:
+                report.append(
+                    f"  {c_bold}{c_blue}{'Timed out runs:':<{label_width}}{c_reset} {c_red}{timeout_count}{c_reset}"
+                )
+
+            success_rate = (success / processed) * 100
+            max_bar = 20
+            bar = _render_visual_bar(success_rate, max_bar)
+            report.append(
+                f"  {c_bold}{c_blue}{'Success rate:':<{label_width}}{c_reset} {c_green}{success_rate:>5.1f}%{c_reset} {c_cyan}{bar}{c_reset}"
+            )
+
+    report.append(
+        f"  {c_bold}{c_blue}{'Total execution time:':<{label_width}}{c_reset} {c_green}{elapsed_time:.3f}s{c_reset}"
+    )
+    return report
+
 
 def load_config(config_path: str) -> Dict[str, Any]:
     """
@@ -146,6 +246,7 @@ def run_command_in_folders(
     Run a specified command in each folder within the main folder,
     excluding specified folders.
     """
+    start_time = time.time()
     excluded_folders = excluded_folders or []
 
     if not os.path.isdir(main_folder):
@@ -312,6 +413,33 @@ def run_command_in_folders(
         except Exception as e:
             logging.error(f"Failed to write report to '{output_file}': {e}")
             sys.exit(1)
+
+    if not quiet:
+        elapsed_time = time.time() - start_time
+        all_items = os.listdir(main_folder) if os.path.isdir(main_folder) else []
+        total_found = len([item for item in all_items if os.path.isdir(os.path.join(main_folder, item))])
+        skipped_count = len([item for item in all_items if os.path.isdir(os.path.join(main_folder, item)) and item in excluded_folders])
+        processed_count = len(directories)
+
+        success_count = len([r for r in report_data if r["status"] == "success"])
+        failed_count = len([r for r in report_data if r["status"] == "failed"])
+        timeout_count = len([r for r in report_data if r["status"] == "timeout"])
+        dry_run_count = len([r for r in report_data if r["status"] == "dry-run"])
+
+        use_color = _should_enable_color(sys.stderr)
+        summary = _format_execution_summary(
+            total_found=total_found,
+            skipped=skipped_count,
+            processed=processed_count,
+            success=success_count,
+            failed=failed_count,
+            timeout_count=timeout_count,
+            dry_run_count=dry_run_count,
+            elapsed_time=elapsed_time,
+            use_color=use_color,
+        )
+        sys.stderr.write("\n".join(summary) + "\n")
+
 
 def parse_arguments() -> argparse.Namespace:
     """

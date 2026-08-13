@@ -140,3 +140,17 @@ def test_typostats_main_basic(tmp_path):
             main()
         except SystemExit:
             pass
+
+def test_format_analysis_summary_levenshtein_exception():
+    from typostats import _format_analysis_summary
+
+    with patch("typostats.levenshtein_distance", side_effect=ValueError("Test Exception")):
+        items = [("the", "teh")]
+        report = _format_analysis_summary(
+            raw_count=1,
+            filtered_items=items,
+            item_label="pattern",
+            use_color=False,
+        )
+        assert len(report) > 0
+        assert not any("Min/Max/Avg changes:" in line for line in report)

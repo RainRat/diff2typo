@@ -108,3 +108,36 @@ def test_main_sort_by_alpha(tmp_path, monkeypatch):
 
     results = output_file.read_text().strip().splitlines()
     assert results == ["aaa -> abc", "zzz -> zed"]
+
+def test_read_diff_sources_else_branch():
+    import pytest
+    with patch("glob.glob", return_value=["dummy_match"]):
+        with patch("os.path.isdir", return_value=False):
+            with patch("os.path.isfile", return_value=False):
+                with patch("logging.error") as mock_log_err:
+                    with pytest.raises(SystemExit) as exc_info:
+                        diff2typo._read_diff_sources(["dummy_pattern"])
+                    assert exc_info.value.code == 1
+                    mock_log_err.assert_called_with("Input file 'dummy_match' not found. Exiting.")
+
+def test_main_git_log_val_mock():
+    mock_args = MagicMock()
+    mock_args.git = MagicMock()
+    mock_args.git_log = MagicMock()
+    mock_args.input_files = None
+    mock_args.input_files_flag = None
+    mock_args.output_format = "arrow"
+    mock_args.quiet = True
+
+    with patch("argparse.ArgumentParser.parse_args", return_value=mock_args):
+        with patch("diff2typo._read_diff_sources") as mock_read, \
+             patch("diff2typo.find_typos") as mock_find, \
+             patch("diff2typo.format_typos") as mock_format:
+            mock_read.return_value = ""
+            mock_find.return_value = {}
+            mock_format.return_value = []
+
+            try:
+                diff2typo.main()
+            except SystemExit:
+                pass

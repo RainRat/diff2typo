@@ -1050,3 +1050,64 @@ def test_main_with_if_not_exists_config(tmp_path, monkeypatch):
 
     assert (proj1 / 'out_conf.txt').exists()
     assert not (proj2 / 'out_conf.txt').exists()
+
+
+def test_execution_summary_basic(tmp_path, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    proj1 = base_dir / 'proj1'
+    proj2 = base_dir / 'proj2'
+    proj1.mkdir()
+    proj2.mkdir()
+
+    cmdrunner.run_command_in_folders(
+        main_folder=str(base_dir),
+        command="python3 -c \"print('hello')\"",
+        excluded_folders=['proj2'],
+        quiet=False
+    )
+
+    captured = capsys.readouterr()
+    assert "EXECUTION SUMMARY" in captured.err
+    assert "Total folders found:" in captured.err
+    assert "Folders skipped:" in captured.err
+    assert "Folders processed:" in captured.err
+    assert "Successful runs:" in captured.err
+    assert "Success rate:" in captured.err
+    assert "Total execution time:" in captured.err
+
+
+def test_execution_summary_quiet(tmp_path, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    proj1 = base_dir / 'proj1'
+    proj1.mkdir()
+
+    cmdrunner.run_command_in_folders(
+        main_folder=str(base_dir),
+        command="python3 -c \"print('hello')\"",
+        quiet=True
+    )
+
+    captured = capsys.readouterr()
+    assert "EXECUTION SUMMARY" not in captured.err
+
+
+def test_execution_summary_no_color(tmp_path, monkeypatch, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    proj1 = base_dir / 'proj1'
+    proj1.mkdir()
+
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+
+    cmdrunner.run_command_in_folders(
+        main_folder=str(base_dir),
+        command="python3 -c \"print('hello')\"",
+        quiet=False
+    )
+
+    captured = capsys.readouterr()
+    assert "EXECUTION SUMMARY" in captured.err
+    assert "\033[" not in captured.err

@@ -19,6 +19,26 @@ git diff | python diff2typo.py [OPTIONS]
 3. **Smart Filtering:** Uses a large dictionary of correct words and a list of "allowed" words to prevent the tool from reporting correct words as typos.
 4. **Integration:** Can check your findings against the external `typos` tool to ensure your list only contains mistakes.
 
+## Recursive Directory Scanning
+
+If you provide a directory path as input, the tool automatically searches it recursively for supported files.
+
+### Supported File Extensions
+- `.diff`
+- `.patch`
+- `.txt`
+- `.log`
+
+### Automatically Ignored Folders
+To keep scanning fast and clean, the tool automatically skips common system and development folders:
+- `.git`
+- `node_modules`
+- `venv` and `.venv`
+- `.pytest_cache` and `.ruff_cache`
+- `.vscode` and `.idea`
+- `__pycache__`
+- `dist` and `build`
+
 ## Automatic Git Fallback
 
 If you run the tool without specifying any input files or piping any changes, it will automatically check if you are inside a Git repository.
@@ -30,7 +50,7 @@ If you run the tool without specifying any input files or piping any changes, it
 
 | Argument | Default | Description |
 | :--- | :--- | :--- |
-| `FILE` | standard input | One or more input Git diff files. Use `-` to read from standard input. |
+| `FILE` | standard input | One or more input Git diff files, directories, or glob patterns. Use `-` to read from standard input. |
 | `--git`, `-g` | None | Fetch diff directly from Git. Optional arguments are passed to `git diff` (for example, `-g "HEAD~3"`). |
 | `--git-log`, `-l` | None | Fetch commit history diffs directly from Git. Optional arguments are passed to `git log` (for example, `-l "HEAD~3"`). |
 | `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
@@ -54,6 +74,12 @@ If you run the tool without specifying any input files or piping any changes, it
 
 ```bash
 python diff2typo.py feature.diff --mode typos --format list
+```
+
+**Scan a directory recursively for diff and patch files:**
+
+```bash
+python diff2typo.py my_patches_dir/ --output found_typos.txt
 ```
 
 **Find cases where a correct word was changed into a typo:**

@@ -50,3 +50,27 @@ def test_gentypos_dry_run_does_not_write_files(tmp_path, empty_config_file):
 
     assert exc_info.value.code == 0
     assert not out_file.exists()
+
+
+def test_gentypos_dry_run_with_dictionary(caplog, empty_config_file, tmp_path):
+    dict_file = tmp_path / "dict.txt"
+    dict_file.write_text("hllo\nhello\nworld", encoding="utf-8")
+
+    test_args = [
+        "gentypos.py",
+        "hello",
+        "-c", empty_config_file,
+        "-d", str(dict_file),
+        "--dry-run"
+    ]
+    with patch.object(sys, 'argv', test_args):
+        with pytest.raises(SystemExit) as exc_info:
+            with caplog.at_level(logging.INFO):
+                gentypos.main()
+
+    assert exc_info.value.code == 0
+
+    log_text = "\n".join(record.message for record in caplog.records)
+    assert "Kept:" in log_text
+    assert "Filtered:" in log_text
+    assert "hllo" in log_text

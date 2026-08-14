@@ -1330,3 +1330,63 @@ def test_execution_summary_no_color(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "EXECUTION SUMMARY" in captured.err
     assert "\033[" not in captured.err
+
+
+def test_should_enable_color_force_color(monkeypatch):
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    assert cmdrunner._should_enable_color(None) is True
+
+
+def test_run_command_parallel_unexpected_error(tmp_path, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    with patch("cmdrunner.subprocess.run", side_effect=RuntimeError("Mock error")):
+        with caplog.at_level(logging.ERROR):
+            cmdrunner.run_command_in_folders(
+                main_folder=str(base_dir),
+                command="echo hello",
+                jobs=2,
+                fail_fast=False,
+                quiet=True
+            )
+
+    assert any("An unexpected error occurred in folder 'proj1': Mock error" in msg for msg in caplog.messages)
+
+
+def test_run_command_parallel_unexpected_error_fail_fast(tmp_path, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    with patch("cmdrunner.subprocess.run", side_effect=RuntimeError("Mock error")):
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(SystemExit) as exc_info:
+                cmdrunner.run_command_in_folders(
+                    main_folder=str(base_dir),
+                    command="echo hello",
+                    jobs=2,
+                    fail_fast=True,
+                    quiet=True
+                )
+            assert exc_info.value.code == 1
+
+    assert any("An unexpected error occurred in folder 'proj1': Mock error" in msg for msg in caplog.messages)
+
+
+def test_execution_summary_empty_folders(tmp_path, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    cmdrunner.run_command_in_folders(
+        main_folder=str(base_dir),
+        command="python3 -c \"print('hello')\"",
+        quiet=False
+    )
+
+    captured = capsys.readouterr()
+    assert "EXECUTION SUMMARY" in captured.err
+    assert "Total folders found:" in captured.err
+    assert "0" in captured.err

@@ -103,7 +103,8 @@ Use these modes to pull specific data from a file.
 
 - **`todo`**
   - Extracts TODO, FIXME, XXX, BUG, and HACK items from source files. It identifies the text following these markers and cleans up common comment endings.
-  - **Example:** `python multitool.py todo src/ --output tasks.txt`
+  - **Options:** Use the `--pairs` (or `-p`) flag to format the output as structured paired data containing the file location, message, and task marker category.
+  - **Example:** `python multitool.py todo src/ --pairs --output-format arrow`
 
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.

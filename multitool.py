@@ -1227,6 +1227,10 @@ def _write_paired_output(
         left_header = "Duplicate"
         right_header = "Original"
         attr_header = "Size"
+    elif mode_label == "TODOs":
+        left_header = "Location"
+        right_header = "Message"
+        attr_header = "Marker"
 
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
@@ -1332,11 +1336,11 @@ def _write_paired_output(
                         c_attr = c_cyan
                         if "[T]" in attr:
                             c_attr = c_magenta
-                        elif any(tag in attr for tag in ("[Del]", "[2:1]", "[Collision]")):
+                        elif any(tag in attr for tag in ("[Del]", "[2:1]", "[Collision]", "BUG", "FIXME")):
                             c_attr = c_red
-                        elif any(tag in attr for tag in ("[Ins]", "[1:2]")):
+                        elif any(tag in attr for tag in ("[Ins]", "[1:2]", "TODO")):
                             c_attr = c_green
-                        elif any(tag in attr for tag in ("[R]", "[M]")):
+                        elif any(tag in attr for tag in ("[R]", "[M]", "HACK", "XXX")):
                             c_attr = c_yellow
 
                         row += f" {sep} {c_attr}{attr:<{max_attr}}{c_reset}"
@@ -2045,23 +2049,33 @@ def _extract_comment_items(input_file: str, quiet: bool = False) -> Iterable[str
             yield match.group(1).strip()
 
 
-def _extract_todo_items(input_file: str, quiet: bool = False) -> Iterable[str]:
-    """Yields TODO and FIXME items extracted from a file."""
+def _extract_todo_items_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str, int, str]]:
+    """
+    Yields (location, message, line_num, marker) for TODO and FIXME items extracted from a file.
+    """
     lines = _read_file_lines_robust(input_file)
     # Common TODO markers: TODO, FIXME, XXX, BUG, HACK
     # We look for the marker followed by optional colon/whitespace and then the text.
-    todo_pattern = re.compile(r'\b(TODO|FIXME|XXX|BUG|HACK)[:\s]+(.*)', re.IGNORECASE)
+    todo_pattern = re.compile(r'\b(TODO|FIXME|XXX|BUG|HACK)(?:[:\s]+(.*)|$)', re.IGNORECASE)
 
-    for line in tqdm(lines, desc=f'Processing {input_file} (todo)', unit=' lines', disable=quiet):
+    for i, line in enumerate(tqdm(lines, desc=f'Processing {input_file} (todo)', unit=' lines', disable=quiet)):
         match = todo_pattern.search(line)
         if match:
-            text = match.group(2).strip()
+            marker = match.group(1).upper()
+            text = (match.group(2) or "").strip()
             # If the TODO is at the end of a comment, it might have trailing comment markers
             # but _process_items/clean_items usually handles that if requested.
             # However, common markers like */ or --> should be stripped if they are at the end.
             text = re.sub(r'\s*(\*/|-->|"{3}|\'{3})$', '', text).strip()
-            if text:
-                yield text
+            location = f"{input_file}:{i+1}"
+            yield location, text, i + 1, marker
+
+
+def _extract_todo_items(input_file: str, quiet: bool = False) -> Iterable[str]:
+    """Yields TODO and FIXME messages extracted from a file."""
+    for _, message, _, _ in _extract_todo_items_detailed(input_file, quiet):
+        if message:
+            yield message
 
 
 def _extract_md_table_items(
@@ -2780,27 +2794,50 @@ def todo_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    pairs: bool = False,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
     """Extracts TODO and FIXME items from source files."""
-    _process_items(
-        _extract_todo_items,
-        input_files,
-        output_file,
-        min_length,
-        max_length,
-        process_output,
-        'TODOs',
-        'TODOs extracted successfully.',
-        output_format,
-        quiet,
-        clean_items=clean_items,
-        limit=limit,
-        item_label="todo",
-    )
+    if pairs:
+        start_time = time.perf_counter()
+        results = []
+        total_todos = 0
+
+        for input_file in input_files:
+            for location, text, line_num, marker in _extract_todo_items_detailed(input_file, quiet=quiet):
+                total_todos += 1
+                # Filter/clean on the message content
+                text_to_save = filter_to_letters(text) if clean_items else text
+                # Note: if there is no text/message, we can still yield empty if min_length is 0,
+                # but typically a TODO has some text. We filter by length on the text part.
+                if not (min_length <= len(text_to_save) <= max_length):
+                    continue
+                results.append((location, text_to_save, marker))
+
+        if process_output:
+            results = sorted(set(results))
+
+        _write_paired_output(results, output_file, output_format, "TODOs", quiet, limit=limit)
+        print_processing_stats(total_todos, results, item_label="todo", start_time=start_time)
+    else:
+        _process_items(
+            _extract_todo_items,
+            input_files,
+            output_file,
+            min_length,
+            max_length,
+            process_output,
+            'TODOs',
+            'TODOs extracted successfully.',
+            output_format,
+            quiet,
+            clean_items=clean_items,
+            limit=limit,
+            item_label="todo",
+        )
 
 
 def brokenlinks_mode(
@@ -7808,9 +7845,9 @@ MODE_DETAILS = {
     },
     "todo": {
         "summary": "Extracts TODO and FIXME items",
-        "description": "Finds TODO, FIXME, XXX, BUG, and HACK items in source files. It extracts the text following the marker, cleaning up common comment endings.",
+        "description": "Finds TODO, FIXME, XXX, BUG, and HACK items in source files. It extracts the text following the marker, cleaning up common comment endings. Use --pairs to output a table containing location, message, and marker prefix.",
         "example": "python multitool.py todo src/ --output tasks.txt",
-        "flags": "[FILES...]",
+        "flags": "[FILES...] [-p]",
     },
     "flatten": {
         "summary": "Flattens nested data structures",
@@ -8712,6 +8749,12 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['todo']['description'],
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['todo']['example']}{RESET}",
+    )
+    todo_options = todo_parser.add_argument_group(f"{BLUE}TODO OPTIONS{RESET}")
+    todo_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Output the message with location and marker prefix.",
     )
     _add_common_mode_arguments(todo_parser)
 
@@ -10360,6 +10403,7 @@ def main() -> None:
             todo_mode,
             {
                 **common_kwargs,
+                'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             },
         ),

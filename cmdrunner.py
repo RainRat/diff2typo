@@ -421,6 +421,12 @@ def run_command_in_folders(
         skipped_count = len([item for item in all_items if os.path.isdir(os.path.join(main_folder, item)) and item in excluded_folders])
         processed_count = len(directories)
 
+        if processed_count == 0:
+            if total_found == 0:
+                logging.warning(f"No subdirectories found in main folder '{main_folder}'.")
+            else:
+                logging.warning("No subdirectories matched the specified inclusion, exclusion, or existence criteria.")
+
         success_count = len([r for r in report_data if r["status"] == "success"])
         failed_count = len([r for r in report_data if r["status"] == "failed"])
         timeout_count = len([r for r in report_data if r["status"] == "timeout"])

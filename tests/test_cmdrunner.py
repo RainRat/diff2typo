@@ -1330,3 +1330,38 @@ def test_execution_summary_no_color(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "EXECUTION SUMMARY" in captured.err
     assert "\033[" not in captured.err
+
+
+def test_zero_processed_empty_directory(tmp_path, capsys, caplog):
+    base_dir = tmp_path / 'empty_projects'
+    base_dir.mkdir()
+
+    with caplog.at_level(logging.WARNING):
+        cmdrunner.run_command_in_folders(
+            main_folder=str(base_dir),
+            command="echo hello",
+            quiet=False
+        )
+
+    captured = capsys.readouterr()
+    assert any(f"No subdirectories found in main folder '{base_dir}'." in message for message in caplog.messages)
+    assert "Folders processed:                  0" in captured.err
+
+
+def test_zero_processed_filtered_out(tmp_path, capsys, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    proj1 = base_dir / 'proj1'
+    proj1.mkdir()
+
+    with caplog.at_level(logging.WARNING):
+        cmdrunner.run_command_in_folders(
+            main_folder=str(base_dir),
+            command="echo hello",
+            if_exists="non_existent.txt",
+            quiet=False
+        )
+
+    captured = capsys.readouterr()
+    assert any("No subdirectories matched the specified inclusion, exclusion, or existence criteria." in message for message in caplog.messages)
+    assert "Folders processed:                  0" in captured.err

@@ -1227,6 +1227,10 @@ def _write_paired_output(
         left_header = "Duplicate"
         right_header = "Original"
         attr_header = "Size"
+    elif mode_label == "TODO":
+        left_header = "Location"
+        right_header = "Message"
+        attr_header = "Marker"
 
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
@@ -1330,7 +1334,13 @@ def _write_paired_output(
                         attr = p[2]
                         # Semantic coloring for the attribute column
                         c_attr = c_cyan
-                        if "[T]" in attr:
+                        if any(marker in attr for marker in ("BUG", "FIXME")):
+                            c_attr = c_red
+                        elif "TODO" in attr:
+                            c_attr = c_green
+                        elif any(marker in attr for marker in ("HACK", "XXX")):
+                            c_attr = c_yellow
+                        elif "[T]" in attr:
                             c_attr = c_magenta
                         elif any(tag in attr for tag in ("[Del]", "[2:1]", "[Collision]")):
                             c_attr = c_red
@@ -2064,6 +2074,22 @@ def _extract_todo_items(input_file: str, quiet: bool = False) -> Iterable[str]:
                 yield text
 
 
+def _extract_todo_items_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str, str]]:
+    """Yields (location, message, marker) tuples for TODO items extracted from a file."""
+    lines = _read_file_lines_robust(input_file)
+    todo_pattern = re.compile(r'\b(TODO|FIXME|XXX|BUG|HACK)[:\s]+(.*)', re.IGNORECASE)
+
+    for idx, line in enumerate(tqdm(lines, desc=f'Processing {input_file} (todo)', unit=' lines', disable=quiet), start=1):
+        match = todo_pattern.search(line)
+        if match:
+            marker = match.group(1).upper()
+            text = match.group(2).strip()
+            text = re.sub(r'\s*(\*/|-->|"{3}|\'{3})$', '', text).strip()
+            if text:
+                location = f"{input_file}:{idx}"
+                yield (location, text, marker)
+
+
 def _extract_md_table_items(
     input_file: str,
     right_side: bool = False,
@@ -2780,27 +2806,44 @@ def todo_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    pairs: bool = False,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
     """Extracts TODO and FIXME items from source files."""
-    _process_items(
-        _extract_todo_items,
-        input_files,
-        output_file,
-        min_length,
-        max_length,
-        process_output,
-        'TODOs',
-        'TODOs extracted successfully.',
-        output_format,
-        quiet,
-        clean_items=clean_items,
-        limit=limit,
-        item_label="todo",
-    )
+    if pairs:
+        start_time = time.perf_counter()
+        results = []
+        total_items = 0
+        for input_file in input_files:
+            for loc, text, marker in _extract_todo_items_detailed(input_file, quiet=quiet):
+                total_items += 1
+                text_to_save = filter_to_letters(text) if clean_items else text
+                if not (min_length <= len(text_to_save) <= max_length):
+                    continue
+                results.append((loc, text_to_save, marker))
+        if process_output:
+            results = sorted(set(results))
+        _write_paired_output(results, output_file, output_format, "TODO", quiet, limit=limit)
+        print_processing_stats(total_items, results, item_label="todo", start_time=start_time)
+    else:
+        _process_items(
+            _extract_todo_items,
+            input_files,
+            output_file,
+            min_length,
+            max_length,
+            process_output,
+            'TODOs',
+            'TODOs extracted successfully.',
+            output_format,
+            quiet,
+            clean_items=clean_items,
+            limit=limit,
+            item_label="todo",
+        )
 
 
 def brokenlinks_mode(
@@ -8713,6 +8756,12 @@ def _build_parser() -> argparse.ArgumentParser:
         description=MODE_DETAILS['todo']['description'],
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['todo']['example']}{RESET}",
     )
+    todo_options = todo_parser.add_argument_group(f"{BLUE}TODO OPTIONS{RESET}")
+    todo_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Output file location, task message, and task marker category.",
+    )
     _add_common_mode_arguments(todo_parser)
 
     links_parser = subparsers.add_parser(
@@ -10360,6 +10409,7 @@ def main() -> None:
             todo_mode,
             {
                 **common_kwargs,
+                'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             },
         ),

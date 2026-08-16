@@ -75,9 +75,9 @@ Follow these steps to find typos you have fixed recently, see your common mistak
 The tools work best when they know which words are correct. Create a file named `words.csv` and add words you use often (like project names or technical terms), one per line. This is your "large dictionary." If you skip this, the tools will still work, but they might flag some correct words as typos.
 
 ### 2. Find Your Recent Typos
-Run `diff2typo.py` to find typos you fixed in your recent Git history. For example, to check your last 5 changes and save them to a CSV file:
+Run `diff2typo.py` to find typos you fixed in your recent Git history. If you run `diff2typo.py` inside a Git repository without arguments, it automatically scans your unstaged changes. You can also fetch diffs directly using the `-g` / `--git` option:
 ```bash
-python diff2typo.py --git "HEAD~5" --output my_typos.txt --mode typos --format csv
+python diff2typo.py -g "HEAD~1" --output my_typos.txt --mode typos --format csv
 ```
 
 ### 3. See Your Patterns
@@ -87,9 +87,13 @@ python typostats.py my_typos.txt --sort count
 ```
 
 ### 4. Fix Your Project
-Use `multitool.py` to fix the found typos in your current project files. The `--diff` flag lets you review the changes before they are applied.
+Use `multitool.py` to fix found typos in your project files using your saved typo mapping file. The `--diff` flag lets you review the changes before they are applied:
 ```bash
 python multitool.py scrub . --mapping my_typos.txt --in-place --diff
+```
+You can also preview fixes for specific typos directly using `--add` and `--dry-run`:
+```bash
+python multitool.py scrub . --add teh:the --diff --dry-run
 ```
 
 ## 🧪 Running Tests

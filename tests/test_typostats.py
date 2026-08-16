@@ -954,3 +954,35 @@ def test_typostats_main_run_as_script(tmp_path):
     import runpy
     with patch.object(sys, 'argv', ["typostats.py", str(f1), str(f2), "--quiet"]):
         runpy.run_path("typostats.py", run_name="__main__")
+
+
+def test_generate_report_table_format(tmp_path):
+    out_file = tmp_path / "report.toml"
+    counts = {("he", "eh"): 2, ("the", "teh"): 1, ("do not", "don't"): 1}
+    typostats.generate_report(
+        counts,
+        output_file=str(out_file),
+        output_format="table",
+    )
+    assert out_file.exists()
+    content = out_file.read_text()
+    assert 'eh = "he"' in content
+    assert 'teh = "the"' in content
+    assert '"don\'t" = "do not"' in content
+
+
+def test_detect_format_from_extension_table_and_toml():
+    allowed = ['arrow', 'yaml', 'json', 'csv', 'table']
+    assert typostats._detect_format_from_extension("output.table", allowed, "arrow") == "table"
+    assert typostats._detect_format_from_extension("output.toml", allowed, "arrow") == "table"
+
+
+def test_typostats_cli_table_format(tmp_path):
+    typo_file = tmp_path / "typos.txt"
+    typo_file.write_text("teh -> the\n")
+    out_file = tmp_path / "typos.toml"
+    with patch("sys.argv", ["typostats.py", str(typo_file), "-o", str(out_file), "-f", "table"]):
+        typostats.main()
+    assert out_file.exists()
+    content = out_file.read_text()
+    assert 'eh = "he"' in content

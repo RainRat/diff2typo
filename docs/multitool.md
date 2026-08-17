@@ -102,7 +102,7 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py comments src/ --output comments.txt`
 
 - **`todo`**
-  - Extracts TODO, FIXME, XXX, BUG, and HACK items from source files. It identifies the text following these markers and cleans up common comment endings.
+  - Extracts action items marked by `TODO`, `FIXME`, `XXX`, `BUG`, or `HACK` from source files. It cleans up comment symbols and isolates the task text following each marker.
   - **Example:** `python multitool.py todo src/ --output tasks.txt`
 
 - **`json`**

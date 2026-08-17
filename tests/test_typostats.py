@@ -954,3 +954,140 @@ def test_typostats_main_run_as_script(tmp_path):
     import runpy
     with patch.object(sys, 'argv', ["typostats.py", str(f1), str(f2), "--quiet"]):
         runpy.run_path("typostats.py", run_name="__main__")
+
+
+def test_should_enable_color_gap(monkeypatch):
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert typostats._should_enable_color(sys.stdout) is False
+    monkeypatch.delenv("NO_COLOR")
+
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    assert typostats._should_enable_color(sys.stdout) is True
+    monkeypatch.delenv("FORCE_COLOR")
+
+    mock_stream = MagicMock()
+    mock_stream.isatty.return_value = True
+    assert typostats._should_enable_color(mock_stream) is True
+
+    mock_stream.isatty.return_value = False
+    assert typostats._should_enable_color(mock_stream) is False
+
+
+def test_detect_format_from_extension_main_gap(tmp_path):
+    input_file = tmp_path / "test.txt"
+    input_file.write_text("teh -> the\n")
+
+    extensions_to_expected = {
+        "test.json": "json",
+        "test.csv": "csv",
+        "test.yaml": "yaml",
+        "test.yml": "yaml",
+        "test.arrow": "arrow",
+        "test.txt": "arrow",
+        "test.unknown": "arrow",
+        "testfile": "arrow",
+        "-": "arrow",
+        "": "arrow",
+    }
+
+    for filename, expected_format in extensions_to_expected.items():
+        out_path = str(tmp_path / filename) if filename not in ("-", "") else filename
+        argv_args = ["typostats.py", str(input_file), "--quiet"]
+        if out_path:
+            argv_args.extend(["-o", out_path])
+
+        with patch("sys.argv", argv_args), patch("typostats.generate_report") as mock_report:
+            try:
+                typostats.main()
+            except SystemExit:
+                pass
+            assert mock_report.called, f"generate_report not called for output {filename}"
+            kwargs = mock_report.call_args[1]
+            assert kwargs["output_format"] == expected_format, f"Expected {expected_format} for output {filename}, but got {kwargs['output_format']}"
+
+
+def test_is_one_letter_replacement_disallowed_patterns_gap():
+    assert typostats.is_one_letter_replacement("bc", "a", allow_1to2=False, include_deletions=True) == []
+    assert typostats.is_one_letter_replacement("c", "ab", allow_2to1=False, include_deletions=True) == []
+
+
+def test_read_file_lines_robust_stdin_string_gap(monkeypatch):
+    monkeypatch.setattr(typostats, "_STDIN_CACHE", None)
+
+    mock_stdin = MagicMock()
+    if hasattr(mock_stdin, 'buffer'):
+        del mock_stdin.buffer
+    mock_stdin.read.return_value = "line1\nline2\n"
+
+    with patch("sys.stdin", mock_stdin):
+        lines = typostats._read_file_lines_robust("-")
+        assert lines == ["line1\n", "line2\n"]
+
+
+def test_read_file_lines_robust_stdin_binary_fallback_gap(monkeypatch):
+    monkeypatch.setattr(typostats, "_STDIN_CACHE", None)
+
+    mock_stdin = MagicMock()
+    mock_buffer = MagicMock()
+    mock_buffer.read.return_value = b"\xe9\n"
+    mock_stdin.buffer = mock_buffer
+
+    with patch("sys.stdin", mock_stdin):
+        lines = typostats._read_file_lines_robust("-")
+        assert lines == ["\xe9\n"]
+
+
+def test_read_file_lines_robust_directory_gap(tmp_path):
+    dir_path = tmp_path / "test_dir"
+    dir_path.mkdir()
+
+    lines = typostats._read_file_lines_robust(str(dir_path))
+    assert lines == []
+
+
+def test_read_file_lines_robust_file_encoding_fallback_gap(tmp_path):
+    file_path = tmp_path / "latin1.txt"
+    with open(file_path, "wb") as f:
+        f.write(b"\xe9\n")
+
+    with patch("typostats.detect_encoding", return_value="latin-1"):
+        lines = typostats._read_file_lines_robust(str(file_path))
+        assert lines == ["\xe9\n"]
+
+    with patch("typostats.detect_encoding", return_value=None):
+        lines = typostats._read_file_lines_robust(str(file_path))
+        assert lines == ["\xe9\n"]
+
+
+def test_read_file_lines_robust_file_detect_encoding_fails_midway_gap(tmp_path):
+    file_path = tmp_path / "latin1_v2.txt"
+    with open(file_path, "wb") as f:
+        f.write(b"\xe9\n")
+
+    with patch("typostats.detect_encoding", return_value="utf-8"):
+        lines = typostats._read_file_lines_robust(str(file_path))
+        assert lines == ["\xe9\n"]
+
+
+def test_typostats_main_basic_gap(tmp_path):
+    input_file = tmp_path / "input.csv"
+    input_file.write_text("typo,correction\nteh,the")
+
+    with patch("sys.argv", ["typostats.py", str(input_file), "--format", "json"]):
+        try:
+            typostats.main()
+        except SystemExit:
+            pass
+
+
+def test_format_analysis_summary_levenshtein_exception():
+    with patch("typostats.levenshtein_distance", side_effect=ValueError("Test Exception")):
+        items = [("the", "teh")]
+        report = typostats._format_analysis_summary(
+            raw_count=1,
+            filtered_items=items,
+            item_label="pattern",
+            use_color=False,
+        )
+        assert len(report) > 0
+        assert not any("Min/Max/Avg changes:" in line for line in report)

@@ -114,6 +114,8 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
         'yaml': 'yaml',
         'yml': 'yaml',
         'arrow': 'arrow',
+        'md': 'markdown',
+        'markdown': 'markdown',
     }
 
     detected = mapping.get(ext)
@@ -744,7 +746,7 @@ def generate_report(
         output_file: Where to save the report. If not set, it prints to the screen.
         min_occurrences: Only include patterns that happen at least this many times.
         sort_by: How to order the results ('count', 'typo', or 'correct').
-        output_format: The style of the report ('arrow', 'yaml', 'json', or 'csv').
+        output_format: The style of the report ('arrow', 'yaml', 'json', 'csv', or 'markdown').
         limit: The maximum number of results to show.
         quiet: If True, hide progress bars and status messages.
         keyboard: If True, highlight mistakes caused by hitting nearby keys.
@@ -1003,6 +1005,11 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             writer.writerow([typo_char, correct_char, count])
         report_content = output.getvalue()
+    elif output_format in ('markdown', 'md'):
+        lines = ["| Typo | Correction | Count |", "| --- | --- | --- |"]
+        for (correct_char, typo_char), count in sorted_replacements:
+            lines.append(f"| {typo_char} | {correct_char} | {count} |")
+        report_content = "\n".join(lines)
     else:
         # YAML-like
         # Group by correct_char
@@ -1096,7 +1103,7 @@ def main() -> None:
     io_group.add_argument(
         '-f',
         '--format',
-        choices=['arrow', 'yaml', 'json', 'csv'],
+        choices=['arrow', 'yaml', 'json', 'csv', 'markdown', 'md'],
         metavar='FMT',
         default=None,
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
@@ -1187,7 +1194,7 @@ def main() -> None:
     sort_by = args.sort
     output_format = args.format
     if output_format is None:
-        allowed_formats = ['arrow', 'yaml', 'json', 'csv']
+        allowed_formats = ['arrow', 'yaml', 'json', 'csv', 'markdown', 'md']
         output_format = _detect_format_from_extension(output_file, allowed_formats, 'arrow')
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1

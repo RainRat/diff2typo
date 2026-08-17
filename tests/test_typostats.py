@@ -137,6 +137,10 @@ def test_generate_report_formats(capsys, tmp_path):
     assert "typo,correction,count" in capsys.readouterr().out
     typostats.generate_report(counts, output_format='yaml')
     assert "  s:" in capsys.readouterr().out
+    typostats.generate_report(counts, output_format='markdown')
+    out_md = capsys.readouterr().out
+    assert "| Typo | Correction | Count |" in out_md
+    assert "| z | s | 3 |" in out_md
     out_file = tmp_path / "report.txt"
     typostats.generate_report(counts, output_file=str(out_file))
     assert "ANALYSIS SUMMARY" in out_file.read_text()
@@ -818,17 +822,31 @@ def test_should_enable_color_via_env_vars(monkeypatch):
 
 
 def test_detect_format_from_extension_resolution():
-    allowed = ["json", "csv", "yaml", "arrow"]
+    allowed = ["json", "csv", "yaml", "arrow", "markdown", "md"]
     assert typostats._detect_format_from_extension("test.json", allowed, "arrow") == "json"
     assert typostats._detect_format_from_extension("test.csv", allowed, "arrow") == "csv"
     assert typostats._detect_format_from_extension("test.yaml", allowed, "arrow") == "yaml"
     assert typostats._detect_format_from_extension("test.yml", allowed, "arrow") == "yaml"
     assert typostats._detect_format_from_extension("test.arrow", allowed, "arrow") == "arrow"
     assert typostats._detect_format_from_extension("test.txt", allowed, "arrow") == "arrow"
+    assert typostats._detect_format_from_extension("test.md", allowed, "arrow") == "markdown"
+    assert typostats._detect_format_from_extension("test.markdown", allowed, "arrow") == "markdown"
     assert typostats._detect_format_from_extension("test.unknown", allowed, "default") == "default"
     assert typostats._detect_format_from_extension("testfile", allowed, "default") == "default"
     assert typostats._detect_format_from_extension("-", allowed, "default") == "default"
     assert typostats._detect_format_from_extension("", allowed, "default") == "default"
+
+
+def test_markdown_export_cli_integration(tmp_path):
+    input_file = tmp_path / "typos.txt"
+    input_file.write_text("teh -> the\n")
+    output_md = tmp_path / "report.md"
+    with patch("sys.argv", ["typostats.py", str(input_file), "-f", "md", "-o", str(output_md)]):
+        typostats.main()
+    assert output_md.exists()
+    content = output_md.read_text()
+    assert "| Typo | Correction | Count |" in content
+    assert "| eh | he | 1 |" in content
 
 
 def test_is_one_letter_replacement_disallowed_patterns_check():

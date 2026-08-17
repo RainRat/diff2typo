@@ -291,6 +291,36 @@ def test_main_quiet_mode_suppresses_output(tmp_path, monkeypatch, capsys):
         assert result_file.read_text() == 'silent'
 
 
+def test_main_quiet_mode_short_flag(tmp_path, monkeypatch, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    for name in ['proj1', 'proj2']:
+        (base_dir / name).mkdir()
+
+    command = "python3 -c \"open('integration_quiet_short.txt','w').write('silent')\""
+    config = {
+        'base_directory': str(base_dir),
+        'command_to_run': command,
+    }
+
+    config_file = tmp_path / 'config_quiet_short.yaml'
+    config_file.write_text(yaml.safe_dump(config))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file), '-q'])
+
+    cmdrunner.main()
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+
+    for name in ['proj1', 'proj2']:
+        result_file = base_dir / name / 'integration_quiet_short.txt'
+        assert result_file.exists()
+        assert result_file.read_text() == 'silent'
+
+
 def test_main_missing_config(monkeypatch, tmp_path):
     missing_config = tmp_path / 'missing.yaml'
     monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(missing_config)])

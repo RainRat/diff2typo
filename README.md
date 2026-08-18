@@ -75,9 +75,9 @@ Follow these steps to find typos you have fixed recently, see your common mistak
 The tools work best when they know which words are correct. Create a file named `words.csv` and add words you use often (like project names or technical terms), one per line. This is your "large dictionary." If you skip this, the tools will still work, but they might flag some correct words as typos.
 
 ### 2. Find Your Recent Typos
-Run `diff2typo.py` to find typos you fixed in your recent Git history. For example, to check your last 5 changes and save them to a CSV file:
+Run `diff2typo.py` to find typos you fixed in your recent Git history. For example, to check your most recent commit and save the results to a CSV file:
 ```bash
-python diff2typo.py --git "HEAD~5" --output my_typos.txt --mode typos --format csv
+python diff2typo.py --git "HEAD~1" --output my_typos.txt --mode typos --format csv
 ```
 
 ### 3. See Your Patterns

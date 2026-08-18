@@ -28,6 +28,8 @@ Output Formats:
     - csv: typo,correction
     - table: typo = "correction"
     - list: typo
+    - json: JSON array of objects or dict
+    - yaml: YAML document
 '''
 
 import argparse
@@ -36,6 +38,7 @@ import contextlib
 import csv
 import fnmatch
 import glob
+import json
 import logging
 import os
 import re
@@ -46,6 +49,12 @@ import sys
 import tempfile
 import time
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, TextIO
+
+try:
+    import yaml
+    _YAML_AVAILABLE = True
+except ImportError:
+    _YAML_AVAILABLE = False
 
 try:
     from tqdm import tqdm
@@ -549,11 +558,28 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
 
     Args:
         typos (list): List of typo strings in the format "before -> after".
-        output_format (str): Desired output format ('arrow', 'csv', 'table', 'list').
+        output_format (str): Desired output format ('arrow', 'csv', 'table', 'list', 'json', 'yaml').
 
     Returns:
         list: Formatted list of typo strings.
     """
+    if output_format in ('json', 'yaml'):
+        items = []
+        for typo in typos:
+            if ' -> ' in typo:
+                before, after = typo.split(' -> ')
+                items.append({"typo": before, "correction": after})
+            else:
+                items.append({"typo": typo, "correction": ""})
+
+        if output_format == 'yaml':
+            if _YAML_AVAILABLE:
+                return yaml.safe_dump(items, default_flow_style=False).rstrip().split('\n')
+            else:
+                logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
+
+        return json.dumps(items, indent=2).split('\n')
+
     formatted: List[str] = []
     for typo in typos:
         if ' -> ' in typo:
@@ -906,12 +932,12 @@ def main():
         '-f',
         dest='output_format',
         type=str,
-        choices=['arrow', 'csv', 'table', 'list'],
+        choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml'],
         default=None,
-        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo). Default is arrow.',
+        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo), json, yaml. Default is arrow.',
     )
     # Hidden alias for backward compatibility
-    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     # Analysis Options
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
@@ -1021,7 +1047,7 @@ def main():
     # Resolve output format if not provided
     if args.output_format is None:
         default_fmt = 'arrow'
-        allowed_formats = ['arrow', 'csv', 'table', 'list']
+        allowed_formats = ['arrow', 'csv', 'table', 'list', 'json', 'yaml']
         if args.output_file and args.output_file != '-':
             ext = os.path.splitext(args.output_file)[1].lower().lstrip('.')
             mapping = {
@@ -1031,6 +1057,9 @@ def main():
                 'toml': 'table',
                 'list': 'list',
                 'arrow': 'arrow',
+                'json': 'json',
+                'yaml': 'yaml',
+                'yml': 'yaml',
             }
             detected = mapping.get(ext)
             args.output_format = detected if detected in allowed_formats else default_fmt
@@ -1169,16 +1198,40 @@ def main():
     if args.mode == 'both':
         typos_final = sort_and_limit(typos_list)
         corrections_final = sort_and_limit(corrections_list)
+        filtered_items.extend(typos_final)
+        filtered_items.extend(corrections_final)
 
-        if typos_final:
-            final_output.append("=== Typos ===")
-            final_output.extend(format_typos(typos_final, args.output_format))
-            final_output.append("")  # Blank line for separation.
-            filtered_items.extend(typos_final)
-        if corrections_final:
-            final_output.append("=== Corrections ===")
-            final_output.extend(format_typos(corrections_final, args.output_format))
-            filtered_items.extend(corrections_final)
+        if args.output_format in ('json', 'yaml'):
+            def _to_dicts(items):
+                res = []
+                for typo in items:
+                    if ' -> ' in typo:
+                        b, a = typo.split(' -> ')
+                        res.append({"typo": b, "correction": a})
+                    else:
+                        res.append({"typo": typo, "correction": ""})
+                return res
+
+            data = {
+                "typos": _to_dicts(typos_final),
+                "corrections": _to_dicts(corrections_final),
+            }
+            if args.output_format == 'yaml':
+                if _YAML_AVAILABLE:
+                    final_output = yaml.safe_dump(data, default_flow_style=False).rstrip().split('\n')
+                else:
+                    logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
+                    final_output = json.dumps(data, indent=2).split('\n')
+            else:
+                final_output = json.dumps(data, indent=2).split('\n')
+        else:
+            if typos_final:
+                final_output.append("=== Typos ===")
+                final_output.extend(format_typos(typos_final, args.output_format))
+                final_output.append("")  # Blank line for separation.
+            if corrections_final:
+                final_output.append("=== Corrections ===")
+                final_output.extend(format_typos(corrections_final, args.output_format))
     else:
         results_list = []
         if args.mode == 'typos':

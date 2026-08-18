@@ -1,15 +1,15 @@
 import pytest
-from diff2typo import _is_file_excluded, find_typos, main
+from diff2typo import _match_pattern, find_typos, main
 from unittest.mock import patch, MagicMock
 
 def test_is_file_excluded():
-    assert _is_file_excluded("tests/test_math.py", ["*.py"])
-    assert _is_file_excluded("config.json", ["*.json"])
-    assert _is_file_excluded("src/lib.py", ["src/*"])
-    assert _is_file_excluded("package-lock.json", ["package-lock.json"])
-    assert not _is_file_excluded("src/lib.py", ["*.json"])
-    assert not _is_file_excluded("src/lib.py", None)
-    assert not _is_file_excluded("", ["*.py"])
+    assert _match_pattern("tests/test_math.py", ["*.py"])
+    assert _match_pattern("config.json", ["*.json"])
+    assert _match_pattern("src/lib.py", ["src/*"])
+    assert _match_pattern("package-lock.json", ["package-lock.json"])
+    assert not _match_pattern("src/lib.py", ["*.json"])
+    assert not _match_pattern("src/lib.py", None)
+    assert not _match_pattern("", ["*.py"])
 
 
 def test_find_typos_exclusion():

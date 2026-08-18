@@ -1330,3 +1330,269 @@ def test_execution_summary_no_color(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "EXECUTION SUMMARY" in captured.err
     assert "\033[" not in captured.err
+
+
+def test_should_enable_color_force_color(monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    class StreamWithoutIatty: pass
+    assert cmdrunner._should_enable_color(StreamWithoutIatty()) is True
+
+
+def test_format_execution_summary_zero_processed():
+    summary = cmdrunner._format_execution_summary(
+        total_found=0,
+        skipped=0,
+        processed=0,
+        success=0,
+        failed=0,
+        timeout_count=0,
+        dry_run_count=0,
+        elapsed_time=0.1,
+        use_color=False
+    )
+    summary_text = "\n".join(summary)
+    assert "EXECUTION SUMMARY" in summary_text
+    assert "Folders processed:" in summary_text
+    assert "Success rate:" not in summary_text
+
+
+def test_load_config_fail_fast_validation(tmp_path):
+    config_file = tmp_path / "config.yaml"
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "fail_fast": True
+    }))
+    assert cmdrunner.load_config(str(config_file))["fail_fast"] is True
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "fail_fast": "yes"
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="must be a boolean"):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_load_config_timeout_validation(tmp_path):
+    config_file = tmp_path / "config.yaml"
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "timeout": 5.5
+    }))
+    assert cmdrunner.load_config(str(config_file))["timeout"] == 5.5
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "timeout": "five"
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="must be a number"):
+        cmdrunner.load_config(str(config_file))
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo",
+        "timeout": True
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="must be a number"):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_run_command_fail_fast_stops_immediately(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    (base_dir / "proj1").mkdir()
+    (base_dir / "proj2").mkdir()
+    (base_dir / "proj3").mkdir()
+
+    command = "python3 -c \"import sys; sys.exit(1)\""
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.run_command_in_folders(
+                str(base_dir),
+                command,
+                fail_fast=True
+            )
+        assert excinfo.value.code == 1
+
+    assert any("The command failed in 'proj1'" in msg for msg in caplog.messages)
+    assert not any("The command failed in 'proj2'" in msg for msg in caplog.messages)
+    assert not any("The command failed in 'proj3'" in msg for msg in caplog.messages)
+
+
+def test_render_visual_bar_branches():
+    bar_full = cmdrunner._render_visual_bar(100.0)
+    assert bar_full == "█" * 20
+
+    bar_fractional = cmdrunner._render_visual_bar(82.5)
+    assert len(bar_fractional) == 20
+    assert "█" in bar_fractional
+
+    bar_partial = cmdrunner._render_visual_bar(50.0, max_bar=10)
+    assert len(bar_partial) == 10
+    assert bar_partial == "█" * 5 + " " * 5
+
+
+def test_load_config_base_directory_non_string(tmp_path):
+    config_file = tmp_path / "config_bad_base.yaml"
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "base_directory": 123,
+        "command_to_run": "echo test"
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="'base_directory' must be a string"):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_load_config_field_type_checking_with_base_directory(tmp_path):
+    config_file = tmp_path / "config_base_dir.yaml"
+    config_file.write_text(yaml.safe_dump({
+        "base_directory": "/tmp",
+        "command_to_run": "echo test"
+    }))
+    config = cmdrunner.load_config(str(config_file))
+    assert config["base_directory"] == "/tmp"
+
+
+def test_parallel_execution_unexpected_exception_no_fail_fast(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+    (base_dir / "proj2").mkdir()
+    (base_dir / "proj3").mkdir()
+
+    def raise_exc(*args, **kwargs):
+        raise RuntimeError("Unexpected worker error")
+
+    with caplog.at_level(logging.ERROR):
+        with patch("subprocess.run", side_effect=raise_exc):
+            cmdrunner.run_command_in_folders(
+                str(base_dir),
+                "echo test",
+                jobs=2,
+                fail_fast=False
+            )
+
+    assert any("An unexpected error occurred in folder 'proj1': Unexpected worker error" in msg for msg in caplog.messages)
+
+
+def test_parallel_execution_unexpected_exception_fail_fast(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    def raise_exc(*args, **kwargs):
+        raise RuntimeError("Unexpected worker error")
+
+    with caplog.at_level(logging.ERROR):
+        with patch("subprocess.run", side_effect=raise_exc):
+            with pytest.raises(SystemExit) as excinfo:
+                cmdrunner.run_command_in_folders(
+                    str(base_dir),
+                    "echo test",
+                    jobs=2,
+                    fail_fast=True
+                )
+            assert excinfo.value.code == 1
+
+    assert any("An unexpected error occurred in folder" in msg for msg in caplog.messages)
+
+
+def test_run_command_no_fail_fast_continues(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    (base_dir / "proj1").mkdir()
+    (base_dir / "proj2").mkdir()
+
+    command = "python3 -c \"import sys; sys.exit(1)\""
+
+    with caplog.at_level(logging.ERROR):
+        cmdrunner.run_command_in_folders(
+            str(base_dir),
+            command,
+            fail_fast=False
+        )
+
+    assert any("The command failed in 'proj1'" in msg for msg in caplog.messages)
+    assert any("The command failed in 'proj2'" in msg for msg in caplog.messages)
+
+
+def test_run_command_timeout_stops_immediately(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    (base_dir / "proj1").mkdir()
+    (base_dir / "proj2").mkdir()
+
+    command = "python3 -c \"import time; time.sleep(5)\""
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.run_command_in_folders(
+                str(base_dir),
+                command,
+                fail_fast=True,
+                timeout=0.1
+            )
+        assert excinfo.value.code == 1
+
+    assert any("timed out after 0.1 seconds" in msg for msg in caplog.messages)
+    assert not any("The command in 'proj2' timed out" in msg for msg in caplog.messages)
+
+
+def test_run_command_timeout_no_fail_fast_continues(tmp_path, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    (base_dir / "proj1").mkdir()
+    (base_dir / "proj2").mkdir()
+
+    command = "python3 -c \"import time; time.sleep(5)\""
+
+    with caplog.at_level(logging.ERROR):
+        cmdrunner.run_command_in_folders(
+            str(base_dir),
+            command,
+            fail_fast=False,
+            timeout=0.1
+        )
+
+    timeout_msgs = [msg for msg in caplog.messages if "timed out after 0.1 seconds" in msg]
+    assert len(timeout_msgs) >= 2
+
+
+def test_main_cli_overrides_fail_fast_and_timeout(tmp_path, monkeypatch, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    config_data = {
+        "main_folder": str(base_dir),
+        "command_to_run": "python3 -c \"import sys; sys.exit(1)\"",
+        "fail_fast": False,
+        "timeout": 10.0
+    }
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, "argv", [
+        "cmdrunner.py",
+        str(config_file),
+        "--fail-fast",
+        "--timeout", "0.5"
+    ])
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.main()
+        assert excinfo.value.code == 1
+
+    assert any("The command failed in 'proj1'" in msg for msg in caplog.messages)

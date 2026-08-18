@@ -2045,12 +2045,18 @@ def _extract_comment_items(input_file: str, quiet: bool = False) -> Iterable[str
             yield match.group(1).strip()
 
 
-def _extract_todo_items(input_file: str, quiet: bool = False) -> Iterable[str]:
+def _extract_todo_items(
+    input_file: str,
+    markers: Sequence[str] | None = None,
+    quiet: bool = False,
+) -> Iterable[str]:
     """Yields TODO and FIXME items extracted from a file."""
     lines = _read_file_lines_robust(input_file)
-    # Common TODO markers: TODO, FIXME, XXX, BUG, HACK
-    # We look for the marker followed by optional colon/whitespace and then the text.
-    todo_pattern = re.compile(r'\b(TODO|FIXME|XXX|BUG|HACK)[:\s]+(.*)', re.IGNORECASE)
+    if markers:
+        pattern_str = r'\b(' + '|'.join(re.escape(m.strip()) for m in markers if m.strip()) + r')[:\s]+(.*)'
+    else:
+        pattern_str = r'\b(TODO|FIXME|XXX|BUG|HACK)[:\s]+(.*)'
+    todo_pattern = re.compile(pattern_str, re.IGNORECASE)
 
     for line in tqdm(lines, desc=f'Processing {input_file} (todo)', unit=' lines', disable=quiet):
         match = todo_pattern.search(line)
@@ -2780,14 +2786,27 @@ def todo_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    marker: List[str] | None = None,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
     """Extracts TODO and FIXME items from source files."""
+    parsed_markers = None
+    if marker:
+        parsed_markers = []
+        for item in marker:
+            for m in item.split(','):
+                cleaned_m = m.strip()
+                if cleaned_m:
+                    parsed_markers.append(cleaned_m)
+
+    def extractor(f, quiet=False):
+        return _extract_todo_items(f, markers=parsed_markers, quiet=quiet)
+
     _process_items(
-        _extract_todo_items,
+        extractor,
         input_files,
         output_file,
         min_length,
@@ -7808,9 +7827,9 @@ MODE_DETAILS = {
     },
     "todo": {
         "summary": "Extracts TODO and FIXME items",
-        "description": "Finds TODO, FIXME, XXX, BUG, and HACK items in source files. It extracts the text following the marker, cleaning up common comment endings.",
-        "example": "python multitool.py todo src/ --output tasks.txt",
-        "flags": "[FILES...]",
+        "description": "Finds TODO, FIXME, XXX, BUG, and HACK items in source files. It extracts the text following the marker, cleaning up common comment endings. Use -k or --marker to filter by specific marker types (e.g. TODO, FIXME, BUG).",
+        "example": "python multitool.py todo src/ -k BUG,FIXME --output tasks.txt",
+        "flags": "[FILES...] [-k MARKER]",
     },
     "flatten": {
         "summary": "Flattens nested data structures",
@@ -8712,6 +8731,14 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['todo']['description'],
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['todo']['example']}{RESET}",
+    )
+    todo_options = todo_parser.add_argument_group(f"{BLUE}TODO OPTIONS{RESET}")
+    todo_options.add_argument(
+        '-k', '--marker',
+        type=str,
+        nargs='+',
+        metavar='MARKER',
+        help="Filter items by marker type(s) (e.g. TODO, FIXME, BUG).",
     )
     _add_common_mode_arguments(todo_parser)
 
@@ -10360,6 +10387,7 @@ def main() -> None:
             todo_mode,
             {
                 **common_kwargs,
+                'marker': getattr(args, 'marker', None),
                 'output_format': output_format,
             },
         ),

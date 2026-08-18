@@ -69,3 +69,50 @@ def test_todo_mode_case_insensitive(tmp_path, capsys):
 
     captured = capsys.readouterr()
     assert "lowercase todo" in captured.out
+
+def test_todo_mode_marker_filter(tmp_path, capsys):
+    import multitool
+    multitool._STDIN_CACHE = None
+
+    test_file = tmp_path / "test.py"
+    test_file.write_text("""
+# TODO: Implement this
+# FIXME: Fix this
+# BUG: Critical bug
+# HACK: Fast hack
+""", encoding="utf-8")
+
+    # Single marker via -k
+    sys.argv = ["multitool.py", "todo", str(test_file), "-k", "BUG", "--raw"]
+    main()
+
+    captured = capsys.readouterr()
+    output = captured.out.strip().split("\n")
+    assert "Critical bug" in output
+    assert "Implement this" not in output
+    assert "Fix this" not in output
+    assert "Fast hack" not in output
+
+    # Multiple comma-separated markers via --marker
+    multitool._STDIN_CACHE = None
+    sys.argv = ["multitool.py", "todo", str(test_file), "--marker", "BUG,FIXME", "--raw"]
+    main()
+
+    captured = capsys.readouterr()
+    output = captured.out.strip().split("\n")
+    assert "Critical bug" in output
+    assert "Fix this" in output
+    assert "Implement this" not in output
+    assert "Fast hack" not in output
+
+    # Multiple space-separated markers
+    multitool._STDIN_CACHE = None
+    sys.argv = ["multitool.py", "todo", str(test_file), "--marker", "TODO", "HACK", "--raw"]
+    main()
+
+    captured = capsys.readouterr()
+    output = captured.out.strip().split("\n")
+    assert "Implement this" in output
+    assert "Fast hack" in output
+    assert "Critical bug" not in output
+    assert "Fix this" not in output

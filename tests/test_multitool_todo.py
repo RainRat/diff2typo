@@ -69,3 +69,80 @@ def test_todo_mode_case_insensitive(tmp_path, capsys):
 
     captured = capsys.readouterr()
     assert "lowercase todo" in captured.out
+
+def test_todo_mode_pairs_arrow(tmp_path, capsys):
+    import multitool
+    multitool._STDIN_CACHE = None
+
+    test_file = tmp_path / "app.py"
+    test_file.write_text("""
+# TODO: Implement feature
+# FIXME: Critical bug
+# HACK: Workaround here
+""", encoding="utf-8")
+
+    sys.argv = ["multitool.py", "todo", str(test_file), "-p", "--raw", "-f", "arrow"]
+    main()
+
+    captured = capsys.readouterr()
+    output = captured.out
+
+    assert "Location" in output
+    assert "Message" in output
+    assert "Marker" in output
+    assert f"{test_file}:2" in output
+    assert "Implement feature" in output
+    assert "TODO" in output
+    assert f"{test_file}:3" in output
+    assert "Critical bug" in output
+    assert "FIXME" in output
+
+def test_todo_mode_pairs_json(tmp_path, capsys):
+    import json
+    import multitool
+    multitool._STDIN_CACHE = None
+
+    test_file = tmp_path / "app.py"
+    test_file.write_text("# BUG: Fix memory leak", encoding="utf-8")
+
+    sys.argv = ["multitool.py", "todo", str(test_file), "-p", "--raw", "-f", "json"]
+    main()
+
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    key = f"{test_file}:1"
+    assert key in data
+    assert "Fix memory leak BUG" in data[key]
+
+def test_todo_mode_pairs_md_table(tmp_path, capsys):
+    import multitool
+    multitool._STDIN_CACHE = None
+
+    test_file = tmp_path / "app.py"
+    test_file.write_text("# XXX: Check performance", encoding="utf-8")
+
+    sys.argv = ["multitool.py", "todo", str(test_file), "-p", "--raw", "-f", "md-table"]
+    main()
+
+    captured = capsys.readouterr()
+    lines = captured.out.strip().split("\n")
+    assert "| Location | Message | Marker |" in lines[0]
+    assert "Check performance" in lines[2]
+    assert "XXX" in lines[2]
+
+def test_todo_mode_pairs_process_output(tmp_path, capsys):
+    import multitool
+    multitool._STDIN_CACHE = None
+
+    test_file = tmp_path / "app.py"
+    test_file.write_text("""
+# TODO: Alpha
+# FIXME: Beta
+""", encoding="utf-8")
+
+    sys.argv = ["multitool.py", "todo", str(test_file), "-p", "-P", "--raw", "-f", "csv"]
+    main()
+
+    captured = capsys.readouterr()
+    lines = captured.out.strip().split("\n")
+    assert len(lines) == 2

@@ -75,26 +75,24 @@ def test_unzip_mode_coverage(tmp_path):
     assert "b" in output_right.getvalue()
     assert "a" not in output_right.getvalue()
 
-def test_count_paragraphs_label(tmp_path, capsys):
-    """Cover multitool.py line 3531."""
+def test_count_paragraphs_label(tmp_path, caplog):
+    """Cover multitool.py paragraph label in processing stats."""
     input_file = tmp_path / "input.txt"
     input_file.write_text("Para 1\n\nPara 2\n")
 
-    # We need output_format != 'arrow' to hit 3531
-    multitool.count_mode(
-        input_files=[str(input_file)],
-        output_file='-',
-        min_length=1,
-        max_length=100,
-        process_output=False,
-        paragraphs=True,
-        output_format='line',
-        quiet=False
-    )
+    with caplog.at_level("INFO"):
+        multitool.count_mode(
+            input_files=[str(input_file)],
+            output_file='-',
+            min_length=1,
+            max_length=100,
+            process_output=False,
+            paragraphs=True,
+            output_format='line',
+            quiet=False
+        )
 
-    captured = capsys.readouterr()
-    # Check for "paragraph" in the processing stats
-    assert "paragraph" in captured.err
+    assert "Total paragraphs analyzed" in caplog.text
 
 def test_help_tuple_metavar(capsys):
     """Cover multitool.py line 8045."""

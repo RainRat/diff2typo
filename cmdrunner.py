@@ -304,7 +304,10 @@ def run_command_in_folders(
                 text=True,
                 timeout=timeout,
             )
-            logging.info(f"Command output for '{item}':\n{result.stdout}")
+            if result.stdout.strip():
+                logging.info(f"Command output for '{item}':\n{result.stdout}")
+            else:
+                logging.info(f"Command executed successfully in '{item}' with no output.")
             return {
                 "folder": item,
                 "command": current_command,
@@ -314,24 +317,38 @@ def run_command_in_folders(
                 "stderr": result.stderr,
             }
         except subprocess.TimeoutExpired as e:
-            logging.error(f"The command in '{item}' timed out after {timeout} seconds.")
+            stdout_str = e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
+            stderr_str = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
+            err_msg = f"The command in '{item}' timed out after {timeout} seconds."
+            if stderr_str.strip():
+                err_msg += f"\nStderr:\n{stderr_str}"
+            elif stdout_str.strip():
+                err_msg += f"\nStdout:\n{stdout_str}"
+            logging.error(err_msg)
             return {
                 "folder": item,
                 "command": current_command,
                 "status": "timeout",
                 "return_code": -1,
-                "stdout": e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
-                "stderr": e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or ""),
+                "stdout": stdout_str,
+                "stderr": stderr_str,
             }
         except subprocess.CalledProcessError as e:
-            logging.error(f"The command failed in '{item}':\n{e.stderr}")
+            err_msg = f"The command failed in '{item}' with exit code {e.returncode}."
+            stderr_str = e.stderr or ""
+            stdout_str = e.stdout or ""
+            if stderr_str.strip():
+                err_msg += f"\nStderr:\n{stderr_str}"
+            elif stdout_str.strip():
+                err_msg += f"\nStdout:\n{stdout_str}"
+            logging.error(err_msg)
             return {
                 "folder": item,
                 "command": current_command,
                 "status": "failed",
                 "return_code": e.returncode,
-                "stdout": e.stdout or "",
-                "stderr": e.stderr or "",
+                "stdout": stdout_str,
+                "stderr": stderr_str,
             }
 
     if jobs > 1 and not dry_run:

@@ -757,13 +757,15 @@ def test_main_with_output_integration(tmp_path, monkeypatch):
     assert "integration-ok" in data[0]['stdout']
 
     monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-m', '/tmp'])
-    with pytest.raises(SystemExit) as excinfo:
-        cmdrunner.main()
+    with patch("os.path.isfile", return_value=False):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.main()
     assert excinfo.value.code == 1
 
     monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-c', 'echo 1'])
-    with pytest.raises(SystemExit) as excinfo:
-        cmdrunner.main()
+    with patch("os.path.isfile", return_value=False):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.main()
     assert excinfo.value.code == 1
 
 

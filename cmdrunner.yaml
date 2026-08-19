@@ -1,4 +1,4 @@
 base_directory: "/Users/username/projects"
-command_to_run: "git diff >> ..\diff.txt"
+command_to_run: 'git diff >> ..\diff.txt'
 excluded_folders:
   - ".git"

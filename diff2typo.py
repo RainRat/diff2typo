@@ -1016,7 +1016,7 @@ def main():
     )
 
     analysis_group.add_argument(
-        '--sort',
+        '-s', '--sort',
         choices=['count', 'alpha'],
         default='alpha',
         help="How to sort the results: 'count' (most frequent first) or 'alpha' (alphabetical, default).",

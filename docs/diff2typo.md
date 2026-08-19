@@ -61,7 +61,7 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--min-length`, `-m` | `2` | Ignore words shorter than this length. |
 | `--max-dist`, `-D` | None | Only include typos with a number of character changes up to this value. Useful for filtering out intentional word changes. |
 | `--min-count`, `-c` | `1` | Minimum occurrences of a typo in the diff to include it in the output. |
-| `--sort` | `alpha` | How to sort the results: `count` (most frequent first) or `alpha` (alphabetical). |
+| `--sort`, `-s` | `alpha` | How to sort the results: `count` (most frequent first) or `alpha` (alphabetical). |
 | `--limit`, `-L` | None | Limit the number of typos in the output. |
 | `--dictionary`, `-d` | `words.csv` | A file containing the large dictionary of correct words. The tool uses this to make sure the "fix" is a real word. |
 | `--allowed` | `allowed.csv` | A list of words to explicitly ignore, even if they look like typos. |

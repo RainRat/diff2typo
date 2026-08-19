@@ -584,3 +584,29 @@ def test_find_typos_malformed_git_diff_line():
 """
     result = diff2typo.find_typos(diff, min_length=2)
     assert len(result) == 0
+
+
+def test_cli_sort_short_flag(monkeypatch):
+    import argparse
+    monkeypatch.setattr(sys, 'argv', ['diff2typo.py', '-s', 'count'])
+    monkeypatch.setattr(diff2typo, '_read_diff_sources', lambda _: "")
+    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **k: {})
+    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **k: set())
+    monkeypatch.setattr(sys, 'stdout', io.StringIO())
+
+    original_parse = argparse.ArgumentParser.parse_args
+    captured_args = []
+    def mock_parse(self, *args, **kwargs):
+        res = original_parse(self, *args, **kwargs)
+        captured_args.append(res)
+        return res
+
+    monkeypatch.setattr(argparse.ArgumentParser, 'parse_args', mock_parse)
+
+    try:
+        diff2typo.main()
+    except SystemExit:
+        pass
+
+    assert len(captured_args) > 0
+    assert captured_args[0].sort == 'count'

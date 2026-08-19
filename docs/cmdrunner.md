@@ -77,7 +77,7 @@ jobs: 4
 - `-e`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
 - `-i`, `--included-folders`: A list of folders you want to run the command on. This overrides the configuration file.
 - `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
-- `--quiet`: Hide status messages and progress bars.
+- `-q`, `--quiet`: Hide status messages and progress bars.
 - `--fail-fast`: Stop running commands immediately if any command fails. This overrides the configuration file.
 - `--timeout`: Set the maximum time in seconds for the command to run in each folder. This overrides the configuration file.
 - `--if-exists`: Only run the command in folders that contain this file or path (for example, `package.json`). This overrides the configuration file.

@@ -546,7 +546,7 @@ def parse_arguments() -> argparse.Namespace:
         help='Show which folders the tool will check without running any command.'
     )
     options_group.add_argument(
-        '--quiet',
+        '-q', '--quiet',
         action='store_true',
         help='Hide status messages and progress bars.'
     )

@@ -30,6 +30,7 @@ Output Formats:
     - list: typo
     - json: JSON array of objects or dict
     - yaml: YAML document
+    - markdown: Markdown table or list
 '''
 
 import argparse
@@ -554,7 +555,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
 
     Args:
         typos (list): List of typo strings in the format "before -> after".
-        output_format (str): Desired output format ('arrow', 'csv', 'table', 'list', 'json', 'yaml').
+        output_format (str): Desired output format ('arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md').
 
     Returns:
         list: Formatted list of typo strings.
@@ -575,6 +576,33 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
                 logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
 
         return json.dumps(items, indent=2).split('\n')
+
+    if output_format in ('markdown', 'md'):
+        formatted: List[str] = []
+        typo_pairs = []
+        single_items = []
+
+        for typo in typos:
+            if ' -> ' in typo:
+                before, after = typo.split(' -> ')
+                typo_pairs.append((before, after))
+            else:
+                single_items.append(typo)
+
+        if typo_pairs:
+            formatted.append("| Typo | Correction |")
+            formatted.append("| :--- | :--- |")
+            for before, after in typo_pairs:
+                formatted.append(f"| `{before}` | `{after}` |")
+
+        if single_items:
+            if typo_pairs:
+                formatted.append("")
+            for item in single_items:
+                clean_item = filter_to_letters(item)
+                formatted.append(f"- `{clean_item}`")
+
+        return formatted
 
     formatted: List[str] = []
     for typo in typos:
@@ -928,12 +956,12 @@ def main():
         '-f',
         dest='output_format',
         type=str,
-        choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml'],
+        choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md'],
         default=None,
-        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo), json, yaml. Default is arrow.',
+        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo), json, yaml, markdown, md. Default is arrow.',
     )
     # Hidden alias for backward compatibility
-    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     # Analysis Options
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
@@ -1043,7 +1071,7 @@ def main():
     # Resolve output format if not provided
     if args.output_format is None:
         default_fmt = 'arrow'
-        allowed_formats = ['arrow', 'csv', 'table', 'list', 'json', 'yaml']
+        allowed_formats = ['arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md']
         if args.output_file and args.output_file != '-':
             ext = os.path.splitext(args.output_file)[1].lower().lstrip('.')
             mapping = {
@@ -1056,6 +1084,8 @@ def main():
                 'json': 'json',
                 'yaml': 'yaml',
                 'yml': 'yaml',
+                'md': 'markdown',
+                'markdown': 'markdown',
             }
             detected = mapping.get(ext)
             args.output_format = detected if detected in allowed_formats else default_fmt
@@ -1221,13 +1251,22 @@ def main():
             else:
                 final_output = json.dumps(data, indent=2).split('\n')
         else:
-            if typos_final:
-                final_output.append("=== Typos ===")
-                final_output.extend(format_typos(typos_final, args.output_format))
-                final_output.append("")  # Blank line for separation.
-            if corrections_final:
-                final_output.append("=== Corrections ===")
-                final_output.extend(format_typos(corrections_final, args.output_format))
+            if args.output_format in ('markdown', 'md'):
+                if typos_final:
+                    final_output.append("### Typos")
+                    final_output.extend(format_typos(typos_final, args.output_format))
+                    final_output.append("")  # Blank line for separation.
+                if corrections_final:
+                    final_output.append("### Corrections")
+                    final_output.extend(format_typos(corrections_final, args.output_format))
+            else:
+                if typos_final:
+                    final_output.append("=== Typos ===")
+                    final_output.extend(format_typos(typos_final, args.output_format))
+                    final_output.append("")  # Blank line for separation.
+                if corrections_final:
+                    final_output.append("=== Corrections ===")
+                    final_output.extend(format_typos(corrections_final, args.output_format))
     else:
         results_list = []
         if args.mode == 'typos':

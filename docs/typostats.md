@@ -56,6 +56,7 @@ The tool automatically recognizes several common ways of listing typos:
   - `json`: Data for other programs.
   - `yaml`: Simple list format.
   - `table`: TOML table format (`typo = "correction"`), compatible with the `typos` tool.
+  - `markdown` / `md`: Markdown table format (`| Typo | Correction | Count |`).
 - `-o`, `--output`: Save the report to a file instead of showing it on the screen.
 - `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
 - `-q`, `--quiet`: Hide progress bars and status messages.

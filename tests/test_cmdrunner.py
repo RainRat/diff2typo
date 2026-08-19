@@ -13,7 +13,7 @@ import yaml
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import cmdrunner
-from cmdrunner import MinimalFormatter, ConfigError
+from cmdrunner import MinimalFormatter
 
 
 def test_load_config_success(tmp_path):
@@ -39,7 +39,7 @@ def test_load_config_malformed_yaml(tmp_path):
     bad_file = tmp_path / 'bad.yaml'
     bad_file.write_text(": invalid: yaml: content")
 
-    with pytest.raises(ConfigError, match="Error parsing YAML file"):
+    with pytest.raises(cmdrunner.ConfigError, match="Error parsing YAML file"):
         cmdrunner.load_config(str(bad_file))
 
 
@@ -47,7 +47,7 @@ def test_load_config_empty_file(tmp_path):
     empty_file = tmp_path / 'empty.yaml'
     empty_file.write_text("")
 
-    with pytest.raises(ConfigError, match="empty or malformed"):
+    with pytest.raises(cmdrunner.ConfigError, match="empty or malformed"):
         cmdrunner.load_config(str(empty_file))
 
 
@@ -62,7 +62,7 @@ def test_load_config_missing_required_fields(tmp_path, config_data, expected_mes
     config_file = tmp_path / 'config.yaml'
     config_file.write_text(yaml.safe_dump(config_data))
 
-    with pytest.raises(ConfigError, match=expected_message):
+    with pytest.raises(cmdrunner.ConfigError, match=expected_message):
         cmdrunner.load_config(str(config_file))
 
 
@@ -79,7 +79,7 @@ def test_load_config_invalid_types(tmp_path):
         )
     )
 
-    with pytest.raises(ConfigError) as exc_info:
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
         cmdrunner.load_config(str(config_file))
 
     message = str(exc_info.value)
@@ -100,7 +100,7 @@ def test_load_config_invalid_main_folder(tmp_path):
         )
     )
 
-    with pytest.raises(ConfigError) as exc_info:
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
         cmdrunner.load_config(str(config_file))
 
     assert "'main_folder' must be a string" in exc_info.value.args[0]
@@ -1572,6 +1572,39 @@ def test_parallel_execution_unexpected_exception_fail_fast(tmp_path, caplog):
     assert any("An unexpected error occurred in folder" in msg for msg in caplog.messages)
 
 
+def test_load_config_invalid_fail_fast(tmp_path):
+    config_file = tmp_path / 'config_invalid_fail_fast.yaml'
+    config_file.write_text(yaml.safe_dump({
+        'main_folder': str(tmp_path),
+        'command_to_run': 'echo test',
+        'fail_fast': 'not-a-bool'
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="fail_fast"):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_load_config_invalid_timeout_bool(tmp_path):
+    config_file = tmp_path / 'config_invalid_timeout.yaml'
+    config_file.write_text(yaml.safe_dump({
+        'main_folder': str(tmp_path),
+        'command_to_run': 'echo test',
+        'timeout': True
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="timeout"):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_load_config_invalid_timeout_str(tmp_path):
+    config_file = tmp_path / 'config_invalid_timeout_str.yaml'
+    config_file.write_text(yaml.safe_dump({
+        'main_folder': str(tmp_path),
+        'command_to_run': 'echo test',
+        'timeout': 'not-a-number'
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="timeout"):
+        cmdrunner.load_config(str(config_file))
+
+
 def test_run_command_no_fail_fast_continues(tmp_path, caplog):
     base_dir = tmp_path / "projects"
     base_dir.mkdir()
@@ -1590,6 +1623,19 @@ def test_run_command_no_fail_fast_continues(tmp_path, caplog):
 
     assert any("The command failed in 'proj1'" in msg for msg in caplog.messages)
     assert any("The command failed in 'proj2'" in msg for msg in caplog.messages)
+
+
+def test_run_command_sequential_fail_fast(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+    (base_dir / 'proj2').mkdir()
+
+    command = "python3 -c \"import sys; sys.exit(1)\""
+
+    with pytest.raises(SystemExit) as exc_info:
+        cmdrunner.run_command_in_folders(str(base_dir), command, fail_fast=True)
+    assert exc_info.value.code == 1
 
 
 def test_run_command_timeout_stops_immediately(tmp_path, caplog):
@@ -1663,3 +1709,47 @@ def test_main_cli_overrides_fail_fast_and_timeout(tmp_path, monkeypatch, caplog)
         assert excinfo.value.code == 1
 
     assert any("The command failed in 'proj1'" in msg for msg in caplog.messages)
+
+
+def test_run_command_parallel_unexpected_exception(tmp_path, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    with patch("cmdrunner.subprocess.run", side_effect=RuntimeError("unexpected subp error")):
+        with caplog.at_level(logging.ERROR):
+            cmdrunner.run_command_in_folders(str(base_dir), "echo test", jobs=2)
+
+    assert any("An unexpected error occurred" in msg for msg in caplog.messages)
+
+
+def test_run_command_parallel_unexpected_exception_fail_fast(tmp_path, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    with patch("cmdrunner.subprocess.run", side_effect=RuntimeError("unexpected fail fast")):
+        with pytest.raises(SystemExit) as exc_info:
+            cmdrunner.run_command_in_folders(str(base_dir), "echo test", jobs=2, fail_fast=True)
+        assert exc_info.value.code == 1
+
+
+def test_execution_summary_with_failed_and_timeout(tmp_path, capsys):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    report_summary = cmdrunner._format_execution_summary(
+        total_found=2,
+        skipped=0,
+        processed=2,
+        success=0,
+        failed=1,
+        timeout_count=1,
+        dry_run_count=0,
+        elapsed_time=1.23,
+        use_color=False
+    )
+    summary_text = "\n".join(report_summary)
+    assert "Failed runs:" in summary_text
+    assert "Timed out runs:" in summary_text

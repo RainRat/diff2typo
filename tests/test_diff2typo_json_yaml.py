@@ -183,3 +183,63 @@ def test_main_both_mode_yaml_fallback(caplog):
             data = json.load(f)
         assert "typos" in data
         assert "corrections" in data
+
+
+def test_main_both_mode_yaml_success():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        diff_file = os.path.join(tmpdir, "test.diff")
+        out_yaml = os.path.join(tmpdir, "both.yaml")
+        with open(diff_file, "w", encoding="utf-8") as f:
+            f.write(SAMPLE_DIFF)
+
+        test_args = [
+            "diff2typo.py",
+            diff_file,
+            "-o",
+            out_yaml,
+            "-M",
+            "both",
+            "-f",
+            "yaml",
+            "-q",
+            "-d",
+            "nonexistent.csv",
+        ]
+        with patch("diff2typo._YAML_AVAILABLE", True), patch("sys.argv", test_args):
+            diff2typo.main()
+
+        assert os.path.exists(out_yaml)
+        with open(out_yaml, "r", encoding="utf-8") as f:
+            content = f.read()
+        assert "typos:" in content or "corrections:" in content
+
+
+def test_main_both_mode_single_items_json():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        diff_file = os.path.join(tmpdir, "test.diff")
+        out_json = os.path.join(tmpdir, "both.json")
+        with open(diff_file, "w", encoding="utf-8") as f:
+            f.write(SAMPLE_DIFF)
+
+        test_args = [
+            "diff2typo.py",
+            diff_file,
+            "-o",
+            out_json,
+            "-M",
+            "both",
+            "-f",
+            "json",
+            "-q",
+            "-d",
+            "nonexistent.csv",
+        ]
+        with patch("diff2typo.process_typos_mode", return_value=["standalone_typo"]), patch("diff2typo.process_corrections_mode", return_value=["standalone_corr"]), patch("sys.argv", test_args):
+            diff2typo.main()
+
+        assert os.path.exists(out_json)
+        with open(out_json, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        assert data["typos"] == [{"typo": "standalone_typo", "correction": ""}]
+        assert data["corrections"] == [{"typo": "standalone_corr", "correction": ""}]
+

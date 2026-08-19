@@ -54,7 +54,7 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--git`, `-g` | None | Fetch diff directly from Git. Optional arguments are passed to `git diff` (for example, `-g "HEAD~3"`). |
 | `--git-log`, `-l` | None | Fetch commit history diffs directly from Git. Optional arguments are passed to `git log` (for example, `-l "HEAD~3"`). |
 | `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
-| `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), or `list` (typo only). |
+| `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), `list` (typo only), `json`, or `yaml`. Automatically detected from file extension (`.json`, `.yaml`, `.yml`). |
 | `--mode`, `-M` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
 | `--exclude`, `-e` | None | One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from typo scanning. |
 | `--include`, `-I` | None | One or more file patterns (e.g., `*.md`, `src/*`) to include in typo scanning (all files are scanned by default). |
@@ -98,6 +98,13 @@ python diff2typo.py --git "HEAD~5" --output recent_typos.txt
 
 ```bash
 python diff2typo.py --git-log "HEAD~5" --output recent_typos.txt
+```
+
+**Export typos as JSON or YAML:**
+
+```bash
+python diff2typo.py feature.diff --format json --output typos.json
+python diff2typo.py feature.diff --format yaml --output typos.yaml
 ```
 
 **Pipe directly from Git and save to a file:**

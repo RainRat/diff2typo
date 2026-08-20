@@ -4,6 +4,7 @@ import os
 import importlib
 import json
 import csv
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -1760,17 +1761,19 @@ def test_run_command_timeout_with_stderr_and_stdout(tmp_path, caplog):
     base_dir.mkdir()
     (base_dir / "proj1").mkdir()
 
-    cmd_stderr = "python3 -c \"import sys, time; sys.stderr.write('err_output\\n'); sys.stderr.flush(); time.sleep(5)\""
-    with caplog.at_level(logging.ERROR):
-        cmdrunner.run_command_in_folders(str(base_dir), cmd_stderr, timeout=0.1)
-    assert any("Stderr:\nerr_output" in msg for msg in caplog.messages)
+    exc_stderr = subprocess.TimeoutExpired(cmd="dummy", timeout=0.1, output=b"", stderr=b"err_output\n")
+    with patch("subprocess.run", side_effect=exc_stderr):
+        with caplog.at_level(logging.ERROR):
+            cmdrunner.run_command_in_folders(str(base_dir), "dummy_cmd", timeout=0.1)
+        assert any("Stderr:\nerr_output" in msg for msg in caplog.messages)
 
     caplog.clear()
 
-    cmd_stdout = "python3 -c \"import sys, time; sys.stdout.write('out_output\\n'); sys.stdout.flush(); time.sleep(5)\""
-    with caplog.at_level(logging.ERROR):
-        cmdrunner.run_command_in_folders(str(base_dir), cmd_stdout, timeout=0.1)
-    assert any("Stdout:\nout_output" in msg for msg in caplog.messages)
+    exc_stdout = subprocess.TimeoutExpired(cmd="dummy", timeout=0.1, output=b"out_output\n", stderr=b"")
+    with patch("subprocess.run", side_effect=exc_stdout):
+        with caplog.at_level(logging.ERROR):
+            cmdrunner.run_command_in_folders(str(base_dir), "dummy_cmd", timeout=0.1)
+        assert any("Stdout:\nout_output" in msg for msg in caplog.messages)
 
 
 def test_run_command_failed_with_stderr_and_stdout(tmp_path, caplog):

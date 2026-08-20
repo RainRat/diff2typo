@@ -102,8 +102,8 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py comments src/ --output comments.txt`
 
 - **`todo`**
-  - Extracts TODO, FIXME, XXX, BUG, and HACK items from source files. It identifies the text following these markers and cleans up common comment endings. Use `-p` / `--pairs` to include file location (`filename:line`), task message, and task marker category with color highlighting.
-  - **Example:** `python multitool.py todo src/ -p --output tasks.txt`
+  - Extracts TODO, FIXME, XXX, BUG, and HACK items from source files. It identifies the text following these markers and cleans up common comment endings. Use `-k` / `--marker` to filter items by specific marker types (for example, TODO, FIXME, BUG). Use `-p` / `--pairs` to include file location (`filename:line`), task message, and task marker category with color highlighting.
+  - **Example:** `python multitool.py todo src/ -k BUG,FIXME -p --output tasks.txt`
 
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.

@@ -214,3 +214,23 @@ def test_todo_mode_pairs_with_marker_filter(tmp_path, capsys):
     assert "BUG" in output
     assert "Normal task" not in output
     assert "Urgent repair" not in output
+
+def test_todo_mode_min_max_length_filter(tmp_path, capsys):
+    import multitool
+    multitool._STDIN_CACHE = None
+
+    test_file = tmp_path / "app.py"
+    test_file.write_text("""
+# TODO: short
+# TODO: medium length item
+# TODO: extremely long description task that exceeds max length filter limit
+""", encoding="utf-8")
+
+    sys.argv = ["multitool.py", "todo", str(test_file), "-m", "10", "-M", "25", "--raw"]
+    main()
+
+    captured = capsys.readouterr()
+    output = captured.out
+    assert "medium length item" in output
+    assert "short" not in output
+    assert "extremely long description task that exceeds max length filter limit" not in output

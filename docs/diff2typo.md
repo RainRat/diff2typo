@@ -66,6 +66,7 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--dictionary`, `-d` | `words.csv` | A file containing the large dictionary of correct words. The tool uses this to make sure the "fix" is a real word. |
 | `--allowed` | `allowed.csv` | A list of words to explicitly ignore, even if they look like typos. |
 | `--typos-path` | `typos` | The path to the external `typos` tool. |
+| `--dry-run` | Off | Show configuration details and a sample preview of typo extraction without writing files. |
 | `--quiet`, `-q` | Off | Hide progress bars and status messages. |
 
 ## Examples
@@ -112,6 +113,12 @@ python diff2typo.py feature.diff --format markdown --output typos.md
 
 ```bash
 git diff | python diff2typo.py --output found_typos.txt --mode both
+```
+
+**Preview configuration and sample typos without writing files:**
+
+```bash
+python diff2typo.py feature.diff --output typos.txt --dry-run
 ```
 
 **Find patterns with typostats:**

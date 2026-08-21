@@ -332,6 +332,18 @@ def test_read_file_lines_robust_encoding_failures():
             assert typostats._read_file_lines_robust("dummy_none.txt") == ["latin-1_fallback"]
 
 
+def test_main_cli_input_flag(tmp_path):
+    f1 = tmp_path / "typos1.txt"
+    f1.write_text("teh -> the\n")
+    f2 = tmp_path / "typos2.txt"
+    f2.write_text("recived -> received\n")
+
+    with patch('sys.argv', ['typostats.py', '-i', str(f1), str(f2), '-q']), \
+         patch('typostats.generate_report') as mock_report:
+        typostats.main()
+        assert mock_report.call_args[1]['total_pairs'] == 2
+
+
 def test_main_cli_functionality():
     with patch('sys.argv', ['typostats.py', '--help']):
         with pytest.raises(SystemExit):

@@ -255,6 +255,8 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
         'json': 'json',
         'yaml': 'yaml',
         'yml': 'yaml',
+        'md': 'markdown',
+        'markdown': 'markdown',
     }
 
     detected = mapping.get(ext)
@@ -848,7 +850,7 @@ def format_typos(
 
     Args:
         typo_to_correct_word (dict): Mapping from typo to correct word.
-        output_format (str): Desired output format ('arrow', 'csv', 'table', 'list', 'json', 'yaml').
+        output_format (str): Desired output format ('arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md').
 
     Returns:
         list: Formatted list of typo strings.
@@ -865,6 +867,11 @@ def format_typos(
             logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
             import json
             return [json.dumps(typo_to_correct_word, indent=2)]
+    elif output_format in ('markdown', 'md'):
+        lines = ["| Typo | Correction |", "| :--- | :--- |"]
+        for typo, correct_word in typo_to_correct_word.items():
+            lines.append(f"| `{typo}` | `{correct_word}` |")
+        return lines
 
     for typo, correct_word in typo_to_correct_word.items():
         if output_format == 'arrow':
@@ -895,7 +902,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
     output_format = config.get('output_format', 'arrow').lower()
     output_header = config.get('output_header')
 
-    valid_formats = {'arrow', 'csv', 'table', 'list', 'json', 'yaml'}
+    valid_formats = {'arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md'}
     if output_format not in valid_formats:
         logging.warning(
             f"Unknown output format '{output_format}'. Defaulting to 'arrow'."
@@ -1166,7 +1173,7 @@ def main() -> None:
     )
     io_group.add_argument(
         '-f', '--format',
-        choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml'],
+        choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md'],
         metavar='FMT',
         default=None,
         help="Choose an output format. If not provided, it is automatically detected from the output file extension. (default: arrow).",
@@ -1364,7 +1371,7 @@ def main() -> None:
     if args.format:
         config['output_format'] = args.format
     elif config.get('output_format') is None:
-        allowed_formats = ['arrow', 'csv', 'table', 'list', 'json', 'yaml']
+        allowed_formats = ['arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md']
         config['output_format'] = _detect_format_from_extension(config.get('output_file'), allowed_formats, 'arrow')
     if args.substitutions:
         config['substitutions_file'] = args.substitutions

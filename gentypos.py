@@ -1229,12 +1229,12 @@ def main() -> None:
         help="Generate transpositions (swapped letters, e.g., 'word' to 'wrod').",
     )
     gen_group.add_argument(
-        '--deletion',
+        '-D', '--deletion',
         action='store_true',
         help="Generate deletions (skipping a letter, e.g., 'word' to 'wrd').",
     )
     gen_group.add_argument(
-        '--duplication',
+        '-u', '--duplication',
         action='store_true',
         help="Generate duplications (typing a letter twice, e.g., 'word' to 'woord').",
     )

@@ -7,6 +7,7 @@ import io
 import os
 import re
 import time
+import fnmatch
 from typing import Any, Iterable, List, Mapping, Sequence, Tuple
 
 VERSION = "1.1.0"
@@ -484,7 +485,6 @@ def _is_file_excluded(filepath: str, patterns: List[str] | None) -> bool:
     """Check if the given filepath matches any exclusion patterns."""
     if not patterns or not filepath:
         return False
-    import fnmatch
     for pattern in patterns:
         if fnmatch.fnmatch(filepath, pattern) or fnmatch.fnmatch(os.path.basename(filepath), pattern):
             return True

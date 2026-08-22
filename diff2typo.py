@@ -1055,6 +1055,12 @@ def main():
     parser.add_argument('--typos_tool_path', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show configuration details and a sample preview of typo extraction without writing files.',
+    )
+
+    analysis_group.add_argument(
         '--quiet', '-q',
         action='store_true',
         help='Hide progress bars and status messages.'
@@ -1102,6 +1108,7 @@ def main():
 
     git_val = getattr(args, 'git', None)
     git_log_val = getattr(args, 'git_log', None)
+    dry_run_val = getattr(args, 'dry_run', False)
 
     # Robust handling for Mock/MagicMock in unit tests
     with contextlib.suppress(ImportError):
@@ -1110,6 +1117,8 @@ def main():
             git_val = None
         if isinstance(git_log_val, unittest.mock.Mock):
             git_log_val = None
+        if isinstance(dry_run_val, unittest.mock.Mock):
+            dry_run_val = False
 
     if git_val is not None:
         diff_text = _read_git_diff(git_val)
@@ -1200,6 +1209,37 @@ def main():
     if args.mode == 'audit':
         logging.info("Checking for cases where correct words were changed into typos...")
         audit_list = process_audit_typos(candidates, args, large_dictionary, allowed_words)
+
+    if dry_run_val:
+        use_color = _should_enable_color(sys.stderr)
+        c_blue = (BOLD + _BLUE) if use_color else ""
+        c_green = (BOLD + _GREEN) if use_color else ""
+        c_reset = _RESET if use_color else ""
+
+        logging.info(f"{c_blue}--- DIFF2TYPO DRY RUN ---{c_reset}")
+        input_desc = input_files if input_files else ("Git Diff" if git_val is not None else ("Git Log" if git_log_val is not None else "stdin"))
+        logging.info(f"Input Source: {input_desc}")
+        logging.info(f"Output Target: {args.output_file} (Format: {args.output_format})")
+        logging.info(f"Mode: {args.mode} | Min Length: {args.min_length} | Max Dist: {args.max_dist if args.max_dist is not None else 'None'}")
+        logging.info(f"Min Count: {args.min_count} | Sort: {args.sort} | Limit: {args.limit if args.limit is not None else 'None'}")
+        logging.info(f"Large Dictionary: {args.dictionary_file} | Allowed File: {args.allowed_file}")
+        logging.info(f"Exclude Patterns: {args.exclude if args.exclude else 'None'} | Include Patterns: {args.include if args.include else 'None'}")
+
+        # Sample Preview
+        logging.info(f"\n{c_blue}Sample Typo Extraction Preview:{c_reset}")
+        if args.mode == 'both':
+            sample_typos = typos_list[:5]
+            sample_corrections = corrections_list[:5]
+            logging.info(f"  Typos ({len(typos_list)} total): {', '.join(sample_typos) if sample_typos else 'None'}")
+            logging.info(f"  Corrections ({len(corrections_list)} total): {', '.join(sample_corrections) if sample_corrections else 'None'}")
+        else:
+            sample_items = (typos_list if args.mode == 'typos' else (corrections_list if args.mode == 'corrections' else audit_list))
+            logging.info(f"  Found {len(sample_items)} candidate(s) in '{args.mode}' mode:")
+            for item in sample_items[:10]:
+                logging.info(f"    {item}")
+
+        logging.info(f"{c_green}Dry run complete. No files were written.{c_reset}")
+        return
 
     # Helper to sort and limit results
     def sort_and_limit(items):

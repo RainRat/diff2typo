@@ -102,8 +102,8 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py comments src/ --output comments.txt`
 
 - **`todo`**
-  - Extracts TODO, FIXME, XXX, BUG, and HACK items from source files. It identifies the text following these markers and cleans up common comment endings. Use `-p` / `--pairs` to include file location (`filename:line`), task message, and task marker category with color highlighting.
-  - **Example:** `python multitool.py todo src/ -p --output tasks.txt`
+  - Extracts TODO, FIXME, XXX, BUG, and HACK items from source files. It identifies the text following these markers and cleans up common comment endings. Use `-k` / `--marker` to filter items by specific marker types (such as `TODO`, `FIXME`, or `BUG`). Use `-p` / `--pairs` to include file location (`filename:line`), task message, and task marker category with color highlighting.
+  - **Example:** `python multitool.py todo src/ -k BUG,FIXME -p --output tasks.txt`
 
 - **`json`**
   - Extracts values from a JSON file by key. Use dot notation for nested keys (for example, `user.name`). If you do not provide a key, it extracts items from the top level. It automatically handles lists and objects.
@@ -274,6 +274,7 @@ Use these modes to transform or combine your data.
   - Fixes typos in text files using a mapping file or extra pairs. It preserves surrounding context while fixing errors.
   - **Supported Formats:** CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.
   - **Options:**
+    - Use `--mapping` (or `-s`) to specify a mapping file path.
     - Use the `--add` flag to provide extra mapping pairs directly on the command line.
     - Supports `--in-place`, `--dry-run`, `--diff`, and `--smart-case`.
   - **Example:** `python multitool.py scrub input.txt --add teh:the --diff`

@@ -1,6 +1,5 @@
-import pytest
-from diff2typo import _match_pattern, find_typos, main
 from unittest.mock import patch
+from diff2typo import _match_pattern, find_typos, main
 
 def test_match_pattern_include():
     assert _match_pattern("tests/test_math.py", ["*.py"])

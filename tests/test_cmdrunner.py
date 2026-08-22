@@ -1403,7 +1403,10 @@ def test_zero_processed_filtered_out(tmp_path, capsys, caplog):
 def test_should_enable_color_force_color(monkeypatch):
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setenv("FORCE_COLOR", "1")
-    class StreamWithoutIatty: pass
+
+    class StreamWithoutIatty:
+        pass
+
     assert cmdrunner._should_enable_color(StreamWithoutIatty()) is True
 
 

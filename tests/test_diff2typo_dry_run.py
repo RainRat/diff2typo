@@ -1,6 +1,4 @@
-import os
 import sys
-import pytest
 from unittest.mock import patch
 import diff2typo
 
@@ -103,3 +101,36 @@ def test_diff2typo_dry_run_corrections_mode(tmp_path, caplog):
     assert "--- DIFF2TYPO DRY RUN ---" in caplog.text
     assert "Mode: corrections" in caplog.text
     assert "Dry run complete. No files were written." in caplog.text
+
+
+def test_diff2typo_dry_run_audit_mode(tmp_path, caplog):
+    """Verify --dry-run with --mode audit runs cleanly without writing output files."""
+    diff_file = tmp_path / "sample.diff"
+    diff_file.write_text(
+        "diff --git a/file.py b/file.py\n"
+        "--- a/file.py\n"
+        "+++ b/file.py\n"
+        "-the house\n"
+        "+teh house\n"
+    )
+    output_file = tmp_path / "output_audit.txt"
+
+    test_args = [
+        "diff2typo.py",
+        str(diff_file),
+        "-o",
+        str(output_file),
+        "-M",
+        "audit",
+        "--dry-run",
+    ]
+
+    with patch.object(sys, "argv", test_args):
+        with caplog.at_level("INFO"):
+            diff2typo.main()
+
+    assert not output_file.exists()
+    assert "--- DIFF2TYPO DRY RUN ---" in caplog.text
+    assert "Mode: audit" in caplog.text
+    assert "Dry run complete. No files were written." in caplog.text
+

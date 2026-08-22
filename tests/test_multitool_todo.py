@@ -1,7 +1,5 @@
 import sys
-import io
-import pytest
-from multitool import main, _STDIN_CACHE
+from multitool import main
 
 def test_todo_mode(tmp_path, capsys):
     # Reset STDIN cache for isolation

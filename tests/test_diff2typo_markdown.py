@@ -99,7 +99,7 @@ def test_main_markdown_corrections_mode(monkeypatch, tmp_path):
     diff_file.write_text(diff_content, encoding="utf-8")
 
     dict_file = tmp_path / "words.csv"
-    dict_file.write_text("teh,thee\n", encoding="utf-8")
+    dict_file.write_text("teh\n", encoding="utf-8")
 
     output_file = tmp_path / "output.md"
 
@@ -191,3 +191,54 @@ def test_main_markdown_both_mode(monkeypatch, tmp_path):
     assert "### Typos" in content
     assert "### Corrections" in content
     assert "| Typo | Correction |" in content
+
+def test_main_markdown_both_mode_partial_empty(monkeypatch, tmp_path):
+    diff_content = (
+        "diff --git a/test.txt b/test.txt\n"
+        "--- a/test.txt\n"
+        "+++ b/test.txt\n"
+        "@@ -1 +1 @@\n"
+        "-teh\n"
+        "+the\n"
+    )
+    diff_file = tmp_path / "sample.diff"
+    diff_file.write_text(diff_content, encoding="utf-8")
+
+    # When "teh" is in large_dictionary (simple word without fixes in words.csv),
+    # "teh" is excluded from typos_list but included in corrections_list (since it's a known typo in words_mapping).
+    dict_file = tmp_path / "words.csv"
+    dict_file.write_text("teh\n", encoding="utf-8")
+
+    output_file_1 = tmp_path / "output1.md"
+    test_args_1 = [
+        "diff2typo.py",
+        str(diff_file),
+        "-o", str(output_file_1),
+        "-M", "both",
+        "-d", str(dict_file),
+        "-q"
+    ]
+    monkeypatch.setattr(sys, "argv", test_args_1)
+    main()
+
+    content1 = output_file_1.read_text(encoding="utf-8")
+    assert "### Typos" not in content1
+    assert "### Corrections" in content1
+
+    # When "teh" is not in large_dictionary/mapping, typos_list is populated, corrections_list is empty.
+    dict_file.write_text("file\n", encoding="utf-8")
+    output_file_2 = tmp_path / "output2.md"
+    test_args_2 = [
+        "diff2typo.py",
+        str(diff_file),
+        "-o", str(output_file_2),
+        "-M", "both",
+        "-d", str(dict_file),
+        "-q"
+    ]
+    monkeypatch.setattr(sys, "argv", test_args_2)
+    main()
+
+    content2 = output_file_2.read_text(encoding="utf-8")
+    assert "### Typos" in content2
+    assert "### Corrections" not in content2

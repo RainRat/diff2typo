@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 import diff2typo
 
 def test_short_flags_parsing(monkeypatch):
-    """Verify that short flags -g, -M, -D, -c parse identically to long flags."""
+    """Verify that short flags -g, -M, -D, -c, -s parse identically to long flags."""
 
     import argparse
     original_parse = argparse.ArgumentParser.parse_args
@@ -23,7 +23,7 @@ def test_short_flags_parsing(monkeypatch):
     monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **kw: {})
     monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **kw: set())
 
-    # Test short flags: -g, -M, -D, -c
+    # Test short flags: -g, -M, -D, -c, -s
     monkeypatch.setattr(
         sys,
         'argv',
@@ -33,6 +33,7 @@ def test_short_flags_parsing(monkeypatch):
             '-M', 'both',
             '-D', '3',
             '-c', '2',
+            '-s', 'count',
             '--quiet'
         ]
     )
@@ -48,3 +49,4 @@ def test_short_flags_parsing(monkeypatch):
     assert args.mode == 'both'
     assert args.max_dist == 3
     assert args.min_count == 2
+    assert args.sort == 'count'

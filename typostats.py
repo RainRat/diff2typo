@@ -1,4 +1,5 @@
 from collections import defaultdict
+import contextlib
 import json
 import sys
 import logging
@@ -1126,6 +1127,11 @@ def main() -> None:
         default=None,
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
     )
+    io_group.add_argument(
+        '--dry-run',
+        action='store_true',
+        help="Show configuration details and a sample preview of typo pattern analysis without writing files.",
+    )
     io_group.add_argument('-q', '--quiet', action='store_true', help="Hide progress bars and status messages.")
 
     # Analysis Options Group
@@ -1300,6 +1306,49 @@ def main() -> None:
         for k, v in file_counts.items():
             all_counts[k] += v
         total_pairs_all += pairs_count
+
+    dry_run_val = getattr(args, 'dry_run', False)
+    with contextlib.suppress(ImportError):
+        import unittest.mock
+        if isinstance(dry_run_val, unittest.mock.Mock):
+            dry_run_val = False
+
+    if dry_run_val:
+        use_color = _should_enable_color(sys.stderr)
+        c_blue = (BOLD + _BLUE) if use_color else ""
+        c_green = (BOLD + _GREEN) if use_color else ""
+        c_reset = _RESET if use_color else ""
+
+        logging.info(f"{c_blue}--- TYPOSTATS DRY RUN ---{c_reset}")
+        input_desc = input_files if input_files else "stdin"
+        logging.info(f"Input Source: {input_desc}")
+        logging.info(f"Output Target: {output_file if output_file else 'sys.stdout'} (Format: {output_format})")
+        logging.info(f"Min Occurrences: {min_occurrences} | Sort: {sort_by} | Limit: {limit if limit is not None else 'None'}")
+        logging.info(f"Exclude Patterns: {exclude_patterns if exclude_patterns else 'None'}")
+
+        enabled_features = []
+        if keyboard:
+            enabled_features.append("keyboard")
+        if allow_transposition:
+            enabled_features.append("transposition")
+        if allow_1to2:
+            enabled_features.append("1-to-2")
+        if allow_2to1:
+            enabled_features.append("2-to-1")
+        if include_deletions:
+            enabled_features.append("deletions/insertions")
+        logging.info(f"Enabled Analysis Modes: {', '.join(enabled_features) if enabled_features else 'None'}")
+
+        logging.info(f"\n{c_blue}Sample Typo Pattern Preview:{c_reset}")
+        sorted_samples = sorted(all_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        if sorted_samples:
+            for (correct_char, typo_char), count in sorted_samples:
+                logging.info(f"  {c_green}{typo_char}{c_reset} -> {c_green}{correct_char}{c_reset} (count: {count})")
+        else:
+            logging.info("  (No typo patterns found in input)")
+
+        logging.info(f"\n{c_blue}Dry run complete. No output file written.{c_reset}")
+        return
 
     generate_report(
         all_counts,

@@ -60,6 +60,7 @@ The tool automatically recognizes several common ways of listing typos:
   - `markdown` / `md`: Markdown table format (`| Typo | Correction | Count |`).
 - `-o`, `--output`: Save the report to a file instead of showing it on the screen.
 - `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
+- `--dry-run`: Show configuration details and a sample preview of typo pattern analysis without writing any files.
 - `-q`, `--quiet`: Hide progress bars and status messages.
 
 ## Understanding the Report

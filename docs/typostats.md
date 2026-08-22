@@ -49,7 +49,8 @@ The tool automatically recognizes several common ways of listing typos:
 - `-t`, `--transposition`: Find swapped letters (like `teh` instead of `the`).
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
 
-### Output Options
+### Input & Output Options
+- `-i`, `--input`: One or more input files or patterns containing typo corrections.
 - `-f`, `--format`: Choose the output format:
   - `arrow` (Default): Easy to read.
   - `csv`: Standard comma-separated values.

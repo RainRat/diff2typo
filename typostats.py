@@ -1103,6 +1103,14 @@ def main() -> None:
         nargs='*',
         help="One or more files containing typo corrections (txt, csv, json, yaml, md). If empty, it reads from standard input.",
     )
+    io_group.add_argument(
+        '-i', '--input',
+        dest='input_files_flag',
+        nargs='+',
+        metavar='FILE',
+        default=None,
+        help="One or more input files or patterns containing typo corrections.",
+    )
     io_group.add_argument('-o', '--output', help="Save the report to this file instead of printing it.")
     io_group.add_argument(
         '-e', '--exclude',
@@ -1198,7 +1206,9 @@ def main() -> None:
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
     logging.basicConfig(level=log_level, handlers=[handler])
 
-    input_files = args.input_files
+    pos_inputs = getattr(args, 'input_files', []) or []
+    flag_inputs = getattr(args, 'input_files_flag', []) or []
+    input_files = pos_inputs + flag_inputs
     output_file = args.output
     min_occurrences = args.min
     sort_by = args.sort

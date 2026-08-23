@@ -87,9 +87,9 @@ python typostats.py my_typos.txt --sort count
 ```
 
 ### 4. Fix Your Project
-Use `multitool.py` to fix found typos in your project files using your saved typo mapping file. The `--diff` flag lets you review the changes before they are applied:
+Use `multitool.py` to fix found typos in your project files using your saved typo mapping file. The `--diff` and `--dry-run` flags let you review the changes before they are applied:
 ```bash
-python multitool.py scrub . --mapping my_typos.txt --in-place --diff
+python multitool.py scrub . -s my_typos.txt --diff --dry-run
 ```
 You can also preview fixes for specific typos directly using `--add` and `--dry-run`:
 ```bash

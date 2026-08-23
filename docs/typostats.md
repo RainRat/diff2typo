@@ -51,6 +51,7 @@ The tool automatically recognizes several common ways of listing typos:
 
 ### Input & Output Options
 - `-i`, `--input`: One or more input files or patterns containing typo corrections.
+- `--dry-run`: Show configuration details and a sample preview of typo pattern analysis without writing or modifying files.
 - `-f`, `--format`: Choose the output format:
   - `arrow` (Default): Easy to read.
   - `csv`: Standard comma-separated values.

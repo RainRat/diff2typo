@@ -1126,6 +1126,11 @@ def main() -> None:
         default=None,
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
     )
+    io_group.add_argument(
+        '--dry-run',
+        action='store_true',
+        help="Show configuration details and a sample preview of typo pattern analysis without writing or modifying files.",
+    )
     io_group.add_argument('-q', '--quiet', action='store_true', help="Hide progress bars and status messages.")
 
     # Analysis Options Group
@@ -1276,6 +1281,8 @@ def main() -> None:
     total_lines_all = 0
     total_pairs_all = 0
 
+    dry_run_val = getattr(args, 'dry_run', False)
+
     for file_path in input_files:
         # Pre-calculate total lines for statistics and progress tracking
         try:
@@ -1300,6 +1307,50 @@ def main() -> None:
         for k, v in file_counts.items():
             all_counts[k] += v
         total_pairs_all += pairs_count
+
+    if dry_run_val:
+        use_color = _should_enable_color(sys.stderr)
+        c_blue = (BOLD + _BLUE) if use_color else ""
+        c_green = (BOLD + _GREEN) if use_color else ""
+        c_yellow = (BOLD + _YELLOW) if use_color else ""
+        c_reset = _RESET if use_color else ""
+
+        enabled_features = []
+        if keyboard:
+            enabled_features.append("keyboard")
+        if allow_transposition:
+            enabled_features.append("transposition")
+        if allow_1to2:
+            enabled_features.append("1-to-2")
+        if allow_2to1:
+            enabled_features.append("2-to-1")
+        if include_deletions:
+            enabled_features.append("deletions/insertions")
+
+        sys.stderr.write(f"\n{c_blue}--- TYPOSTATS DRY RUN ---{c_reset}\n")
+        sys.stderr.write(f"Input Sources: {input_files if input_files else 'stdin'}\n")
+        sys.stderr.write(f"Output Target: {output_file if output_file else 'stdout'} (Format: {output_format})\n")
+        sys.stderr.write(f"Sort By: {sort_by} | Min Occurrences: {min_occurrences} | Limit: {limit if limit is not None else 'None'}\n")
+        sys.stderr.write(f"Enabled Features: {', '.join(enabled_features) if enabled_features else 'None'}\n")
+        sys.stderr.write(f"Exclude Patterns: {exclude_patterns if exclude_patterns else 'None'}\n\n")
+
+        sys.stderr.write(f"{c_green}Sample Preview (First 5 replacements):{c_reset}\n")
+        filtered = {k: v for k, v in all_counts.items() if v >= min_occurrences}
+        if sort_by == 'typo':
+            sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][1], x[0][0]))
+        elif sort_by == 'correct':
+            sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][0], x[0][1]))
+        else:
+            sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
+
+        preview_items = sorted_replacements[:5]
+        if not preview_items:
+            sys.stderr.write(f"  {c_yellow}(No replacements found matching criteria){c_reset}\n")
+        else:
+            for (correct_char, typo_char), count in preview_items:
+                sys.stderr.write(f"  {typo_char} -> {correct_char} (Count: {count})\n")
+        sys.stderr.write("\n")
+        return
 
     generate_report(
         all_counts,

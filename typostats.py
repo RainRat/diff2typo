@@ -1127,6 +1127,7 @@ def main() -> None:
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
     )
     io_group.add_argument('-q', '--quiet', action='store_true', help="Hide progress bars and status messages.")
+    io_group.add_argument('--dry-run', action='store_true', help="Preview execution settings and found typo patterns without writing or outputting reports.")
 
     # Analysis Options Group
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
@@ -1300,6 +1301,42 @@ def main() -> None:
         for k, v in file_counts.items():
             all_counts[k] += v
         total_pairs_all += pairs_count
+
+    if getattr(args, 'dry_run', False):
+        use_color = _should_enable_color(sys.stderr)
+        c_blue = (BOLD + BLUE) if use_color else ""
+        c_green = (BOLD + GREEN) if use_color else ""
+        c_reset = RESET if use_color else ""
+
+        logging.info(f"{c_blue}--- TYPOSTATS DRY RUN ---{c_reset}")
+        input_desc = input_files if input_files else "stdin"
+        logging.info(f"Input Source: {input_desc}")
+        logging.info(f"Output Target: {output_file or 'stdout'} (Format: {output_format})")
+        logging.info(f"Min Occurrences: {min_occurrences} | Sort: {sort_by} | Limit: {limit if limit is not None else 'None'}")
+        enabled_features = []
+        if keyboard:
+            enabled_features.append("keyboard")
+        if allow_transposition:
+            enabled_features.append("transposition")
+        if allow_1to2:
+            enabled_features.append("1to2")
+        if allow_2to1:
+            enabled_features.append("2to1")
+        if include_deletions:
+            enabled_features.append("deletions")
+        logging.info(f"Enabled Analysis: {', '.join(enabled_features) if enabled_features else 'None'}")
+        logging.info(f"Exclude Patterns: {exclude_patterns if exclude_patterns else 'None'}")
+
+        # Sample Preview
+        logging.info(f"\n{c_blue}Sample Typo Patterns Preview:{c_reset}")
+        sorted_counts = sorted(all_counts.items(), key=lambda x: x[1], reverse=True)
+        sample_items = sorted_counts[:10]
+        logging.info(f"  Found {len(all_counts)} pattern candidate(s):")
+        for (correct_char, typo_char), cnt in sample_items:
+            logging.info(f"    '{typo_char}' -> '{correct_char}' (Count: {cnt})")
+
+        logging.info(f"{c_green}Dry run complete. No files were written or exported.{c_reset}")
+        return
 
     generate_report(
         all_counts,

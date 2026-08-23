@@ -1,138 +1,53 @@
+import contextlib
 import sys
 from pathlib import Path
 from unittest.mock import patch
 
-# Add repository root to path
+import pytest
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import multitool
 
-def test_min_length_defaults_in_count_mode(tmp_path, monkeypatch):
-    """
-    Verify that --min-length correctly defaults to 1 or 3 in count mode
-    depending on the other flags.
-    """
+
+def _get_mode_kwargs(cli_args, target_mode="multitool.count_mode"):
+    with patch("sys.argv", cli_args), patch(target_mode) as mock_func:
+        with contextlib.suppress(SystemExit):
+            multitool.main()
+        _, kwargs = mock_func.call_args
+        return kwargs
+
+
+@pytest.mark.parametrize(
+    "cli_args, expected_min_length, target_mode",
+    [
+        (["multitool.py", "count", "dummy_input"], 3, "multitool.count_mode"),
+        (["multitool.py", "count", "dummy_input", "--pairs"], 1, "multitool.count_mode"),
+        (["multitool.py", "count", "dummy_input", "--chars"], 1, "multitool.count_mode"),
+        (["multitool.py", "count", "dummy_input", "--lines"], 1, "multitool.count_mode"),
+        (["multitool.py", "count", "dummy_input", "--add", "a:b"], 1, "multitool.count_mode"),
+        (["multitool.py", "count", "dummy_input", "--mapping", "dummy_mapping"], 1, "multitool.count_mode"),
+        (["multitool.py", "words", "dummy_input"], 3, "multitool.words_mode"),
+        (["multitool.py", "search", "dummy_input", "--query", "abc"], 1, "multitool.search_mode"),
+        (["multitool.py", "ngrams", "dummy_input"], 3, "multitool.ngrams_mode"),
+        (["multitool.py", "stats", "dummy_input"], 3, "multitool.stats_mode"),
+        (["multitool.py", "count", "dummy_input", "--min-length", "5"], 5, "multitool.count_mode"),
+        (["multitool.py", "count", "dummy_input", "--chars", "--min-length", "3"], 3, "multitool.count_mode"),
+    ],
+)
+def test_min_length_defaults_in_count_mode(tmp_path, cli_args, expected_min_length, target_mode):
     dummy_input = tmp_path / "input.txt"
     dummy_input.write_text("a b c d e")
     dummy_mapping = tmp_path / "mapping.csv"
     dummy_mapping.write_text("a,b")
 
-    # 1. Default (word extraction) should be 3
-    with patch("sys.argv", ["multitool.py", "count", str(dummy_input)]), \
-         patch("multitool.count_mode") as mock_count:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_count.call_args
-        assert kwargs["min_length"] == 3
+    formatted_args = [
+        arg if arg != "dummy_input" else str(dummy_input)
+        for arg in cli_args
+    ]
+    formatted_args = [
+        arg if arg != "dummy_mapping" else str(dummy_mapping)
+        for arg in formatted_args
+    ]
 
-    # 2. With --pairs should be 1
-    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--pairs"]), \
-         patch("multitool.count_mode") as mock_count:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_count.call_args
-        assert kwargs["min_length"] == 1
-
-    # 3. With --chars should be 1
-    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--chars"]), \
-         patch("multitool.count_mode") as mock_count:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_count.call_args
-        assert kwargs["min_length"] == 1
-
-    # 3b. With --lines should be 1
-    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--lines"]), \
-         patch("multitool.count_mode") as mock_count:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_count.call_args
-        assert kwargs["min_length"] == 1
-
-    # 4. With --add (ad_hoc) should be 1
-    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--add", "a:b"]), \
-         patch("multitool.count_mode") as mock_count:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_count.call_args
-        assert kwargs["min_length"] == 1
-
-    # 5. With --mapping should be 1 (BUG: Currently it's 3 because of wrong attribute name)
-    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--mapping", str(dummy_mapping)]), \
-         patch("multitool.count_mode") as mock_count:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_count.call_args
-        # This is expected to FAIL before the fix
-        assert kwargs["min_length"] == 1
-
-    # 6. Words mode should be 3
-    with patch("sys.argv", ["multitool.py", "words", str(dummy_input)]), \
-         patch("multitool.words_mode") as mock_mode:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_mode.call_args
-        assert kwargs["min_length"] == 3
-
-    # 7. Search mode should be 1
-    with patch("sys.argv", ["multitool.py", "search", str(dummy_input), "--query", "abc"]), \
-         patch("multitool.search_mode") as mock_mode:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_mode.call_args
-        assert kwargs["min_length"] == 1
-
-    # 8. ngrams mode should be 3
-    with patch("sys.argv", ["multitool.py", "ngrams", str(dummy_input)]), \
-         patch("multitool.ngrams_mode") as mock_mode:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_mode.call_args
-        assert kwargs["min_length"] == 3
-
-    # 9. stats mode should be 3
-    with patch("sys.argv", ["multitool.py", "stats", str(dummy_input)]), \
-         patch("multitool.stats_mode") as mock_mode:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_mode.call_args
-        assert kwargs["min_length"] == 3
-
-    # 10. Explicit min_length should be preserved
-    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--min-length", "5"]), \
-         patch("multitool.count_mode") as mock_count:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_count.call_args
-        assert kwargs["min_length"] == 5
-
-    # 11. Explicit min_length for --chars should be preserved (NOT overridden by 1)
-    with patch("sys.argv", ["multitool.py", "count", str(dummy_input), "--chars", "--min-length", "3"]), \
-         patch("multitool.count_mode") as mock_count:
-        try:
-            multitool.main()
-        except SystemExit:
-            pass
-        _, kwargs = mock_count.call_args
-        assert kwargs["min_length"] == 3
+    kwargs = _get_mode_kwargs(formatted_args, target_mode)
+    assert kwargs["min_length"] == expected_min_length

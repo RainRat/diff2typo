@@ -1161,3 +1161,92 @@ def test_format_analysis_summary_levenshtein_exception():
         )
         assert len(report) > 0
         assert not any("Min/Max/Avg changes:" in line for line in report)
+
+
+def test_detect_encoding_mock_chardet_branches(tmp_path):
+    test_file = tmp_path / "sample.txt"
+    test_file.write_bytes(b"sample content")
+
+    mock_chardet = MagicMock()
+    mock_chardet.detect.return_value = {'encoding': 'utf-8', 'confidence': 0.95}
+
+    with patch('typostats._CHARDET_AVAILABLE', True), \
+         patch('typostats.chardet', mock_chardet):
+        assert typostats.detect_encoding(str(test_file)) == 'utf-8'
+
+    mock_chardet.detect.return_value = {'encoding': 'ascii', 'confidence': 0.30}
+    with patch('typostats._CHARDET_AVAILABLE', True), \
+         patch('typostats.chardet', mock_chardet):
+        assert typostats.detect_encoding(str(test_file)) is None
+
+    mock_chardet.detect.return_value = {'encoding': None, 'confidence': 0.0}
+    with patch('typostats._CHARDET_AVAILABLE', True), \
+         patch('typostats.chardet', mock_chardet):
+        assert typostats.detect_encoding(str(test_file)) is None
+
+
+def test_format_analysis_summary_type_error_len():
+    class BadStrItem:
+        def __str__(self):
+            raise TypeError("Bad str item")
+
+    report = typostats._format_analysis_summary(
+        raw_count=1,
+        filtered_items=[BadStrItem()],
+        item_label="item",
+        use_color=False,
+    )
+    assert len(report) > 0
+
+
+def test_extract_pairs_tqdm_progress_branch(tmp_path):
+    input_file = tmp_path / "tqdm_test.txt"
+    input_file.write_text("teh -> the\n")
+    mock_tqdm = MagicMock(side_effect=lambda iterable, **kwargs: iterable)
+    with patch("typostats._TQDM_AVAILABLE", True), \
+         patch("typostats.tqdm", mock_tqdm):
+        pairs = list(typostats._extract_pairs([str(input_file)], quiet=False))
+        assert ("teh", "the") in pairs
+
+
+def test_main_dry_run_mock_arg(tmp_path):
+    input_file = tmp_path / "test.txt"
+    input_file.write_text("teh -> the\n")
+    mock_args = MagicMock()
+    mock_args.input_files = [str(input_file)]
+    mock_args.input_files_flag = None
+    mock_args.output = "-"
+    mock_args.min = 1
+    mock_args.sort = "count"
+    mock_args.format = "arrow"
+    mock_args.allow_1to2 = False
+    mock_args.allow_2to1 = False
+    mock_args.include_deletions = False
+    mock_args.transposition = False
+    mock_args.keyboard = False
+    mock_args.all = True
+    mock_args.allow_two_char = False
+    mock_args.limit = None
+    mock_args.quiet = True
+    mock_args.exclude = None
+    mock_args.dry_run = MagicMock()
+
+    with patch("argparse.ArgumentParser.parse_args", return_value=mock_args):
+        typostats.main()
+
+
+def test_main_line_counting_oserror_branch(tmp_path):
+    input_file = tmp_path / "valid.txt"
+    input_file.write_text("teh -> the\n")
+
+    orig_open = open
+    def mock_open_func(*args, **kwargs):
+        if args and str(args[0]) == str(input_file):
+            mode = args[1] if len(args) > 1 else kwargs.get('mode', 'r')
+            if mode == 'rb':
+                raise OSError("Access error during line count")
+        return orig_open(*args, **kwargs)
+
+    with patch("builtins.open", side_effect=mock_open_func), \
+         patch("sys.argv", ["typostats.py", str(input_file), "--quiet"]):
+        typostats.main()

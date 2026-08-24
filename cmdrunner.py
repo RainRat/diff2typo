@@ -210,6 +210,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "fail_fast" in config and not isinstance(config["fail_fast"], bool):
         errors.append("The field 'fail_fast' must be a boolean.")
 
+    if "stop_on_first_error" in config and not isinstance(config["stop_on_first_error"], bool):
+        errors.append("The field 'stop_on_first_error' must be a boolean.")
+
     if "timeout" in config and (isinstance(config["timeout"], bool) or not isinstance(config["timeout"], (int, float))):
         errors.append("The field 'timeout' must be a number.")
 
@@ -551,7 +554,8 @@ def parse_arguments() -> argparse.Namespace:
         help='Hide status messages and progress bars.'
     )
     options_group.add_argument(
-        '--fail-fast',
+        '-s', '--stop-on-first-error', '--fail-fast',
+        dest='fail_fast',
         action='store_true',
         default=None,
         help='Stop running commands immediately if any command fails.'
@@ -624,7 +628,8 @@ def main() -> None:
     included = args.included_folders if args.included_folders is not None else config.get('included_folders', None)
 
     # Prioritize CLI values over config file values
-    fail_fast = args.fail_fast if args.fail_fast is not None else config.get('fail_fast', False)
+    config_fail_fast = config.get('stop_on_first_error', config.get('fail_fast', False))
+    fail_fast = args.fail_fast if args.fail_fast is not None else config_fail_fast
     timeout = args.timeout if args.timeout is not None else config.get('timeout', None)
     if_exists = args.if_exists or config.get('if_exists', None)
     if_not_exists = args.if_not_exists or config.get('if_not_exists', None)

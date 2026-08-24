@@ -53,6 +53,7 @@ included_folders:
   - "my-app-2"
 
 # (Optional) Stop execution immediately if any command fails or times out
+stop_on_first_error: false
 fail_fast: false
 
 # (Optional) The maximum execution time in seconds for the command in each folder
@@ -78,7 +79,7 @@ jobs: 4
 - `-i`, `--included-folders`: A list of folders you want to run the command on. This overrides the configuration file.
 - `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
 - `-q`, `--quiet`: Hide status messages and progress bars.
-- `--fail-fast`: Stop running commands immediately if any command fails. This overrides the configuration file.
+- `-s`, `--stop-on-first-error`, `--fail-fast`: Stop running commands immediately if any command fails. This overrides the configuration file.
 - `--timeout`: Set the maximum time in seconds for the command to run in each folder. This overrides the configuration file.
 - `--if-exists`: Only run the command in folders that contain this file or path (for example, `package.json`). This overrides the configuration file.
 - `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.

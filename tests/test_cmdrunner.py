@@ -1587,6 +1587,69 @@ def test_load_config_invalid_fail_fast(tmp_path):
         cmdrunner.load_config(str(config_file))
 
 
+def test_load_config_invalid_stop_on_first_error(tmp_path):
+    config_file = tmp_path / 'config_invalid_stop_on_first_error.yaml'
+    config_file.write_text(yaml.safe_dump({
+        'main_folder': str(tmp_path),
+        'command_to_run': 'echo test',
+        'stop_on_first_error': 'not-a-bool'
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="stop_on_first_error"):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_main_cli_stop_on_first_error_flag(tmp_path, monkeypatch, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    config_data = {
+        "main_folder": str(base_dir),
+        "command_to_run": "python3 -c \"import sys; sys.exit(1)\"",
+    }
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, "argv", [
+        "cmdrunner.py",
+        str(config_file),
+        "-s"
+    ])
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.main()
+        assert excinfo.value.code == 1
+
+    assert any("The command failed in 'proj1'" in msg for msg in caplog.messages)
+
+
+def test_main_config_stop_on_first_error(tmp_path, monkeypatch, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    config_data = {
+        "main_folder": str(base_dir),
+        "command_to_run": "python3 -c \"import sys; sys.exit(1)\"",
+        "stop_on_first_error": True,
+    }
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, "argv", [
+        "cmdrunner.py",
+        str(config_file),
+    ])
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.main()
+        assert excinfo.value.code == 1
+
+    assert any("The command failed in 'proj1'" in msg for msg in caplog.messages)
+
+
 def test_load_config_invalid_timeout_bool(tmp_path):
     config_file = tmp_path / 'config_invalid_timeout.yaml'
     config_file.write_text(yaml.safe_dump({

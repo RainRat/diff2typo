@@ -86,7 +86,13 @@ Use `typostats.py` to see which keys you hit by mistake most often.
 python typostats.py my_typos.txt --sort count
 ```
 
-### 4. Fix Your Project
+### 4. Predict Likely Mistakes
+Use `gentypos.py` to generate lists of likely typos for your key words based on common keyboard mistakes:
+```bash
+python gentypos.py --input words.csv --output predicted_typos.txt --keyboard --transposition
+```
+
+### 5. Fix Your Project
 Use `multitool.py` to fix found typos in your project files using your saved typo mapping file. The `--diff` flag lets you review the changes before they are applied:
 ```bash
 python multitool.py scrub . --mapping my_typos.txt --in-place --diff

@@ -644,12 +644,8 @@ def _read_stdin_text() -> str:
     return _decode_with_fallback(data, "input diff")
 
 
-def _read_git_diff(git_args: Optional[str]) -> str:
-    """Fetch diff directly from Git using the provided arguments."""
-    command = ["git", "diff"]
-    if git_args:
-        command.extend(shlex.split(git_args))
-
+def _run_git_command(command: List[str]) -> str:
+    """Run a Git command via subprocess and return stdout, or exit on failure."""
     try:
         logging.info(f"Running Git command: {' '.join(command)}")
         result = subprocess.run(
@@ -662,6 +658,14 @@ def _read_git_diff(git_args: Optional[str]) -> str:
     except FileNotFoundError:
         logging.error("Git executable not found.")
         sys.exit(1)
+
+
+def _read_git_diff(git_args: Optional[str]) -> str:
+    """Fetch diff directly from Git using the provided arguments."""
+    command = ["git", "diff"]
+    if git_args:
+        command.extend(shlex.split(git_args))
+    return _run_git_command(command)
 
 
 def _read_git_log(git_args: Optional[str]) -> str:
@@ -669,19 +673,7 @@ def _read_git_log(git_args: Optional[str]) -> str:
     command = ["git", "log", "-p"]
     if git_args:
         command.extend(shlex.split(git_args))
-
-    try:
-        logging.info(f"Running Git command: {' '.join(command)}")
-        result = subprocess.run(
-            command, capture_output=True, text=True, check=True
-        )
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Git command failed: {e.stderr}")
-        sys.exit(1)
-    except FileNotFoundError:
-        logging.error("Git executable not found.")
-        sys.exit(1)
+    return _run_git_command(command)
 
 
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:

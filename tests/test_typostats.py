@@ -361,6 +361,15 @@ def test_main_cli_functionality():
         assert mock_process.call_args[1]['allow_1to2'] is True and mock_process.call_args[1]['allow_2to1'] is True
 
 
+def test_main_cli_short_flag_deletion():
+    with patch('sys.argv', ['typostats.py', 'input.txt', '-D', '-q']), \
+         patch('typostats._extract_pairs', return_value=[("a", "aa")]), \
+         patch('typostats.process_typos', return_value=({}, 0)) as mock_process, \
+         patch('typostats.generate_report'):
+        typostats.main()
+        assert mock_process.call_args[1]['include_deletions'] is True
+
+
 def test_main_cli_args_extra():
     # args.all = True if no flags
     with patch('sys.argv', ['typostats.py', 'input.txt']), \

@@ -1168,6 +1168,7 @@ def main() -> None:
         help="Allow cases where you typed one letter instead of two (like 'f' instead of 'ph').",
     )
     analysis_group.add_argument(
+        '-D',
         '--include-deletions',
         action='store_true',
         help="Include cases where you added an extra letter or missed one (like typing 'aa' instead of 'a').",

@@ -61,6 +61,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-o`, `--output`: Save the report to a file instead of showing it on the screen.
 - `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
 - `-q`, `--quiet`: Hide progress bars and status messages.
+- `--dry-run`: Preview execution settings and a sample list of found typo patterns without writing or outputting reports.
 
 ## Understanding the Report
 

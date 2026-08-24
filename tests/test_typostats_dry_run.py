@@ -62,3 +62,24 @@ def test_typostats_dry_run_directory_input(tmp_path, caplog):
     assert "2to1" in log_text
     assert "deletions" in log_text
     assert "Dry run complete. No files were written or exported." in log_text
+
+
+def test_typostats_dry_run_empty_input(tmp_path, caplog):
+    empty_file = tmp_path / "empty.txt"
+    empty_file.write_text("", encoding="utf-8")
+
+    with patch(
+        "sys.argv",
+        [
+            "typostats.py",
+            str(empty_file),
+            "--dry-run",
+        ],
+    ):
+        with caplog.at_level("INFO"):
+            typostats.main()
+
+    log_text = caplog.text
+    assert "--- TYPOSTATS DRY RUN ---" in log_text
+    assert "(No typo patterns found in input)" in log_text
+    assert "Dry run complete. No files were written or exported." in log_text

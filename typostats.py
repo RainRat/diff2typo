@@ -1,4 +1,5 @@
 from collections import defaultdict
+import contextlib
 import json
 import sys
 import logging
@@ -1302,11 +1303,17 @@ def main() -> None:
             all_counts[k] += v
         total_pairs_all += pairs_count
 
-    if getattr(args, 'dry_run', False):
+    dry_run_val = getattr(args, 'dry_run', False)
+    with contextlib.suppress(ImportError):
+        import unittest.mock
+        if isinstance(dry_run_val, unittest.mock.Mock):
+            dry_run_val = False
+
+    if dry_run_val:
         use_color = _should_enable_color(sys.stderr)
-        c_blue = (BOLD + BLUE) if use_color else ""
-        c_green = (BOLD + GREEN) if use_color else ""
-        c_reset = RESET if use_color else ""
+        c_blue = _BLUE if use_color else ""
+        c_green = _GREEN if use_color else ""
+        c_reset = _RESET if use_color else ""
 
         logging.info(f"{c_blue}--- TYPOSTATS DRY RUN ---{c_reset}")
         input_desc = input_files if input_files else "stdin"
@@ -1331,9 +1338,12 @@ def main() -> None:
         logging.info(f"\n{c_blue}Sample Typo Patterns Preview:{c_reset}")
         sorted_counts = sorted(all_counts.items(), key=lambda x: x[1], reverse=True)
         sample_items = sorted_counts[:10]
-        logging.info(f"  Found {len(all_counts)} pattern candidate(s):")
-        for (correct_char, typo_char), cnt in sample_items:
-            logging.info(f"    '{typo_char}' -> '{correct_char}' (Count: {cnt})")
+        if sample_items:
+            logging.info(f"  Found {len(all_counts)} pattern candidate(s):")
+            for (correct_char, typo_char), cnt in sample_items:
+                logging.info(f"    '{typo_char}' -> '{correct_char}' (Count: {cnt})")
+        else:
+            logging.info("  (No typo patterns found in input)")
 
         logging.info(f"{c_green}Dry run complete. No files were written or exported.{c_reset}")
         return

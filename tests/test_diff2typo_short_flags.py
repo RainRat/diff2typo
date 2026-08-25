@@ -20,7 +20,7 @@ def test_short_flags_parsing(monkeypatch):
     monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **kw: {})
     monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **kw: set())
 
-    # Test short flags: -g, -M, -D, -c, -s
+    # Test short flags: -g, -M, -D, -c, -s, -a
     monkeypatch.setattr(
         sys,
         'argv',
@@ -31,6 +31,7 @@ def test_short_flags_parsing(monkeypatch):
             '-D', '3',
             '-c', '2',
             '-s', 'count',
+            '-a', 'custom_allowed.csv',
             '--quiet'
         ]
     )
@@ -47,3 +48,4 @@ def test_short_flags_parsing(monkeypatch):
     assert args.max_dist == 3
     assert args.min_count == 2
     assert args.sort == 'count'
+    assert args.allowed_file == 'custom_allowed.csv'

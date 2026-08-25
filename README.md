@@ -102,6 +102,12 @@ You can also preview fixes for specific typos directly using `--add` and `--dry-
 python multitool.py scrub . --add teh:the --diff --dry-run
 ```
 
+### 6. Run Commands Across Projects
+Use `cmdrunner.py` to run checks or commands across multiple project folders at once:
+```bash
+python cmdrunner.py --main-folder /path/to/projects --command-to-run "python multitool.py scrub . -s my_typos.txt --dry-run"
+```
+
 ## 🧪 Running Tests
 
 This project has a full suite of tests to make sure everything works correctly.

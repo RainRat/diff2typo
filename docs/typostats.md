@@ -45,7 +45,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-2`, `--allow-two-char`: Look for cases where you typed two letters instead of one (like `rn` instead of `m`) or one instead of two (like `f` instead of `ph`).
 - `--1to2`: Specifically look for cases where you typed two letters instead of one (like `rn` instead of `m`).
 - `--2to1`: Specifically look for cases where you typed one letter instead of two (like `f` instead of `ph`).
-- `--include-deletions`: Include cases where you added an extra letter or missed one (like typing `aa` instead of `a`).
+- `-D`, `--include-deletions`: Include cases where you added an extra letter or missed one (like typing `aa` instead of `a`).
 - `-t`, `--transposition`: Find swapped letters (like `teh` instead of `the`).
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
 

@@ -1224,7 +1224,7 @@ def test_main_dry_run_mock_arg(tmp_path):
     mock_args = MagicMock()
     mock_args.input_files = [str(input_file)]
     mock_args.input_files_flag = None
-    mock_args.output = "-"
+    mock_args.output = None
     mock_args.min = 1
     mock_args.sort = "count"
     mock_args.format = "arrow"

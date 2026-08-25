@@ -85,7 +85,7 @@ jobs: 4
 - `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
 - `-j`, `--jobs`: Run commands concurrently using this many jobs. This overrides the configuration file.
 - `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
-- `-f`, `--format`: Choose the format for the output report (`json`, `csv`, or `txt`). If you do not specify this, the tool detects the format from the output file's extension.
+- `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`, `markdown`, or `md`). If you do not specify this, the tool detects the format from the output file's extension (`.json`, `.csv`, `.txt`, `.md`, `.markdown`).
 
 ## Dynamic Commands
 
@@ -142,4 +142,9 @@ python cmdrunner.py --main-folder /home/user/projects --command-to-run "bash set
 **Only run commands in specific folders:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm run build" --included-folders proj1 proj2
+```
+
+**Save execution report as a Markdown document:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status" --output report.md
 ```

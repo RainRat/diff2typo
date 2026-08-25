@@ -624,6 +624,41 @@ def test_report_generation_csv(tmp_path):
     assert "hello" in rows[0]['stdout']
 
 
+def test_report_generation_markdown_explicit_and_auto(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file_md = tmp_path / 'report.md'
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "python3 -c 'import sys; sys.stdout.write(\"out-val\\n\"); sys.stderr.write(\"err-val\\n\")'",
+        output_file=str(output_file_md)
+    )
+
+    assert output_file_md.exists()
+    content_md = output_file_md.read_text(encoding='utf-8')
+    assert "# Execution Report" in content_md
+    assert "| Folder | Status | Return Code | Command |" in content_md
+    assert "`proj1`" in content_md
+    assert "## Details" in content_md
+    assert "### proj1" in content_md
+    assert "out-val" in content_md
+    assert "err-val" in content_md
+
+    output_file_custom = tmp_path / 'custom_report.txt'
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo simple",
+        output_file=str(output_file_custom),
+        output_format='markdown'
+    )
+    assert output_file_custom.exists()
+    content_custom = output_file_custom.read_text(encoding='utf-8')
+    assert "# Execution Report" in content_custom
+    assert "`proj1`" in content_custom
+
+
 def test_report_generation_txt_and_auto_format(tmp_path):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

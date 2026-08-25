@@ -660,20 +660,22 @@ def _run_git_command(command: List[str]) -> str:
         sys.exit(1)
 
 
-def _read_git_diff(git_args: Optional[str]) -> str:
-    """Fetch diff directly from Git using the provided arguments."""
-    command = ["git", "diff"]
+def _run_git_subcommand(base_command: List[str], git_args: Optional[str]) -> str:
+    """Append split git_args to base_command and run the Git command."""
+    command = list(base_command)
     if git_args:
         command.extend(shlex.split(git_args))
     return _run_git_command(command)
+
+
+def _read_git_diff(git_args: Optional[str]) -> str:
+    """Fetch diff directly from Git using the provided arguments."""
+    return _run_git_subcommand(["git", "diff"], git_args)
 
 
 def _read_git_log(git_args: Optional[str]) -> str:
     """Fetch commit history diffs directly from Git using 'git log -p'."""
-    command = ["git", "log", "-p"]
-    if git_args:
-        command.extend(shlex.split(git_args))
-    return _run_git_command(command)
+    return _run_git_subcommand(["git", "log", "-p"], git_args)
 
 
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:

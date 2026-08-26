@@ -177,6 +177,21 @@ def test_stdin_no_input_file_with_output(tmp_path, monkeypatch):
     assert output_file.exists()
     assert "-> pineapple" in output_file.read_text()
 
+
+def test_setup_generation_tools_adhoc_edge_cases():
+    from types import SimpleNamespace
+    settings = SimpleNamespace(
+        custom_substitutions_config={"a": "b"},
+        substitutions_file=None,
+        ad_hoc=["nocolon", "a:b"],
+        enable_custom_substitutions=True,
+        enable_keyboard_substitutions=False,
+        keyboard_file=None,
+    )
+    _, custom_subs = gentypos._setup_generation_tools(settings)
+    assert "nocolon" not in custom_subs
+    assert custom_subs["a"] == {"b"}
+
 def test_load_substitutions_text_colon_and_comma(tmp_path):
     path = tmp_path / "subs.txt"
     path.write_text("a:e\ni,o\n")

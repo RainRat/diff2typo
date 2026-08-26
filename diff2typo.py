@@ -866,9 +866,8 @@ def process_audit_typos(candidates, args, large_dictionary, allowed_words):
     """
     audit_candidates = []
     for candidate in candidates:
-        if ' -> ' in candidate:
-            before, after = [s.strip().lower() for s in candidate.split(' -> ')]
-            # Find cases where a valid word was changed to an invalid one
+        if '->' in candidate:
+            before, after = [s.strip().lower() for s in candidate.split('->')]
             if before in large_dictionary:
                 if after not in large_dictionary and after not in allowed_words:
                     audit_candidates.append(candidate)

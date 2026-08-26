@@ -5,7 +5,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 import diff2typo
 
 def test_short_flags_parsing(monkeypatch):
-    """Verify that short flags -g, -M, -D, -c, -s parse identically to long flags."""
+    """Verify that short flags -g, -M, -D, -c, -s, -a parse identically to long flags."""
 
     import argparse
     original_parse = argparse.ArgumentParser.parse_args
@@ -31,6 +31,7 @@ def test_short_flags_parsing(monkeypatch):
             '-D', '3',
             '-c', '2',
             '-s', 'count',
+            '-a', 'my_allowed.csv',
             '--quiet'
         ]
     )
@@ -47,3 +48,4 @@ def test_short_flags_parsing(monkeypatch):
     assert args.max_dist == 3
     assert args.min_count == 2
     assert args.sort == 'count'
+    assert args.allowed_file == 'my_allowed.csv'

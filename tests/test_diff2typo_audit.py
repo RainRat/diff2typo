@@ -20,6 +20,16 @@ def test_process_audit_typos():
     assert 'banana -> bananaa' in result
     assert 'apple -> aple' not in result
 
+def test_process_audit_typos_unspaced_delimiter():
+    args = SimpleNamespace(output_format='arrow')
+    valid_words = {'apple', 'banana'}
+    allowed_words = {'aple'}
+    candidates = ['apple->aplle', 'banana->bananaa']
+
+    result = diff2typo.process_audit_typos(candidates, args, valid_words, allowed_words)
+    assert 'apple->aplle' in result
+    assert 'banana->bananaa' in result
+
 def test_audit_mode_integration(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

@@ -74,6 +74,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |
 | `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, or YAML). Useful for loading your personal typo history from `typostats.py`. |
 | `--transposition`, `-t` | Off | Generate transpositions (swapping adjacent letters, e.g., 'word' becomes 'wrod'). |
+| `--transposition-distance`, `-T` | `1` | Distance between letters to swap for transposition typos. |
 | `--verbose`, `-v` | Off | Show more detailed log messages. |
 
 ## Configuration (`gentypos.yaml`)

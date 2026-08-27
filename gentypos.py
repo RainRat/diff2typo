@@ -1229,6 +1229,11 @@ def main() -> None:
         help="Generate transpositions (swapped letters, e.g., 'word' to 'wrod').",
     )
     gen_group.add_argument(
+        '-T', '--transposition-distance',
+        type=int,
+        help="Distance between letters to swap for transposition typos (default: 1).",
+    )
+    gen_group.add_argument(
         '-D', '--deletion',
         action='store_true',
         help="Generate deletions (skipping a letter, e.g., 'word' to 'wrd').",
@@ -1384,6 +1389,11 @@ def main() -> None:
         config['repeat_modifications'] = args.repeat_modifications
     if args.ad_hoc:
         config['ad_hoc'] = args.ad_hoc
+
+    if args.transposition_distance is not None:
+        if 'transposition_options' not in config:
+            config['transposition_options'] = {}
+        config['transposition_options']['distance'] = args.transposition_distance
 
     if args.min_length is not None or args.max_length is not None:
         if 'word_length' not in config:

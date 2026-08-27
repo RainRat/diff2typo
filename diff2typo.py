@@ -673,11 +673,6 @@ def _read_git_diff(git_args: Optional[str]) -> str:
     return _run_git_subcommand(["git", "diff"], git_args)
 
 
-def _read_git_log(git_args: Optional[str]) -> str:
-    """Fetch commit history diffs directly from Git using 'git log -p'."""
-    return _run_git_subcommand(["git", "log", "-p"], git_args)
-
-
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
     """Return concatenated diff text from standard input or the provided file patterns."""
 
@@ -1116,7 +1111,7 @@ def main():
     if git_val is not None:
         diff_text = _read_git_diff(git_val)
     elif git_log_val is not None:
-        diff_text = _read_git_log(git_log_val)
+        diff_text = _run_git_subcommand(["git", "log", "-p"], git_log_val)
     else:
         if not input_files and sys.stdin.isatty():
             try:

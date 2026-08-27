@@ -1028,7 +1028,7 @@ def main():
     parser.add_argument('--dictionary_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
-        '--allowed',
+        '-a', '--allowed',
         dest='allowed_file',
         type=str,
         default='allowed.csv',

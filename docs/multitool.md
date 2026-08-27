@@ -190,9 +190,10 @@ Use these modes to transform or combine your data.
 - **`rename`**
   - Batch renames files and folders using a mapping file or extra pairs. It handles nested renames by processing files before their parent folders.
   - **Options:**
-    - Supports `--in-place` renaming and `--dry-run` preview.
-    - Use the `--add` flag to provide extra mapping pairs (for example, `--add old_name:new_name`) directly on the command line.
-    - Use the `--smart-case` flag to match the casing of the original filename.
+    - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
+    - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs (for example, `--add old_name:new_name`) directly on the command line.
+    - Supports `--in-place` (or **`-I`**) renaming and `--dry-run` preview.
+    - Use the `--smart-case` (or **`-S`**) flag to match the casing of the original filename.
     - Use the `--regex` (or **`-r`**) flag to treat patterns as regular expressions. This supports capturing groups and backreferences (for example, `\1`).
   - **Example:** `python multitool.py rename . --regex --add 'test_(.*)\.py:spec_\1.py' --dry-run`
 
@@ -209,7 +210,11 @@ Use these modes to transform or combine your data.
 - **`map`**
   - Replaces items in your list using a mapping file or extra pairs. By default, it keeps items that are not in the mapping.
   - **Options:**
-    - Use the `--add` flag to provide extra mapping pairs directly on the command line.
+    - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
+    - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
+    - Use the `--drop-missing` flag to remove items not found in the mapping file.
+    - Use the `--pairs` (or **`-p`**) flag to output both the original word and its transformed replacement.
+    - Use the `--smart-case` (or **`-S`**) flag to automatically match the casing of the original word.
   - **Example:** `python multitool.py map input.txt --add teh:the`
 
 - **`case`**
@@ -243,7 +248,7 @@ Use these modes to transform or combine your data.
   - **Options:**
     - Provide the **`OLD`** pattern and **`NEW`** text as positional arguments or use the `--old` and `--new` flags.
     - Use the `--regex` (or **`-r`**) flag to treat the pattern as a regular expression.
-    - Use the `--ignore-case` flag for case-insensitive matching.
+    - Use the `--ignore-case` (or **`-c`**) flag for case-insensitive matching.
     - Use the `--smart-case` (or **`-S`**) flag to automatically match the original casing pattern (for example, `Teh` -> `The`).
     - Supports `--in-place` (or **`-I`**), `--dry-run`, and `--diff` (or **`-D`**) flags.
   - **Example:** `python multitool.py replace 'old-tag' 'new-tag' . --smart-case --in-place`
@@ -405,12 +410,12 @@ Use these modes to analyze your data.
 - **`scan`**
   - Searches for every word in a mapping file and reports matches with filename, line number, and highlighting.
   - **Options:**
-    - `MAPPING`: The file containing typos to search for.
-    - `-a`, `--add`: Provide extra mapping pairs directly on the command line.
-    - `-S`, `--smart`: Scan for subwords within compound words.
-    - `-n`, `--line-numbers` and `-C`, `--context N`: Show location and surrounding lines.
-    - `--heading` and `--no-heading`: Control whether results are grouped under filename headers (default is on for terminals).
-  - **Example:** `python multitool.py scan . --add teh:the --smart -A 1`
+    - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
+    - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
+    - Use the `--smart` (or **`-S`**) flag to scan for subwords within compound words.
+    - Use `--line-numbers` (or **`-n`**) and `--context` (or **`-C N`**) to show location and surrounding lines.
+    - Control filename headers using `--heading` / `--no-heading` or `--with-filename` / `--no-filename`.
+  - **Example:** `python multitool.py scan . --add teh:the --smart -n -C 1`
 
 - **`verify`**
   - Checks which entries in a mapping file are present in your project.

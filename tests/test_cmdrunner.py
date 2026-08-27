@@ -672,6 +672,29 @@ def test_report_generation_markdown_extension_auto_detect(tmp_path):
     assert "#### Stdout\n```\ntest-auto-detect\n```" in content
 
 
+def test_report_generation_markdown_with_stderr(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+    (base_dir / 'proj2').mkdir()
+
+    output_file = tmp_path / 'report.md'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "python3 -c \"import sys; sys.stdout.write('out-no-newline') if '{}' == 'proj1' else None; sys.stderr.write('err-line\\n') if '{}' == 'proj1' else sys.stderr.write('err-no-newline')\"",
+        output_file=str(output_file),
+        output_format='markdown'
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+
+    assert "#### Stdout\n```\nout-no-newline\n```" in content
+    assert "#### Stderr\n```\nerr-line\n```" in content
+    assert "#### Stderr\n```\nerr-no-newline\n```" in content
+
+
 def test_report_generation_txt_and_auto_format(tmp_path):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

@@ -128,6 +128,25 @@ def test_gentypos_cli_override_repeat_modifications_generates_nested_typos(capsy
     # Also double adjacent key replacements.
     assert any(len(line.split(" -> ")[0]) >= 1 for line in stdout_lines)
 
+def test_gentypos_cli_default_format_is_arrow_when_words_passed(capsys, tmp_path):
+    table_config = tmp_path / "gentypos.yaml"
+    table_config.write_text('output_format: "table"\n', encoding="utf-8")
+
+    test_args = [
+        "gentypos.py",
+        "hello",
+        "-c", str(table_config)
+    ]
+    with patch.object(sys, 'argv', test_args):
+        gentypos.main()
+
+    captured = capsys.readouterr()
+    stdout_lines = captured.out.splitlines()
+    assert len(stdout_lines) > 0
+    # Should default to arrow format ("typo -> hello") instead of table format ('typo = "hello"')
+    assert any(" -> hello" in line for line in stdout_lines)
+    assert not any(' = "hello"' in line for line in stdout_lines)
+
 def test_gentypos_cli_override_alias_flags_work(capsys, empty_config_file, input_words_file, large_dictionary_file):
     test_args = [
         "gentypos.py",

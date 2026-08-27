@@ -1358,7 +1358,8 @@ def main() -> None:
         # This overrides any persistent settings in the configuration file.
         if not args.output:
             config['output_file'] = '-'
-        # output_format default is now handled via extension detection
+            if not args.format:
+                config['output_format'] = 'arrow'
         # Ensure extra words aren't filtered out by default project-wide min_length settings.
         if args.min_length is None:
             if 'word_length' not in config:

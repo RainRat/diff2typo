@@ -400,6 +400,8 @@ def run_command_in_folders(
             ext = os.path.splitext(output_file)[1].lower().lstrip('.')
             if ext in ['json', 'csv', 'txt']:
                 fmt = ext
+            elif ext in ['md', 'markdown']:
+                fmt = 'markdown'
             else:
                 fmt = 'txt'
 
@@ -412,6 +414,31 @@ def run_command_in_folders(
                     writer.writeheader()
                     for row in report_data:
                         writer.writerow(row)
+                elif fmt in ['markdown', 'md']:
+                    f.write("# Execution Report\n\n")
+                    f.write("| Folder | Command | Status | Return Code |\n")
+                    f.write("| :--- | :--- | :--- | :--- |\n")
+                    for row in report_data:
+                        cmd_escaped = row['command'].replace('|', '\\|')
+                        f.write(f"| `{row['folder']}` | `{cmd_escaped}` | `{row['status']}` | `{row['return_code']}` |\n")
+                    f.write("\n## Details\n\n")
+                    for row in report_data:
+                        f.write(f"### `{row['folder']}`\n\n")
+                        f.write(f"- **Command:** `{row['command']}`\n")
+                        f.write(f"- **Status:** `{row['status']}`\n")
+                        f.write(f"- **Return Code:** `{row['return_code']}`\n\n")
+                        if row['stdout'].strip():
+                            f.write("#### Stdout\n```\n")
+                            f.write(row['stdout'])
+                            if not row['stdout'].endswith('\n'):
+                                f.write('\n')
+                            f.write("```\n\n")
+                        if row['stderr'].strip():
+                            f.write("#### Stderr\n```\n")
+                            f.write(row['stderr'])
+                            if not row['stderr'].endswith('\n'):
+                                f.write('\n')
+                            f.write("```\n\n")
                 else:  # txt
                     for row in report_data:
                         f.write(f"Folder: {row['folder']}\n")
@@ -580,7 +607,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     output_group.add_argument(
         '-f', '--format',
-        choices=['json', 'csv', 'txt'],
+        choices=['json', 'csv', 'txt', 'markdown', 'md'],
         help='Choose the format for the output report (default: txt).'
     )
 

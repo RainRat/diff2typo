@@ -624,6 +624,54 @@ def test_report_generation_csv(tmp_path):
     assert "hello" in rows[0]['stdout']
 
 
+def test_report_generation_markdown(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+    (base_dir / 'proj2').mkdir()
+
+    output_file = tmp_path / 'report.md'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo hello-{}",
+        output_file=str(output_file),
+        output_format='markdown'
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+
+    assert "# Execution Report" in content
+    assert "| Folder | Command | Status | Return Code |" in content
+    assert "| `proj1` | `echo hello-proj1` | `success` | `0` |" in content
+    assert "| `proj2` | `echo hello-proj2` | `success` | `0` |" in content
+    assert "### `proj1`" in content
+    assert "- **Command:** `echo hello-proj1`" in content
+    assert "#### Stdout\n```\nhello-proj1\n```" in content
+
+
+def test_report_generation_markdown_extension_auto_detect(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.markdown'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo test-auto-detect",
+        output_file=str(output_file)
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+
+    assert "# Execution Report" in content
+    assert "| `proj1` | `echo test-auto-detect` | `success` | `0` |" in content
+    assert "#### Stdout\n```\ntest-auto-detect\n```" in content
+
+
 def test_report_generation_txt_and_auto_format(tmp_path):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

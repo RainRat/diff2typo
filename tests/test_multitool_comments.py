@@ -1,5 +1,8 @@
-import pytest
-import os
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from multitool import comments_mode
 
 def test_extract_comments_basic(tmp_path):
@@ -210,7 +213,7 @@ def test_comments_mode_pairs_cleaning_filtering_limit(tmp_path):
         output_format='line'
     )
     content = out.read_text(encoding='utf-8')
-    lines = [l for l in content.splitlines() if l]
+    lines = [line for line in content.splitlines() if line]
     assert len(lines) == 1
     assert "detailedcommentline" in lines[0]
 
@@ -229,3 +232,25 @@ def test_main_comments_pairs_cli(tmp_path, monkeypatch):
 
     content = out.read_text(encoding='utf-8')
     assert f"{f}:1 -> CLI test comment" in content
+
+
+def test_comments_mode_pairs_other_formats(tmp_path):
+    f = tmp_path / "sample.py"
+    f.write_text("# Test comment\n", encoding='utf-8')
+
+    for fmt in ('md-table', 'arrow', 'xml', 'yaml', 'toml'):
+        out = tmp_path / f"out.{fmt}"
+        comments_mode(
+            input_files=[str(f)],
+            output_file=str(out),
+            min_length=1,
+            max_length=1000,
+            process_output=False,
+            pairs=True,
+            clean_items=False,
+            output_format=fmt
+        )
+        assert out.exists()
+        content = out.read_text(encoding='utf-8')
+        assert "Test" in content and "comment" in content
+

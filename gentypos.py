@@ -1271,7 +1271,7 @@ def main() -> None:
         help=argparse.SUPPRESS,
     )
     gen_group.add_argument(
-        '--max-length',
+        '-M', '--max-length',
         type=int,
         help="Ignore words longer than this length.",
     )

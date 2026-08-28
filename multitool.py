@@ -1231,6 +1231,9 @@ def _write_paired_output(
         left_header = "Location"
         right_header = "Message"
         attr_header = "Marker"
+    elif mode_label == "Comments":
+        left_header = "Location"
+        right_header = "Comment"
 
     with smart_open_output(output_file, newline=newline) as out_file:
         if output_format == 'json':
@@ -2055,6 +2058,49 @@ def _extract_comment_items(input_file: str, quiet: bool = False) -> Iterable[str
             yield match.group(1).strip()
 
 
+def _extract_comment_items_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
+    """Yields (location, comment_text) tuples for comments extracted from a file."""
+    lines = _read_file_lines_robust(input_file)
+    content = "".join(lines)
+
+    items = []
+
+    # Multi-line patterns (on whole content)
+    multi_line_patterns = [
+        re.compile(r'/\*(.*?)\*/', re.DOTALL),
+        re.compile(r'<!--(.*?)-->', re.DOTALL),
+        re.compile(r'"{3}(.*?)"{3}', re.DOTALL),
+        re.compile(r"'{3}(.*?)'{3}", re.DOTALL),
+    ]
+
+    for pattern in multi_line_patterns:
+        for match in pattern.finditer(content):
+            text = match.group(1).strip()
+            if text:
+                line_num = content[:match.start()].count('\n') + 1
+                items.append((line_num, match.start(), text))
+
+    # Single-line patterns
+    single_line_pattern = re.compile(r'(?:#|(?<!:)//|--)\s*(.*)')
+    curr_pos = 0
+    for idx, line in enumerate(tqdm(lines, desc=f'Processing {input_file} (comments)', unit=' lines', disable=quiet), start=1):
+        match = single_line_pattern.search(line)
+        if match:
+            text = match.group(1).strip()
+            if text:
+                text = re.sub(r'\s*(\*/|-->|"{3}|\'{3})$', '', text).strip()
+                if text:
+                    items.append((idx, curr_pos + match.start(), text))
+        curr_pos += len(line)
+
+    # Sort items by position in file
+    items.sort(key=lambda x: x[1])
+
+    for line_num, _, text in items:
+        location = f"{input_file}:{line_num}"
+        yield (location, text)
+
+
 def _extract_todo_items(
     input_file: str,
     markers: Sequence[str] | None = None,
@@ -2782,36 +2828,53 @@ def comments_mode(
     min_length: int,
     max_length: int,
     process_output: bool,
+    pairs: bool = False,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
     """Extracts comments from various file types."""
-    def extractor(input_file: str, quiet: bool = False) -> Iterable[str]:
-        for comment in _extract_comment_items(input_file, quiet=quiet):
-            # For multi-line comments, we split into lines if cleaning is requested
-            # to allow filtering specific words/lines within the comment.
-            if clean_items:
-                yield from comment.splitlines()
-            else:
-                yield comment
+    if pairs:
+        start_time = time.perf_counter()
+        results = []
+        total_items = 0
+        for input_file in input_files:
+            for loc, text in _extract_comment_items_detailed(input_file, quiet=quiet):
+                total_items += 1
+                text_to_save = filter_to_letters(text) if clean_items else text
+                if not (min_length <= len(text_to_save) <= max_length):
+                    continue
+                results.append((loc, text_to_save))
+        if process_output:
+            results = sorted(set(results))
+        _write_paired_output(results, output_file, output_format, "Comments", quiet, limit=limit)
+        print_processing_stats(total_items, results, item_label="comment", start_time=start_time)
+    else:
+        def extractor(input_file: str, quiet: bool = False) -> Iterable[str]:
+            for comment in _extract_comment_items(input_file, quiet=quiet):
+                # For multi-line comments, we split into lines if cleaning is requested
+                # to allow filtering specific words/lines within the comment.
+                if clean_items:
+                    yield from comment.splitlines()
+                else:
+                    yield comment
 
-    _process_items(
-        extractor,
-        input_files,
-        output_file,
-        min_length,
-        max_length,
-        process_output,
-        'Comments',
-        'Comments extracted successfully.',
-        output_format,
-        quiet,
-        clean_items=clean_items,
-        limit=limit,
-        item_label="comment",
-    )
+        _process_items(
+            extractor,
+            input_files,
+            output_file,
+            min_length,
+            max_length,
+            process_output,
+            'Comments',
+            'Comments extracted successfully.',
+            output_format,
+            quiet,
+            clean_items=clean_items,
+            limit=limit,
+            item_label="comment",
+        )
 
 
 def todo_mode(
@@ -7872,9 +7935,9 @@ MODE_DETAILS = {
     },
     "comments": {
         "summary": "Extracts comments from source files",
-        "description": "Finds comments in various programming and markup languages. It identifies single-line comments (#, //, --) and multi-line comments (/* */, <!-- -->, and triple quotes).",
-        "example": "python multitool.py comments src/ --output comments.txt",
-        "flags": "[FILES...]",
+        "description": "Extracts comments from source files. It identifies single-line comments (#, //, --) and multi-line comments (/* */, <!-- -->, and triple quotes) in various programming and markup languages. Use -p / --pairs to output file location (filename:line) and comment text.",
+        "example": "python multitool.py comments src/ -p --output comments.txt",
+        "flags": "[FILES...] [-p]",
     },
     "todo": {
         "summary": "Extracts TODO and FIXME items",
@@ -8773,6 +8836,12 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         description=MODE_DETAILS['comments']['description'],
         epilog=f"{BLUE}Example:{RESET}\n  {GREEN}{MODE_DETAILS['comments']['example']}{RESET}",
+    )
+    comments_options = comments_parser.add_argument_group(f"{BLUE}COMMENTS OPTIONS{RESET}")
+    comments_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Output file location and comment text.",
     )
     _add_common_mode_arguments(comments_parser)
 
@@ -10495,6 +10564,7 @@ def main() -> None:
             comments_mode,
             {
                 **common_kwargs,
+                'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             },
         ),

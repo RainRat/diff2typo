@@ -14,7 +14,7 @@ Run the command with the `paths` mode and provide your files or folders:
 python multitool.py paths [FILES...] [OPTIONS]
 ```
 
-If you do not provide any files or folders, the tool automatically reads from standard input.
+If you pipe data into the command, the tool reads from standard input. If you run the command in an interactive terminal without providing any files or folders, it automatically scans the current directory (`.`) recursively.
 
 ## Features
 

@@ -45,3 +45,17 @@ def test_gentypos_max_length_short_flag(monkeypatch, capsys):
     # 'elephant' (len 8) should be skipped due to -M 4; only 'cat' (len 3) processed
     expected_typos = {"at -> cat", "ct -> cat", "ca -> cat"}
     assert set(lines) == expected_typos
+
+
+def test_gentypos_no_filter_short_flag(monkeypatch, capsys):
+    test_args = ["gentypos.py", "test", "-u", "-N", "-f", "arrow", "-q"]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    gentypos.main()
+
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+
+    # 'test' -> duplications with -N (no-filter): 'ttest', 'teest', 'tesst', 'testt'
+    expected_typos = {"ttest -> test", "teest -> test", "tesst -> test", "testt -> test"}
+    assert set(lines) == expected_typos

@@ -1281,7 +1281,7 @@ def main() -> None:
         help="Ignore words longer than this length.",
     )
     gen_group.add_argument(
-        '--no-filter',
+        '-N', '--no-filter',
         action='store_true',
         help="Do not check typos against the large dictionary (this is faster).",
     )

@@ -68,7 +68,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--keyboard`, `--replacement`, `-k` | Off | Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' becomes 'wprd'). |
 | `--max-length`, `-M` | None | Ignore words longer than this length. |
 | `--min-length`, `-m` | None | Ignore words shorter than this length. |
-| `--no-filter` | Off | Do not check typos against the large dictionary (makes generation faster). |
+| `--no-filter`, `-N` | Off | Do not check typos against the large dictionary (makes generation faster). |
 | `--output`, `-o` | None | Save results to this file. Use `-` to print to the screen. |
 | `--quiet`, `-q` | Off | Hide progress bars and status messages. |
 | `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |

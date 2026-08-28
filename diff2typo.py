@@ -668,11 +668,6 @@ def _run_git_subcommand(base_command: List[str], git_args: Optional[str]) -> str
     return _run_git_command(command)
 
 
-def _read_git_diff(git_args: Optional[str]) -> str:
-    """Fetch diff directly from Git using the provided arguments."""
-    return _run_git_subcommand(["git", "diff"], git_args)
-
-
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
     """Return concatenated diff text from standard input or the provided file patterns."""
 
@@ -1109,7 +1104,7 @@ def main():
             dry_run_val = False
 
     if git_val is not None:
-        diff_text = _read_git_diff(git_val)
+        diff_text = _run_git_subcommand(["git", "diff"], git_val)
     elif git_log_val is not None:
         diff_text = _run_git_subcommand(["git", "log", "-p"], git_log_val)
     else:
@@ -1127,7 +1122,7 @@ def main():
 
             if is_git:
                 logging.info("No files specified. Running in a Git repository; automatically checking your recent changes (git diff)...")
-                diff_text = _read_git_diff(None)
+                diff_text = _run_git_subcommand(["git", "diff"], None)
             else:
                 logging.error(
                     "No files specified and not running inside a Git repository.\n"

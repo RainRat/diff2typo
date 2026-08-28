@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 import diff2typo
 
-def test_read_git_diff_success():
+def test_run_git_subcommand_git_diff_success():
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(stdout="mocked git diff", returncode=0)
-        result = diff2typo._read_git_diff("--stat")
+        result = diff2typo._run_git_subcommand(["git", "diff"], "--stat")
         assert result == "mocked git diff"
         mock_run.assert_called_once()
         args, kwargs = mock_run.call_args
@@ -16,19 +16,19 @@ def test_read_git_diff_success():
         assert "diff" in args[0]
         assert "--stat" in args[0]
 
-def test_read_git_diff_error(caplog):
+def test_run_git_subcommand_git_diff_error(caplog):
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = subprocess.CalledProcessError(1, ["git", "diff"], stderr="git error")
         with pytest.raises(SystemExit) as excinfo:
-            diff2typo._read_git_diff(None)
+            diff2typo._run_git_subcommand(["git", "diff"], None)
         assert excinfo.value.code == 1
         assert "Git command failed: git error" in caplog.text
 
-def test_read_git_diff_not_found(caplog):
+def test_run_git_subcommand_git_diff_not_found(caplog):
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = FileNotFoundError()
         with pytest.raises(SystemExit) as excinfo:
-            diff2typo._read_git_diff(None)
+            diff2typo._run_git_subcommand(["git", "diff"], None)
         assert excinfo.value.code == 1
         assert "Git executable not found." in caplog.text
 
@@ -43,8 +43,8 @@ def test_compare_word_lists_identical_words_in_replace():
 
 def test_main_git_flag(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    with patch("diff2typo._read_git_diff") as mock_git_diff:
-        mock_git_diff.return_value = "--- a/file\n+++ b/file\n-teh\n+the\n"
+    with patch("diff2typo._run_git_subcommand") as mock_run_git_subcommand:
+        mock_run_git_subcommand.return_value = "--- a/file\n+++ b/file\n-teh\n+the\n"
 
         monkeypatch.setattr(sys, "argv", ["diff2typo.py", "--git", "HEAD", "--quiet", "--output", "out.txt"])
 
@@ -53,7 +53,7 @@ def test_main_git_flag(tmp_path, monkeypatch):
 
         diff2typo.main()
 
-        mock_git_diff.assert_called_once_with("HEAD")
+        mock_run_git_subcommand.assert_called_once_with(["git", "diff"], "HEAD")
         assert (tmp_path / "out.txt").exists()
         assert "teh -> the" in (tmp_path / "out.txt").read_text()
 

@@ -28,14 +28,14 @@ def test_main_with_interactive_stdin_inside_git_worktree(tmp_path, monkeypatch):
     with patch("argparse.ArgumentParser.parse_args", return_value=args), \
          patch("sys.stdin.isatty", return_value=True), \
          patch("subprocess.run", return_value=git_rev_parse_mock), \
-         patch("diff2typo._read_git_diff", return_value="some_diff_text") as mock_read_git_diff, \
+         patch("diff2typo._run_git_subcommand", return_value="some_diff_text") as mock_run_git_subcommand, \
          patch("diff2typo.find_typos", return_value=[]), \
          patch("diff2typo.read_words_mapping", return_value={}), \
          patch("diff2typo.read_allowed_words", return_value=set()), \
          patch("diff2typo.smart_open_output"):
 
         diff2typo.main()
-        mock_read_git_diff.assert_called_once_with(None)
+        mock_run_git_subcommand.assert_called_once_with(["git", "diff"], None)
 
 def test_main_with_interactive_stdin_outside_git_worktree(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

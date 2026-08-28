@@ -25,7 +25,7 @@ def test_empty_diff_with_git_flag(caplog):
 
     with patch("argparse.ArgumentParser.parse_args", return_value=args), \
          patch("sys.stdin.isatty", return_value=True), \
-         patch("diff2typo._read_git_diff", return_value=""), \
+         patch("diff2typo._run_git_subcommand", return_value=""), \
          patch("diff2typo.smart_open_output"), \
          caplog.at_level(logging.INFO):
 

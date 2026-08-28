@@ -121,3 +121,111 @@ def test_comments_mode_coverage_gap(tmp_path):
     content = out.read_text(encoding='utf-8')
     lines = content.splitlines()
     assert lines == ["lineone", "linetwo", "unique"]
+
+
+def test_comments_mode_pairs_basic(tmp_path):
+    f = tmp_path / "sample.py"
+    f.write_text("""# Line 2 comment
+def foo():
+    /* Line 4 block comment */
+    pass # Line 6 inline comment
+""", encoding='utf-8')
+
+    out = tmp_path / "out_pairs.txt"
+    comments_mode(
+        input_files=[str(f)],
+        output_file=str(out),
+        min_length=1,
+        max_length=1000,
+        process_output=False,
+        pairs=True,
+        clean_items=False,
+        output_format='line'
+    )
+    content = out.read_text(encoding='utf-8')
+    assert f"{f}:1 -> Line 2 comment" in content
+    assert f"{f}:3 -> Line 4 block comment" in content
+    assert f"{f}:4 -> Line 6 inline comment" in content
+
+
+def test_comments_mode_pairs_csv_and_json(tmp_path):
+    f = tmp_path / "sample.c"
+    f.write_text("""// First C comment
+int main() {
+    /* Second C comment */
+    return 0;
+}
+""", encoding='utf-8')
+
+    out_csv = tmp_path / "out.csv"
+    comments_mode(
+        input_files=[str(f)],
+        output_file=str(out_csv),
+        min_length=1,
+        max_length=1000,
+        process_output=False,
+        pairs=True,
+        clean_items=False,
+        output_format='csv'
+    )
+    csv_content = out_csv.read_text(encoding='utf-8')
+    assert f"{f}:1,First C comment" in csv_content
+    assert f"{f}:3,Second C comment" in csv_content
+
+    out_json = tmp_path / "out.json"
+    comments_mode(
+        input_files=[str(f)],
+        output_file=str(out_json),
+        min_length=1,
+        max_length=1000,
+        process_output=False,
+        pairs=True,
+        clean_items=False,
+        output_format='json'
+    )
+    json_content = out_json.read_text(encoding='utf-8')
+    assert f'"{f}:1": "First C comment"' in json_content
+    assert f'"{f}:3": "Second C comment"' in json_content
+
+
+def test_comments_mode_pairs_cleaning_filtering_limit(tmp_path):
+    f = tmp_path / "filter.py"
+    f.write_text("""# short
+# detailed comment line
+/*
+   multi line block
+*/
+""", encoding='utf-8')
+
+    out = tmp_path / "out_clean.txt"
+    comments_mode(
+        input_files=[str(f)],
+        output_file=str(out),
+        min_length=8,
+        max_length=100,
+        process_output=True,
+        pairs=True,
+        clean_items=True,
+        limit=1,
+        output_format='line'
+    )
+    content = out.read_text(encoding='utf-8')
+    lines = [l for l in content.splitlines() if l]
+    assert len(lines) == 1
+    assert "detailedcommentline" in lines[0]
+
+
+def test_main_comments_pairs_cli(tmp_path, monkeypatch):
+    from multitool import main
+    f = tmp_path / "cli_test.py"
+    f.write_text("# CLI test comment\n", encoding='utf-8')
+    out = tmp_path / "cli_out.txt"
+
+    monkeypatch.setattr(
+        "sys.argv",
+        ["multitool.py", "comments", str(f), "-p", "--raw", "-o", str(out)]
+    )
+    main()
+
+    content = out.read_text(encoding='utf-8')
+    assert f"{f}:1 -> CLI test comment" in content

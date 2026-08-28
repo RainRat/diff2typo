@@ -98,8 +98,8 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py codeblocks readme.md --language python`
 
 - **`comments`**
-  - Extracts comments from source files. It identifies single-line comments (`#`, `//`, `--`) and multi-line comments (`/* */`, `<!-- -->`, and triple quotes) in various programming and markup languages.
-  - **Example:** `python multitool.py comments src/ --output comments.txt`
+  - Extracts comments from source files. It identifies single-line comments (`#`, `//`, `--`) and multi-line comments (`/* */`, `<!-- -->`, and triple quotes) in various programming and markup languages. Use `-p` / `--pairs` to include file location (`filename:line`) and comment text.
+  - **Example:** `python multitool.py comments src/ -p --output comments.txt`
 
 - **`todo`**
   - Extracts TODO, FIXME, XXX, BUG, and HACK items from source files. It identifies the text following these markers and cleans up common comment endings. Use `-k` / `--marker` to filter items by specific marker types (such as `TODO`, `FIXME`, or `BUG`). Use `-p` / `--pairs` to include file location (`filename:line`), task message, and task marker category with color highlighting.

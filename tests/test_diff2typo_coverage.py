@@ -1,4 +1,5 @@
 import logging
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -216,3 +217,20 @@ def test_read_words_mapping_exception_not_required():
     with patch("builtins.open", side_effect=OSError("Permission denied")):
         result = diff2typo.read_words_mapping("fake.csv", required=False)
         assert result == {}
+
+def test_run_git_command_called_process_error(caplog):
+    error = subprocess.CalledProcessError(1, ["git", "status"], stderr="fatal: not a git repo")
+    with patch("subprocess.run", side_effect=error):
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(SystemExit) as excinfo:
+                diff2typo._run_git_command(["git", "status"])
+            assert excinfo.value.code == 1
+            assert "Git command failed: fatal: not a git repo" in caplog.text
+
+def test_run_git_command_file_not_found_error(caplog):
+    with patch("subprocess.run", side_effect=FileNotFoundError("git not found")):
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(SystemExit) as excinfo:
+                diff2typo._run_git_command(["git", "status"])
+            assert excinfo.value.code == 1
+            assert "Git executable not found." in caplog.text

@@ -1391,12 +1391,12 @@ def main() -> None:
         config['ad_hoc'] = args.ad_hoc
 
     if args.transposition_distance is not None:
-        if 'transposition_options' not in config:
+        if not isinstance(config.get('transposition_options'), dict):
             config['transposition_options'] = {}
         config['transposition_options']['distance'] = args.transposition_distance
 
     if args.min_length is not None or args.max_length is not None:
-        if 'word_length' not in config:
+        if not isinstance(config.get('word_length'), dict):
             config['word_length'] = {}
         if args.min_length is not None:
             config['word_length']['min_length'] = args.min_length

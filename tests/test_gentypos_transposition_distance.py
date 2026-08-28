@@ -1,6 +1,9 @@
+from pathlib import Path
 import sys
 from unittest.mock import patch
 import pytest
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 import gentypos
 
 
@@ -43,6 +46,24 @@ def test_cli_transposition_distance_overrides_config(tmp_path, capsys):
     )
 
     test_args = ["gentypos.py", "abcdef", "-c", str(config_file), "-T", "2", "--no-filter"]
+    with patch.object(sys, "argv", test_args):
+        gentypos.main()
+
+    captured = capsys.readouterr()
+    assert "cbadef -> abcdef" in captured.out
+
+
+def test_cli_transposition_distance_null_config_override(tmp_path, capsys):
+    """Test that CLI transposition distance handles None/null transposition_options gracefully."""
+    config_file = tmp_path / "null_config.yaml"
+    config_file.write_text(
+        "transposition_options: null\n"
+        "word_length: null\n"
+        "typo_types:\n"
+        "  transposition: true\n"
+    )
+
+    test_args = ["gentypos.py", "abcdef", "-c", str(config_file), "-T", "2", "-m", "3", "-M", "10", "--no-filter"]
     with patch.object(sys, "argv", test_args):
         gentypos.main()
 

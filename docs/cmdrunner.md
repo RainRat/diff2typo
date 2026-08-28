@@ -26,7 +26,7 @@ python cmdrunner.py --main-folder /home/user/projects --command-to-run "git stat
 
 **Automatic Fallback:**
 
-If you run the tool with no configuration file and do not specify the required arguments directly on the command line, it will automatically search for a default configuration file named `cmdrunner.yaml` in the current working directory. If it is found, the tool loads it automatically to simplify your workflow.
+If you run the tool without arguments or a configuration file, it automatically loads `cmdrunner.yaml` from the current working directory if present.
 
 ## Configuration
 

@@ -1,5 +1,8 @@
+from pathlib import Path
 import sys
 import pytest
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 import gentypos
 
 def test_gentypos_deletion_short_flag(monkeypatch, capsys):

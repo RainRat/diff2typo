@@ -1048,6 +1048,34 @@ def _setup_generation_tools(
     return adjacent_keys, custom_subs
 
 
+def _generate_typos_for_word(
+    word: str,
+    settings: SimpleNamespace,
+    adjacent_keys: Mapping[str, Set[str]],
+    custom_subs: Mapping[str, Set[str]],
+) -> set[str]:
+    """Generate accumulated typos for a single word up to repeat_modifications iterations."""
+    typos_current = {word}
+    accumulated_typos = set()
+    for _ in range(settings.repeat_modifications):
+        new_typos = set()
+        for base_word in typos_current:
+            new_typos.update(
+                generate_all_typos(
+                    base_word,
+                    adjacent_keys,
+                    custom_subs,
+                    settings.typo_types,
+                    settings.transposition_distance,
+                    settings.enable_adjacent_substitutions,
+                    settings.enable_custom_substitutions,
+                )
+            )
+        accumulated_typos.update(new_typos)
+        typos_current = new_typos
+    return accumulated_typos
+
+
 def _run_typo_generation(
     word_list: Sequence[str],
     all_words: set[str],
@@ -1068,24 +1096,9 @@ def _run_typo_generation(
         if settings.max_length and word_len > settings.max_length:
             continue
 
-        typos_current = {word}
-        accumulated_typos = set()
-        for _ in range(settings.repeat_modifications):
-            new_typos = set()
-            for base_word in typos_current:
-                new_typos.update(
-                    generate_all_typos(
-                        base_word,
-                        adjacent_keys,
-                        custom_subs,
-                        settings.typo_types,
-                        settings.transposition_distance,
-                        settings.enable_adjacent_substitutions,
-                        settings.enable_custom_substitutions,
-                    )
-                )
-            accumulated_typos.update(new_typos)
-            typos_current = new_typos
+        accumulated_typos = _generate_typos_for_word(
+            word, settings, adjacent_keys, custom_subs
+        )
         for typo in accumulated_typos:
             typo_to_correct_word[typo].append(word)
 
@@ -1491,25 +1504,9 @@ def main() -> None:
         logging.info(f"\n{BOLD}{BLUE}Sample Typo Generation Preview:{RESET}")
         sample_words = word_list[:5]
         for word in sample_words:
-            # Generate typos just for this word
-            typos_current = {word}
-            accumulated_typos = set()
-            for _ in range(settings.repeat_modifications):
-                new_typos = set()
-                for base_word in typos_current:
-                    new_typos.update(
-                        generate_all_typos(
-                            base_word,
-                            adjacent_keys,
-                            custom_subs,
-                            settings.typo_types,
-                            settings.transposition_distance,
-                            settings.enable_adjacent_substitutions,
-                            settings.enable_custom_substitutions,
-                        )
-                    )
-                accumulated_typos.update(new_typos)
-                typos_current = new_typos
+            accumulated_typos = _generate_typos_for_word(
+                word, settings, adjacent_keys, custom_subs
+            )
 
             # Show a preview of up to 10 accumulated typos
             preview_typos = sorted(list(accumulated_typos))

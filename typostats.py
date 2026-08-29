@@ -1021,9 +1021,33 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             lines.append(f"| {typo_char} | {correct_char} | {count} |")
         report_content = "\n".join(lines)
+    elif output_format in ('yaml', 'yml'):
+        adjacent_map = {}
+        if keyboard:
+            adjacent_map = get_adjacent_keys(include_diagonals=True)
+
+        replacements = []
+        for (correct_char, typo_char), count in sorted_replacements:
+            item = {
+                "typo": typo_char,
+                "correct": correct_char,
+                "count": count,
+            }
+            if keyboard:
+                is_adjacent = False
+                if len(correct_char) == 1 and len(typo_char) == 1:
+                    if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+                        is_adjacent = True
+                item["is_adjacent"] = is_adjacent
+            replacements.append(item)
+
+        if _YAML_AVAILABLE:
+            report_content = yaml.safe_dump({"replacements": replacements}, default_flow_style=False)
+        else:
+            logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
+            report_content = json.dumps({"replacements": replacements}, indent=2)
     else:
-        # YAML-like
-        # Group by correct_char
+        # Fallback grouping
         grouping = defaultdict(set)
         for (correct_char, typo_char), count in sorted_replacements:
             grouping[correct_char].add(typo_char)
@@ -1122,7 +1146,7 @@ def main() -> None:
     io_group.add_argument(
         '-f',
         '--format',
-        choices=['arrow', 'yaml', 'json', 'csv', 'table', 'markdown', 'md'],
+        choices=['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'markdown', 'md'],
         metavar='FMT',
         default=None,
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
@@ -1217,7 +1241,7 @@ def main() -> None:
     sort_by = args.sort
     output_format = args.format
     if output_format is None:
-        allowed_formats = ['arrow', 'yaml', 'json', 'csv', 'table', 'markdown', 'md']
+        allowed_formats = ['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'markdown', 'md']
         output_format = _detect_format_from_extension(output_file, allowed_formats, 'arrow')
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1

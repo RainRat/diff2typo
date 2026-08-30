@@ -77,12 +77,12 @@ jobs: 4
 - `-c`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
 - `-e`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
 - `-i`, `--included-folders`: A list of folders you want to run the command on. This overrides the configuration file.
-- `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
+- `-n`, `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
 - `-q`, `--quiet`: Hide status messages and progress bars.
 - `-s`, `--stop-on-first-error`, `--fail-fast`: Stop running commands immediately if any command fails. This overrides the configuration file.
-- `--timeout`: Set the maximum time in seconds for the command to run in each folder. This overrides the configuration file.
-- `--if-exists`: Only run the command in folders that contain this file or path (for example, `package.json`). This overrides the configuration file.
-- `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
+- `-t`, `--timeout`: Set the maximum time in seconds for the command to run in each folder. This overrides the configuration file.
+- `-x`, `--if-exists`: Only run the command in folders that contain this file or path (for example, `package.json`). This overrides the configuration file.
+- `-X`, `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
 - `-j`, `--jobs`: Run commands concurrently using this many jobs. This overrides the configuration file.
 - `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`, `markdown`, or `md`). If you do not specify this, the tool detects the format from the output file's extension.

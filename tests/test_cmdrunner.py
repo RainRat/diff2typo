@@ -1929,3 +1929,36 @@ def test_run_command_failed_with_stderr_and_stdout(tmp_path, caplog):
     with caplog.at_level(logging.ERROR):
         cmdrunner.run_command_in_folders(str(base_dir), cmd_stdout)
     assert any("Stdout:\nout_msg" in msg for msg in caplog.messages)
+
+
+def test_main_short_flags_parsing(tmp_path, monkeypatch, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    proj1 = base_dir / "proj1"
+    proj2 = base_dir / "proj2"
+    proj1.mkdir()
+    proj2.mkdir()
+
+    (proj1 / "pkg.json").write_text("{}")
+
+    command = "echo test"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "cmdrunner.py",
+            "-m", str(base_dir),
+            "-c", command,
+            "-n",
+            "-t", "5.0",
+            "-x", "pkg.json",
+            "-X", "ignore.log",
+        ]
+    )
+
+    with caplog.at_level(logging.WARNING):
+        cmdrunner.main()
+
+    assert any("Dry run: would run command 'echo test' in 'proj1'" in msg for msg in caplog.messages)

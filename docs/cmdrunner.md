@@ -144,6 +144,11 @@ python cmdrunner.py --main-folder /home/user/projects --command-to-run "bash set
 python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm run build" --included-folders proj1 proj2
 ```
 
+**Run commands concurrently across multiple projects:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm test" -j 4
+```
+
 **Save an execution report in Markdown format:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status" -o report.md

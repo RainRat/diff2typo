@@ -55,7 +55,7 @@ The tool automatically recognizes several common ways of listing typos:
   - `arrow` (Default): Easy to read.
   - `csv`: Standard comma-separated values.
   - `json`: Data for other programs.
-  - `yaml`: Simple list format.
+  - `yaml` / `yml`: Structured YAML report format containing replacement items.
   - `table`: TOML table format (`typo = "correction"`), compatible with the `typos` tool.
   - `markdown` / `md`: Markdown table format (`| Typo | Correction | Count |`).
 - `-o`, `--output`: Save the report to a file instead of showing it on the screen.

@@ -691,8 +691,11 @@ def test_extract_pairs_csv_error(tmp_path):
 
 def test_generate_report_yaml_export(capsys, tmp_path):
     counts = {('s', 'z'): 3, ('e', 'a'): 1}
+    mock_yaml = MagicMock()
+    mock_yaml.safe_dump.return_value = "replacements:\n- typo: z\n  correct: s\n  count: 3\n  is_adjacent: true\n"
+
     # Test yaml format with PyYAML available
-    with patch('typostats._YAML_AVAILABLE', True):
+    with patch('typostats._YAML_AVAILABLE', True), patch('typostats.yaml', mock_yaml):
         typostats.generate_report(counts, output_format='yaml', keyboard=True)
         out = capsys.readouterr().out
         assert "replacements:" in out
@@ -702,14 +705,14 @@ def test_generate_report_yaml_export(capsys, tmp_path):
         assert "is_adjacent:" in out
 
     # Test yml format extension
-    with patch('typostats._YAML_AVAILABLE', True):
+    with patch('typostats._YAML_AVAILABLE', True), patch('typostats.yaml', mock_yaml):
         typostats.generate_report(counts, output_format='yml')
         out = capsys.readouterr().out
         assert "replacements:" in out
         assert "typo: z" in out
 
-    # Test fallback to JSON when PyYAML is unavailable
-    with patch('typostats._YAML_AVAILABLE', False), patch('logging.warning') as mock_warn:
+    # Test fallback to JSON when PyYAML is unavailable (yaml module is None)
+    with patch('typostats._YAML_AVAILABLE', False), patch('typostats.yaml', None), patch('logging.warning') as mock_warn:
         typostats.generate_report(counts, output_format='yaml')
         out = capsys.readouterr().out
         data = json.loads(out)

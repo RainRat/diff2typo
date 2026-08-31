@@ -32,6 +32,7 @@ try:
     import yaml
     _YAML_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dependency
+    yaml = None
     _YAML_AVAILABLE = False
 
 # Cache for standard input to allow multiple passes

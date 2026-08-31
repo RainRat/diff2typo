@@ -1299,7 +1299,7 @@ def main() -> None:
         help="Do not check typos against the large dictionary (this is faster).",
     )
     gen_group.add_argument(
-        '--dry-run',
+        '-n', '--dry-run',
         action='store_true',
         help="Show configuration details and a sample preview of typo generation without writing files.",
     )

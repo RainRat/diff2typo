@@ -59,3 +59,15 @@ def test_gentypos_no_filter_short_flag(monkeypatch, capsys):
     # 'test' -> duplications with -N (no-filter): 'ttest', 'teest', 'tesst', 'testt'
     expected_typos = {"ttest -> test", "teest -> test", "tesst -> test", "testt -> test"}
     assert set(lines) == expected_typos
+
+
+def test_gentypos_dry_run_short_flag(monkeypatch, caplog):
+    test_args = ["gentypos.py", "hello", "-n"]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    with caplog.at_level("INFO"):
+        with pytest.raises(SystemExit) as exc_info:
+            gentypos.main()
+
+    assert exc_info.value.code == 0
+    assert "--- GENTYPOS DRY RUN ---" in caplog.text

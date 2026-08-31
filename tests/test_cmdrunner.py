@@ -1929,3 +1929,59 @@ def test_run_command_failed_with_stderr_and_stdout(tmp_path, caplog):
     with caplog.at_level(logging.ERROR):
         cmdrunner.run_command_in_folders(str(base_dir), cmd_stdout)
     assert any("Stdout:\nout_msg" in msg for msg in caplog.messages)
+
+
+def test_main_short_flags_dry_run_and_timeout(tmp_path, monkeypatch, caplog):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    command = "python3 -c \"open('test_short_flags.txt','w').write('short')\""
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command, "-n", "-t", "5.0"]
+    )
+
+    with caplog.at_level("INFO"):
+        cmdrunner.main()
+
+    assert not (base_dir / "proj1" / "test_short_flags.txt").exists()
+    assert any("Dry run" in record.message for record in caplog.records)
+
+
+def test_main_short_flags_if_exists_and_if_not_exists(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+
+    proj_has_pkg = base_dir / "proj_pkg"
+    proj_has_log = base_dir / "proj_log"
+    proj_pkg_only = base_dir / "proj_pkg_only"
+
+    proj_has_pkg.mkdir()
+    proj_has_log.mkdir()
+    proj_pkg_only.mkdir()
+
+    (proj_has_pkg / "package.json").write_text("{}")
+    (proj_has_pkg / "initialized.log").write_text("done")
+
+    (proj_has_log / "initialized.log").write_text("done")
+
+    (proj_pkg_only / "package.json").write_text("{}")
+
+    command = "python3 -c \"open('ran.txt','w').write('ok')\""
+
+    # Match only folders with package.json (-x) AND without initialized.log (-X)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command, "-x", "package.json", "-X", "initialized.log"]
+    )
+
+    cmdrunner.main()
+
+    assert not (proj_has_pkg / "ran.txt").exists()
+    assert not (proj_has_log / "ran.txt").exists()
+    assert (proj_pkg_only / "ran.txt").exists()
+    assert (proj_pkg_only / "ran.txt").read_text() == "ok"

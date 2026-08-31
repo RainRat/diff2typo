@@ -558,12 +558,12 @@ def parse_arguments() -> argparse.Namespace:
         help='Specific folders you want to run the command on. Overrides config file if provided.'
     )
     direct_group.add_argument(
-        '--if-exists',
+        '-x', '--if-exists',
         type=str,
         help='Only run the command in folders that contain this file or path (for example, "package.json").'
     )
     direct_group.add_argument(
-        '--if-not-exists',
+        '-X', '--if-not-exists',
         type=str,
         help='Only run the command in folders that do not contain this file or path (for example, "initialized.log").'
     )
@@ -571,7 +571,7 @@ def parse_arguments() -> argparse.Namespace:
     # Execution Options Group
     options_group = parser.add_argument_group(f"{BLUE}EXECUTION OPTIONS{RESET}")
     options_group.add_argument(
-        '--dry-run',
+        '-n', '--dry-run',
         action='store_true',
         help='Show which folders the tool will check without running any command.'
     )
@@ -588,7 +588,7 @@ def parse_arguments() -> argparse.Namespace:
         help='Stop running commands immediately if any command fails.'
     )
     options_group.add_argument(
-        '--timeout',
+        '-t', '--timeout',
         type=float,
         help='Set the maximum time in seconds for the command to run in each folder.'
     )

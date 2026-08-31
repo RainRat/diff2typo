@@ -172,3 +172,22 @@ def test_search_length_filter(tmp_path):
     )
     results = output_file.read_text(encoding='utf-8').splitlines()
     assert len(results) == 0
+
+def test_search_short_flag_max_dist(tmp_path, monkeypatch):
+    from multitool import main
+    input_file = tmp_path / "test.txt"
+    input_file.write_text("Hello world\nThhe quick brown fox", encoding='utf-8')
+    output_file = tmp_path / "output.txt"
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['multitool.py', 'search', 'the', str(input_file), '-d', '1', '-o', str(output_file)]
+    )
+
+    main()
+
+    results = output_file.read_text(encoding='utf-8').splitlines()
+    results = [strip_ansi(r) for r in results]
+    assert any("Thhe quick brown fox" in r for r in results)
+    assert len(results) == 1

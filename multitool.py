@@ -8147,7 +8147,7 @@ MODE_DETAILS = {
         "summary": "Searches for words or patterns",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.",
         "example": "python multitool.py search 'teh' report.txt --keyboard --line-numbers",
-        "flags": "QUERY [FILES...] [-S] [-k] [-t] [-n] [-B/A/C N]",
+        "flags": "QUERY [FILES...] [-d N] [-S] [-k] [-t] [-n] [-B/A/C N]",
     },
     "scan": {
         "summary": "Scans project for known typos",
@@ -9473,7 +9473,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The word or pattern to search for.",
     )
     search_options.add_argument(
-        '--max-dist',
+        '-d', '--max-dist',
         type=int,
         default=0,
         help="Maximum character changes for similar word matching (default: 0).",

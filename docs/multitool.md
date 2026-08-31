@@ -400,7 +400,7 @@ Use these modes to analyze your data.
   - Searches for a query in your files and identifies similar words or subword matches. It supports highlighting and context lines.
   - **Options:**
     - `QUERY`: The word or pattern to search for.
-    - `--max-dist`: Maximum character changes for similar matching.
+    - `-d`, `--max-dist`: Maximum character changes for similar matching.
     - `-S`, `--smart`: Search for subwords within larger items.
     - `-k`, `--keyboard` or `-t`, `--transposition`: Filter for likely typing errors.
     - `-n`, `--line-numbers` and `-C`, `--context N`: Show location and surrounding lines.

@@ -101,6 +101,10 @@ You can also preview fixes for specific typos directly using `--add` and `--dry-
 ```bash
 python multitool.py scrub . --add teh:the --diff --dry-run
 ```
+To apply the fixes directly to your project files after reviewing, use the `-I` / `--in-place` flag:
+```bash
+python multitool.py scrub . -s my_typos.txt -I
+```
 
 ### 6. Run Commands Across Projects
 Use `cmdrunner.py` to run checks or commands across multiple project folders at once:

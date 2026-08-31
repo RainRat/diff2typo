@@ -279,9 +279,9 @@ Use these modes to transform or combine your data.
   - Fixes typos in text files using a mapping file or extra pairs. It preserves surrounding context while fixing errors.
   - **Supported Formats:** CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.
   - **Options:**
-    - Use `--mapping` (or `-s`) to specify a mapping file path.
-    - Use the `--add` flag to provide extra mapping pairs directly on the command line.
-    - Supports `--in-place`, `--dry-run`, `--diff`, and `--smart-case`.
+    - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
+    - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
+    - Supports `--in-place` (or **`-I`**), `--dry-run`, `--diff` (or **`-D`**), and `--smart-case` (or **`-S`**).
   - **Example:** `python multitool.py scrub input.txt --add teh:the --diff`
 
 - **`standardize`**

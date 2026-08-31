@@ -62,7 +62,7 @@ class MinimalFormatter(logging.Formatter):
 
         levelname = record.levelname
         # Colorize the level name if stderr is a terminal and color is available
-        if sys.stderr.isatty() and levelname:
+        if _should_enable_color(sys.stderr) and levelname:
             color = self.LEVEL_COLORS.get(record.levelno)
             if color:
                 levelname = f"{color}{levelname}{RESET}"

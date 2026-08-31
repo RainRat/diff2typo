@@ -1044,7 +1044,7 @@ def main():
     parser.add_argument('--typos_tool_path', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
-        '--dry-run',
+        '-n', '--dry-run',
         action='store_true',
         help='Show configuration details and a sample preview of typo extraction without writing files.',
     )

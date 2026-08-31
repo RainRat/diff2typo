@@ -49,3 +49,17 @@ def test_short_flags_parsing(monkeypatch):
     assert args.min_count == 2
     assert args.sort == 'count'
     assert args.allowed_file == 'my_allowed.csv'
+
+
+def test_diff2typo_dry_run_short_flag(monkeypatch, caplog):
+    """Verify that -n enables dry_run in diff2typo."""
+    monkeypatch.setattr(diff2typo, '_read_diff_sources', lambda _: "--- a/f\n+++ b/f\n-teh\n+the")
+    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **kw: {})
+    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **kw: set())
+
+    monkeypatch.setattr(sys, 'argv', ['diff2typo.py', '-n'])
+
+    with caplog.at_level("INFO"):
+        diff2typo.main()
+
+    assert "--- DIFF2TYPO DRY RUN ---" in caplog.text

@@ -782,7 +782,7 @@ def test_report_write_exception(tmp_path, caplog):
         )
 
     assert excinfo.value.code == 1
-    assert any("Failed to write report" in message for message in caplog.messages)
+    assert any("Could not save execution report" in message for message in caplog.messages)
 
 
 def test_report_auto_format_fallback(tmp_path):

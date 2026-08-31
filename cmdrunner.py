@@ -253,7 +253,7 @@ def run_command_in_folders(
     excluded_folders = excluded_folders or []
 
     if not os.path.isdir(main_folder):
-        logging.error(f"The main folder '{main_folder}' does not exist or is not a folder.")
+        logging.error(f"Could not find main folder '{main_folder}'. Please check that the folder path is correct.")
         sys.exit(1)
 
     directories = sorted([
@@ -458,7 +458,7 @@ def run_command_in_folders(
                         f.write("=" * 40 + "\n")
             logging.info(f"Execution report saved to '{output_file}' in {fmt} format.")
         except Exception as e:
-            logging.error(f"Failed to write report to '{output_file}': {e}")
+            logging.error(f"Could not save execution report to '{output_file}'. Please verify that the directory exists and that you have write permissions.")
             sys.exit(1)
 
     if not quiet:
@@ -641,7 +641,7 @@ def main() -> None:
         try:
             config = load_config(config_file)
         except FileNotFoundError:
-            logging.error(f"Configuration file '{config_file}' not found.")
+            logging.error(f"Could not find configuration file '{config_file}'. Please check the file path and try again.")
             sys.exit(1)
         except ConfigError as exc:
             logging.error(str(exc))
@@ -670,7 +670,7 @@ def main() -> None:
         errors.append("command_to_run")
 
     if errors:
-        logging.error(f"Missing required option(s): {', '.join(errors)}.")
+        logging.error(f"Missing required option(s): {', '.join(errors)}. Please provide a main folder (-m/--main-folder) and a command to run (-c/--command-to-run).")
         sys.exit(1)
 
     # Run the command in the specified folders

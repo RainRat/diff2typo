@@ -543,6 +543,18 @@ def smart_open_output(filename: str, encoding: str = 'utf-8') -> Iterable[TextIO
             yield f
 
 
+def _typos_to_dicts(typos: Iterable[str]) -> List[Dict[str, str]]:
+    """Convert a sequence of typo strings ('before -> after' or 'word') into dictionaries."""
+    items: List[Dict[str, str]] = []
+    for typo in typos:
+        if ' -> ' in typo:
+            before, after = typo.split(' -> ')
+            items.append({"typo": before, "correction": after})
+        else:
+            items.append({"typo": typo, "correction": ""})
+    return items
+
+
 def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     """
     Formats the list of typos based on the specified output format.
@@ -555,13 +567,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
         list: Formatted list of typo strings.
     """
     if output_format in ('json', 'yaml'):
-        items = []
-        for typo in typos:
-            if ' -> ' in typo:
-                before, after = typo.split(' -> ')
-                items.append({"typo": before, "correction": after})
-            else:
-                items.append({"typo": typo, "correction": ""})
+        items = _typos_to_dicts(typos)
 
         if output_format == 'yaml':
             if _YAML_AVAILABLE:
@@ -1245,19 +1251,9 @@ def main():
         filtered_items.extend(corrections_final)
 
         if args.output_format in ('json', 'yaml'):
-            def _to_dicts(items):
-                res = []
-                for typo in items:
-                    if ' -> ' in typo:
-                        b, a = typo.split(' -> ')
-                        res.append({"typo": b, "correction": a})
-                    else:
-                        res.append({"typo": typo, "correction": ""})
-                return res
-
             data = {
-                "typos": _to_dicts(typos_final),
-                "corrections": _to_dicts(corrections_final),
+                "typos": _typos_to_dicts(typos_final),
+                "corrections": _typos_to_dicts(corrections_final),
             }
             if args.output_format == 'yaml':
                 if _YAML_AVAILABLE:

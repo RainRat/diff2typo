@@ -403,7 +403,8 @@ Use these modes to analyze your data.
     - `-d`, `--max-dist`: Maximum character changes for similar matching.
     - `-S`, `--smart`: Search for subwords within larger items.
     - `-k`, `--keyboard` or `-t`, `--transposition`: Filter for likely typing errors.
-    - `-n`, `--line-numbers` and `-C`, `--context N`: Show location and surrounding lines.
+    - `-n`, `--line-numbers`: Show line numbers for matches.
+    - `-B`, `--before-context N`, `-A`, `--after-context N`, and `-C`, `--context N`: Show surrounding lines before, after, or around matches.
     - `--heading` and `--no-heading`: Control whether results are grouped under filename headers (default is on for terminals).
   - **Example:** `python multitool.py search 'teh' report.txt --keyboard --line-numbers -C 1`
 
@@ -413,7 +414,8 @@ Use these modes to analyze your data.
     - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
     - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
     - Use the `--smart` (or **`-S`**) flag to scan for subwords within compound words.
-    - Use `--line-numbers` (or **`-n`**) and `--context` (or **`-C N`**) to show location and surrounding lines.
+    - Use `--line-numbers` (or **`-n`**) to show line numbers for matches.
+    - Use `--before-context` (or **`-B N`**), `--after-context` (or **`-A N`**), and `--context` (or **`-C N`**) to show surrounding lines before, after, or around matches.
     - Control filename headers using `--heading` / `--no-heading` or `--with-filename` / `--no-filename`.
   - **Example:** `python multitool.py scan . --add teh:the --smart -n -C 1`
 

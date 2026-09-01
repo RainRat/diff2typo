@@ -526,6 +526,12 @@ def parse_arguments() -> argparse.Namespace:
         nargs='?',
         help='The path to your YAML configuration file. If you do not specify this, the tool automatically loads "cmdrunner.yaml" from your current directory if it exists.'
     )
+    config_group.add_argument(
+        '-C', '--config',
+        dest='config_flag',
+        type=str,
+        help='The path to your YAML configuration file. Overrides positional argument.'
+    )
 
     # Direct Execution / Overrides Group
     direct_group = parser.add_argument_group(f"{BLUE}CLI OVERRIDES / DIRECT OPTIONS{RESET}")
@@ -616,7 +622,7 @@ def parse_arguments() -> argparse.Namespace:
 def main() -> None:
     # Parse command-line arguments
     args = parse_arguments()
-    config_file = args.config
+    config_file = args.config_flag or args.config
 
     log_level = logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean

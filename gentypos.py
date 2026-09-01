@@ -857,15 +857,12 @@ def format_typos(
     """
     formatted = []
     if output_format == 'json':
-        import json
         return [json.dumps(typo_to_correct_word, indent=2)]
     elif output_format == 'yaml':
         if _YAML_AVAILABLE:
-            import yaml
             return [yaml.safe_dump(dict(typo_to_correct_word), default_flow_style=False)]
         else:
             logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
-            import json
             return [json.dumps(typo_to_correct_word, indent=2)]
     elif output_format in ('markdown', 'md'):
         lines = ["| Typo | Correction |", "| :--- | :--- |"]

@@ -1985,3 +1985,49 @@ def test_main_short_flags_if_exists_and_if_not_exists(tmp_path, monkeypatch):
     assert not (proj_has_log / "ran.txt").exists()
     assert (proj_pkg_only / "ran.txt").exists()
     assert (proj_pkg_only / "ran.txt").read_text() == "ok"
+
+
+def test_report_generation_yaml(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    report_file = tmp_path / "report.yaml"
+    command = "echo hello"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command, "-o", str(report_file)]
+    )
+
+    cmdrunner.main()
+
+    assert report_file.exists()
+    content = report_file.read_text(encoding="utf-8")
+    assert "folder: proj1" in content
+    assert "status: success" in content
+
+
+def test_report_generation_yaml_fallback(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    report_file = tmp_path / "report.yml"
+    command = "echo hello"
+
+    monkeypatch.setattr(cmdrunner, "_YAML_AVAILABLE", False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command, "-o", str(report_file), "-f", "yaml"]
+    )
+
+    cmdrunner.main()
+
+    assert report_file.exists()
+    data = json.loads(report_file.read_text(encoding="utf-8"))
+    assert isinstance(data, list)
+    assert data[0]["folder"] == "proj1"
+    assert data[0]["status"] == "success"

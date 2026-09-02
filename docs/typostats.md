@@ -41,7 +41,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-m`, `--min`: Only show patterns that appear at least this many times (Default: 1).
 - `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by correction).
 - `-a`, `--all`: Enable all analysis features at once. This is the default if no other analysis options are chosen.
-- `-n`, `-L`, `--limit`: Only show the top N results.
+- `-L`, `--limit`: Only show the top N results.
 - `-2`, `--allow-two-char`: Look for cases where you typed two letters instead of one (like `rn` instead of `m`) or one instead of two (like `f` instead of `ph`).
 - `--1to2`: Specifically look for cases where you typed two letters instead of one (like `rn` instead of `m`).
 - `--2to1`: Specifically look for cases where you typed one letter instead of two (like `f` instead of `ph`).
@@ -61,7 +61,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-o`, `--output`: Save the report to a file instead of showing it on the screen.
 - `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
 - `-q`, `--quiet`: Hide progress bars and status messages.
-- `--dry-run`: Preview execution settings and a sample list of found typo patterns without writing or outputting reports.
+- `-n`, `--dry-run`: Preview execution settings and a sample list of found typo patterns without writing or outputting reports.
 
 ## Understanding the Report
 

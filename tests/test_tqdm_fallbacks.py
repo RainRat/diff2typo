@@ -54,3 +54,11 @@ def test_gentypos_tqdm_fallback_activation():
             pass
 
     importlib.reload(gentypos)
+
+
+def test_diff2typo_yaml_fallback_activation():
+    with patch.dict(sys.modules, {"yaml": None}):
+        importlib.reload(diff2typo)
+        assert diff2typo._YAML_AVAILABLE is False
+
+    importlib.reload(diff2typo)

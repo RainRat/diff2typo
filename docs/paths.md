@@ -49,6 +49,12 @@ If you want to keep the slashes, dots, and original capital letters, always add 
 | `-S`, `--smart` | Split path parts by symbols and capital letters. |
 | `-R`, `--raw` | Keep the original text. This preserves capital letters and punctuation. |
 | `-P`, `--process-output` | Sort the final list and remove duplicate lines. |
+| `-m`, `--min-length` | Skip path items shorter than this character length. |
+| `-M`, `--max-length` | Skip path items longer than this character length. |
+| `-L`, `--limit` | Limit the number of extracted path items in the output. |
+| `-o`, `--output` | Save the results to this file instead of printing to the screen. |
+| `-f`, `--format` | Choose the output format (`line`, `csv`, `json`, `yaml`, `toml`, `markdown`, `md-table`, `arrow`, `table`, `xml`). Automatically detected from file extension. |
+| `-q`, `--quiet` | Hide progress bars and status summary messages. |
 
 ## Examples
 
@@ -82,4 +88,12 @@ Extract folder paths, sort them, and remove duplicates while keeping the origina
 
 ```bash
 python multitool.py paths . --dirname --process-output --raw
+```
+
+### Save unique file extensions to a CSV file
+
+Extract file extensions, remove duplicates, and save the output directly to a CSV file:
+
+```bash
+python multitool.py paths . --extension --raw --process-output -o extensions.csv
 ```

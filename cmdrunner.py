@@ -400,6 +400,8 @@ def run_command_in_folders(
             ext = os.path.splitext(output_file)[1].lower().lstrip('.')
             if ext in ['json', 'csv', 'txt']:
                 fmt = ext
+            elif ext in ['yaml', 'yml']:
+                fmt = 'yaml'
             elif ext in ['md', 'markdown']:
                 fmt = 'markdown'
             else:
@@ -409,6 +411,12 @@ def run_command_in_folders(
             with open(output_file, 'w', encoding='utf-8', newline='') as f:
                 if fmt == 'json':
                     json.dump(report_data, f, indent=2)
+                elif fmt in ['yaml', 'yml']:
+                    if _YAML_AVAILABLE:
+                        yaml.safe_dump(report_data, f, default_flow_style=False)
+                    else:
+                        logging.warning("PyYAML is not installed. Falling back to JSON for YAML report format.")
+                        json.dump(report_data, f, indent=2)
                 elif fmt == 'csv':
                     writer = csv.DictWriter(f, fieldnames=["folder", "command", "status", "return_code", "stdout", "stderr"])
                     writer.writeheader()
@@ -613,7 +621,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     output_group.add_argument(
         '-f', '--format',
-        choices=['json', 'csv', 'txt', 'markdown', 'md'],
+        choices=['json', 'csv', 'txt', 'markdown', 'md', 'yaml', 'yml'],
         help='Choose the format for the output report (default: txt).'
     )
 

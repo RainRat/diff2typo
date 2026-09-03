@@ -2052,3 +2052,83 @@ def test_report_generation_yaml_fallback(tmp_path, monkeypatch):
     assert isinstance(data, list)
     assert data[0]["folder"] == "proj1"
     assert data[0]["status"] == "success"
+
+
+def test_report_generation_html(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+    (base_dir / 'proj2').mkdir()
+
+    output_file = tmp_path / 'report.html'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "python3 -c \"import sys; print('hello-html-<tag>'); sys.stderr.write('err-html-&') if '{}' == 'proj2' else None\"",
+        output_file=str(output_file),
+        output_format='html'
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+
+    assert "<!DOCTYPE html>" in content
+    assert "<title>Cmdrunner Execution Report</title>" in content
+    assert "<h1>Cmdrunner Execution Report</h1>" in content
+    assert "<code>proj1</code>" in content
+    assert "<code>proj2</code>" in content
+    assert "<span class=\"badge badge-success\">success</span>" in content
+    assert "hello-html-&lt;tag&gt;" in content
+    assert "err-html-&amp;" in content
+
+
+def test_report_generation_html_extension_auto_detect(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.htm'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo htm-auto-detect",
+        output_file=str(output_file)
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+
+    assert "<!DOCTYPE html>" in content
+    assert "<code>proj1</code>" in content
+    assert "htm-auto-detect" in content
+
+
+def test_main_with_html_output_integration(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.html'
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'cmdrunner.py',
+            '-m',
+            str(base_dir),
+            '-c',
+            'echo html-integration',
+            '-o',
+            str(output_file),
+            '-f',
+            'html'
+        ]
+    )
+
+    cmdrunner.main()
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+    assert "<!DOCTYPE html>" in content
+    assert "html-integration" in content

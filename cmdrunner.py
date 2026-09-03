@@ -3,6 +3,7 @@ import subprocess
 import shlex
 import csv
 import json
+import html
 import time
 try:
     import yaml
@@ -404,6 +405,8 @@ def run_command_in_folders(
                 fmt = 'yaml'
             elif ext in ['md', 'markdown']:
                 fmt = 'markdown'
+            elif ext in ['html', 'htm']:
+                fmt = 'html'
             else:
                 fmt = 'txt'
 
@@ -447,6 +450,55 @@ def run_command_in_folders(
                             if not row['stderr'].endswith('\n'):
                                 f.write('\n')
                             f.write("```\n\n")
+                elif fmt in ['html', 'htm']:
+                    f.write("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
+                    f.write("<meta charset=\"UTF-8\">\n")
+                    f.write("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n")
+                    f.write("<title>Cmdrunner Execution Report</title>\n")
+                    f.write("<style>\n")
+                    f.write("body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f8f9fa; color: #212529; }\n")
+                    f.write("h1, h2, h3 { color: #343a40; }\n")
+                    f.write("table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }\n")
+                    f.write("th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #dee2e6; }\n")
+                    f.write("th { background-color: #e9ecef; }\n")
+                    f.write(".badge { display: inline-block; padding: 0.25em 0.5em; font-size: 0.85em; font-weight: 600; border-radius: 4px; border: 1px solid transparent; }\n")
+                    f.write(".badge-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }\n")
+                    f.write(".badge-failed { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }\n")
+                    f.write(".badge-timeout { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }\n")
+                    f.write(".badge-dry-run { background-color: #e2e3e5; color: #383d41; border-color: #d6d8db; }\n")
+                    f.write("pre { background: #212529; color: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9em; }\n")
+                    f.write(".detail-card { background: #fff; padding: 1.5rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }\n")
+                    f.write("</style>\n</head>\n<body>\n")
+                    f.write("<h1>Cmdrunner Execution Report</h1>\n")
+                    f.write("<table>\n<thead>\n<tr><th>Folder</th><th>Command</th><th>Status</th><th>Return Code</th></tr>\n</thead>\n<tbody>\n")
+                    for row in report_data:
+                        folder_esc = html.escape(row['folder'])
+                        cmd_esc = html.escape(row['command'])
+                        status_esc = html.escape(row['status'])
+                        badge_cls = f"badge-{status_esc}" if status_esc in ('success', 'failed', 'timeout', 'dry-run') else "badge"
+                        f.write(f"<tr><td><code>{folder_esc}</code></td><td><code>{cmd_esc}</code></td><td><span class=\"badge {badge_cls}\">{status_esc}</span></td><td><code>{row['return_code']}</code></td></tr>\n")
+                    f.write("</tbody>\n</table>\n")
+                    f.write("<h2>Execution Details</h2>\n")
+                    for row in report_data:
+                        folder_esc = html.escape(row['folder'])
+                        cmd_esc = html.escape(row['command'])
+                        status_esc = html.escape(row['status'])
+                        badge_cls = f"badge-{status_esc}" if status_esc in ('success', 'failed', 'timeout', 'dry-run') else "badge"
+                        f.write("<div class=\"detail-card\">\n")
+                        f.write(f"<h3>Folder: <code>{folder_esc}</code></h3>\n")
+                        f.write(f"<p><strong>Command:</strong> <code>{cmd_esc}</code></p>\n")
+                        f.write(f"<p><strong>Status:</strong> <span class=\"badge {badge_cls}\">{status_esc}</span></p>\n")
+                        f.write(f"<p><strong>Return Code:</strong> <code>{row['return_code']}</code></p>\n")
+                        if row['stdout'].strip():
+                            f.write("<h4>Stdout</h4>\n<pre>")
+                            f.write(html.escape(row['stdout']))
+                            f.write("</pre>\n")
+                        if row['stderr'].strip():
+                            f.write("<h4>Stderr</h4>\n<pre>")
+                            f.write(html.escape(row['stderr']))
+                            f.write("</pre>\n")
+                        f.write("</div>\n")
+                    f.write("</body>\n</html>\n")
                 else:  # txt
                     for row in report_data:
                         f.write(f"Folder: {row['folder']}\n")
@@ -621,7 +673,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     output_group.add_argument(
         '-f', '--format',
-        choices=['json', 'csv', 'txt', 'markdown', 'md', 'yaml', 'yml'],
+        choices=['json', 'csv', 'txt', 'markdown', 'md', 'yaml', 'yml', 'html', 'htm'],
         help='Choose the format for the output report (default: txt).'
     )
 

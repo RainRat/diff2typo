@@ -479,7 +479,7 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
                 lines = handle.readlines()
             used_encoding = 'latin-1'
 
-    logging.info("Loaded '%s' using %s encoding.", path, used_encoding)
+    logging.debug("Loaded '%s' using %s encoding.", path, used_encoding)
     return lines
 
 

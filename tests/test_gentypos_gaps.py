@@ -178,6 +178,32 @@ def test_stdin_no_input_file_with_output(tmp_path, monkeypatch):
     assert "-> pineapple" in output_file.read_text()
 
 
+def test_format_analysis_summary_total_input_items_none():
+    lines = gentypos._format_analysis_summary(
+        raw_count=10,
+        filtered_items=["apple", "banana"],
+        item_label="typo",
+        total_input_items=None,
+    )
+    report_str = "\n".join(lines)
+    assert "Total input words processed:" not in report_str
+    assert "Total typos generated:" in report_str
+
+
+def test_load_substitutions_yaml_non_dict_fallback(tmp_path):
+    path = tmp_path / "subs.yaml"
+    path.write_text("apple -> appple\nbanana -> bananna\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"apple": ["appple"], "banana": ["bananna"]}
+
+
+def test_load_substitutions_bracket_empty_item(tmp_path):
+    path = tmp_path / "subs.txt"
+    path.write_text("a -> [b, , c]\n")
+    result = gentypos._load_substitutions_file(str(path))
+    assert result == {"a": ["b", "c"]}
+
+
 def test_setup_generation_tools_adhoc_edge_cases():
     from types import SimpleNamespace
     settings = SimpleNamespace(

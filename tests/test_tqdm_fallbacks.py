@@ -94,3 +94,11 @@ def test_typostats_tqdm_fallback_activation(tmp_path):
         assert pairs == [("teh", "the")]
 
     importlib.reload(typostats)
+
+
+def test_diff2typo_yaml_fallback_activation():
+    with patch.dict(sys.modules, {"yaml": None}):
+        importlib.reload(diff2typo)
+        assert diff2typo._YAML_AVAILABLE is False
+
+    importlib.reload(diff2typo)

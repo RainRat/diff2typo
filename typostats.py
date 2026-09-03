@@ -1153,7 +1153,7 @@ def main() -> None:
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
     )
     io_group.add_argument('-q', '--quiet', action='store_true', help="Hide progress bars and status messages.")
-    io_group.add_argument('--dry-run', action='store_true', help="Preview execution settings and found typo patterns without writing or outputting reports.")
+    io_group.add_argument('-n', '--dry-run', action='store_true', help="Preview execution settings and found typo patterns without writing or outputting reports.")
 
     # Analysis Options Group
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
@@ -1212,7 +1212,6 @@ def main() -> None:
         help="Find cases where you hit a key next to the correct one on your keyboard (like 'p' instead of 'o').",
     )
     analysis_group.add_argument(
-        '-n',
         '-L',
         '--limit',
         type=int,

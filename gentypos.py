@@ -54,40 +54,29 @@ except ImportError:
 VERSION = "1.1.0"
 
 
-# ANSI Color Codes
-BLUE = "\033[1;34m"
-GREEN = "\033[1;32m"
-RED = "\033[1;31m"
-YELLOW = "\033[1;33m"
-RESET = "\033[0m"
-BOLD = "\033[1m"
+# ANSI Color Codes (Internal constants)
+_BLUE = "\033[1;34m"
+_GREEN = "\033[1;32m"
+_RED = "\033[1;31m"
+_YELLOW = "\033[1;33m"
+_MAGENTA = "\033[1;35m"
+_CYAN = "\033[1;36m"
+_RESET = "\033[0m"
+_BOLD = "\033[1m"
 
-# Disable colors if not running in a terminal or if NO_COLOR is set
-if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
-    BLUE = GREEN = RED = YELLOW = RESET = BOLD = ""
+# Global color constants for general use (legacy support)
+BLUE = _BLUE
+GREEN = _GREEN
+RED = _RED
+YELLOW = _YELLOW
+MAGENTA = _MAGENTA
+CYAN = _CYAN
+RESET = _RESET
+BOLD = _BOLD
 
-
-class MinimalFormatter(logging.Formatter):
-    """A logging formatter that removes prefixes for INFO level messages."""
-
-    LEVEL_COLORS = {
-        logging.WARNING: YELLOW,
-        logging.ERROR: RED,
-        logging.CRITICAL: RED,
-    }
-
-    def format(self, record: logging.LogRecord) -> str:
-        if record.levelno == logging.INFO:
-            return record.getMessage()
-
-        levelname = record.levelname
-        # Colorize the level name if stderr is a terminal and color is available
-        if sys.stderr.isatty() and levelname:
-            color = self.LEVEL_COLORS.get(record.levelno)
-            if color:
-                levelname = f"{color}{levelname}{RESET}"
-
-        return f"{levelname}: {record.getMessage()}"
+# Global color constants are initialized based on stdout.
+if (not sys.stdout.isatty() and 'FORCE_COLOR' not in os.environ) or 'NO_COLOR' in os.environ:
+    BLUE = GREEN = RED = YELLOW = MAGENTA = CYAN = RESET = BOLD = ""
 
 
 def _should_enable_color(stream: Any) -> bool:
@@ -97,6 +86,29 @@ def _should_enable_color(stream: Any) -> bool:
     if os.environ.get('FORCE_COLOR'):
         return True
     return hasattr(stream, 'isatty') and stream.isatty()
+
+
+class MinimalFormatter(logging.Formatter):
+    """A logging formatter that removes prefixes for INFO level messages."""
+
+    LEVEL_COLORS = {
+        logging.WARNING: _YELLOW,
+        logging.ERROR: _RED,
+        logging.CRITICAL: _RED,
+    }
+
+    def format(self, record: logging.LogRecord) -> str:
+        if record.levelno == logging.INFO:
+            return record.getMessage()
+
+        levelname = record.levelname
+        # Colorize the level name if stderr is a terminal and color is available
+        if _should_enable_color(sys.stderr) and levelname:
+            color = self.LEVEL_COLORS.get(record.levelno)
+            if color:
+                levelname = f"{color}{levelname}{_RESET}"
+
+        return f"{levelname}: {record.getMessage()}"
 
 
 def _render_visual_bar(percentage: float, max_bar: int = 20) -> str:
@@ -130,15 +142,6 @@ def _format_analysis_summary(
     Standardizes the "TYPO GENERATION SUMMARY" block with consistent colors and a visual retention bar.
     Returns a list of formatted lines.
     """
-    _BLUE = "\033[1;34m"
-    _GREEN = "\033[1;32m"
-    _RED = "\033[1;31m"
-    _YELLOW = "\033[1;33m"
-    _MAGENTA = "\033[1;35m"
-    _CYAN = "\033[1;36m"
-    _RESET = "\033[0m"
-    _BOLD = "\033[1m"
-
     item_label_plural = f"{item_label}s"
     c_bold = _BOLD if use_color else ""
     c_blue = _BLUE if use_color else ""
@@ -1572,9 +1575,6 @@ def main() -> None:
             sys.stderr.write("\n".join(summary))
 
             dest_label = "the screen" if output_target == "-" else f"'{output_target}'"
-            _BLUE = "\033[1;34m"
-            _RESET = "\033[0m"
-            _BOLD = "\033[1m"
             c_blue = (_BOLD + _BLUE) if use_color else ""
             c_reset = _RESET if use_color else ""
             logging.info(f"{c_blue}[gentypos]{c_reset} Wrote {len(formatted_typos)} line(s) to {dest_label}.\n")

@@ -3,6 +3,7 @@ import pytest
 from multitool import main
 import sys
 from io import StringIO
+from unittest.mock import patch
 
 def test_orphans_mode_files(tmp_path):
     # Setup:
@@ -23,18 +24,14 @@ def test_orphans_mode_files(tmp_path):
     image.write_text("image content")
     unused.write_text("unused content")
 
-    # Run orphans mode on all files
-    sys.argv = ["multitool.py", "orphans", str(file1), str(file2), str(file3), str(image), str(unused), "--output-format", "json"]
+    args = ["multitool.py", "orphans", str(file1), str(file2), str(file3), str(image), str(unused), "--output-format", "json"]
 
     output = StringIO()
-    sys.stdout = output
-
-    try:
-        main()
-    except SystemExit:
-        pass
-    finally:
-        sys.stdout = sys.__stdout__
+    with patch("sys.argv", args), patch("sys.stdout", output):
+        try:
+            main()
+        except SystemExit:
+            pass
 
     import json
     result = json.loads(output.getvalue())
@@ -57,17 +54,14 @@ def test_orphans_mode_labels(tmp_path):
     md_file = tmp_path / "file.md"
     md_file.write_text("[text][label1]\n\n[label1]: http://example.com\n[label2]: http://unused.com")
 
-    sys.argv = ["multitool.py", "orphans", str(md_file), "--output-format", "json"]
+    args = ["multitool.py", "orphans", str(md_file), "--output-format", "json"]
 
     output = StringIO()
-    sys.stdout = output
-
-    try:
-        main()
-    except SystemExit:
-        pass
-    finally:
-        sys.stdout = sys.__stdout__
+    with patch("sys.argv", args), patch("sys.stdout", output):
+        try:
+            main()
+        except SystemExit:
+            pass
 
     import json
     result = json.loads(output.getvalue())
@@ -85,17 +79,14 @@ def test_orphans_mode_shortcut_labels(tmp_path):
     md_file = tmp_path / "file.md"
     md_file.write_text("Check [label1] for more info.\n\n[label1]: http://example.com\n[label2]: http://unused.com")
 
-    sys.argv = ["multitool.py", "orphans", str(md_file), "--output-format", "json"]
+    args = ["multitool.py", "orphans", str(md_file), "--output-format", "json"]
 
     output = StringIO()
-    sys.stdout = output
-
-    try:
-        main()
-    except SystemExit:
-        pass
-    finally:
-        sys.stdout = sys.__stdout__
+    with patch("sys.argv", args), patch("sys.stdout", output):
+        try:
+            main()
+        except SystemExit:
+            pass
 
     import json
     result = json.loads(output.getvalue())
@@ -114,20 +105,36 @@ def test_orphans_mode_images_ref_style(tmp_path):
 
     md_file.write_text("![alt][imglabel]\n\n[imglabel]: img.png")
 
-    sys.argv = ["multitool.py", "orphans", str(md_file), str(img_file), "--output-format", "json"]
+    args = ["multitool.py", "orphans", str(md_file), str(img_file), "--output-format", "json"]
 
     output = StringIO()
-    sys.stdout = output
-
-    try:
-        main()
-    except SystemExit:
-        pass
-    finally:
-        sys.stdout = sys.__stdout__
+    with patch("sys.argv", args), patch("sys.stdout", output):
+        try:
+            main()
+        except SystemExit:
+            pass
 
     import json
     result = json.loads(output.getvalue())
 
     assert str(img_file) not in result
     assert f"{str(md_file)} (label: imglabel)" not in result
+
+def test_orphans_mode_arrow_format_and_limit(tmp_path):
+    file1 = tmp_path / "file1.md"
+    file2 = tmp_path / "file2.md"
+    file1.write_text("No references here")
+    file2.write_text("Also no references")
+
+    args = ["multitool.py", "orphans", str(file1), str(file2), "-f", "arrow", "--limit", "1"]
+
+    output = StringIO()
+    with patch("sys.argv", args), patch("sys.stdout", output):
+        try:
+            main()
+        except SystemExit:
+            pass
+
+    val = output.getvalue()
+    assert "ORPHANS ANALYSIS" in val
+    assert "Unreferenced file" in val

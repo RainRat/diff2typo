@@ -21,7 +21,7 @@ python cmdrunner.py config.yaml
 
 **Direct execution using command-line arguments:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status"
+python cmdrunner.py -m /home/user/projects -c "git status"
 ```
 
 **Automatic Fallback:**
@@ -71,7 +71,7 @@ jobs: 4
 
 ## Options
 
-- `CONFIG_PATH`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
+- `CONFIG_PATH`, `-C`, `--config`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
 - `-m`, `--main-folder`: The main folder containing your projects. This overrides the configuration file.
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
 - `-c`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
@@ -111,12 +111,12 @@ In this example, if the tool processes a folder named `my-web-app`, it will run 
 
 **Run a command across your projects directly without a config file:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status"
+python cmdrunner.py -m /home/user/projects -c "git status"
 ```
 
 **Override configuration file settings from the command line:**
 ```bash
-python cmdrunner.py config.yaml --command-to-run "git pull"
+python cmdrunner.py config.yaml -c "git pull"
 ```
 
 **Test your configuration without running commands:**

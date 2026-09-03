@@ -1931,6 +1931,27 @@ def test_run_command_failed_with_stderr_and_stdout(tmp_path, caplog):
     assert any("Stdout:\nout_msg" in msg for msg in caplog.messages)
 
 
+def test_main_config_flag_alias(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    command = "python3 -c \"open('config_flag_test.txt','w').write('config_flag_ok')\""
+    config_data = {
+        'main_folder': str(base_dir),
+        'command_to_run': command,
+    }
+    config_file = tmp_path / 'custom_config.yaml'
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-C', str(config_file)])
+
+    cmdrunner.main()
+
+    assert (base_dir / 'proj1' / 'config_flag_test.txt').exists()
+    assert (base_dir / 'proj1' / 'config_flag_test.txt').read_text() == 'config_flag_ok'
+
+
 def test_main_short_flags_dry_run_and_timeout(tmp_path, monkeypatch, caplog):
     base_dir = tmp_path / "projects"
     base_dir.mkdir()

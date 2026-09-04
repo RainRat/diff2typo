@@ -398,7 +398,7 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                 try:
                     with open(path, 'r', encoding='utf-8') as f:
                         data = yaml.safe_load(f)
-                except Exception:
+                except (yaml.YAMLError, UnicodeDecodeError, OSError):
                     pass
 
             if isinstance(data, dict):

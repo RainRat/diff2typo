@@ -74,7 +74,7 @@ jobs: 4
 - `CONFIG_PATH`, `-C`, `--config`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
 - `-m`, `--main-folder`: The main folder containing your projects. This overrides the configuration file.
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
-- `-c`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
+- `-c`, `--command`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
 - `-e`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
 - `-i`, `--included-folders`: A list of folders you want to run the command on. This overrides the configuration file.
 - `-n`, `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
@@ -131,32 +131,32 @@ python cmdrunner.py config.yaml --quiet
 
 **Only run commands in projects containing a `package.json` file:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm run build" --if-exists package.json
+python cmdrunner.py --main-folder /home/user/projects --command "npm run build" --if-exists package.json
 ```
 
 **Only run commands in projects that do NOT contain a `setup.log` file:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "bash setup.sh && touch setup.log" --if-not-exists setup.log
+python cmdrunner.py --main-folder /home/user/projects --command "bash setup.sh && touch setup.log" --if-not-exists setup.log
 ```
 
 **Only run commands in specific folders:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm run build" --included-folders proj1 proj2
+python cmdrunner.py --main-folder /home/user/projects --command "npm run build" --included-folders proj1 proj2
 ```
 
 **Run commands concurrently across multiple projects:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "npm test" -j 4
+python cmdrunner.py --main-folder /home/user/projects --command "npm test" -j 4
 ```
 
 **Save an execution report in Markdown format:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status" -o report.md
+python cmdrunner.py --main-folder /home/user/projects --command "git status" -o report.md
 ```
 
 **Save an execution report in YAML format:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status" -o report.yaml
+python cmdrunner.py --main-folder /home/user/projects --command "git status" -o report.yaml
 ```
 
 **Save an execution report in HTML format:**

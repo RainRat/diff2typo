@@ -161,5 +161,5 @@ python cmdrunner.py --main-folder /home/user/projects --command "git status" -o 
 
 **Save an execution report in HTML format:**
 ```bash
-python cmdrunner.py --main-folder /home/user/projects --command-to-run "git status" -o report.html
+python cmdrunner.py --main-folder /home/user/projects --command "git status" -o report.html
 ```

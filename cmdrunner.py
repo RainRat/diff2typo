@@ -475,20 +475,22 @@ def run_command_in_folders(
                         folder_esc = html.escape(row['folder'])
                         cmd_esc = html.escape(row['command'])
                         status_esc = html.escape(row['status'])
+                        return_code_esc = html.escape(str(row['return_code']))
                         badge_cls = f"badge-{status_esc}" if status_esc in ('success', 'failed', 'timeout', 'dry-run') else "badge"
-                        f.write(f"<tr><td><code>{folder_esc}</code></td><td><code>{cmd_esc}</code></td><td><span class=\"badge {badge_cls}\">{status_esc}</span></td><td><code>{row['return_code']}</code></td></tr>\n")
+                        f.write(f"<tr><td><code>{folder_esc}</code></td><td><code>{cmd_esc}</code></td><td><span class=\"badge {badge_cls}\">{status_esc}</span></td><td><code>{return_code_esc}</code></td></tr>\n")
                     f.write("</tbody>\n</table>\n")
                     f.write("<h2>Execution Details</h2>\n")
                     for row in report_data:
                         folder_esc = html.escape(row['folder'])
                         cmd_esc = html.escape(row['command'])
                         status_esc = html.escape(row['status'])
+                        return_code_esc = html.escape(str(row['return_code']))
                         badge_cls = f"badge-{status_esc}" if status_esc in ('success', 'failed', 'timeout', 'dry-run') else "badge"
                         f.write("<div class=\"detail-card\">\n")
                         f.write(f"<h3>Folder: <code>{folder_esc}</code></h3>\n")
                         f.write(f"<p><strong>Command:</strong> <code>{cmd_esc}</code></p>\n")
                         f.write(f"<p><strong>Status:</strong> <span class=\"badge {badge_cls}\">{status_esc}</span></p>\n")
-                        f.write(f"<p><strong>Return Code:</strong> <code>{row['return_code']}</code></p>\n")
+                        f.write(f"<p><strong>Return Code:</strong> <code>{return_code_esc}</code></p>\n")
                         if row['stdout'].strip():
                             f.write("<h4>Stdout</h4>\n<pre>")
                             f.write(html.escape(row['stdout']))

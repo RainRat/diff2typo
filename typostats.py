@@ -1022,42 +1022,18 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             lines.append(f"| {typo_char} | {correct_char} | {count} |")
         report_content = "\n".join(lines)
-    elif output_format in ('yaml', 'yml'):
-        adjacent_map = {}
-        if keyboard:
-            adjacent_map = get_adjacent_keys(include_diagonals=True)
-
-        replacements = []
-        for (correct_char, typo_char), count in sorted_replacements:
-            item = {
-                "typo": typo_char,
-                "correct": correct_char,
-                "count": count,
-            }
-            if keyboard:
-                is_adjacent = False
-                if len(correct_char) == 1 and len(typo_char) == 1:
-                    if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                        is_adjacent = True
-                item["is_adjacent"] = is_adjacent
-            replacements.append(item)
-
-        if _YAML_AVAILABLE:
-            report_content = yaml.safe_dump({"replacements": replacements}, default_flow_style=False)
-        else:
-            logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
-            report_content = json.dumps({"replacements": replacements}, indent=2)
     else:
-        # Fallback grouping
+        # YAML format for custom_substitutions in gentypos.yaml (handles 'yaml', 'yml', and fallback)
         grouping = defaultdict(set)
         for (correct_char, typo_char), count in sorted_replacements:
             grouping[correct_char].add(typo_char)
 
         lines = []
         for correct_char in sorted(grouping.keys()):
-            lines.append(f"  {correct_char}:")
+            k = correct_char if re.match(r'^[A-Za-z0-9_-]+$', correct_char) else json.dumps(correct_char)
+            lines.append(f"  {k}:")
             for t_char in sorted(grouping[correct_char]):
-                lines.append(f'  - "{t_char}"')
+                lines.append(f'  - {json.dumps(t_char)}')
         report_content = "\n".join(lines)
 
     if output_file:

@@ -136,7 +136,7 @@ def test_generate_report_formats(capsys, tmp_path):
     typostats.generate_report(counts, output_format='csv')
     assert "typo,correction,count" in capsys.readouterr().out
     typostats.generate_report(counts, output_format='yaml')
-    assert "replacements:" in capsys.readouterr().out
+    assert "  s:" in capsys.readouterr().out
     typostats.generate_report(counts, output_format='table')
     out_table = capsys.readouterr().out
     assert 'z = "s"' in out_table
@@ -691,33 +691,35 @@ def test_extract_pairs_csv_error(tmp_path):
 
 def test_generate_report_yaml_export(capsys, tmp_path):
     counts = {('s', 'z'): 3, ('e', 'a'): 1}
-    mock_yaml = MagicMock()
-    mock_yaml.safe_dump.return_value = "replacements:\n- typo: z\n  correct: s\n  count: 3\n  is_adjacent: true\n"
-
-    # Test yaml format with PyYAML available
-    with patch('typostats._YAML_AVAILABLE', True), patch('typostats.yaml', mock_yaml):
-        typostats.generate_report(counts, output_format='yaml', keyboard=True)
-        out = capsys.readouterr().out
-        assert "replacements:" in out
-        assert "typo: z" in out
-        assert "correct: s" in out
-        assert "count: 3" in out
-        assert "is_adjacent:" in out
+    # Test yaml format generates mapping compatible with custom_substitutions in gentypos.yaml
+    typostats.generate_report(counts, output_format='yaml')
+    out = capsys.readouterr().out
+    assert "  s:" in out
+    assert '  - "z"' in out
+    assert "  e:" in out
+    assert '  - "a"' in out
 
     # Test yml format extension
-    with patch('typostats._YAML_AVAILABLE', True), patch('typostats.yaml', mock_yaml):
-        typostats.generate_report(counts, output_format='yml')
-        out = capsys.readouterr().out
-        assert "replacements:" in out
-        assert "typo: z" in out
+    typostats.generate_report(counts, output_format='yml')
+    out = capsys.readouterr().out
+    assert "  s:" in out
+    assert '  - "z"' in out
+    assert "  e:" in out
+    assert '  - "a"' in out
 
-    # Test fallback to JSON when PyYAML is unavailable (yaml module is None)
-    with patch('typostats._YAML_AVAILABLE', False), patch('typostats.yaml', None), patch('logging.warning') as mock_warn:
-        typostats.generate_report(counts, output_format='yaml')
-        out = capsys.readouterr().out
-        data = json.loads(out)
-        assert "replacements" in data
-        mock_warn.assert_called_with("PyYAML not installed. Falling back to JSON for YAML output format.")
+    if typostats._YAML_AVAILABLE and typostats.yaml:
+        import yaml
+        parsed = yaml.safe_load(out)
+        assert parsed == {'e': ['a'], 's': ['z']}
+
+
+def test_yaml_output_compatible_with_gentypos(tmp_path):
+    import gentypos
+    counts = {('s', 'z'): 3, ('e', 'a'): 1}
+    yaml_file = tmp_path / "subs.yaml"
+    typostats.generate_report(counts, output_file=str(yaml_file), output_format='yaml')
+    loaded = gentypos._load_substitutions_file(str(yaml_file))
+    assert loaded == {'e': ['a'], 's': ['z']}
 
 
 def test_generate_report_with_file_output(tmp_path):

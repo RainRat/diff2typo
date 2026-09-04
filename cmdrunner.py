@@ -554,7 +554,7 @@ def parse_arguments() -> argparse.Namespace:
         help='Legacy name for the main folder. This overrides the configuration file.'
     )
     direct_group.add_argument(
-        '-c', '--command-to-run',
+        '-c', '--command', '--command-to-run',
         dest='command_to_run',
         type=str,
         help='The command you want to run in each folder. This overrides the configuration file.'

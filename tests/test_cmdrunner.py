@@ -541,6 +541,23 @@ def test_cli_only_execution(tmp_path, monkeypatch):
     assert not (excluded / 'cli_test.txt').exists()
 
 
+def test_cli_command_alias_option(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj = base_dir / 'proj1'
+    proj.mkdir()
+
+    command = "python3 -c \"from pathlib import Path; Path('alias_test.txt').write_text('alias_ok')\""
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-m', str(base_dir), '--command', command])
+
+    cmdrunner.main()
+
+    assert (proj / 'alias_test.txt').exists()
+    assert (proj / 'alias_test.txt').read_text() == 'alias_ok'
+
+
 def test_cli_overrides_config(tmp_path, monkeypatch):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

@@ -567,6 +567,8 @@ def parse_arguments() -> argparse.Namespace:
 
 {BLUE}Examples:{RESET}
   {GREEN}python cmdrunner.py config.yaml{RESET}
+  {GREEN}python cmdrunner.py -m /home/user/projects -c "git status"{RESET}
+  {GREEN}python cmdrunner.py -m /home/user/projects -c "npm test" -j 4{RESET}
   {GREEN}python cmdrunner.py my_setup.yaml --dry-run{RESET}
 """,
     )

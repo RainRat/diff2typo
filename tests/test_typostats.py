@@ -1292,3 +1292,20 @@ def test_main_line_counting_oserror_branch(tmp_path):
     with patch("builtins.open", side_effect=mock_open_func), \
          patch("sys.argv", ["typostats.py", str(input_file), "--quiet"]):
         typostats.main()
+
+
+def test_min_count_cli_aliases(tmp_path):
+    f = tmp_path / "typos.txt"
+    f.write_text("teh -> the\nteh -> the\nrecived -> received\n")
+
+    # Test short flag alias -c
+    with patch("sys.argv", ["typostats.py", str(f), "-c", "2", "-q"]), \
+         patch("typostats.generate_report") as mock_report:
+        typostats.main()
+        assert mock_report.call_args[1]["min_occurrences"] == 2
+
+    # Test long flag alias --min-count
+    with patch("sys.argv", ["typostats.py", str(f), "--min-count", "2", "-q"]), \
+         patch("typostats.generate_report") as mock_report:
+        typostats.main()
+        assert mock_report.call_args[1]["min_occurrences"] == 2

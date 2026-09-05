@@ -1133,7 +1133,7 @@ def main() -> None:
 
     # Analysis Options Group
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
-    analysis_group.add_argument('-m', '--min', type=int, default=1, help="Only show patterns that happen at least this many times.")
+    analysis_group.add_argument('-c', '-m', '--min', '--min-count', dest='min', type=int, default=1, help="Only show patterns that happen at least this many times.")
     analysis_group.add_argument(
         '-s', '--sort',
         choices=['count', 'typo', 'correct'],

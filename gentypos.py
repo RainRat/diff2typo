@@ -752,7 +752,7 @@ def _resolve_input_sources(input_files: Sequence[str]) -> list[str]:
         '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
         '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
     }
-    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.log', '.lst'}
+    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.log', '.lst', '.toml', '.table'}
 
     for path in input_files:
         if path == '-':
@@ -971,21 +971,28 @@ def _setup_generation_tools(
     # Start with substitutions from config
     custom_subs_raw = copy.deepcopy(getattr(settings, 'custom_substitutions_config', {}))
 
-    # Merge substitutions from file if provided
+    # Merge substitutions from file(s) if provided
     substitutions_file = getattr(settings, 'substitutions_file', None)
     if substitutions_file:
-        file_subs = _load_substitutions_file(substitutions_file)
-        for k, v in file_subs.items():
-            if k in custom_subs_raw:
-                existing = custom_subs_raw[k]
-                if existing is None:
-                    custom_subs_raw[k] = v
-                elif isinstance(existing, list):
-                    existing.extend(v)
+        if isinstance(substitutions_file, (str, bytes)):
+            sub_paths = [substitutions_file]
+        else:
+            sub_paths = list(substitutions_file)
+
+        resolved_sub_files = _resolve_input_sources(sub_paths)
+        for sub_file in resolved_sub_files:
+            file_subs = _load_substitutions_file(sub_file)
+            for k, v in file_subs.items():
+                if k in custom_subs_raw:
+                    existing = custom_subs_raw[k]
+                    if existing is None:
+                        custom_subs_raw[k] = v
+                    elif isinstance(existing, list):
+                        existing.extend(v)
+                    else:
+                        custom_subs_raw[k] = [existing] + v
                 else:
-                    custom_subs_raw[k] = [existing] + v
-            else:
-                custom_subs_raw[k] = v
+                    custom_subs_raw[k] = v
 
     # Merge substitutions from --add / -a if provided
     ad_hoc_pairs = getattr(settings, 'ad_hoc', None)
@@ -1193,8 +1200,8 @@ def main() -> None:
     )
     io_group.add_argument(
         '-s', '--substitutions',
-        type=str,
-        help="A file containing your own typo patterns (JSON, CSV, or YAML). This is useful for using your personal typo history from 'typostats.py'.",
+        nargs='+',
+        help="One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, or plain text). Useful for using personal typo history from 'typostats.py'.",
     )
     io_group.add_argument(
         '-i', '--input',

@@ -38,7 +38,7 @@ The tool automatically recognizes several common ways of listing typos:
 ## Options
 
 ### Analysis Options
-- `-m`, `--min`: Only show patterns that appear at least this many times (Default: 1).
+- `-c`, `-m`, `--min`, `--min-count`: Only show patterns that appear at least this many times (Default: 1).
 - `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by correction).
 - `-a`, `--all`: Enable all analysis features at once. This is the default if no other analysis options are chosen.
 - `-L`, `--limit`: Only show the top N results.

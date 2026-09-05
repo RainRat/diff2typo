@@ -1009,18 +1009,16 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                             repls = data['replacements']
                             if isinstance(repls, list):
                                 for item in repls:
-                                    if isinstance(item, dict) and 'typo' in item:
-                                        correct = item.get('correct', item.get('correction'))
-                                        if correct is not None:
-                                            yield str(item['typo']), str(correct)
+                                    typo, correct = _get_typo_correction(item)
+                                    if typo is not None:
+                                        yield typo, correct
                             elif isinstance(repls, dict):
                                 for k, v in repls.items():
                                     if isinstance(v, list):
                                         for item in v:
-                                            if isinstance(item, dict) and 'typo' in item:
-                                                correct = item.get('correct', item.get('correction'))
-                                                if correct is not None:
-                                                    yield str(item['typo']), str(correct)
+                                            typo, correct = _get_typo_correction(item)
+                                            if typo is not None:
+                                                yield typo, correct
                                     elif not isinstance(v, dict):
                                         yield str(k), str(v)
                         else:

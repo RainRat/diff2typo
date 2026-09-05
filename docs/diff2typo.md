@@ -51,8 +51,8 @@ If you run the tool without specifying any input files or piping any changes, it
 | Argument | Default | Description |
 | :--- | :--- | :--- |
 | `FILE` | standard input | One or more input Git diff files, directories, or glob patterns. Use `-` to read from standard input. |
-| `--git`, `-g` | None | Fetch diff directly from Git. Optional arguments are passed to `git diff` (for example, `-g "HEAD~3"`). |
-| `--git-log`, `-l` | None | Fetch commit history diffs directly from Git. Optional arguments are passed to `git log` (for example, `-l "HEAD~3"`). |
+| `--git`, `-g` | None | Fetch diff directly from Git. If passed without arguments, it fetches current unstaged changes (`git diff`). Optional arguments are passed to `git diff` (for example, `-g "HEAD~3"`). |
+| `--git-log`, `-l` | None | Fetch commit history diffs directly from Git. If passed without arguments, it fetches recent commit history (`git log -p`). Optional arguments are passed to `git log` (for example, `-l "HEAD~3"`). |
 | `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` (typo = "fix"), `list` (typo only), `json`, `yaml`, `markdown`, or `md`. Automatically detected from file extension (`.json`, `.yaml`, `.yml`, `.md`, `.markdown`). |
 | `--mode`, `-M` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |

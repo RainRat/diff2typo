@@ -2149,3 +2149,23 @@ def test_main_with_html_output_integration(tmp_path, monkeypatch):
     content = output_file.read_text(encoding='utf-8')
     assert "<!DOCTYPE html>" in content
     assert "html-integration" in content
+
+
+def test_main_direct_cli_without_config_file(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    (base_dir / "proj1").mkdir()
+
+    monkeypatch.chdir(tmp_path)
+    command = "python3 -c \"from pathlib import Path; Path('no_config.txt').write_text('ok')\""
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command]
+    )
+
+    cmdrunner.main()
+
+    assert (base_dir / "proj1" / "no_config.txt").exists()
+    assert (base_dir / "proj1" / "no_config.txt").read_text() == "ok"

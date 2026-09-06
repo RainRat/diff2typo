@@ -29,6 +29,15 @@ except ImportError:  # pragma: no cover - optional dependency
     _CHARDET_AVAILABLE = False
 
 try:
+    import tomllib
+    _TOMLLIB_AVAILABLE = True
+except ImportError:
+    _TOMLLIB_AVAILABLE = False
+
+import importlib.util
+_TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
+
+try:
     import yaml
     _YAML_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dependency
@@ -549,6 +558,60 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                                     yield str(k), str(v)
             except Exception as e:
                 logging.error(f"Failed to parse YAML in '{input_file}': {e}")
+            continue
+
+        if ext.endswith('.toml'):
+            if not _TOMLLIB_AVAILABLE and not _TOML_AVAILABLE:
+                logging.error("TOML support requires Python 3.11+ or the 'toml' package.")
+                continue
+            content = "".join(_read_file_lines_robust(input_file))
+            if content.strip():
+                try:
+                    if _TOMLLIB_AVAILABLE:
+                        data = tomllib.loads(content)
+                    else:
+                        import toml
+                        data = toml.loads(content)
+
+                    def _traverse_toml_data(d: Any) -> Iterable[Tuple[str, str]]:
+                        if isinstance(d, dict):
+                            if 'replacements' in d:
+                                repls = d['replacements']
+                                if isinstance(repls, list):
+                                    for item in repls:
+                                        typo, correct = _get_typo_correction(item)
+                                        if typo is not None:
+                                            yield typo, correct
+                                elif isinstance(repls, dict):
+                                    for k, v in repls.items():
+                                        if isinstance(v, list):
+                                            for item in v:
+                                                typo, correct = _get_typo_correction(item)
+                                                if typo is not None:
+                                                    yield typo, correct
+                                        elif not isinstance(v, dict):
+                                            yield str(k), str(v)
+                            for k, v in d.items():
+                                if k == 'replacements':
+                                    continue
+                                if isinstance(v, dict):
+                                    yield from _traverse_toml_data(v)
+                                elif isinstance(v, list):
+                                    for item in v:
+                                        typo, correct = _get_typo_correction(item)
+                                        if typo is not None:
+                                            yield typo, correct
+                                elif not isinstance(v, (dict, list)):
+                                    yield str(k), str(v)
+                        elif isinstance(d, list):
+                            for item in d:
+                                typo, correct = _get_typo_correction(item)
+                                if typo is not None:
+                                    yield typo, correct
+
+                    yield from _traverse_toml_data(data)
+                except Exception as e:
+                    logging.error(f"Failed to parse TOML in '{input_file}': {e}")
             continue
 
         # Text formats
@@ -1082,7 +1145,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=f"{BOLD}Find common patterns in your typos. This tool analyzes typo corrections and tells you which keys you hit by mistake most often.{RESET}\n\n"
                     f"It supports multiple input formats including standard typo lists (arrow, table, colon, CSV),\n"
-                    f"JSON/YAML mapping files, and Markdown lists or tables.",
+                    f"JSON/YAML/TOML mapping files, and Markdown lists or tables.",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python typostats.py typos.txt -t{RESET}          # Find swapped letters (like 'teh' -> 'the')
@@ -1103,7 +1166,7 @@ def main() -> None:
     io_group.add_argument(
         'input_files',
         nargs='*',
-        help="One or more files containing typo corrections (txt, csv, json, yaml, md). If empty, it reads from standard input.",
+        help="One or more files containing typo corrections (txt, csv, json, yaml, toml, md). If empty, it reads from standard input.",
     )
     io_group.add_argument(
         '-i', '--input',
@@ -1252,7 +1315,7 @@ def main() -> None:
         '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
         '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
     }
-    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md'}
+    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.toml'}
 
     for file_path in input_files:
         if file_path == '-':

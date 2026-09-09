@@ -961,7 +961,7 @@ def main():
         help="One or more file patterns (e.g., '*.md', 'src/*') to include in typo scanning (all files are scanned by default).",
     )
     analysis_group.add_argument(
-        '-M', '--mode',
+        '-m', '-M', '--mode',
         type=str,
         choices=['typos', 'corrections', 'both', 'audit'],
         default='typos',
@@ -975,7 +975,6 @@ def main():
     )
     analysis_group.add_argument(
         '--min-length',
-        '-m',
         dest='min_length',
         type=int,
         default=2,

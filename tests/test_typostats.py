@@ -1292,3 +1292,11 @@ def test_main_line_counting_oserror_branch(tmp_path):
     with patch("builtins.open", side_effect=mock_open_func), \
          patch("sys.argv", ["typostats.py", str(input_file), "--quiet"]):
         typostats.main()
+
+
+def test_typostats_epilog_example_flags(capsys):
+    with patch("sys.argv", ["typostats.py", "--help"]):
+        with pytest.raises(SystemExit):
+            typostats.main()
+    captured = capsys.readouterr()
+    assert "-k -L 20" in captured.out

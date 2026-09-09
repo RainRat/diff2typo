@@ -1087,7 +1087,7 @@ def main() -> None:
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python typostats.py typos.txt -t{RESET}          # Find swapped letters (like 'teh' -> 'the')
   {GREEN}python typostats.py typos.txt --1to2 --2to1{RESET}  # Find multi-letter mistakes (like 'rn' -> 'm')
-  {GREEN}python typostats.py typos.txt -k -n 20{RESET}       # Find top 20 nearby key errors
+  {GREEN}python typostats.py typos.txt -k -L 20{RESET}       # Find top 20 nearby key errors
   {GREEN}python typostats.py typos.txt -a{RESET}             # Run all analysis modes at once
 """,
     )

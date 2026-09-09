@@ -66,8 +66,8 @@ Use these modes to pull specific data from a file.
   - **Example:** `python multitool.py csv data.csv --column 1  # Get the second column`
 
 - **`markdown`**
-  - Extracts Markdown list items (lines starting with `-`, `*`, or `+`). You can split items by `:` or `->` to get one side of a pair (use the `--right` flag for the second part).
-  - **Example:** `python multitool.py markdown notes.md --right`
+  - Extracts Markdown list items (lines starting with `-`, `*`, or `+`). You can split items by `:` or `->` to get one side of a pair (use the `--right` flag for the second part, or `-p` / `--pairs` to extract both sides).
+  - **Example:** `python multitool.py markdown notes.md -p --output-format csv`
 
 - **`frontmatter`**
   - Extracts YAML frontmatter from Markdown files (text between '---' delimiters at the start of the file). Use dots for nested keys (like 'metadata.tags'). If you don't provide a key, it gets items from the top level.

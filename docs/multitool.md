@@ -192,10 +192,10 @@ Use these modes to transform or combine your data.
   - **Options:**
     - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
     - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs (for example, `--add old_name:new_name`) directly on the command line.
-    - Supports `--in-place` (or **`-I`**) renaming and `--dry-run` preview.
+    - Supports `--in-place` (or **`-I`**) renaming and `--dry-run` (or **`-n`**) preview.
     - Use the `--smart-case` (or **`-S`**) flag to match the casing of the original filename.
     - Use the `--regex` (or **`-r`**) flag to treat patterns as regular expressions. This supports capturing groups and backreferences (for example, `\1`).
-  - **Example:** `python multitool.py rename . --regex --add 'test_(.*)\.py:spec_\1.py' --dry-run`
+  - **Example:** `python multitool.py rename . --regex --add 'test_(.*)\.py:spec_\1.py' -n`
 
 - **`diff`**
   - Shows differences between two files, including added, removed, and changed items.
@@ -250,7 +250,7 @@ Use these modes to transform or combine your data.
     - Use the `--regex` (or **`-r`**) flag to treat the pattern as a regular expression.
     - Use the `--ignore-case` (or **`-c`**) flag for case-insensitive matching.
     - Use the `--smart-case` (or **`-S`**) flag to automatically match the original casing pattern (for example, `Teh` -> `The`).
-    - Supports `--in-place` (or **`-I`**), `--dry-run`, and `--diff` (or **`-D`**) flags.
+    - Supports `--in-place` (or **`-I`**), `--dry-run` (or **`-n`**), and `--diff` (or **`-D`**) flags.
   - **Example:** `python multitool.py replace 'old-tag' 'new-tag' . --smart-case --in-place`
 
 - **`set_operation`**
@@ -281,13 +281,13 @@ Use these modes to transform or combine your data.
   - **Options:**
     - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
     - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
-    - Supports `--in-place` (or **`-I`**), `--dry-run`, `--diff` (or **`-D`**), and `--smart-case` (or **`-S`**).
+    - Supports `--in-place` (or **`-I`**), `--dry-run` (or **`-n`**), `--diff` (or **`-D`**), and `--smart-case` (or **`-S`**).
   - **Example:** `python multitool.py scrub input.txt --add teh:the --diff`
 
 - **`standardize`**
   - Fixes inconsistent casing or spelling project-wide by using the most frequent form.
   - **Options:**
-    - Supports `--in-place`, `--dry-run`, and `--diff`.
+    - Supports `--in-place` (or **`-I`**), `--dry-run` (or **`-n`**), and `--diff` (or **`-D`**).
     - Use `--fuzzy` to set the maximum character distance for matching.
     - Use `--keyboard` or `--transposition` to filter for likely typing errors.
     - Use `--threshold` to set the minimum frequency ratio to consider a rare word a typo (default: 10.0).

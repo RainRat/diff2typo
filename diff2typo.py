@@ -428,6 +428,20 @@ def _match_pattern(filepath: str, patterns: Optional[List[str]]) -> bool:
     return False
 
 
+def _is_file_excluded(
+    filepath: Optional[str],
+    exclude_patterns: Optional[List[str]] = None,
+    include_patterns: Optional[List[str]] = None,
+) -> bool:
+    if not filepath:
+        return False
+    if _match_pattern(filepath, exclude_patterns):
+        return True
+    if include_patterns and not _match_pattern(filepath, include_patterns):
+        return True
+    return False
+
+
 def find_typos(
     diff_text: str,
     min_length: int = 2,
@@ -476,7 +490,7 @@ def find_typos(
                 if current_file.startswith('"') and current_file.endswith('"'):
                     current_file = current_file[1:-1]
             if current_file:
-                if _match_pattern(current_file, exclude_patterns) or (include_patterns and not _match_pattern(current_file, include_patterns)):
+                if _is_file_excluded(current_file, exclude_patterns, include_patterns):
                     skip_current_file = True
             continue
 
@@ -492,7 +506,7 @@ def find_typos(
             if path.startswith('"') and path.endswith('"'):
                 path = path[1:-1]
             additions.append(path)
-            if not (skip_current_file or _match_pattern(path, exclude_patterns) or (include_patterns and not _match_pattern(path, include_patterns))):
+            if not (skip_current_file or _is_file_excluded(path, exclude_patterns, include_patterns)):
                 typos.extend(process_diff_block(removals, additions, min_length, max_dist))
             removals = []
             additions = []
@@ -509,7 +523,7 @@ def find_typos(
                     typos.extend(process_diff_block(removals, additions, min_length, max_dist))
                 removals = []
                 additions = []
-                skip_current_file = _match_pattern(current_file, exclude_patterns) or (include_patterns and not _match_pattern(current_file, include_patterns))
+                skip_current_file = _is_file_excluded(current_file, exclude_patterns, include_patterns)
             continue
 
         if skip_current_file:

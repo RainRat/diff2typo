@@ -1194,7 +1194,7 @@ def main() -> None:
     io_group.add_argument(
         '-s', '--substitutions',
         type=str,
-        help="A file containing your own typo patterns (JSON, CSV, or YAML). This is useful for using your personal typo history from 'typostats.py'.",
+        help="A file containing your own typo patterns (JSON, CSV, YAML, TOML, or text). This is useful for using your personal typo history from 'typostats.py'.",
     )
     io_group.add_argument(
         '-i', '--input',

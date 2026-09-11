@@ -72,7 +72,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--output`, `-o` | None | Save results to this file. Use `-` to print to the screen. |
 | `--quiet`, `-q` | Off | Hide progress bars and status messages. |
 | `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |
-| `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, or YAML). Useful for loading your personal typo history from `typostats.py`. |
+| `--substitutions`, `-s` | None | A file containing custom typo patterns (JSON, CSV, YAML, TOML, or text). Useful for loading your personal typo history from `typostats.py`. |
 | `--transposition`, `-t` | Off | Generate transpositions (swapping adjacent letters, e.g., 'word' becomes 'wrod'). |
 | `--transposition-distance`, `-T` | `1` | Distance between letters to swap for transposition typos. |
 | `--verbose`, `-v` | Off | Show more detailed log messages. |

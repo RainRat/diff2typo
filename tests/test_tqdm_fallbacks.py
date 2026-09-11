@@ -102,3 +102,28 @@ def test_diff2typo_yaml_fallback_activation():
         assert diff2typo._YAML_AVAILABLE is False
 
     importlib.reload(diff2typo)
+
+
+def test_multitool_chardet_fallback_activation(caplog):
+    import logging
+
+    with patch.dict(sys.modules, {"chardet": None}):
+        importlib.reload(multitool)
+        assert multitool._CHARDET_AVAILABLE is False
+
+        if hasattr(multitool.detect_encoding, "_warning_shown"):
+            delattr(multitool.detect_encoding, "_warning_shown")
+
+        with caplog.at_level(logging.WARNING):
+            res = multitool.detect_encoding("dummy_path.txt")
+            assert res is None
+            assert getattr(multitool.detect_encoding, "_warning_shown", False) is True
+            assert "chardet not installed" in caplog.text
+
+        caplog.clear()
+        with caplog.at_level(logging.WARNING):
+            res2 = multitool.detect_encoding("dummy_path.txt")
+            assert res2 is None
+            assert "chardet not installed" not in caplog.text
+
+    importlib.reload(multitool)

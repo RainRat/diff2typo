@@ -1891,6 +1891,31 @@ def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bo
                 yield content
 
 
+def _extract_markdown_items_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
+    """Yields (left, right) tuples for Markdown list items containing separators (' -> ' or ': ')."""
+    lines = _read_file_lines_robust(input_file)
+    pattern = re.compile(r'^\s*[-*+]\s+(.*)$')
+
+    for line in tqdm(lines, desc=f'Processing {input_file} (markdown)', unit=' lines', disable=quiet):
+        match = pattern.match(line)
+        if match:
+            content = match.group(1).strip()
+            if not content:
+                continue
+
+            separator = None
+            if " -> " in content:
+                separator = " -> "
+            elif ": " in content:
+                separator = ": "
+
+            if separator:
+                parts = content.split(separator, 1)
+                yield (parts[0].strip(), parts[1].strip())
+            else:
+                yield (content, "")
+
+
 def _get_markdown_anchor_map(input_files: Sequence[str], quiet: bool = False) -> Mapping[str, Set[str]]:
     """Builds a map of filenames to sets of available anchor slugs."""
     anchor_map = {}
@@ -2640,28 +2665,46 @@ def markdown_mode(
     max_length: int,
     process_output: bool,
     right_side: bool = False,
+    pairs: bool = False,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
     """Wrapper for processing items from Markdown bulleted lists."""
-    def extractor(f, quiet=False):
-        return _extract_markdown_items(f, right_side=right_side, quiet=quiet)
-    _process_items(
-        extractor,
-        input_files,
-        output_file,
-        min_length,
-        max_length,
-        process_output,
-        'Markdown',
-        'Successfully got Markdown list items.',
-        output_format,
-        quiet,
-        clean_items=clean_items,
-        limit=limit,
-    )
+    if pairs:
+        start_time = time.perf_counter()
+        results = []
+        total_items = 0
+        for input_file in input_files:
+            for left, right in _extract_markdown_items_detailed(input_file, quiet=quiet):
+                total_items += 1
+                left_clean = filter_to_letters(left) if clean_items else left
+                right_clean = filter_to_letters(right) if clean_items else right
+                if not (min_length <= len(left_clean) <= max_length):
+                    continue
+                results.append((left_clean, right_clean))
+        if process_output:
+            results = sorted(set(results))
+        _write_paired_output(results, output_file, output_format, "Markdown", quiet, limit=limit)
+        print_processing_stats(total_items, results, item_label="markdown item", start_time=start_time)
+    else:
+        def extractor(f, quiet=False):
+            return _extract_markdown_items(f, right_side=right_side, quiet=quiet)
+        _process_items(
+            extractor,
+            input_files,
+            output_file,
+            min_length,
+            max_length,
+            process_output,
+            'Markdown',
+            'Successfully got Markdown list items.',
+            output_format,
+            quiet,
+            clean_items=clean_items,
+            limit=limit,
+        )
 
 
 def headings_mode(
@@ -7843,9 +7886,9 @@ MODE_DETAILS = {
     },
     "markdown": {
         "summary": "Extracts Markdown list items",
-        "description": "Finds text in lines starting with -, *, or +. It can also split items by ':' or '->' to get one side of a pair (use --right for the second part).",
-        "example": "python multitool.py markdown notes.md --output items.txt",
-        "flags": "[FILES...] [--right]",
+        "description": "Finds text in lines starting with -, *, or +. It can also split items by ':' or '->' to get one side of a pair (use --right for the second part, or -p/--pairs for both).",
+        "example": "python multitool.py markdown notes.md -p --output pairs.csv",
+        "flags": "[FILES...] [--right] [-p]",
     },
     "frontmatter": {
         "summary": "Extracts Markdown frontmatter",
@@ -8718,6 +8761,11 @@ def _build_parser() -> argparse.ArgumentParser:
         '--right',
         action='store_true',
         help="Get the right side of a pair (split by ':' or '->') instead of the left side.",
+    )
+    markdown_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Output paired data containing both left and right sides of list items (split by ':' or '->').",
     )
     _add_common_mode_arguments(markdown_parser)
 
@@ -10452,6 +10500,7 @@ def main() -> None:
         delimiter = None
 
     right_side = getattr(args, 'right', False)
+    pairs = getattr(args, 'pairs', False)
     sample_count = getattr(args, 'sample_count', None)
     sample_percent = getattr(args, 'sample_percent', None)
     limit = getattr(args, 'limit', None)
@@ -10497,6 +10546,7 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'pairs': pairs,
                 'output_format': output_format,
             },
         ),

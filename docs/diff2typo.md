@@ -59,6 +59,7 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--exclude`, `-e` | None | One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from typo scanning. |
 | `--include`, `-I` | None | One or more file patterns (e.g., `*.md`, `src/*`) to include in typo scanning (all files are scanned by default). |
 | `--min-length` | `2` | Ignore words shorter than this length. |
+| `--max-length` | None | Ignore words longer than this length. |
 | `--max-dist`, `-D` | None | Only include typos with a number of character changes up to this value. Useful for filtering out intentional word changes. |
 | `--min-count`, `-c` | `1` | Minimum occurrences of a typo in the diff to include it in the output. |
 | `--sort`, `-s` | `alpha` | How to sort the results: `count` (most frequent first) or `alpha` (alphabetical). |

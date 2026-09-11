@@ -341,6 +341,7 @@ def _compare_word_lists(
     after_words: Sequence[str],
     min_length: int,
     max_dist: Optional[int] = None,
+    max_length: Optional[int] = None,
 ) -> List[str]:
     """Return typo pairs discovered when comparing two word sequences."""
     import difflib
@@ -373,6 +374,8 @@ def _compare_word_lists(
                         continue
 
                     if len(before_clean) >= min_length and len(after_clean) >= min_length:
+                        if max_length is not None and (len(before_clean) > max_length or len(after_clean) > max_length):
+                            continue
                         if max_dist is None or levenshtein_distance(before_clean, after_clean) <= max_dist:
                             typos.append(f"{before_clean} -> {after_clean}")
             else:
@@ -380,7 +383,7 @@ def _compare_word_lists(
                 # we perform a local similar word matching to find the best candidate pair.
                 for b_word in removals:
                     b_clean = filter_to_letters(b_word)
-                    if len(b_clean) < min_length:
+                    if len(b_clean) < min_length or (max_length is not None and len(b_clean) > max_length):
                         continue
 
                     best_match = None
@@ -388,7 +391,7 @@ def _compare_word_lists(
 
                     for a_word in additions:
                         a_clean = filter_to_letters(a_word)
-                        if len(a_clean) < min_length or a_clean == b_clean:
+                        if len(a_clean) < min_length or (max_length is not None and len(a_clean) > max_length) or a_clean == b_clean:
                             continue
 
                         dist = levenshtein_distance(b_clean, a_clean)
@@ -405,7 +408,11 @@ def _compare_word_lists(
 
 
 def process_diff_block(
-    removals: List[str], additions: List[str], min_length: int, max_dist: Optional[int] = None
+    removals: List[str],
+    additions: List[str],
+    min_length: int,
+    max_dist: Optional[int] = None,
+    max_length: Optional[int] = None,
 ) -> List[str]:
     """Return typos generated from matching removal/addition blocks."""
 
@@ -416,7 +423,7 @@ def process_diff_block(
     after_text = " ".join(additions)
     before_words = split_into_subwords(before_text)
     after_words = split_into_subwords(after_text)
-    return _compare_word_lists(before_words, after_words, min_length, max_dist)
+    return _compare_word_lists(before_words, after_words, min_length, max_dist, max_length)
 
 
 def _match_pattern(filepath: str, patterns: Optional[List[str]]) -> bool:
@@ -448,6 +455,7 @@ def find_typos(
     max_dist: Optional[int] = None,
     exclude_patterns: Optional[List[str]] = None,
     include_patterns: Optional[List[str]] = None,
+    max_length: Optional[int] = None,
 ) -> List[str]:
     """
     Parses the diff text to find typo corrections.
@@ -457,6 +465,8 @@ def find_typos(
         min_length (int): Minimum length of differing substrings to consider as typos.
         max_dist (int, optional): Maximum Levenshtein distance for typos.
         exclude_patterns (list, optional): List of file/path patterns to exclude.
+        include_patterns (list, optional): List of file/path patterns to include.
+        max_length (int, optional): Maximum length of differing substrings to consider as typos.
 
     Returns:
         list: A list of typo candidates in the format "before -> after".
@@ -471,7 +481,7 @@ def find_typos(
     for line in lines:
         if line.startswith('diff --git '):
             if not skip_current_file:
-                typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+                typos.extend(process_diff_block(removals, additions, min_length, max_dist, max_length))
             removals = []
             additions = []
 
@@ -507,7 +517,7 @@ def find_typos(
                 path = path[1:-1]
             additions.append(path)
             if not (skip_current_file or _is_file_excluded(path, exclude_patterns, include_patterns)):
-                typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+                typos.extend(process_diff_block(removals, additions, min_length, max_dist, max_length))
             removals = []
             additions = []
             continue
@@ -520,7 +530,7 @@ def find_typos(
                     path = path[1:-1]
                 current_file = path
                 if not skip_current_file:
-                    typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+                    typos.extend(process_diff_block(removals, additions, min_length, max_dist, max_length))
                 removals = []
                 additions = []
                 skip_current_file = _is_file_excluded(current_file, exclude_patterns, include_patterns)
@@ -534,12 +544,12 @@ def find_typos(
         elif line.startswith('+'):
             additions.append(line[1:].strip())
         else:
-            typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+            typos.extend(process_diff_block(removals, additions, min_length, max_dist, max_length))
             removals = []
             additions = []
 
     if not skip_current_file:
-        typos.extend(process_diff_block(removals, additions, min_length, max_dist))
+        typos.extend(process_diff_block(removals, additions, min_length, max_dist, max_length))
 
     return typos
 
@@ -998,6 +1008,16 @@ def main():
     parser.add_argument('--min_length', type=int, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
+        '--max-length',
+        dest='max_length',
+        type=int,
+        default=None,
+        help='Ignore words longer than this.',
+    )
+    # Hidden alias for backward compatibility
+    parser.add_argument('--max_length', type=int, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+
+    analysis_group.add_argument(
         '-D', '--max-dist',
         type=int,
         default=None,
@@ -1183,6 +1203,7 @@ def main():
         max_dist=args.max_dist,
         exclude_patterns=args.exclude,
         include_patterns=args.include,
+        max_length=args.max_length,
     )
     counts = Counter(candidates_raw)
 
@@ -1222,7 +1243,7 @@ def main():
         input_desc = input_files if input_files else ("Git Diff" if git_val is not None else ("Git Log" if git_log_val is not None else "stdin"))
         logging.info(f"Input Source: {input_desc}")
         logging.info(f"Output Target: {args.output_file} (Format: {args.output_format})")
-        logging.info(f"Mode: {args.mode} | Min Length: {args.min_length} | Max Dist: {args.max_dist if args.max_dist is not None else 'None'}")
+        logging.info(f"Mode: {args.mode} | Min Length: {args.min_length} | Max Length: {args.max_length if args.max_length is not None else 'None'} | Max Dist: {args.max_dist if args.max_dist is not None else 'None'}")
         logging.info(f"Min Count: {args.min_count} | Sort: {args.sort} | Limit: {args.limit if args.limit is not None else 'None'}")
         logging.info(f"Large Dictionary: {args.dictionary_file} | Allowed File: {args.allowed_file}")
         logging.info(f"Exclude Patterns: {args.exclude if args.exclude else 'None'} | Include Patterns: {args.include if args.include else 'None'}")

@@ -1342,3 +1342,26 @@ def test_main_line_counting_oserror_branch(tmp_path):
     with patch("builtins.open", side_effect=mock_open_func), \
          patch("sys.argv", ["typostats.py", str(input_file), "--quiet"]):
         typostats.main()
+
+
+def test_main_directory_scan_recursive(tmp_path, capsys):
+    sub_dir = tmp_path / "subdir"
+    sub_dir.mkdir()
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+
+    (tmp_path / "f1.txt").write_text("teh -> the\n")
+    (sub_dir / "f2.csv").write_text("taht,that\n")
+    (sub_dir / "f3.json").write_text('{"waht": "what"}')
+    (sub_dir / "ignored.bak").write_text("ignored -> ignore\n")
+    (git_dir / "git.txt").write_text("git_typo -> git_fix\n")
+
+    out_file = tmp_path / "out.json"
+
+    with patch("sys.argv", ["typostats.py", str(tmp_path), "-f", "json", "-o", str(out_file), "-q"]):
+        typostats.main()
+
+    data = json.loads(out_file.read_text())
+    replacements = data.get("replacements", [])
+    typos = {item["typo"] for item in replacements}
+    assert typos == {"eh", "ah"}

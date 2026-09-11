@@ -662,6 +662,32 @@ def is_one_letter_replacement(
     return []
 
 
+def _build_replacement_items(
+    sorted_replacements: List[Tuple[Tuple[str, str], int]],
+    keyboard: bool = False,
+) -> List[dict]:
+    """Build structured replacement dictionaries for JSON/YAML report serialization."""
+    adjacent_map = {}
+    if keyboard:
+        adjacent_map = get_adjacent_keys(include_diagonals=True)
+
+    replacements = []
+    for (correct_char, typo_char), count in sorted_replacements:
+        item = {
+            "typo": typo_char,
+            "correct": correct_char,
+            "count": count,
+        }
+        if keyboard:
+            is_adjacent = False
+            if len(correct_char) == 1 and len(typo_char) == 1:
+                if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+                    is_adjacent = True
+            item["is_adjacent"] = is_adjacent
+        replacements.append(item)
+    return replacements
+
+
 def process_typos(
     pairs: Iterable[tuple[str, str]],
     allow_1to2: bool = False,
@@ -982,25 +1008,7 @@ def generate_report(
             report_lines.append(row)
         report_content = "\n".join(report_lines)
     elif output_format == 'json':
-        adjacent_map = {}
-        if keyboard:
-            adjacent_map = get_adjacent_keys(include_diagonals=True)
-
-        replacements = []
-        for (correct_char, typo_char), count in sorted_replacements:
-            item = {
-                "typo": typo_char,
-                "correct": correct_char,
-                "count": count,
-            }
-            if keyboard:
-                is_adjacent = False
-                if len(correct_char) == 1 and len(typo_char) == 1:
-                    if typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                        is_adjacent = True
-                item["is_adjacent"] = is_adjacent
-            replacements.append(item)
-
+        replacements = _build_replacement_items(sorted_replacements, keyboard=keyboard)
         report_content = json.dumps({"replacements": replacements}, indent=2)
     elif output_format == 'csv':
         output = io.StringIO()

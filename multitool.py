@@ -8176,7 +8176,7 @@ MODE_DETAILS = {
         "summary": "Fix project-wide casing/spelling",
         "description": "Analyzes your files to find words used with different capitalization (for example, 'database' vs 'Database') or similar spelling (for example, 'teh' vs 'the'). It then automatically replaces all less frequent versions with the most popular one across the entire project. Use --fuzzy to enable similar word matching, and add --keyboard or --transposition to restrict those matches to specific error types.",
         "example": "python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --transposition",
-        "flags": "[FILES...] [-I EXT] [-D] [-k] [-t] [--dry-run] [--fuzzy N]",
+        "flags": "[FILES...] [-I EXT] [-D] [-k] [-t] [-n|--dry-run] [--fuzzy N]",
     },
     "search": {
         "summary": "Searches for words or patterns",
@@ -8218,7 +8218,7 @@ MODE_DETAILS = {
         "summary": "Fixes typos in text files",
         "description": "Performs in-place replacements of typos in your text files using a mapping file or extra pairs provided via --add. It tries to preserve the surrounding context (punctuation, whitespace) while fixing errors. It automatically handles compound words like 'CamelCase' and 'snake_case' variables. Supports CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.",
         "example": "python multitool.py scrub input.txt --add teh:the --diff",
-        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I EXT] [-S] [-D]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I EXT] [-S] [-D] [-n]",
     },
     "align": {
         "summary": "Aligns typo-correction pairs",
@@ -8229,8 +8229,8 @@ MODE_DETAILS = {
     "rename": {
         "summary": "Batch renames files and folders",
         "description": "Renames files or directories based on a typo mapping or extra pairs provided via --add. It preserves the directory structure and can automatically handle CamelCase or snake_case names using --smart-case. Use --regex to treat patterns as regular expressions (supports backreferences like \\1). It handles nested renames by processing files before their parent directories.",
-        "example": "python multitool.py rename . --regex --add 'test_(.*)\\.py:spec_\\1.py' --dry-run",
-        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I] [-S] [-r] [--dry-run]",
+        "example": "python multitool.py rename . --regex --add 'test_(.*)\\.py:spec_\\1.py' -n",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-I] [-S] [-r] [-n|--dry-run]",
     },
     "diff": {
         "summary": "Shows differences between files",
@@ -8260,7 +8260,7 @@ MODE_DETAILS = {
         "summary": "Replaces text or patterns",
         "description": "Performs text substitution across files. It supports literal string replacement and regular expressions (with backreferences). You can provide the OLD and NEW text as positional arguments or use the --old and --new flags. Supports in-place editing, dry-runs, and unified diffs. Use --smart-case to automatically match the original casing pattern.",
         "example": "python multitool.py replace 'the' 'that' . --in-place --smart-case",
-        "flags": "OLD NEW [FILES...] [-r] [-c] [-S] [-I EXT] [-D] [--dry-run]",
+        "flags": "OLD NEW [FILES...] [-r] [-c] [-S] [-I EXT] [-D] [-n|--dry-run]",
     },
 }
 
@@ -9808,7 +9808,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Modify files in place. If an extension is provided (for example, '.bak'), a backup is created.",
     )
     scrub_options.add_argument(
-        '--dry-run',
+        '-n', '--dry-run',
         action='store_true',
         help="Show what would be changed without modifying any files.",
     )
@@ -9852,7 +9852,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Perform the actual renaming of files and directories.",
     )
     rename_options.add_argument(
-        '--dry-run',
+        '-n', '--dry-run',
         action='store_true',
         help="Show what would be renamed without making any changes.",
     )
@@ -9884,7 +9884,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Modify files in place. If an extension is provided (for example, '.bak'), a backup is created.",
     )
     standardize_options.add_argument(
-        '--dry-run',
+        '-n', '--dry-run',
         action='store_true',
         help="Show what would be changed without modifying any files.",
     )
@@ -10228,7 +10228,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Modify files in place. If an extension is provided (for example, '.bak'), a backup is created.",
     )
     replace_options.add_argument(
-        '--dry-run',
+        '-n', '--dry-run',
         action='store_true',
         help="Show what would be changed without modifying any files.",
     )

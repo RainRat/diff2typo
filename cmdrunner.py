@@ -34,16 +34,25 @@ except ImportError:
 VERSION = "1.1.0"
 
 
-# ANSI Color Codes
-BLUE = "\033[1;34m"
-GREEN = "\033[1;32m"
-RED = "\033[1;31m"
-YELLOW = "\033[1;33m"
-CYAN = "\033[1;36m"
-RESET = "\033[0m"
-BOLD = "\033[1m"
+# ANSI Color Codes (Internal constants)
+_BLUE = "\033[1;34m"
+_GREEN = "\033[1;32m"
+_RED = "\033[1;31m"
+_YELLOW = "\033[1;33m"
+_CYAN = "\033[1;36m"
+_RESET = "\033[0m"
+_BOLD = "\033[1m"
 
-# Disable colors if not running in a terminal or if NO_COLOR is set
+# Global color constants for general use (legacy support)
+BLUE = _BLUE
+GREEN = _GREEN
+RED = _RED
+YELLOW = _YELLOW
+CYAN = _CYAN
+RESET = _RESET
+BOLD = _BOLD
+
+# Disable stdout global colors if not running in a terminal or if NO_COLOR is set
 if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
     BLUE = GREEN = RED = YELLOW = CYAN = RESET = BOLD = ""
 
@@ -52,9 +61,9 @@ class MinimalFormatter(logging.Formatter):
     """A logging formatter that removes prefixes for INFO level messages."""
 
     LEVEL_COLORS = {
-        logging.WARNING: YELLOW,
-        logging.ERROR: RED,
-        logging.CRITICAL: RED,
+        logging.WARNING: _YELLOW,
+        logging.ERROR: _RED,
+        logging.CRITICAL: _RED,
     }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -66,7 +75,7 @@ class MinimalFormatter(logging.Formatter):
         if _should_enable_color(sys.stderr) and levelname:
             color = self.LEVEL_COLORS.get(record.levelno)
             if color:
-                levelname = f"{color}{levelname}{RESET}"
+                levelname = f"{color}{levelname}{_RESET}"
 
         return f"{levelname}: {record.getMessage()}"
 
@@ -115,13 +124,13 @@ def _format_execution_summary(
     """
     Standardizes the "EXECUTION SUMMARY" block with consistent colors and a visual success rate bar.
     """
-    c_bold = BOLD if use_color else ""
-    c_blue = BLUE if use_color else ""
-    c_green = GREEN if use_color else ""
-    c_yellow = YELLOW if use_color else ""
-    c_red = RED if use_color else ""
-    c_cyan = CYAN if use_color else ""
-    c_reset = RESET if use_color else ""
+    c_bold = _BOLD if use_color else ""
+    c_blue = _BLUE if use_color else ""
+    c_green = _GREEN if use_color else ""
+    c_yellow = _YELLOW if use_color else ""
+    c_red = _RED if use_color else ""
+    c_cyan = _CYAN if use_color else ""
+    c_reset = _RESET if use_color else ""
 
     padding = "  "
     label_width = 35

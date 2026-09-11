@@ -254,3 +254,45 @@ def test_comments_mode_pairs_other_formats(tmp_path):
         content = out.read_text(encoding='utf-8')
         assert "Test" in content and "comment" in content
 
+
+def test_comments_mode_retention_stats(tmp_path, caplog):
+    import logging
+    f = tmp_path / "test.py"
+    f.write_text('"""\nLine 1\nLine 2\nLine 3\n"""\n', encoding='utf-8')
+    out = tmp_path / "out.txt"
+
+    with caplog.at_level(logging.INFO):
+        comments_mode(
+            input_files=[str(f)],
+            output_file=str(out),
+            min_length=1,
+            max_length=1000,
+            process_output=False,
+            clean_items=True
+        )
+
+    assert "Total comments analyzed:            3" in caplog.text
+    assert "Total comments after filtering:     3" in caplog.text
+    assert "Retention rate:                     100.0%" in caplog.text
+
+
+def test_comments_mode_retention_stats_with_filtering(tmp_path, caplog):
+    import logging
+    import re
+    f = tmp_path / "test.py"
+    f.write_text('"""\na\nlong line\n"""\n', encoding='utf-8')
+    out = tmp_path / "out.txt"
+
+    with caplog.at_level(logging.INFO):
+        comments_mode(
+            input_files=[str(f)],
+            output_file=str(out),
+            min_length=2,
+            max_length=1000,
+            process_output=False,
+            clean_items=True
+        )
+
+    assert "Total comments analyzed:            2" in caplog.text
+    assert "Total comments after filtering:     1" in caplog.text
+    assert re.search(r"Retention rate:\s+50\.0%", caplog.text)

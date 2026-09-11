@@ -780,6 +780,41 @@ def test_extract_pairs_json_variants(tmp_path):
     assert list(typostats._extract_pairs([str(f2)])) == [("typo2", "correct2")]
 
 
+def test_extract_pairs_toml_variants(tmp_path):
+    # Standard TOML key-value table
+    f1 = tmp_path / "simple.toml"
+    f1.write_text('teh = "the"\nrecived = "received"\n', encoding="utf-8")
+    pairs = list(typostats._extract_pairs([str(f1)]))
+    assert ("teh", "the") in pairs
+    assert ("recived", "received") in pairs
+
+    # Nested TOML table and replacements list
+    f2 = tmp_path / "nested.toml"
+    f2.write_text('''
+[default.extend-words]
+seperate = "separate"
+
+[[replacements]]
+typo = "adit"
+correction = "audit"
+''', encoding="utf-8")
+    pairs2 = list(typostats._extract_pairs([str(f2)]))
+    assert ("seperate", "separate") in pairs2
+    assert ("adit", "audit") in pairs2
+
+    # Empty TOML
+    f3 = tmp_path / "empty.toml"
+    f3.write_text("   \n", encoding="utf-8")
+    assert list(typostats._extract_pairs([str(f3)])) == []
+
+    # Malformed TOML
+    f4 = tmp_path / "invalid.toml"
+    f4.write_text("invalid toml = [", encoding="utf-8")
+    with patch("logging.error") as mock_log:
+        assert list(typostats._extract_pairs([str(f4)])) == []
+        mock_log.assert_called()
+
+
 def test_extract_pairs_yaml_variants(tmp_path):
     if not typostats._YAML_AVAILABLE:
         pytest.skip("PyYAML not installed")

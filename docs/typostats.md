@@ -14,7 +14,7 @@ python typostats.py my_typos.txt
 python typostats.py file1.txt file2.txt
 
 # Read from a directory recursively
-# This scans all supported files (.txt, .csv, .json, .yaml, .yml, .md) under the directory,
+# This scans all supported files (.txt, .csv, .json, .yaml, .yml, .toml, .md) under the directory,
 # while ignoring common development and environment folders (like .git, node_modules, .venv).
 python typostats.py my_typos_directory/
 
@@ -31,7 +31,8 @@ The tool automatically recognizes several common ways of listing typos:
 4. **Colon:** `typo: correction`
 5. **JSON:** Supports standard key-value pairs or structured `replacements` lists.
 6. **YAML:** Supports key-value pairs or lists of typo-correction objects.
-7. **Markdown:** Extracts items from bulleted lists and tables.
+7. **TOML:** Supports standard key-value tables (`typo = "correction"`), nested tables, and `replacements` lists.
+8. **Markdown:** Extracts items from bulleted lists and tables.
 
 > **Tip:** You can send the output from `diff2typo.py` directly into `typostats.py`.
 

@@ -1080,7 +1080,7 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             writer.writerow([typo_char, correct_char, count])
         report_content = output.getvalue()
-    elif output_format == 'table':
+    elif output_format in ('table', 'toml'):
         report_lines = []
         for (correct_char, typo_char), count in sorted_replacements:
             if re.match(r'^[A-Za-z0-9_-]+$', typo_char):
@@ -1194,7 +1194,7 @@ def main() -> None:
     io_group.add_argument(
         '-f',
         '--format',
-        choices=['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'markdown', 'md'],
+        choices=['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md'],
         metavar='FMT',
         default=None,
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
@@ -1288,7 +1288,7 @@ def main() -> None:
     sort_by = args.sort
     output_format = args.format
     if output_format is None:
-        allowed_formats = ['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'markdown', 'md']
+        allowed_formats = ['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md']
         output_format = _detect_format_from_extension(output_file, allowed_formats, 'arrow')
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1

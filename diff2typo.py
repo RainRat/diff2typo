@@ -561,7 +561,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
 
     Args:
         typos (list): List of typo strings in the format "before -> after".
-        output_format (str): Desired output format ('arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md').
+        output_format (str): Desired output format ('arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md').
 
     Returns:
         list: Formatted list of typo strings.
@@ -610,7 +610,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
             before, after = typo.split(' -> ')
             if output_format == 'csv':
                 formatted.append(f"{before},{after}")
-            elif output_format == 'table':
+            elif output_format in ('table', 'toml'):
                 formatted.append(f'{before} = "{after}"')
             elif output_format == 'list':
                 formatted.append(f"{before}")
@@ -619,7 +619,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
                 formatted.append(f"{before} -> {after}")
         else:
             # If it's just a single word, return it as is or filtered if it's meant to be a typo
-            if output_format in ['csv', 'table', 'list']:
+            if output_format in ['csv', 'table', 'toml', 'list']:
                 formatted.append(filter_to_letters(typo))
             else:
                 formatted.append(typo)
@@ -939,12 +939,12 @@ def main():
         '-f',
         dest='output_format',
         type=str,
-        choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md'],
+        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md'],
         default=None,
-        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table (typo = "correction"), list (typo), json, yaml, markdown, md. Default is arrow.',
+        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table / toml (typo = "correction"), list (typo), json, yaml, markdown, md. Default is arrow.',
     )
     # Hidden alias for backward compatibility
-    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     # Analysis Options
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
@@ -1060,7 +1060,7 @@ def main():
     # Resolve output format if not provided
     if args.output_format is None:
         default_fmt = 'arrow'
-        allowed_formats = ['arrow', 'csv', 'table', 'list', 'json', 'yaml', 'markdown', 'md']
+        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md']
         if args.output_file and args.output_file != '-':
             ext = os.path.splitext(args.output_file)[1].lower().lstrip('.')
             mapping = {

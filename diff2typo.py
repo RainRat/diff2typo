@@ -31,6 +31,7 @@ Output Formats:
     - json: JSON array of objects or dict
     - yaml: YAML document
     - markdown: Markdown table or list
+    - html: Styled HTML document report
 '''
 
 import argparse
@@ -39,6 +40,7 @@ import contextlib
 import csv
 import fnmatch
 import glob
+import html
 import json
 import logging
 import os
@@ -585,7 +587,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
 
     Args:
         typos (list): List of typo strings in the format "before -> after".
-        output_format (str): Desired output format ('arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md').
+        output_format (str): Desired output format ('arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm').
 
     Returns:
         list: Formatted list of typo strings.
@@ -600,6 +602,56 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
                 logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
 
         return json.dumps(items, indent=2).split('\n')
+
+    if output_format in ('html', 'htm'):
+        formatted: List[str] = [
+            "<!DOCTYPE html>",
+            "<html lang=\"en\">",
+            "<head>",
+            "<meta charset=\"UTF-8\">",
+            "<title>diff2typo Report</title>",
+            "<style>",
+            "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f8f9fa; color: #212529; }",
+            "h1, h2, h3 { color: #343a40; }",
+            "table { border-collapse: collapse; width: 100%; max-width: 800px; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }",
+            "th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #dee2e6; }",
+            "th { background-color: #e9ecef; }",
+            "code { background-color: #e9ecef; padding: 2px 4px; border-radius: 4px; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; }",
+            "ul { background: #fff; padding: 1.5rem 2.5rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 800px; }",
+            "</style>",
+            "</head>",
+            "<body>",
+            "<h1>Diff2Typo Report</h1>",
+        ]
+        typo_pairs = []
+        single_items = []
+
+        for typo in typos:
+            if ' -> ' in typo:
+                before, after = typo.split(' -> ')
+                typo_pairs.append((before, after))
+            else:
+                single_items.append(typo)
+
+        if typo_pairs:
+            formatted.append("<table>")
+            formatted.append("<thead><tr><th>Typo</th><th>Correction</th></tr></thead>")
+            formatted.append("<tbody>")
+            for before, after in typo_pairs:
+                b_esc = html.escape(before)
+                a_esc = html.escape(after)
+                formatted.append(f"<tr><td><code>{b_esc}</code></td><td><code>{a_esc}</code></td></tr>")
+            formatted.append("</tbody></table>")
+
+        if single_items:
+            formatted.append("<ul>")
+            for item in single_items:
+                clean_item = html.escape(filter_to_letters(item))
+                formatted.append(f"<li><code>{clean_item}</code></li>")
+            formatted.append("</ul>")
+
+        formatted.extend(["</body>", "</html>"])
+        return formatted
 
     if output_format in ('markdown', 'md'):
         formatted: List[str] = []
@@ -963,12 +1015,12 @@ def main():
         '-f',
         dest='output_format',
         type=str,
-        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md'],
+        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'],
         default=None,
-        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table / toml (typo = "correction"), list (typo), json, yaml, markdown, md. Default is arrow.',
+        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table / toml (typo = "correction"), list (typo), json, yaml, markdown, md, html, htm. Default is arrow.',
     )
     # Hidden alias for backward compatibility
-    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     # Analysis Options
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
@@ -1093,7 +1145,7 @@ def main():
     # Resolve output format if not provided
     if args.output_format is None:
         default_fmt = 'arrow'
-        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md']
+        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm']
         if args.output_file and args.output_file != '-':
             ext = os.path.splitext(args.output_file)[1].lower().lstrip('.')
             mapping = {
@@ -1108,6 +1160,8 @@ def main():
                 'yml': 'yaml',
                 'md': 'markdown',
                 'markdown': 'markdown',
+                'html': 'html',
+                'htm': 'html',
             }
             detected = mapping.get(ext)
             args.output_format = detected if detected in allowed_formats else default_fmt
@@ -1298,7 +1352,47 @@ def main():
             else:
                 final_output = json.dumps(data, indent=2).split('\n')
         else:
-            if args.output_format in ('markdown', 'md'):
+            if args.output_format in ('html', 'htm'):
+                final_output = [
+                    "<!DOCTYPE html>",
+                    "<html lang=\"en\">",
+                    "<head>",
+                    "<meta charset=\"UTF-8\">",
+                    "<title>diff2typo Report</title>",
+                    "<style>",
+                    "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f8f9fa; color: #212529; }",
+                    "h1, h2, h3 { color: #343a40; }",
+                    "table { border-collapse: collapse; width: 100%; max-width: 800px; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }",
+                    "th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #dee2e6; }",
+                    "th { background-color: #e9ecef; }",
+                    "code { background-color: #e9ecef; padding: 2px 4px; border-radius: 4px; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; }",
+                    "</style>",
+                    "</head>",
+                    "<body>",
+                    "<h1>Diff2Typo Report</h1>",
+                ]
+                if typos_final:
+                    final_output.append("<h2>Typos</h2>")
+                    final_output.append("<table><thead><tr><th>Typo</th><th>Correction</th></tr></thead><tbody>")
+                    for typo in typos_final:
+                        if ' -> ' in typo:
+                            b, a = typo.split(' -> ')
+                            final_output.append(f"<tr><td><code>{html.escape(b)}</code></td><td><code>{html.escape(a)}</code></td></tr>")
+                        else:
+                            final_output.append(f"<tr><td colspan=\"2\"><code>{html.escape(filter_to_letters(typo))}</code></td></tr>")
+                    final_output.append("</tbody></table>")
+                if corrections_final:
+                    final_output.append("<h2>Corrections</h2>")
+                    final_output.append("<table><thead><tr><th>Typo</th><th>Correction</th></tr></thead><tbody>")
+                    for corr in corrections_final:
+                        if ' -> ' in corr:
+                            b, a = corr.split(' -> ')
+                            final_output.append(f"<tr><td><code>{html.escape(b)}</code></td><td><code>{html.escape(a)}</code></td></tr>")
+                        else:
+                            final_output.append(f"<tr><td colspan=\"2\"><code>{html.escape(filter_to_letters(corr))}</code></td></tr>")
+                    final_output.append("</tbody></table>")
+                final_output.extend(["</body>", "</html>"])
+            elif args.output_format in ('markdown', 'md'):
                 if typos_final:
                     final_output.append("### Typos")
                     final_output.extend(format_typos(typos_final, args.output_format))

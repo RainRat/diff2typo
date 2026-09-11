@@ -1365,3 +1365,14 @@ def test_main_directory_scan_recursive(tmp_path, capsys):
     replacements = data.get("replacements", [])
     typos = {item["typo"] for item in replacements}
     assert typos == {"eh", "ah"}
+
+
+def test_typostats_epilog_example_flags(capsys):
+    import typostats
+    with pytest.raises(SystemExit) as exc_info:
+        with patch("sys.argv", ["typostats.py", "--help"]):
+            typostats.main()
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "-L 20" in captured.out
+    assert "-n 20" not in captured.out

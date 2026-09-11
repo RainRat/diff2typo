@@ -1,5 +1,12 @@
 import xml.etree.ElementTree as ET
-from multitool import _extract_xml_items, xml_mode, write_output, _write_paired_output, _detect_format_from_extension
+from multitool import (
+    _extract_pairs,
+    _extract_xml_items,
+    _detect_format_from_extension,
+    _write_paired_output,
+    write_output,
+    xml_mode,
+)
 
 def test_extract_xml_items_basic(tmp_path):
     xml_file = tmp_path / "test.xml"
@@ -103,4 +110,40 @@ def test_extract_xml_error_handling(tmp_path, caplog):
     with caplog.at_level("ERROR"):
         items = list(_extract_xml_items(str(bad_xml), "key"))
         assert items == []
+        assert "Failed to parse XML" in caplog.text
+
+
+def test_extract_pairs_xml_left_right(tmp_path):
+    xml_file = tmp_path / "pairs_left_right.xml"
+    xml_file.write_text(
+        "<root>"
+        "<pair><left>teh</left><right>the</right></pair>"
+        "<pair><left></left><right>empty_left</right></pair>"
+        "</root>"
+    )
+    pairs = list(_extract_pairs([str(xml_file)]))
+    assert pairs == [("teh", "the"), ("", "empty_left")]
+
+
+def test_extract_pairs_xml_typo_correction_and_correct(tmp_path):
+    xml_file = tmp_path / "pairs_typo_correct.xml"
+    xml_file.write_text(
+        "<root>"
+        "<pair><typo>recieved</typo><correction>received</correction></pair>"
+        "<pair><typo>seperate</typo><correct>separate</correct></pair>"
+        "</root>"
+    )
+    pairs = list(_extract_pairs([str(xml_file)]))
+    assert pairs == [("recieved", "received"), ("seperate", "separate")]
+
+
+def test_extract_pairs_xml_malformed_and_empty(tmp_path, caplog):
+    empty_xml = tmp_path / "empty.xml"
+    empty_xml.write_text("   \n")
+    assert list(_extract_pairs([str(empty_xml)])) == []
+
+    bad_xml = tmp_path / "bad_pairs.xml"
+    bad_xml.write_text("<root><pair><left>test</left>")
+    with caplog.at_level("ERROR"):
+        assert list(_extract_pairs([str(bad_xml)])) == []
         assert "Failed to parse XML" in caplog.text

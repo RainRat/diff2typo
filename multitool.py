@@ -1900,18 +1900,12 @@ def _get_markdown_anchor_map(input_files: Sequence[str], quiet: bool = False) ->
 
         slugs = set()
         seen_slugs = Counter()
-        # We need the exact slug logic including duplicate handling
-        lines = _read_file_lines_robust(input_file)
-        pattern = re.compile(r'^(#{1,6})\s+(.*?)(?:\s+#+)?$')
-        for line in lines:
-            match = pattern.match(line.strip())
-            if match:
-                h_text = match.group(2).strip()
-                slug = _slugify(h_text)
-                count = seen_slugs[slug]
-                seen_slugs[slug] += 1
-                final_slug = slug if count == 0 else f"{slug}-{count}"
-                slugs.add(final_slug)
+        for _, h_text in _extract_markdown_headings(input_file, quiet=True):
+            slug = _slugify(h_text)
+            count = seen_slugs[slug]
+            seen_slugs[slug] += 1
+            final_slug = slug if count == 0 else f"{slug}-{count}"
+            slugs.add(final_slug)
         anchor_map[input_file] = slugs
     return anchor_map
 

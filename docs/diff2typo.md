@@ -72,6 +72,12 @@ If you run the tool without specifying any input files or piping any changes, it
 
 ## Examples
 
+**Scan current unstaged changes automatically in a Git repository:**
+
+```bash
+python diff2typo.py --output current_typos.txt
+```
+
 **Extract typos from a specific diff file:**
 
 ```bash

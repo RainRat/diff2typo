@@ -60,15 +60,25 @@ _TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
 # Cache for standard input to allow multiple passes
 _STDIN_CACHE: List[str] | None = None
 
-# ANSI Color Codes
-BLUE = "\033[1;34m"
-GREEN = "\033[1;32m"
-RED = "\033[1;31m"
-YELLOW = "\033[1;33m"
-MAGENTA = "\033[1;35m"
-CYAN = "\033[1;36m"
-RESET = "\033[0m"
-BOLD = "\033[1m"
+# ANSI Color Codes (Internal constants)
+_BLUE = "\033[1;34m"
+_GREEN = "\033[1;32m"
+_RED = "\033[1;31m"
+_YELLOW = "\033[1;33m"
+_MAGENTA = "\033[1;35m"
+_CYAN = "\033[1;36m"
+_RESET = "\033[0m"
+_BOLD = "\033[1m"
+
+# Global color constants for general use (legacy support)
+BLUE = _BLUE
+GREEN = _GREEN
+RED = _RED
+YELLOW = _YELLOW
+MAGENTA = _MAGENTA
+CYAN = _CYAN
+RESET = _RESET
+BOLD = _BOLD
 
 # Disable colors if not running in a terminal or if NO_COLOR is set
 # We check the main output and error output as help goes to the main output and logging/stats to error output
@@ -90,7 +100,7 @@ def _should_enable_color(stream: TextIO) -> bool:
 def _get_status_colors() -> Tuple[str, str, str]:
     """Return standardized colors for status reporting (Mode tag, Count, Reset)."""
     if _should_enable_color(sys.stderr):
-        return BOLD + BLUE, GREEN, RESET
+        return _BOLD + _BLUE, _GREEN, _RESET
     return "", "", ""
 
 

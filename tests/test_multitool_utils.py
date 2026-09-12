@@ -173,3 +173,17 @@ def test_read_file_lines_robust_stdin_latin1(monkeypatch, caplog):
 
     lines = multitool._read_file_lines_robust("-")
     assert lines == ["héllo\n"]
+
+def test_get_status_colors_enabled():
+    with patch("multitool._should_enable_color", return_value=True):
+        tag, count, reset = multitool._get_status_colors()
+        assert tag == multitool._BOLD + multitool._BLUE
+        assert count == multitool._GREEN
+        assert reset == multitool._RESET
+
+def test_get_status_colors_disabled():
+    with patch("multitool._should_enable_color", return_value=False):
+        tag, count, reset = multitool._get_status_colors()
+        assert tag == ""
+        assert count == ""
+        assert reset == ""

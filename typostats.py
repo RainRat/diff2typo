@@ -4,6 +4,7 @@ import json
 import sys
 import logging
 import csv
+import html
 import io
 import os
 import re
@@ -130,6 +131,8 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
         'toml': 'table',
         'md': 'markdown',
         'markdown': 'markdown',
+        'html': 'html',
+        'htm': 'html',
     }
 
     detected = mapping.get(ext)
@@ -1093,6 +1096,89 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             lines.append(f"| {typo_char} | {correct_char} | {count} |")
         report_content = "\n".join(lines)
+    elif output_format in ('html', 'htm'):
+        adjacent_map = {}
+        if keyboard:
+            adjacent_map = get_adjacent_keys(include_diagonals=True)
+
+        lines = [
+            "<!DOCTYPE html>",
+            "<html lang=\"en\">",
+            "<head>",
+            "<meta charset=\"UTF-8\">",
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">",
+            "<title>Typostats Report</title>",
+            "<style>",
+            "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f8f9fa; color: #212529; }",
+            "h1, h2, h3 { color: #343a40; }",
+            "table { border-collapse: collapse; width: 100%; max-width: 900px; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }",
+            "th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #dee2e6; }",
+            "th { background-color: #e9ecef; }",
+            "code { background-color: #e9ecef; padding: 2px 6px; border-radius: 4px; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9em; }",
+            ".badge { display: inline-block; padding: 0.25em 0.5em; font-size: 0.85em; font-weight: 600; border-radius: 4px; }",
+            ".badge-attr { background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }",
+            ".badge-k { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }",
+            ".badge-t { background-color: #e2d9f3; color: #4a235a; border: 1px solid #d2c4ee; }",
+            ".badge-inc { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }",
+            ".badge-dec { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }",
+            ".summary-card { background: #fff; padding: 1.5rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 900px; margin-bottom: 2rem; }",
+            ".summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem; }",
+            ".metric-box { background: #f8f9fa; padding: 1rem; border-radius: 4px; border-left: 4px solid #007bff; }",
+            ".metric-label { font-size: 0.85em; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }",
+            ".metric-value { font-size: 1.25em; font-weight: 600; color: #212529; margin-top: 0.25rem; }",
+            "</style>",
+            "</head>",
+            "<body>",
+            "<h1>Typostats Report</h1>",
+            "<div class=\"summary-card\">",
+            "<h2>Analysis Summary</h2>",
+            "<div class=\"summary-grid\">",
+            f"<div class=\"metric-box\"><div class=\"metric-label\">Word Pairs Analyzed</div><div class=\"metric-value\">{total_pairs or 0}</div></div>",
+            f"<div class=\"metric-box\"><div class=\"metric-label\">Patterns Analyzed</div><div class=\"metric-value\">{total_typos}</div></div>",
+            f"<div class=\"metric-box\"><div class=\"metric-label\">Unique Patterns</div><div class=\"metric-value\">{unique_filtered}</div></div>",
+            "</div>",
+            "</div>",
+            "<h2>Letter Replacements</h2>",
+            "<table>",
+            "<thead><tr><th>Typo</th><th>Correction</th><th>Count</th><th>Percentage</th><th>Attribute</th></tr></thead>",
+            "<tbody>",
+        ]
+
+        for (correct_char, typo_char), count in sorted_replacements:
+            percent = (count / total_typos * 100) if total_typos > 0 else 0
+            marker_text = ""
+            badge_cls = "badge-attr"
+
+            if len(correct_char) == 1 and len(typo_char) == 1:
+                if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+                    marker_text = "[K]"
+                    badge_cls = "badge-k"
+            elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
+                marker_text = "[T]"
+                badge_cls = "badge-t"
+            elif len(correct_char) < len(typo_char):
+                if correct_char in typo_char:
+                    marker_text = "[Ins]"
+                else:
+                    marker_text = "[1:2]"
+                badge_cls = "badge-inc"
+            elif len(correct_char) > len(typo_char):
+                if typo_char in correct_char:
+                    marker_text = "[Del]"
+                else:
+                    marker_text = "[2:1]"
+                badge_cls = "badge-dec"
+
+            t_esc = html.escape(typo_char)
+            c_esc = html.escape(correct_char)
+            attr_html = f"<span class=\"badge {badge_cls}\">{html.escape(marker_text)}</span>" if marker_text else ""
+
+            lines.append(
+                f"<tr><td><code>{t_esc}</code></td><td><code>{c_esc}</code></td><td>{count}</td><td>{percent:.1f}%</td><td>{attr_html}</td></tr>"
+            )
+
+        lines.extend(["</tbody>", "</table>", "</body>", "</html>"])
+        report_content = "\n".join(lines)
     else:
         # YAML format for custom_substitutions in gentypos.yaml (handles 'yaml', 'yml', and fallback)
         grouping = defaultdict(set)
@@ -1194,7 +1280,7 @@ def main() -> None:
     io_group.add_argument(
         '-f',
         '--format',
-        choices=['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md'],
+        choices=['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md', 'html', 'htm'],
         metavar='FMT',
         default=None,
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
@@ -1288,7 +1374,7 @@ def main() -> None:
     sort_by = args.sort
     output_format = args.format
     if output_format is None:
-        allowed_formats = ['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md']
+        allowed_formats = ['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md', 'html', 'htm']
         output_format = _detect_format_from_extension(output_file, allowed_formats, 'arrow')
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1

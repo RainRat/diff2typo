@@ -1413,3 +1413,37 @@ def test_typostats_epilog_example_flags(capsys):
     captured = capsys.readouterr()
     assert "-L 20" in captured.out
     assert "-n 20" not in captured.out
+
+
+def test_typostats_html_report_and_auto_detection(tmp_path):
+    """
+    Verify HTML report generation in typostats.py including extension detection (.html/.htm),
+    attribute badges, and proper HTML entity escaping.
+    """
+    from typostats import generate_report, _detect_format_from_extension
+
+    # Test extension detection
+    assert _detect_format_from_extension("report.html", ['arrow', 'html'], 'arrow') == 'html'
+    assert _detect_format_from_extension("report.htm", ['arrow', 'html'], 'arrow') == 'html'
+
+    # Test report content generation
+    counts = {("he", "eh"): 2, ("m", "rn"): 1, ("a < b", "c & d"): 1}
+    out_file = tmp_path / "report.html"
+
+    generate_report(
+        counts,
+        output_file=str(out_file),
+        output_format='html',
+        keyboard=True,
+        total_pairs=4
+    )
+
+    content = out_file.read_text(encoding='utf-8')
+    assert "<!DOCTYPE html>" in content
+    assert "<title>Typostats Report</title>" in content
+    assert "Word Pairs Analyzed</div><div class=\"metric-value\">4</div>" in content
+    # HTML escaping check
+    assert "&lt;" in content
+    assert "&amp;" in content
+    assert "[T]" in content
+    assert "badge-t" in content

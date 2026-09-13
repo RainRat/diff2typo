@@ -1,6 +1,6 @@
 import os
 import pytest
-from diff2typo import format_typos, main
+from diff2typo import format_typos, main, _is_file_excluded
 
 
 def test_format_typos_html_pairs():
@@ -69,6 +69,11 @@ def test_main_html_format_auto_detect(tmp_path, monkeypatch):
     assert "<code>the</code>" in content
 
 
+def test_is_file_excluded_empty():
+    assert _is_file_excluded(None) is False
+    assert _is_file_excluded("") is False
+
+
 def test_main_html_both_mode(tmp_path, monkeypatch):
     diff_file = tmp_path / "sample.diff"
     diff_file.write_text(
@@ -79,6 +84,8 @@ def test_main_html_both_mode(tmp_path, monkeypatch):
         "-teh text\n"
         "+the text\n"
     )
+    dict_file = tmp_path / "words.csv"
+    dict_file.write_text("teh, correct\n")
     out_html = tmp_path / "report_both.html"
 
     monkeypatch.setattr(
@@ -93,11 +100,25 @@ def test_main_html_both_mode(tmp_path, monkeypatch):
             "--output",
             str(out_html),
             "--dictionary",
-            "nonexistent.csv",
+            str(dict_file),
             "--allowed",
             "nonexistent.csv",
         ],
     )
+
+    # Mock process_typos_mode to return both a pair and a single item
+    import diff2typo
+    orig_process_typos = diff2typo.process_typos_mode
+    orig_process_corr = diff2typo.process_corrections_mode
+
+    def mock_typos(*args, **kwargs):
+        return ["teh -> the", "wrold"]
+
+    def mock_corr(*args, **kwargs):
+        return ["recieve -> receive", "singlecorr"]
+
+    monkeypatch.setattr(diff2typo, "process_typos_mode", mock_typos)
+    monkeypatch.setattr(diff2typo, "process_corrections_mode", mock_corr)
 
     main()
 
@@ -105,4 +126,10 @@ def test_main_html_both_mode(tmp_path, monkeypatch):
     content = out_html.read_text()
     assert "<!DOCTYPE html>" in content
     assert "<h2>Typos</h2>" in content
+    assert "<h2>Corrections</h2>" in content
     assert "<code>teh</code>" in content
+    assert "<code>the</code>" in content
+    assert "<code>wrold</code>" in content
+    assert "<code>recieve</code>" in content
+    assert "<code>receive</code>" in content
+    assert "<code>singlecorr</code>" in content

@@ -829,6 +829,43 @@ correction = "audit"
         assert list(typostats._extract_pairs([str(f4)])) == []
         mock_log.assert_called()
 
+    # TOML table replacements dict and custom list
+    f5 = tmp_path / "nested_dict.toml"
+    f5.write_text('''
+[replacements]
+dict_repls = [{typo = "wrold", correct = "world"}]
+scalar_repl = "value"
+
+[custom]
+custom_list = [{typo = "teh", correct = "the"}]
+''', encoding="utf-8")
+    pairs5 = list(typostats._extract_pairs([str(f5)]))
+    assert ("wrold", "world") in pairs5
+    assert ("scalar_repl", "value") in pairs5
+    assert ("teh", "the") in pairs5
+
+    # Top level list in TOML traversal function
+    toml_list_items = [{"typo": "recived", "correct": "received"}]
+    with patch("tomllib.loads", return_value=toml_list_items):
+        pairs6 = list(typostats._extract_pairs([str(f1)]))
+        assert ("recived", "received") in pairs6
+
+
+def test_extract_pairs_toml_fallback_and_no_deps(tmp_path, caplog):
+    f = tmp_path / "test.toml"
+    f.write_text('key = "value"\n', encoding="utf-8")
+
+    # Test fallback to third-party toml package when tomllib is False
+    with patch("typostats._TOMLLIB_AVAILABLE", False), patch("typostats._TOML_AVAILABLE", True):
+        res = list(typostats._extract_pairs([str(f)]))
+        assert ("key", "value") in res
+
+    # Test no TOML packages available
+    with patch("typostats._TOMLLIB_AVAILABLE", False), patch("typostats._TOML_AVAILABLE", False):
+        res = list(typostats._extract_pairs([str(f)]))
+        assert res == []
+        assert "TOML support requires Python 3.11+" in caplog.text
+
 
 def test_extract_pairs_yaml_variants(tmp_path):
     if not typostats._YAML_AVAILABLE:

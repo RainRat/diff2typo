@@ -8192,13 +8192,13 @@ MODE_DETAILS = {
         "summary": "Searches for words or patterns",
         "description": "A typo-aware search tool. It searches for a query in your files and can find similar words (typos) or subword matches. It supports highlighting, line numbers, and context lines.",
         "example": "python multitool.py search 'teh' report.txt --keyboard --line-numbers",
-        "flags": "QUERY [FILES...] [-d N] [-S] [-k] [-t] [-n] [-B/A/C N]",
+        "flags": "QUERY [FILES...] [-d N] [-S] [-k] [-t] [-n] [-H] [-B/A/C N]",
     },
     "scan": {
         "summary": "Scans project for known typos",
         "description": "Like a batch version of the 'search' mode. It searches for every word in a mapping file or provided via --add and reports all matches with filename, line number, and highlighting. It also supports context lines.",
         "example": "python multitool.py scan . --add teh:the --smart -A 1",
-        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-n] [-S] [-B/A/C N]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-n] [-H] [-S] [-B/A/C N]",
     },
     "verify": {
         "summary": "Checks if typos exist in project",
@@ -9562,7 +9562,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Suppress the filename heading above matches.",
     )
     search_options.add_argument(
-        '--with-filename',
+        '-H', '--with-filename',
         action='store_true',
         dest='with_filename',
         default=None,
@@ -10072,7 +10072,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Suppress the filename heading above matches.",
     )
     scan_options.add_argument(
-        '--with-filename',
+        '-H', '--with-filename',
         action='store_true',
         dest='with_filename',
         default=None,

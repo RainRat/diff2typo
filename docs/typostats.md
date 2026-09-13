@@ -169,3 +169,13 @@ python typostats.py my_data.txt -o report.html
 ```bash
 python typostats.py my_data.txt --keyboard
 ```
+
+**Preview analysis settings and found patterns without saving a report:**
+```bash
+python typostats.py my_data.txt --dry-run
+```
+
+**Analyze typos across an entire directory of typo logs:**
+```bash
+python typostats.py my_typos_dir/ --sort count --output report.txt
+```

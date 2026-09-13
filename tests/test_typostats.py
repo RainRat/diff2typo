@@ -846,7 +846,8 @@ custom_list = [{typo = "teh", correct = "the"}]
 
     # Top level list in TOML traversal function
     toml_list_items = [{"typo": "recived", "correct": "received"}]
-    with patch("tomllib.loads", return_value=toml_list_items):
+    parser_module = "tomllib" if typostats._TOMLLIB_AVAILABLE else "toml"
+    with patch(f"{parser_module}.loads", return_value=toml_list_items):
         pairs6 = list(typostats._extract_pairs([str(f1)]))
         assert ("recived", "received") in pairs6
 

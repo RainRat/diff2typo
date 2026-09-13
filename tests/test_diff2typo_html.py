@@ -74,6 +74,13 @@ def test_is_file_excluded_empty():
     assert _is_file_excluded("") is False
 
 
+def test_partition_typos_multiple_arrows():
+    from diff2typo import _partition_typos
+    pairs, singles = _partition_typos(["a -> b -> c", "word"])
+    assert pairs == [("a", "b -> c")]
+    assert singles == ["word"]
+
+
 def test_main_html_both_mode(tmp_path, monkeypatch):
     diff_file = tmp_path / "sample.diff"
     diff_file.write_text(

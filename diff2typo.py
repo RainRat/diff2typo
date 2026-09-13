@@ -587,7 +587,7 @@ def _partition_typos(typos: Iterable[str]) -> Tuple[List[Tuple[str, str]], List[
     single_items: List[str] = []
     for typo in typos:
         if ' -> ' in typo:
-            before, after = typo.split(' -> ')
+            before, after = typo.split(' -> ', 1)
             typo_pairs.append((before, after))
         else:
             single_items.append(typo)

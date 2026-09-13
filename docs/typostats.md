@@ -59,7 +59,7 @@ The tool automatically recognizes several common ways of listing typos:
   - `yaml` / `yml`: YAML format compatible with `custom_substitutions` in `gentypos.yaml`.
   - `table` / `toml`: TOML table format (`typo = "correction"`), compatible with the `typos` tool.
   - `markdown` / `md`: Markdown table format (`| Typo | Correction | Count |`).
-  - `html` / `htm`: Styled HTML document report with metric summary cards and styled replacement tables.
+  - `html` / `htm`: HTML document report with summary metrics and replacement tables.
 - `-o`, `--output`: Save the report to a file instead of showing it on the screen.
 - `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
 - `-q`, `--quiet`: Hide progress bars and status messages.

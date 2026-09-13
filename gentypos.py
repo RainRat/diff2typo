@@ -32,6 +32,7 @@ import os
 import copy
 import json
 import csv
+import html
 from collections import defaultdict
 from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Optional
@@ -260,6 +261,8 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
         'yml': 'yaml',
         'md': 'markdown',
         'markdown': 'markdown',
+        'html': 'html',
+        'htm': 'html',
     }
 
     detected = mapping.get(ext)
@@ -853,7 +856,7 @@ def format_typos(
 
     Args:
         typo_to_correct_word (dict): Mapping from typo to correct word.
-        output_format (str): Desired output format ('arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md').
+        output_format (str): Desired output format ('arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm').
 
     Returns:
         list: Formatted list of typo strings.
@@ -867,6 +870,34 @@ def format_typos(
         else:
             logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
             return [json.dumps(typo_to_correct_word, indent=2)]
+    elif output_format in ('html', 'htm'):
+        lines = [
+            "<!DOCTYPE html>",
+            "<html lang=\"en\">",
+            "<head>",
+            "<meta charset=\"UTF-8\">",
+            "<title>gentypos Report</title>",
+            "<style>",
+            "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f8f9fa; color: #212529; }",
+            "h1, h2, h3 { color: #343a40; }",
+            "table { border-collapse: collapse; width: 100%; max-width: 800px; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }",
+            "th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #dee2e6; }",
+            "th { background-color: #e9ecef; }",
+            "code { background-color: #e9ecef; padding: 2px 4px; border-radius: 4px; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; }",
+            "</style>",
+            "</head>",
+            "<body>",
+            "<h1>Generated Typos Report</h1>",
+            "<table>",
+            "<thead><tr><th>Typo</th><th>Correction</th></tr></thead>",
+            "<tbody>",
+        ]
+        for typo, correct_word in typo_to_correct_word.items():
+            t_esc = html.escape(str(typo))
+            c_esc = html.escape(str(correct_word))
+            lines.append(f"<tr><td><code>{t_esc}</code></td><td><code>{c_esc}</code></td></tr>")
+        lines.extend(["</tbody></table>", "</body>", "</html>"])
+        return lines
     elif output_format in ('markdown', 'md'):
         lines = ["| Typo | Correction |", "| :--- | :--- |"]
         for typo, correct_word in typo_to_correct_word.items():
@@ -902,7 +933,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
     output_format = config.get('output_format', 'arrow').lower()
     output_header = config.get('output_header')
 
-    valid_formats = {'arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md'}
+    valid_formats = {'arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'}
     if output_format not in valid_formats:
         logging.warning(
             f"Unknown output format '{output_format}'. Defaulting to 'arrow'."
@@ -1193,7 +1224,7 @@ def main() -> None:
     )
     io_group.add_argument(
         '-f', '--format',
-        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md'],
+        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'],
         metavar='FMT',
         default=None,
         help="Choose an output format. If not provided, it is automatically detected from the output file extension. (default: arrow).",
@@ -1397,7 +1428,7 @@ def main() -> None:
     if args.format:
         config['output_format'] = args.format
     elif config.get('output_format') is None:
-        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md']
+        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm']
         config['output_format'] = _detect_format_from_extension(config.get('output_file'), allowed_formats, 'arrow')
     if args.substitutions:
         config['substitutions_file'] = args.substitutions

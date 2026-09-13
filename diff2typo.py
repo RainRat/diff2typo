@@ -51,7 +51,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, TextIO
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, TextIO, Tuple
 
 try:
     import yaml
@@ -581,6 +581,19 @@ def _typos_to_dicts(typos: Iterable[str]) -> List[Dict[str, str]]:
     return items
 
 
+def _partition_typos(typos: Iterable[str]) -> Tuple[List[Tuple[str, str]], List[str]]:
+    """Separate typo strings into paired tuples (before, after) and single items."""
+    typo_pairs: List[Tuple[str, str]] = []
+    single_items: List[str] = []
+    for typo in typos:
+        if ' -> ' in typo:
+            before, after = typo.split(' -> ')
+            typo_pairs.append((before, after))
+        else:
+            single_items.append(typo)
+    return typo_pairs, single_items
+
+
 def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     """
     Formats the list of typos based on the specified output format.
@@ -623,15 +636,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
             "<body>",
             "<h1>Diff2Typo Report</h1>",
         ]
-        typo_pairs = []
-        single_items = []
-
-        for typo in typos:
-            if ' -> ' in typo:
-                before, after = typo.split(' -> ')
-                typo_pairs.append((before, after))
-            else:
-                single_items.append(typo)
+        typo_pairs, single_items = _partition_typos(typos)
 
         if typo_pairs:
             formatted.append("<table>")
@@ -655,15 +660,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
 
     if output_format in ('markdown', 'md'):
         formatted: List[str] = []
-        typo_pairs = []
-        single_items = []
-
-        for typo in typos:
-            if ' -> ' in typo:
-                before, after = typo.split(' -> ')
-                typo_pairs.append((before, after))
-            else:
-                single_items.append(typo)
+        typo_pairs, single_items = _partition_typos(typos)
 
         if typo_pairs:
             formatted.append("| Typo | Correction |")

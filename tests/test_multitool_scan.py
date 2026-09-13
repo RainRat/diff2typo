@@ -168,3 +168,25 @@ def test_scan_limit(tmp_path):
 
     results = output_file.read_text(encoding='utf-8').splitlines()
     assert len(results) == 2
+
+def test_scan_short_flag_with_filename(tmp_path, monkeypatch):
+    from multitool import main
+    mapping_file = tmp_path / "typos.txt"
+    mapping_file.write_text("teh", encoding='utf-8')
+
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("Hello world\nThis is teh test", encoding='utf-8')
+    output_file = tmp_path / "output.txt"
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['multitool.py', 'scan', str(input_file), '-s', str(mapping_file), '-H', '-n', '-o', str(output_file)]
+    )
+
+    main()
+
+    results = output_file.read_text(encoding='utf-8').splitlines()
+    results = [strip_ansi(r) for r in results]
+    assert len(results) == 1
+    assert "input.txt:2: This is teh test" in results[0]

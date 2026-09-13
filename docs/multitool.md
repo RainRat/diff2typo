@@ -416,8 +416,8 @@ Use these modes to analyze your data.
     - Use the `--smart` (or **`-S`**) flag to scan for subwords within compound words.
     - Use `--line-numbers` (or **`-n`**) to show line numbers for matches.
     - Use `--before-context` (or **`-B N`**), `--after-context` (or **`-A N`**), and `--context` (or **`-C N`**) to show surrounding lines before, after, or around matches.
-    - Control filename headers using `--heading` / `--no-heading` or `--with-filename` / `--no-filename`.
-  - **Example:** `python multitool.py scan . --add teh:the --smart -n -C 1`
+    - Control filename headers using `--heading` / `--no-heading` or `-H` / `--with-filename` / `--no-filename`.
+  - **Example:** `python multitool.py scan . --add teh:the --smart -n -H -C 1`
 
 - **`verify`**
   - Checks which entries in a mapping file are present in your project.

@@ -55,6 +55,25 @@ def test_search_fuzzy_match(tmp_path):
     assert any("Thhe quick brown fox" in r for r in results)
     assert len(results) == 1
 
+def test_search_short_flag_with_filename(tmp_path, monkeypatch):
+    from multitool import main
+    input_file = tmp_path / "test.txt"
+    input_file.write_text("Hello world\nThis is a test", encoding='utf-8')
+    output_file = tmp_path / "output.txt"
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['multitool.py', 'search', 'test', str(input_file), '-H', '-n', '-o', str(output_file)]
+    )
+
+    main()
+
+    results = output_file.read_text(encoding='utf-8').splitlines()
+    results = [strip_ansi(r) for r in results]
+    assert len(results) == 1
+    assert "test.txt:2: This is a test" in results[0]
+
 def test_search_smart_match(tmp_path):
     input_file = tmp_path / "test.txt"
     input_file.write_text("myVariableName\nother_variable\nnormal words", encoding='utf-8')

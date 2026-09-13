@@ -163,3 +163,13 @@ python typostats.py my_data.txt --format json --min 5 --output report.json
 ```bash
 python typostats.py my_data.txt --keyboard
 ```
+
+**Preview analysis settings and found patterns without saving a report:**
+```bash
+python typostats.py my_data.txt --dry-run
+```
+
+**Analyze typos across an entire directory of typo logs:**
+```bash
+python typostats.py my_typos_dir/ --sort count --output report.txt
+```

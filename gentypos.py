@@ -1511,9 +1511,9 @@ def main() -> None:
     if settings.dictionary_file:
         if is_cli_mode and not os.path.exists(settings.dictionary_file):
             # In CLI mode, if the dictionary file (likely from default config) is missing,
-            # just log a warning and skip filtering instead of exiting.
-            logging.warning(
-                "Dictionary file '%s' not found. Skipping filtering in CLI mode.",
+            # log info and skip filtering instead of exiting or emitting a warning.
+            logging.info(
+                "Dictionary file '%s' not found; skipping large dictionary filtering.",
                 settings.dictionary_file,
             )
         else:

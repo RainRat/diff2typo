@@ -267,7 +267,8 @@ Use these modes to transform or combine your data.
   - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
 
 - **`unzip`**
-  - Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use --right for the right side and --raw to keep the original text.
+  - Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use `--right` for the right side and `--raw` to keep the original text.
+  - **Options:** Use `--right` to extract corrections instead of typos. Use `--file2` (or `--output2`, `--output-right`) to extract both sides simultaneously into separate files.
   - **Example:** `python multitool.py unzip typos.csv --right --output corrections.txt`
 
 - **`swap`**

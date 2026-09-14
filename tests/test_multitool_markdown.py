@@ -91,3 +91,21 @@ def test_markdown_mode_pairs_clean_and_filter(tmp_path):
     # AB -> ab (len 2, filtered by min_length=3)
     # longwordhere -> longwordhere (len 12, filtered by max_length=10)
     assert lines == []
+
+def test_markdown_mode_pairs_process_output_sorting_and_dedup(tmp_path):
+    md_file = tmp_path / "notes.md"
+    md_file.write_text("- zebra -> zoo\n- apple -> fruit\n- zebra -> zoo\n- banana -> yellow")
+
+    out_csv = tmp_path / "out.csv"
+    markdown_mode(
+        input_files=[str(md_file)],
+        output_file=str(out_csv),
+        min_length=1,
+        max_length=100,
+        process_output=True,
+        pairs=True,
+        output_format='csv',
+        clean_items=False,
+    )
+    lines = out_csv.read_text().splitlines()
+    assert lines == ["apple,fruit", "banana,yellow", "zebra,zoo"]

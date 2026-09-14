@@ -72,6 +72,7 @@ jobs: 4
 ## Options
 
 - `CONFIG_PATH`, `-C`, `--config`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
+- `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`cmdrunner.yaml` by default, or at a specified custom path) and exit.
 - `-m`, `--main-folder`: The main folder containing your projects. This overrides the configuration file.
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
 - `-c`, `--command`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
@@ -162,4 +163,10 @@ python cmdrunner.py --main-folder /home/user/projects --command "git status" -o 
 **Save an execution report in HTML format:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command "git status" -o report.html
+```
+
+**Generate a sample YAML configuration file:**
+```bash
+python cmdrunner.py --init-config
+python cmdrunner.py --init-config my_config.yaml
 ```

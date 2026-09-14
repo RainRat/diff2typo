@@ -84,6 +84,61 @@ class ConfigError(Exception):
     """Raised when a configuration file is invalid."""
 
 
+SAMPLE_CONFIG_TEMPLATE = """# Cmdrunner Configuration File
+# Run commands across multiple subdirectories.
+
+# The main folder containing your project subdirectories
+main_folder: "."
+
+# The command to run in each folder ('{}' will be replaced by the folder name)
+command_to_run: "git status"
+
+# Folders to skip during processing
+excluded_folders:
+  - ".git"
+  - "node_modules"
+  - "venv"
+  - ".venv"
+
+# (Optional) List specific folders to include exclusively
+# included_folders:
+#   - "project1"
+#   - "project2"
+
+# (Optional) Stop execution immediately if any command fails or times out
+stop_on_first_error: false
+
+# (Optional) Maximum execution time in seconds for each command
+# timeout: 30.0
+
+# (Optional) Run command only if this file or folder exists inside the subdirectory
+# if_exists: "package.json"
+
+# (Optional) Run command only if this file or folder does NOT exist inside the subdirectory
+# if_not_exists: "build"
+
+# (Optional) Number of parallel jobs to run
+jobs: 1
+"""
+
+
+def generate_sample_config(target_path: str) -> None:
+    """
+    Generate a sample YAML configuration file at the target path.
+    """
+    if os.path.exists(target_path):
+        logging.error(f"Configuration file '{target_path}' already exists. Skipping creation to prevent overwriting.")
+        sys.exit(1)
+
+    try:
+        with open(target_path, 'w', encoding='utf-8') as f:
+            f.write(SAMPLE_CONFIG_TEMPLATE)
+        logging.info(f"Sample configuration file generated successfully at '{target_path}'.")
+    except Exception as exc:
+        logging.error(f"Could not write configuration file to '{target_path}': {exc}")
+        sys.exit(1)
+
+
 def _should_enable_color(stream: Any) -> bool:
     """Check if color should be enabled for a given stream."""
     if os.environ.get('NO_COLOR'):
@@ -605,6 +660,15 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         help='The path to your YAML configuration file. Overrides positional argument.'
     )
+    config_group.add_argument(
+        '--init-config', '--generate-config',
+        dest='init_config',
+        type=str,
+        nargs='?',
+        const='cmdrunner.yaml',
+        metavar='PATH',
+        help='Generate a sample YAML configuration file (default: cmdrunner.yaml) and exit.'
+    )
 
     # Direct Execution / Overrides Group
     direct_group = parser.add_argument_group(f"{BLUE}CLI OVERRIDES / DIRECT OPTIONS{RESET}")
@@ -695,13 +759,18 @@ def parse_arguments() -> argparse.Namespace:
 def main() -> None:
     # Parse command-line arguments
     args = parse_arguments()
-    config_file = args.config_flag or args.config
 
     log_level = logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
     logging.basicConfig(level=log_level, handlers=[handler])
+
+    if args.init_config:
+        generate_sample_config(args.init_config)
+        return
+
+    config_file = args.config_flag or args.config
 
     config = {}
     if not config_file:

@@ -404,6 +404,7 @@ Use these modes to analyze your data.
     - `-S`, `--smart`: Search for subwords within larger items.
     - `-k`, `--keyboard` or `-t`, `--transposition`: Filter for likely typing errors.
     - `-n`, `--line-numbers`: Show line numbers for matches.
+    - Control filename prefixes for each match using `-H` / `--with-filename` or `--no-filename`.
     - `-B`, `--before-context N`, `-A`, `--after-context N`, and `-C`, `--context N`: Show surrounding lines before, after, or around matches.
     - `--heading` and `--no-heading`: Control whether results are grouped under filename headers (default is on for terminals).
   - **Example:** `python multitool.py search 'teh' report.txt --keyboard --line-numbers -C 1`

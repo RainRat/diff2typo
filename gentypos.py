@@ -975,6 +975,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
         output_file=output_file,
         output_format=output_format,
         output_header=output_header,
+        limit=config.get('limit'),
         typo_types=config.get('typo_types', DEFAULT_CONFIG['typo_types']),
         include_diagonals=include_diagonals,
         enable_adjacent_substitutions=enable_adjacent_substitutions,
@@ -1176,6 +1177,10 @@ def _run_typo_generation(
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
     sorted_typos = sorted(filtered_typo_to_correct_word.items())
+    limit = getattr(settings, 'limit', None)
+    if limit is not None and limit > 0:
+        sorted_typos = sorted_typos[:limit]
+
     settings.total_typos_generated = total_typos_generated
     settings.filtered_typos_count = filtered_typos_count
     return dict(sorted_typos)
@@ -1332,6 +1337,11 @@ def main() -> None:
         help="Ignore words longer than this length.",
     )
     gen_group.add_argument(
+        '-L', '--limit',
+        type=int,
+        help="Limit the number of typos in the output.",
+    )
+    gen_group.add_argument(
         '-N', '--no-filter',
         action='store_true',
         help="Do not check typos against the large dictionary (this is faster).",
@@ -1446,6 +1456,9 @@ def main() -> None:
             config['transposition_options'] = {}
         config['transposition_options']['distance'] = args.transposition_distance
 
+    if args.limit is not None:
+        config['limit'] = args.limit
+
     if args.min_length is not None or args.max_length is not None:
         if not isinstance(config.get('word_length'), dict):
             config['word_length'] = {}
@@ -1530,9 +1543,10 @@ def main() -> None:
     if args.dry_run:
         logging.info(f"{BOLD}{BLUE}--- GENTYPOS DRY RUN ---{RESET}")
         input_desc = settings.input_files if not cli_words else f"CLI Words: {cli_words}"
+        limit = getattr(settings, 'limit', None)
         logging.info(f"Input: {input_desc}")
         logging.info(f"Output File: {settings.output_file} (Format: {settings.output_format})")
-        logging.info(f"Min Word Length: {settings.min_length} | Max Word Length: {settings.max_length}")
+        logging.info(f"Min Word Length: {settings.min_length} | Max Word Length: {settings.max_length} | Limit: {limit if limit is not None else 'None'}")
         logging.info(f"Repeat Modifications: {settings.repeat_modifications}")
         enabled_types = [t for t, enabled in settings.typo_types.items() if enabled]
         logging.info(f"Enabled Typo Types: {', '.join(enabled_types)}")
@@ -1607,7 +1621,7 @@ def main() -> None:
                 item_label="typo",
                 start_time=start_time,
                 use_color=use_color,
-                extra_metrics={"Filtered by dictionary": filtered_count} if all_words else None,
+                extra_metrics=({**({"Filtered by dictionary": filtered_count} if all_words else {}), **({"Output limit (--limit)": settings.limit} if settings.limit is not None else {})}) or None,
                 total_input_items=len(word_list),
             )
             sys.stderr.write("\n".join(summary))

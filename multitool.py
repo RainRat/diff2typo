@@ -2061,28 +2061,8 @@ def _extract_markdown_codeblocks(input_file: str, quiet: bool = False) -> Iterab
 
 def _extract_comment_items(input_file: str, quiet: bool = False) -> Iterable[str]:
     """Yields comments extracted from a file using various common comment markers."""
-    lines = _read_file_lines_robust(input_file)
-    content = "".join(lines)
-
-    # Multi-line patterns (on whole content)
-    multi_line_patterns = [
-        re.compile(r'/\*(.*?)\*/', re.DOTALL),
-        re.compile(r'<!--(.*?)-->', re.DOTALL),
-        re.compile(r'"{3}(.*?)"{3}', re.DOTALL),
-        re.compile(r"'{3}(.*?)'{3}", re.DOTALL),
-    ]
-
-    for pattern in multi_line_patterns:
-        for match in pattern.finditer(content):
-            yield match.group(1).strip()
-
-    # Single-line patterns
-    # Heuristic: match from #, //, or -- to the end of line.
-    single_line_pattern = re.compile(r'(?:#|(?<!:)//|--)\s*(.*)')
-    for line in tqdm(lines, desc=f'Processing {input_file} (comments)', unit=' lines', disable=quiet):
-        match = single_line_pattern.search(line)
-        if match:
-            yield match.group(1).strip()
+    for _, comment in _extract_comment_items_detailed(input_file, quiet=quiet):
+        yield comment
 
 
 def _extract_comment_items_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:

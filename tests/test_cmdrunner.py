@@ -2151,6 +2151,122 @@ def test_main_with_html_output_integration(tmp_path, monkeypatch):
     assert "html-integration" in content
 
 
+def test_load_config_max_count_validation(tmp_path):
+    config_file = tmp_path / "config_max_count.yaml"
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo test",
+        "max_count": 5
+    }))
+    assert cmdrunner.load_config(str(config_file))["max_count"] == 5
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo test",
+        "max_count": 0
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="'max_count' must be an integer of 1 or more."):
+        cmdrunner.load_config(str(config_file))
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo test",
+        "max_count": True
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="'max_count' must be an integer of 1 or more."):
+        cmdrunner.load_config(str(config_file))
+
+    config_file.write_text(yaml.safe_dump({
+        "main_folder": "/tmp",
+        "command_to_run": "echo test",
+        "max_count": "invalid"
+    }))
+    with pytest.raises(cmdrunner.ConfigError, match="'max_count' must be an integer of 1 or more."):
+        cmdrunner.load_config(str(config_file))
+
+
+def test_run_command_max_count_limiting(tmp_path):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    for i in range(1, 6):
+        (base_dir / f"proj{i}").mkdir()
+
+    command = "python3 -c \"open('test_file.txt','w').write('ran')\""
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        max_count=2
+    )
+
+    assert (base_dir / "proj1" / "test_file.txt").exists()
+    assert (base_dir / "proj2" / "test_file.txt").exists()
+    assert not (base_dir / "proj3" / "test_file.txt").exists()
+    assert not (base_dir / "proj4" / "test_file.txt").exists()
+    assert not (base_dir / "proj5" / "test_file.txt").exists()
+
+
+def test_main_with_max_count_cli_flags(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    for i in range(1, 6):
+        (base_dir / f"proj{i}").mkdir()
+
+    command = "python3 -c \"open('out_flag.txt','w').write('ok')\""
+
+    # Test -M flag
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command, "-M", "3"]
+    )
+    cmdrunner.main()
+
+    assert (base_dir / "proj1" / "out_flag.txt").exists()
+    assert (base_dir / "proj2" / "out_flag.txt").exists()
+    assert (base_dir / "proj3" / "out_flag.txt").exists()
+    assert not (base_dir / "proj4" / "out_flag.txt").exists()
+    assert not (base_dir / "proj5" / "out_flag.txt").exists()
+
+    # Test --limit alias flag
+    command_limit = "python3 -c \"open('out_limit.txt','w').write('ok')\""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command_limit, "--limit", "1"]
+    )
+    cmdrunner.main()
+
+    assert (base_dir / "proj1" / "out_limit.txt").exists()
+    assert not (base_dir / "proj2" / "out_limit.txt").exists()
+
+
+def test_main_with_max_count_config(tmp_path, monkeypatch):
+    base_dir = tmp_path / "projects"
+    base_dir.mkdir()
+    for i in range(1, 5):
+        (base_dir / f"proj{i}").mkdir()
+
+    command = "python3 -c \"open('out_config.txt','w').write('ok')\""
+
+    config_data = {
+        "main_folder": str(base_dir),
+        "command_to_run": command,
+        "max_count": 2,
+    }
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", str(config_file)])
+    cmdrunner.main()
+
+    assert (base_dir / "proj1" / "out_config.txt").exists()
+    assert (base_dir / "proj2" / "out_config.txt").exists()
+    assert not (base_dir / "proj3" / "out_config.txt").exists()
+    assert not (base_dir / "proj4" / "out_config.txt").exists()
+
+
 def test_main_direct_cli_without_config_file(tmp_path, monkeypatch):
     base_dir = tmp_path / "projects"
     base_dir.mkdir()

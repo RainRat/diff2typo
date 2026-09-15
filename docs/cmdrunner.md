@@ -67,6 +67,9 @@ if_not_exists: "initialized.log"
 
 # (Optional) Run commands concurrently using this many jobs
 jobs: 4
+
+# (Optional) Cap the maximum number of folders to process
+max_count: 5
 ```
 
 ## Options
@@ -84,6 +87,7 @@ jobs: 4
 - `-x`, `--if-exists`: Only run the command in folders that contain this file or path (for example, `package.json`). This overrides the configuration file.
 - `-X`, `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
 - `-j`, `--jobs`: Run commands concurrently using this many jobs. This overrides the configuration file.
+- `-M`, `--max-count`, `--limit`: Cap the maximum number of target folders to process. This overrides the configuration file.
 - `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`, `markdown`, `md`, `yaml`, `yml`, `html`, or `htm`). If you do not specify this, the tool detects the format from the output file's extension.
 
@@ -147,6 +151,11 @@ python cmdrunner.py --main-folder /home/user/projects --command "npm run build" 
 **Run commands concurrently across multiple projects:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command "npm test" -j 4
+```
+
+**Cap execution to the first 5 project folders:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command "git status" -M 5
 ```
 
 **Save an execution report in Markdown format:**

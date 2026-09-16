@@ -14,6 +14,11 @@
 
 You can run the tool either by providing a YAML configuration file or by specifying the parameters directly on the command line.
 
+**Generating a template configuration file:**
+```bash
+python cmdrunner.py --init-config
+```
+
 **Using a configuration file:**
 ```bash
 python cmdrunner.py config.yaml
@@ -72,6 +77,7 @@ jobs: 4
 ## Options
 
 - `CONFIG_PATH`, `-C`, `--config`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
+- `--init-config`, `--generate-config`: Generate a sample YAML configuration file template (`cmdrunner.yaml` by default, or at a specified path).
 - `-m`, `--main-folder`: The main folder containing your projects. This overrides the configuration file.
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
 - `-c`, `--command`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
@@ -108,6 +114,16 @@ In this example, if the tool processes a folder named `my-web-app`, it will run 
 4. **Report:** It shows you the results of each command or any errors that occurred.
 
 ## Examples
+
+**Generate a sample configuration file in your working directory:**
+```bash
+python cmdrunner.py --init-config
+```
+
+**Generate a sample configuration file at a custom path:**
+```bash
+python cmdrunner.py --init-config my_project_config.yaml
+```
 
 **Run a command across your projects directly without a config file:**
 ```bash

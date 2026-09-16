@@ -2151,6 +2151,52 @@ def test_main_with_html_output_integration(tmp_path, monkeypatch):
     assert "html-integration" in content
 
 
+def test_init_config_default_filename(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 0
+
+    generated_file = tmp_path / "cmdrunner.yaml"
+    assert generated_file.exists()
+    content = generated_file.read_text(encoding="utf-8")
+    assert "main_folder:" in content
+    assert "command_to_run:" in content
+
+
+def test_init_config_custom_filename(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    custom_path = tmp_path / "my_config.yaml"
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config", str(custom_path)])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 0
+
+    assert custom_path.exists()
+    content = custom_path.read_text(encoding="utf-8")
+    assert "main_folder:" in content
+    assert "command_to_run:" in content
+
+
+def test_init_config_existing_file_aborts(tmp_path, monkeypatch, caplog):
+    monkeypatch.chdir(tmp_path)
+    existing_file = tmp_path / "cmdrunner.yaml"
+    existing_file.write_text("existing content", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config"])
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.main()
+        assert excinfo.value.code == 1
+
+    assert existing_file.read_text(encoding="utf-8") == "existing content"
+    assert any("already exists" in msg for msg in caplog.messages)
+
+
 def test_main_direct_cli_without_config_file(tmp_path, monkeypatch):
     base_dir = tmp_path / "projects"
     base_dir.mkdir()

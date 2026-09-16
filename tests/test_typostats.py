@@ -1448,3 +1448,36 @@ def test_typostats_html_report_and_auto_detection(tmp_path):
     assert "&amp;" in content
     assert "[T]" in content
     assert "badge-t" in content
+
+
+def test_generate_report_html_attributes(tmp_path):
+    """Verify HTML report generation attribute classification badges for K, Ins, 1:2, Del, and 2:1."""
+    from typostats import generate_report
+
+    # counts key is (correct_char, typo_char)
+    counts = {
+        ("a", "s"): 1,      # keyboard [K]
+        ("a", "ab"): 1,     # insertion [Ins]
+        ("a", "bc"): 1,     # 1-to-2 [1:2]
+        ("ab", "a"): 1,     # deletion [Del]
+        ("bc", "a"): 1,     # 2-to-1 [2:1]
+    }
+    out_file = tmp_path / "report_attrs.html"
+
+    generate_report(
+        counts,
+        output_file=str(out_file),
+        output_format='html',
+        keyboard=True,
+        total_pairs=5,
+    )
+
+    content = out_file.read_text(encoding='utf-8')
+    assert "[K]" in content
+    assert "badge-k" in content
+    assert "[Ins]" in content
+    assert "[1:2]" in content
+    assert "badge-inc" in content
+    assert "[Del]" in content
+    assert "[2:1]" in content
+    assert "badge-dec" in content

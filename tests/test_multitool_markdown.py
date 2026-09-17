@@ -14,6 +14,13 @@ def test_extract_markdown_items_detailed(tmp_path):
         ("invalid", "test"),
     ]
 
+def test_extract_markdown_items_detailed_empty_item(tmp_path):
+    md_file = tmp_path / "empty_items.md"
+    md_file.write_text("- \n*   \n+ valid -> pair\n- ")
+
+    items = list(_extract_markdown_items_detailed(str(md_file)))
+    assert items == [("valid", "pair")]
+
 def test_markdown_mode_pairs_basic(tmp_path):
     md_file = tmp_path / "notes.md"
     md_file.write_text("- teh -> the\n* adn: and\n+ item without pair")
@@ -88,6 +95,22 @@ def test_markdown_mode_pairs_clean_and_filter(tmp_path):
         clean_items=True,
     )
     lines = out_txt.read_text().splitlines()
-    # AB -> ab (len 2, filtered by min_length=3)
-    # longwordhere -> longwordhere (len 12, filtered by max_length=10)
     assert lines == []
+
+def test_markdown_mode_pairs_process_output_sorting_and_dedup(tmp_path):
+    md_file = tmp_path / "dedup.md"
+    md_file.write_text("- zebra -> zoo\n- apple -> fruit\n- zebra -> zoo")
+
+    out_csv = tmp_path / "sorted.csv"
+    markdown_mode(
+        input_files=[str(md_file)],
+        output_file=str(out_csv),
+        min_length=1,
+        max_length=100,
+        process_output=True,
+        pairs=True,
+        output_format='csv',
+        clean_items=False,
+    )
+    lines = out_csv.read_text().splitlines()
+    assert lines == ["apple,fruit", "zebra,zoo"]

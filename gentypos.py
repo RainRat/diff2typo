@@ -983,6 +983,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
         repeat_modifications=repeat_modifications,
         min_length=min_length,
         max_length=max_length,
+        limit=config.get('limit'),
         custom_substitutions_config=config.get('custom_substitutions', {}),
         substitutions_file=config.get('substitutions_file'),
         ad_hoc=config.get('ad_hoc'),
@@ -1332,6 +1333,11 @@ def main() -> None:
         help="Ignore words longer than this length.",
     )
     gen_group.add_argument(
+        '-L', '--limit',
+        type=int,
+        help="Limit the number of typos outputted.",
+    )
+    gen_group.add_argument(
         '-N', '--no-filter',
         action='store_true',
         help="Do not check typos against the large dictionary (this is faster).",
@@ -1446,6 +1452,9 @@ def main() -> None:
             config['transposition_options'] = {}
         config['transposition_options']['distance'] = args.transposition_distance
 
+    if args.limit is not None:
+        config['limit'] = args.limit
+
     if args.min_length is not None or args.max_length is not None:
         if not isinstance(config.get('word_length'), dict):
             config['word_length'] = {}
@@ -1532,7 +1541,7 @@ def main() -> None:
         input_desc = settings.input_files if not cli_words else f"CLI Words: {cli_words}"
         logging.info(f"Input: {input_desc}")
         logging.info(f"Output File: {settings.output_file} (Format: {settings.output_format})")
-        logging.info(f"Min Word Length: {settings.min_length} | Max Word Length: {settings.max_length}")
+        logging.info(f"Min Word Length: {settings.min_length} | Max Word Length: {settings.max_length} | Limit: {getattr(settings, 'limit', None)}")
         logging.info(f"Repeat Modifications: {settings.repeat_modifications}")
         enabled_types = [t for t, enabled in settings.typo_types.items() if enabled]
         logging.info(f"Enabled Typo Types: {', '.join(enabled_types)}")
@@ -1574,6 +1583,9 @@ def main() -> None:
         custom_subs,
         quiet=settings.quiet,
     )
+
+    if getattr(settings, 'limit', None) and settings.limit > 0:
+        sorted_typo_dict = dict(list(sorted_typo_dict.items())[:settings.limit])
 
     # Format typos based on the selected output format
     logging.info("Formatting typos in '%s' format...", settings.output_format)

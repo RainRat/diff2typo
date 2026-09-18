@@ -816,6 +816,34 @@ def process_typos(
     return replacement_counts, total_pairs
 
 
+def _classify_replacement_attribute(
+    correct_char: str,
+    typo_char: str,
+    keyboard: bool = False,
+    adjacent_map: Mapping[str, set[str]] | None = None,
+) -> tuple[str, str]:
+    """
+    Classify a replacement pair into an error type marker and category.
+    Returns (marker_text, category) where category is 'k', 't', 'inc', 'dec', or ''.
+    """
+    if len(correct_char) == 1 and len(typo_char) == 1:
+        if keyboard and adjacent_map and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
+            return "[K]", "k"
+    elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
+        return "[T]", "t"
+    elif len(correct_char) < len(typo_char):
+        if correct_char in typo_char:
+            return "[Ins]", "inc"
+        else:
+            return "[1:2]", "inc"
+    elif len(correct_char) > len(typo_char):
+        if typo_char in correct_char:
+            return "[Del]", "dec"
+        else:
+            return "[2:1]", "dec"
+    return "", ""
+
+
 def generate_report(
     replacement_counts: dict[tuple[str, str], int],
     output_file: str | None = None,
@@ -1028,35 +1056,18 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             percent = (count / total_typos * 100) if total_typos > 0 else 0
 
-            # Determine error type and color
-            marker_text = "     "
-            marker_color = c_yellow
-            if len(correct_char) == 1 and len(typo_char) == 1:
-                if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                    marker_text = "[K]"
-                    marker_color = c_cyan
-            elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
-                marker_text = "[T]"
-                marker_color = c_magenta
-            elif len(correct_char) < len(typo_char):
-                # Typo is longer: Insertion [Ins] or 1-to-2 replacement [1:2]
-                marker_color = c_green
-                if correct_char in typo_char:
-                    marker_text = "[Ins]"
-                else:
-                    marker_text = "[1:2]"
-            elif len(correct_char) > len(typo_char):
-                # Typo is shorter: Deletion [Del] or 2-to-1 replacement [2:1]
-                marker_color = c_red
-                if typo_char in correct_char:
-                    marker_text = "[Del]"
-                else:
-                    marker_text = "[2:1]"
-
-            if marker_text == "     ":
-                marker_color_for_bar = c_cyan
-            else:
-                marker_color_for_bar = marker_color
+            marker_text, category = _classify_replacement_attribute(
+                correct_char, typo_char, keyboard=keyboard, adjacent_map=adjacent_map
+            )
+            color_map = {
+                "k": c_cyan,
+                "t": c_magenta,
+                "inc": c_green,
+                "dec": c_red,
+            }
+            marker_color = color_map.get(category, c_yellow)
+            marker_color_for_bar = c_cyan if not marker_text else marker_color
+            marker_display = marker_text if marker_text else "     "
 
             # Create a high-resolution visual bar
             bar = _render_visual_bar(percent, max_bar)
@@ -1067,7 +1078,7 @@ def generate_report(
                 f"{c_green}{percent:>5.1f}%{c_reset}"
             )
             if show_attr:
-                marker = f"{marker_color}{marker_text:<5}{c_reset}"
+                marker = f"{marker_color}{marker_display:<5}{c_reset}"
                 row += f" {sep} {marker}"
 
             row += f" {sep} {marker_color_for_bar}{bar}{c_reset}"
@@ -1146,28 +1157,16 @@ def generate_report(
 
         for (correct_char, typo_char), count in sorted_replacements:
             percent = (count / total_typos * 100) if total_typos > 0 else 0
-            marker_text = ""
-            badge_cls = "badge-attr"
-
-            if len(correct_char) == 1 and len(typo_char) == 1:
-                if keyboard and typo_char.lower() in adjacent_map.get(correct_char.lower(), set()):
-                    marker_text = "[K]"
-                    badge_cls = "badge-k"
-            elif len(correct_char) == 2 and len(typo_char) == 2 and correct_char == typo_char[::-1]:
-                marker_text = "[T]"
-                badge_cls = "badge-t"
-            elif len(correct_char) < len(typo_char):
-                if correct_char in typo_char:
-                    marker_text = "[Ins]"
-                else:
-                    marker_text = "[1:2]"
-                badge_cls = "badge-inc"
-            elif len(correct_char) > len(typo_char):
-                if typo_char in correct_char:
-                    marker_text = "[Del]"
-                else:
-                    marker_text = "[2:1]"
-                badge_cls = "badge-dec"
+            marker_text, category = _classify_replacement_attribute(
+                correct_char, typo_char, keyboard=keyboard, adjacent_map=adjacent_map
+            )
+            badge_map = {
+                "k": "badge-k",
+                "t": "badge-t",
+                "inc": "badge-inc",
+                "dec": "badge-dec",
+            }
+            badge_cls = badge_map.get(category, "badge-attr")
 
             t_esc = html.escape(typo_char)
             c_esc = html.escape(correct_char)

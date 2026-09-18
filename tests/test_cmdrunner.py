@@ -2286,3 +2286,57 @@ def test_main_direct_cli_without_config_file(tmp_path, monkeypatch):
     assert (base_dir / "proj1" / "no_config.txt").exists()
     assert (base_dir / "proj1" / "no_config.txt").read_text() == "ok"
 
+
+def test_init_config_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 0
+
+    default_config = tmp_path / "cmdrunner.yaml"
+    assert default_config.exists()
+    content = default_config.read_text(encoding="utf-8")
+    assert 'main_folder: "./projects"' in content
+    assert 'command_to_run: "git status"' in content
+
+
+def test_init_config_custom_path(tmp_path, monkeypatch):
+    custom_config = tmp_path / "my_config.yaml"
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--generate-config", str(custom_config)])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 0
+
+    assert custom_config.exists()
+    content = custom_config.read_text(encoding="utf-8")
+    assert 'main_folder: "./projects"' in content
+
+
+def test_init_config_already_exists(tmp_path, monkeypatch, caplog):
+    monkeypatch.chdir(tmp_path)
+    existing_config = tmp_path / "cmdrunner.yaml"
+    existing_config.write_text("main_folder: existing", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config"])
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.main()
+        assert excinfo.value.code == 1
+
+    assert any("already exists" in msg for msg in caplog.messages)
+
+
+def test_init_config_write_error(tmp_path, monkeypatch, caplog):
+    invalid_path = tmp_path / "non_existent_subdir" / "cmdrunner.yaml"
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config", str(invalid_path)])
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cmdrunner.main()
+        assert excinfo.value.code == 1
+
+    assert any("Could not create configuration file" in msg for msg in caplog.messages)

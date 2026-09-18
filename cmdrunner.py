@@ -612,6 +612,14 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         help='The path to your YAML configuration file. Overrides positional argument.'
     )
+    config_group.add_argument(
+        '--init-config', '--generate-config',
+        dest='init_config',
+        nargs='?',
+        const='cmdrunner.yaml',
+        metavar='FILE',
+        help='Generate a template YAML configuration file (default: cmdrunner.yaml).'
+    )
 
     # Direct Execution / Overrides Group
     direct_group = parser.add_argument_group(f"{BLUE}CLI OVERRIDES / DIRECT OPTIONS{RESET}")
@@ -708,13 +716,63 @@ def parse_arguments() -> argparse.Namespace:
 def main() -> None:
     # Parse command-line arguments
     args = parse_arguments()
-    config_file = args.config_flag or args.config
 
     log_level = logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
     logging.basicConfig(level=log_level, handlers=[handler])
+
+    if args.init_config:
+        init_path = args.init_config
+        if os.path.exists(init_path):
+            logging.error(f"Configuration file '{init_path}' already exists. Aborting to prevent overwriting.")
+            sys.exit(1)
+
+        template = """# cmdrunner configuration template
+
+# Main folder containing subdirectories/projects to process
+main_folder: "./projects"
+
+# Command to execute in each folder.
+# Use {} as a placeholder for the folder name.
+command_to_run: "git status"
+
+# List of folder names to exclude from processing
+excluded_folders:
+  - "node_modules"
+  - ".git"
+  - "venv"
+
+# List of specific folder names to process (optional)
+# included_folders:
+#   - "proj1"
+
+# Stop execution immediately if any command fails (optional)
+stop_on_first_error: false
+
+# Timeout in seconds for each command execution (optional)
+# timeout: 30
+
+# Only run command if this file exists in the folder (optional)
+# if_exists: "package.json"
+
+# Only run command if this file does NOT exist in the folder (optional)
+# if_not_exists: "setup.log"
+
+# Number of concurrent jobs to run (optional, default: 1)
+jobs: 1
+"""
+        try:
+            with open(init_path, 'w', encoding='utf-8') as f:
+                f.write(template)
+            logging.info(f"Initialized sample configuration file at '{init_path}'.")
+            sys.exit(0)
+        except Exception as e:
+            logging.error(f"Could not create configuration file '{init_path}': {e}")
+            sys.exit(1)
+
+    config_file = args.config_flag or args.config
 
     config = {}
     if not config_file:

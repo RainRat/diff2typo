@@ -446,8 +446,12 @@ def run_command_in_folders(
                         json.dump(report_data, f, indent=2)
                 elif fmt == 'toml':
                     if _TOML_AVAILABLE:
-                        import toml
-                        toml.dump({"reports": report_data}, f)
+                        try:
+                            toml_str = toml.dumps({"reports": report_data})
+                            f.write(toml_str)
+                        except Exception:
+                            logging.warning("TOML serialization failed. Falling back to JSON for TOML report format.")
+                            json.dump(report_data, f, indent=2)
                     else:
                         logging.warning("TOML package is not installed. Falling back to JSON for TOML report format.")
                         json.dump(report_data, f, indent=2)

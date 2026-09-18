@@ -14,6 +14,13 @@ def test_extract_markdown_items_detailed(tmp_path):
         ("invalid", "test"),
     ]
 
+def test_extract_markdown_items_detailed_empty_item(tmp_path):
+    md_file = tmp_path / "empty_items.md"
+    md_file.write_text("- \n*   \n+ valid -> pair\n- ")
+
+    items = list(_extract_markdown_items_detailed(str(md_file)))
+    assert items == [("valid", "pair")]
+
 def test_markdown_mode_pairs_basic(tmp_path):
     md_file = tmp_path / "notes.md"
     md_file.write_text("- teh -> the\n* adn: and\n+ item without pair")

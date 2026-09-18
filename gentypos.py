@@ -983,6 +983,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
         repeat_modifications=repeat_modifications,
         min_length=min_length,
         max_length=max_length,
+        limit=config.get('limit'),
         custom_substitutions_config=config.get('custom_substitutions', {}),
         substitutions_file=config.get('substitutions_file'),
         ad_hoc=config.get('ad_hoc'),
@@ -1529,6 +1530,9 @@ def main() -> None:
         if args.max_length is not None:
             config['word_length']['max_length'] = args.max_length
 
+    if args.limit is not None:
+        config['limit'] = args.limit
+
     if sys.stdin.isatty() and not cli_words:
         resolved_input = config.get('input_file')
         if not resolved_input or (resolved_input != '-' and not os.path.exists(resolved_input)):
@@ -1602,13 +1606,15 @@ def main() -> None:
 
     adjacent_keys, custom_subs = _setup_generation_tools(settings)
 
+    limit = args.limit if args.limit is not None else getattr(settings, 'limit', None)
+
     if args.dry_run:
         logging.info(f"{BOLD}{BLUE}--- GENTYPOS DRY RUN ---{RESET}")
         input_desc = settings.input_files if not cli_words else f"CLI Words: {cli_words}"
         logging.info(f"Input: {input_desc}")
         logging.info(f"Output File: {settings.output_file} (Format: {settings.output_format})")
         logging.info(f"Min Word Length: {settings.min_length} | Max Word Length: {settings.max_length}")
-        logging.info(f"Limit: {args.limit if args.limit is not None else 'None'}")
+        logging.info(f"Limit: {limit if limit is not None else 'None'}")
         logging.info(f"Repeat Modifications: {settings.repeat_modifications}")
         enabled_types = [t for t, enabled in settings.typo_types.items() if enabled]
         logging.info(f"Enabled Typo Types: {', '.join(enabled_types)}")
@@ -1651,8 +1657,8 @@ def main() -> None:
         quiet=settings.quiet,
     )
 
-    if args.limit and args.limit > 0:
-        sorted_typos_items = list(sorted_typo_dict.items())[:args.limit]
+    if limit and limit > 0:
+        sorted_typos_items = list(sorted_typo_dict.items())[:limit]
         sorted_typo_dict = dict(sorted_typos_items)
 
     # Format typos based on the selected output format
@@ -1683,8 +1689,8 @@ def main() -> None:
             extra_metrics = {}
             if all_words:
                 extra_metrics["Filtered by dictionary"] = filtered_count
-            if args.limit:
-                extra_metrics["Output limit (--limit)"] = args.limit
+            if limit:
+                extra_metrics["Output limit (--limit)"] = limit
 
             # Generate the formatted summary
             summary = _format_analysis_summary(

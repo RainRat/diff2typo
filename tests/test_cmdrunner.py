@@ -2170,3 +2170,65 @@ def test_main_direct_cli_without_config_file(tmp_path, monkeypatch):
     assert (base_dir / "proj1" / "no_config.txt").exists()
     assert (base_dir / "proj1" / "no_config.txt").read_text() == "ok"
 
+
+def test_report_generation_toml(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.toml'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo hello-toml",
+        output_file=str(output_file),
+        output_format='toml'
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+    assert "[[reports]]" in content
+    assert 'folder = "proj1"' in content
+    assert 'status = "success"' in content
+
+
+def test_report_generation_toml_extension_auto_detect(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.toml'
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo auto-toml",
+        output_file=str(output_file)
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding='utf-8')
+    assert "[[reports]]" in content
+    assert 'folder = "proj1"' in content
+
+
+def test_report_generation_toml_fallback(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.toml'
+
+    monkeypatch.setattr(cmdrunner, "_TOML_AVAILABLE", False)
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        "echo fallback-toml",
+        output_file=str(output_file),
+        output_format='toml'
+    )
+
+    assert output_file.exists()
+    data = json.loads(output_file.read_text(encoding='utf-8'))
+    assert isinstance(data, list)
+    assert data[0]['folder'] == 'proj1'
+    assert data[0]['status'] == 'success'

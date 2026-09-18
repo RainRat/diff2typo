@@ -10,6 +10,12 @@ try:
     _YAML_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dependency
     _YAML_AVAILABLE = False
+
+try:
+    import toml
+    _TOML_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    _TOML_AVAILABLE = False
 import sys
 import argparse
 import logging
@@ -412,6 +418,8 @@ def run_command_in_folders(
                 fmt = ext
             elif ext in ['yaml', 'yml']:
                 fmt = 'yaml'
+            elif ext == 'toml':
+                fmt = 'toml'
             elif ext in ['md', 'markdown']:
                 fmt = 'markdown'
             elif ext in ['html', 'htm']:
@@ -428,6 +436,13 @@ def run_command_in_folders(
                         yaml.safe_dump(report_data, f, default_flow_style=False)
                     else:
                         logging.warning("PyYAML is not installed. Falling back to JSON for YAML report format.")
+                        json.dump(report_data, f, indent=2)
+                elif fmt == 'toml':
+                    if _TOML_AVAILABLE:
+                        import toml
+                        toml.dump({"reports": report_data}, f)
+                    else:
+                        logging.warning("TOML package is not installed. Falling back to JSON for TOML report format.")
                         json.dump(report_data, f, indent=2)
                 elif fmt == 'csv':
                     writer = csv.DictWriter(f, fieldnames=["folder", "command", "status", "return_code", "stdout", "stderr"])
@@ -686,7 +701,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     output_group.add_argument(
         '-f', '--format',
-        choices=['json', 'csv', 'txt', 'markdown', 'md', 'yaml', 'yml', 'html', 'htm'],
+        choices=['json', 'csv', 'txt', 'markdown', 'md', 'yaml', 'yml', 'html', 'htm', 'toml'],
         help='Choose the format for the output report (default: txt).'
     )
 

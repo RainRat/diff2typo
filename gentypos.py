@@ -1190,6 +1190,7 @@ def main() -> None:
         description=f"{BOLD}Create lists of common typing mistakes by simulating nearby key errors and common patterns like swapping, skipping, or doubling letters.{RESET}",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
+  {GREEN}python gentypos.py --init-config{RESET}        # Create a sample gentypos.yaml configuration template
   {GREEN}python gentypos.py "hello" "world"{RESET}
   {GREEN}python gentypos.py --config my_config.yaml --output typos.txt{RESET}
   {GREEN}python gentypos.py word1 word2 --format csv --no-filter{RESET}
@@ -1216,6 +1217,14 @@ def main() -> None:
         type=str,
         default="gentypos.yaml",
         help="The path to your YAML configuration file.",
+    )
+    io_group.add_argument(
+        '--init-config', '--generate-config',
+        dest='init_config',
+        nargs='?',
+        const='gentypos.yaml',
+        metavar='PATH',
+        help="Generate a sample template YAML configuration file (default: gentypos.yaml) and exit.",
     )
     io_group.add_argument(
         '-o', '--output',
@@ -1353,6 +1362,67 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+
+    if args.init_config:
+        target_path = args.init_config
+        if os.path.exists(target_path):
+            logging.error(f"Configuration file '{target_path}' already exists. Aborting to prevent overwriting.")
+            sys.exit(1)
+
+        template_content = (
+            "# gentypos.yaml - Configuration file for gentypos.py\n"
+            "\n"
+            "# File Paths\n"
+            'input_file: "words.txt"           # Small dictionary or word list to process (can also be a list or directory)\n'
+            'dictionary_file: "dictionary.txt"  # Large dictionary used to filter out real words\n'
+            'output_file: "typos.txt"          # Where to save generated typos\n'
+            "\n"
+            "# Output Format: arrow (a -> b), csv (a,b), table (a = \"b\"), list (a), json, yaml, markdown, md, html, htm\n"
+            'output_format: "arrow"\n'
+            "\n"
+            "# Number of times to repeat typo generation, stacking modifications\n"
+            "repeat_modifications: 1\n"
+            "\n"
+            "# Types of typos to generate\n"
+            "typo_types:\n"
+            "  deletion: true       # Skipping a letter: \"word\" -> \"wrd\"\n"
+            "  transposition: true  # Swapping adjacent letters: \"word\" -> \"wrod\"\n"
+            "  replacement: true    # Hitting a nearby key: \"word\" -> \"wprd\"\n"
+            "  duplication: true    # Typing a letter twice: \"word\" -> \"woord\"\n"
+            "\n"
+            "# Advanced Replacement Options\n"
+            "replacement_options:\n"
+            "  include_diagonals: true               # Include diagonal keys on QWERTY keyboard\n"
+            "  enable_adjacent_substitutions: true   # Enable nearby key substitutions\n"
+            "  enable_custom_substitutions: true     # Enable custom substitution rules\n"
+            "\n"
+            "# Transposition Options\n"
+            "transposition_options:\n"
+            "  distance: 1                           # Distance between swapped letters\n"
+            "\n"
+            "# Word Length Filters\n"
+            "word_length:\n"
+            "  min_length: 3\n"
+            "  max_length: 20\n"
+            "\n"
+            "# Custom Replacement Rules (optional)\n"
+            "# custom_substitutions:\n"
+            "#   ph:\n"
+            '#     - "f"\n'
+            "#   e:\n"
+            '#     - "a"\n'
+            '#     - "i"\n'
+        )
+
+        try:
+            with open(target_path, 'w', encoding='utf-8') as f:
+                f.write(template_content)
+            logging.info(f"Sample configuration template written to '{target_path}'.")
+            sys.exit(0)
+        except Exception as e:
+            logging.error(f"Error writing configuration template to '{target_path}': {e}")
+            sys.exit(1)
+
     start_time = time.perf_counter()
 
     # Determine if we are in CLI Mode (extra words or input file provided)

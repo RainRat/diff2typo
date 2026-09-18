@@ -24,6 +24,9 @@ python gentypos.py apple banana orange --no-filter
 Use a configuration file or specify one or more input files, directories, or glob patterns directly from the command line. The tool will recursively find supported files (like `.txt`, `.csv`, `.log`), ignoring standard development folders like `.git` or `node_modules`, and load all of their words together.
 
 ```bash
+# Generate a sample configuration file template
+python gentypos.py --init-config
+
 # Process words using a configuration file
 python gentypos.py --config gentypos.yaml
 
@@ -60,6 +63,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--all`, `-A` | Off | Generate all typo types (deletions, transpositions, replacements, and duplications). |
 | `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
 | `--deletion`, `-D` | Off | Generate deletions (skipping a letter, e.g., 'word' becomes 'wrd'). |
+| `--init-config`, `--generate-config` | Off | Generate a sample template YAML configuration file (default: `gentypos.yaml`) and exit. |
 | `--dry-run`, `-n` | Off | Show configuration details and a sample preview of typo generation without writing files. |
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
 | `--duplication`, `-u` | Off | Generate duplications (typing a letter twice, e.g., 'word' becomes 'woord'). |

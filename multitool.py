@@ -2114,23 +2114,8 @@ def _extract_todo_items(
     quiet: bool = False,
 ) -> Iterable[str]:
     """Yields TODO and FIXME items extracted from a file."""
-    lines = _read_file_lines_robust(input_file)
-    if markers:
-        pattern_str = r'\b(' + '|'.join(re.escape(m.strip()) for m in markers if m.strip()) + r')[:\s]+(.*)'
-    else:
-        pattern_str = r'\b(TODO|FIXME|XXX|BUG|HACK)[:\s]+(.*)'
-    todo_pattern = re.compile(pattern_str, re.IGNORECASE)
-
-    for line in tqdm(lines, desc=f'Processing {input_file} (todo)', unit=' lines', disable=quiet):
-        match = todo_pattern.search(line)
-        if match:
-            text = match.group(2).strip()
-            # If the TODO is at the end of a comment, it might have trailing comment markers
-            # but _process_items/clean_items usually handles that if requested.
-            # However, common markers like */ or --> should be stripped if they are at the end.
-            text = re.sub(r'\s*(\*/|-->|"{3}|\'{3})$', '', text).strip()
-            if text:
-                yield text
+    for _, text, _ in _extract_todo_items_detailed(input_file, markers=markers, quiet=quiet):
+        yield text
 
 
 def _extract_todo_items_detailed(

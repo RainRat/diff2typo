@@ -406,6 +406,7 @@ Use these modes to analyze your data.
     - `-n`, `--line-numbers`: Show line numbers for matches.
     - `-B`, `--before-context N`, `-A`, `--after-context N`, and `-C`, `--context N`: Show surrounding lines before, after, or around matches.
     - `--heading` and `--no-heading`: Control whether results are grouped under filename headers (default is on for terminals).
+    - `-H`, `--with-filename` and `--no-filename`: Control whether filename prefixes are shown for each match.
   - **Example:** `python multitool.py search 'teh' report.txt --keyboard --line-numbers -C 1`
 
 - **`scan`**

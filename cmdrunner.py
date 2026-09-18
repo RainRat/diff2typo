@@ -235,6 +235,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "jobs" in config and (isinstance(config["jobs"], bool) or not isinstance(config["jobs"], int) or config["jobs"] < 1):
         errors.append("'jobs' must be an integer of 1 or more.")
 
+    if "max_count" in config and (isinstance(config["max_count"], bool) or not isinstance(config["max_count"], int) or config["max_count"] < 1):
+        errors.append("'max_count' must be an integer of 1 or more.")
+
     if errors:
         raise ConfigError(" ".join(errors))
 
@@ -254,6 +257,7 @@ def run_command_in_folders(
     if_not_exists: Optional[str] = None,
     included_folders: Optional[List[str]] = None,
     jobs: int = 1,
+    max_count: Optional[int] = None,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -285,6 +289,9 @@ def run_command_in_folders(
             item for item in directories
             if not os.path.exists(os.path.join(main_folder, item, if_not_exists))
         ]
+
+    if max_count is not None:
+        directories = directories[:max_count]
 
     report_data = []
 
@@ -676,6 +683,12 @@ def parse_arguments() -> argparse.Namespace:
         type=int,
         help='Run commands concurrently using this many jobs.'
     )
+    options_group.add_argument(
+        '-M', '--max-count', '--limit',
+        dest='max_count',
+        type=int,
+        help='Cap the maximum number of folders to process.'
+    )
 
     # Output Options Group
     output_group = parser.add_argument_group(f"{BLUE}OUTPUT OPTIONS{RESET}")
@@ -740,6 +753,7 @@ def main() -> None:
     if_exists = args.if_exists or config.get('if_exists', None)
     if_not_exists = args.if_not_exists or config.get('if_not_exists', None)
     jobs = args.jobs if args.jobs is not None else config.get('jobs', 1)
+    max_count = args.max_count if args.max_count is not None else config.get('max_count', None)
 
     # Validate that required options are present
     errors = []
@@ -767,6 +781,7 @@ def main() -> None:
         if_not_exists=if_not_exists,
         included_folders=included,
         jobs=jobs,
+        max_count=max_count,
     )
 
 if __name__ == "__main__":

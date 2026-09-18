@@ -90,7 +90,7 @@ max_count: 5
 - `-j`, `--jobs`: Run commands concurrently using this many jobs. This overrides the configuration file.
 - `-M`, `--max-count`, `--limit`: Cap the maximum number of target folders to process. This overrides the configuration file.
 - `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
-- `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`, `markdown`, `md`, `yaml`, `yml`, `html`, or `htm`). If you do not specify this, the tool detects the format from the output file's extension.
+- `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`, `markdown`, `md`, `yaml`, `yml`, `html`, `htm`, or `toml`). If you do not specify this, the tool detects the format from the output file's extension.
 
 ## Dynamic Commands
 
@@ -177,4 +177,9 @@ python cmdrunner.py --main-folder /home/user/projects --command "git status" -o 
 **Save an execution report in HTML format:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command "git status" -o report.html
+```
+
+**Save an execution report in TOML format:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command "git status" -o report.toml
 ```

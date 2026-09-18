@@ -84,20 +84,17 @@ def test_best_suggestion_tie_breaking():
     assert multitool._get_best_suggestion("apple", ["appleS", "aple"], max_dist=1) == "aple"
 
 def test_write_structured_data_toml_fallback_full(tmp_path):
-    """Cover multitool.py lines 881-882."""
+    """Cover TOML serialization fallback in multitool.py."""
     data = {"key": "value"}
 
     mock_out = MagicMock()
-    # Trigger line 881-882 by making seek fail
-    mock_out.seek.side_effect = Exception("seek fail")
 
     with patch('multitool._TOML_AVAILABLE', True), \
-         patch('toml.dump', side_effect=Exception("mock dump error")), \
+         patch('toml.dumps', side_effect=Exception("mock dumps error")), \
          patch('multitool.smart_open_output', return_value=MockSmartOpen(mock_out)):
         multitool._write_structured_data(data, "dummy.toml", output_format='toml')
 
-    mock_out.seek.assert_called_with(0)
-    # It should still try to write JSON
+    # It should fall back to JSON serialization and write
     assert mock_out.write.called
 
 def test_convert_mode_limit(tmp_path):

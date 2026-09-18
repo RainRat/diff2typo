@@ -322,7 +322,7 @@ def test_unflatten_mode_toml_exception(tmp_path, monkeypatch):
     import toml
     def raise_exc(*args, **kwargs):
         raise ValueError("Simulated error")
-    monkeypatch.setattr(toml, "dump", raise_exc)
+    monkeypatch.setattr(toml, "dumps", raise_exc)
 
     input_file = tmp_path / "input.txt"
     input_file.write_text("a -> b\n")

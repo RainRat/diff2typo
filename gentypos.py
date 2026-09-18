@@ -1336,6 +1336,11 @@ def main() -> None:
         help=argparse.SUPPRESS,
     )
     gen_group.add_argument(
+        '-L', '--limit',
+        type=int,
+        help="Limit the number of typos in the output.",
+    )
+    gen_group.add_argument(
         '-M', '--max-length',
         type=int,
         help="Ignore words longer than this length.",
@@ -1603,6 +1608,7 @@ def main() -> None:
         logging.info(f"Input: {input_desc}")
         logging.info(f"Output File: {settings.output_file} (Format: {settings.output_format})")
         logging.info(f"Min Word Length: {settings.min_length} | Max Word Length: {settings.max_length}")
+        logging.info(f"Limit: {args.limit if args.limit is not None else 'None'}")
         logging.info(f"Repeat Modifications: {settings.repeat_modifications}")
         enabled_types = [t for t, enabled in settings.typo_types.items() if enabled]
         logging.info(f"Enabled Typo Types: {', '.join(enabled_types)}")
@@ -1645,6 +1651,10 @@ def main() -> None:
         quiet=settings.quiet,
     )
 
+    if args.limit and args.limit > 0:
+        sorted_typos_items = list(sorted_typo_dict.items())[:args.limit]
+        sorted_typo_dict = dict(sorted_typos_items)
+
     # Format typos based on the selected output format
     logging.info("Formatting typos in '%s' format...", settings.output_format)
     formatted_typos = format_typos(sorted_typo_dict, settings.output_format)
@@ -1670,6 +1680,12 @@ def main() -> None:
             raw_count = getattr(settings, 'total_typos_generated', len(sorted_typo_dict))
             filtered_count = getattr(settings, 'filtered_typos_count', 0)
 
+            extra_metrics = {}
+            if all_words:
+                extra_metrics["Filtered by dictionary"] = filtered_count
+            if args.limit:
+                extra_metrics["Output limit (--limit)"] = args.limit
+
             # Generate the formatted summary
             summary = _format_analysis_summary(
                 raw_count=raw_count,
@@ -1677,7 +1693,7 @@ def main() -> None:
                 item_label="typo",
                 start_time=start_time,
                 use_color=use_color,
-                extra_metrics={"Filtered by dictionary": filtered_count} if all_words else None,
+                extra_metrics=extra_metrics if extra_metrics else None,
                 total_input_items=len(word_list),
             )
             sys.stderr.write("\n".join(summary))

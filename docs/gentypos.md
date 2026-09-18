@@ -70,6 +70,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` / `toml` (typo = "correction"), `list` (typo), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. By default, it is automatically detected from the output file extension. |
 | `--input`, `-i` | None | One or more input files, directories, or glob patterns containing words to process (one per line). |
 | `--keyboard`, `--replacement`, `-k` | Off | Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' becomes 'wprd'). |
+| `--limit`, `-L` | None | Limit the number of typos in the output. |
 | `--max-length`, `-M` | None | Ignore words longer than this length. |
 | `--min-length`, `-m` | None | Ignore words shorter than this length. |
 | `--no-filter`, `-N` | Off | Do not check typos against the large dictionary (makes generation faster). |

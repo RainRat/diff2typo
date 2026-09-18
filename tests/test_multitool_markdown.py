@@ -4,7 +4,7 @@ from multitool import markdown_mode, _extract_markdown_items_detailed
 
 def test_extract_markdown_items_detailed(tmp_path):
     md_file = tmp_path / "test_extract.md"
-    md_file.write_text("- teh -> the\n* apple: fruit\n+ standalone item\n- invalid: test")
+    md_file.write_text("- teh -> the\n* apple: fruit\n+ standalone item\n- invalid: test\n- ")
 
     items = list(_extract_markdown_items_detailed(str(md_file)))
     assert items == [
@@ -91,3 +91,22 @@ def test_markdown_mode_pairs_clean_and_filter(tmp_path):
     # AB -> ab (len 2, filtered by min_length=3)
     # longwordhere -> longwordhere (len 12, filtered by max_length=10)
     assert lines == []
+
+
+def test_markdown_mode_pairs_process_output_sorting_and_dedup(tmp_path):
+    md_file = tmp_path / "dup.md"
+    md_file.write_text("- zebra -> zoo\n- apple -> fruit\n- zebra -> zoo")
+
+    out_csv = tmp_path / "out.csv"
+    markdown_mode(
+        input_files=[str(md_file)],
+        output_file=str(out_csv),
+        min_length=1,
+        max_length=100,
+        process_output=True,
+        pairs=True,
+        output_format='csv',
+        clean_items=True,
+    )
+    lines = out_csv.read_text().splitlines()
+    assert lines == ["apple,fruit", "zebra,zoo"]

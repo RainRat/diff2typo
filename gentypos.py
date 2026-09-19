@@ -1237,7 +1237,7 @@ def main() -> None:
         choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'],
         metavar='FMT',
         default=None,
-        help="Choose an output format. If not provided, it is automatically detected from the output file extension. (default: arrow).",
+        help="Choose an output format: arrow (typo -> correction), csv (typo,correction), table / toml (typo = \"correction\"), list (typo), json, yaml, markdown, md, html, or htm. By default, it is automatically detected from the output file extension.",
     )
     io_group.add_argument(
         '-s', '--substitutions',

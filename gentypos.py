@@ -1285,7 +1285,7 @@ def main() -> None:
         help="Generate all typo types (deletions, transpositions, replacements, and duplications).",
     )
     gen_group.add_argument(
-        '-t', '--transposition',
+        '-t', '--transposition', '--transpositions',
         action='store_true',
         help="Generate transpositions (swapped letters, e.g., 'word' to 'wrod').",
     )
@@ -1295,17 +1295,17 @@ def main() -> None:
         help="Distance between letters to swap for transposition typos (default: 1).",
     )
     gen_group.add_argument(
-        '-D', '--deletion',
+        '-D', '--deletion', '--deletions',
         action='store_true',
         help="Generate deletions (skipping a letter, e.g., 'word' to 'wrd').",
     )
     gen_group.add_argument(
-        '-u', '--duplication',
+        '-u', '--duplication', '--duplications',
         action='store_true',
         help="Generate duplications (typing a letter twice, e.g., 'word' to 'woord').",
     )
     gen_group.add_argument(
-        '-k', '--keyboard', '--replacement',
+        '-k', '--keyboard', '--replacement', '--replacements',
         dest='replacement',
         action='store_true',
         help="Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' to 'wprd').",

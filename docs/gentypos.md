@@ -62,14 +62,14 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--add`, `-a` | None | Extra substitution pairs (for example `ph:f` or `th:teh`) to use during typo generation. |
 | `--all`, `-A` | Off | Generate all typo types (deletions, transpositions, replacements, and duplications). |
 | `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
-| `--deletion`, `-D` | Off | Generate deletions (skipping a letter, e.g., 'word' becomes 'wrd'). |
+| `--deletion`, `--deletions`, `-D` | Off | Generate deletions (skipping a letter, e.g., 'word' becomes 'wrd'). |
 | `--init-config`, `--generate-config` | Off | Generate a sample template YAML configuration file (default: `gentypos.yaml`) and exit. |
 | `--dry-run`, `-n` | Off | Show configuration details and a sample preview of typo generation without writing files. |
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
-| `--duplication`, `-u` | Off | Generate duplications (typing a letter twice, e.g., 'word' becomes 'woord'). |
+| `--duplication`, `--duplications`, `-u` | Off | Generate duplications (typing a letter twice, e.g., 'word' becomes 'woord'). |
 | `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` / `toml` (typo = "correction"), `list` (typo), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. By default, it is automatically detected from the output file extension. |
 | `--input`, `-i` | None | One or more input files, directories, or glob patterns containing words to process (one per line). |
-| `--keyboard`, `--replacement`, `-k` | Off | Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' becomes 'wprd'). |
+| `--keyboard`, `--replacement`, `--replacements`, `-k` | Off | Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' becomes 'wprd'). |
 | `--limit`, `-L` | None | Limit the number of typos in the output. |
 | `--max-length`, `-M` | None | Ignore words longer than this length. |
 | `--min-length`, `-m` | None | Ignore words shorter than this length. |
@@ -78,7 +78,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--quiet`, `-q` | Off | Hide progress bars and status messages. |
 | `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |
 | `--substitutions`, `-s` | None | One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, or plain text). Useful for loading your personal typo history from `typostats.py`. |
-| `--transposition`, `-t` | Off | Generate transpositions (swapping adjacent letters, e.g., 'word' becomes 'wrod'). |
+| `--transposition`, `--transpositions`, `-t` | Off | Generate transpositions (swapping adjacent letters, e.g., 'word' becomes 'wrod'). |
 | `--transposition-distance`, `-T` | `1` | Distance between letters to swap for transposition typos. |
 | `--verbose`, `-v` | Off | Show more detailed log messages. |
 

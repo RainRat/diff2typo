@@ -71,3 +71,34 @@ def test_gentypos_dry_run_short_flag(monkeypatch, caplog):
 
     assert exc_info.value.code == 0
     assert "--- GENTYPOS DRY RUN ---" in caplog.text
+
+
+def test_gentypos_plural_option_aliases(monkeypatch, capsys):
+    # Test --deletions
+    monkeypatch.setattr(sys, "argv", ["gentypos.py", "word", "--deletions", "--no-filter", "-f", "arrow", "-q"])
+    gentypos.main()
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    assert set(lines) == {"ord -> word", "wod -> word", "wrd -> word"}
+
+    # Test --duplications
+    monkeypatch.setattr(sys, "argv", ["gentypos.py", "test", "--duplications", "--no-filter", "-f", "arrow", "-q"])
+    gentypos.main()
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    assert set(lines) == {"ttest -> test", "teest -> test", "tesst -> test", "testt -> test"}
+
+    # Test --transpositions
+    monkeypatch.setattr(sys, "argv", ["gentypos.py", "word", "--transpositions", "--no-filter", "-f", "arrow", "-q"])
+    gentypos.main()
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    assert set(lines) == {"owrd -> word", "wrod -> word", "wodr -> word"}
+
+    # Test --replacements
+    monkeypatch.setattr(sys, "argv", ["gentypos.py", "a", "--replacements", "--no-filter", "-f", "arrow", "-q"])
+    gentypos.main()
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    assert len(lines) > 0
+    assert all("-> a" in line for line in lines)

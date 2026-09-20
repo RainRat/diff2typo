@@ -62,6 +62,7 @@ The tool automatically recognizes several common ways of listing typos:
   - `html` / `htm`: HTML document report with summary metrics and replacement tables.
 - `-o`, `--output`: Save the report to a file instead of showing it on the screen.
 - `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
+- `-I`, `--include`: One or more file patterns (e.g., `*.md`, `src/*`) to include in scanning (all files are scanned by default).
 - `-q`, `--quiet`: Hide progress bars and status messages.
 - `-n`, `--dry-run`: Preview execution settings and a sample list of found typo patterns without writing or outputting reports.
 

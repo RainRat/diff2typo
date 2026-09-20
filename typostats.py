@@ -495,13 +495,28 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
     return lines
 
 
-def _is_file_excluded(filepath: str, patterns: List[str] | None) -> bool:
-    """Check if the given filepath matches any exclusion patterns."""
+def _match_pattern(filepath: str, patterns: Sequence[str] | None) -> bool:
+    """Check if the given filepath matches any pattern in the list."""
     if not patterns or not filepath:
         return False
     for pattern in patterns:
         if fnmatch.fnmatch(filepath, pattern) or fnmatch.fnmatch(os.path.basename(filepath), pattern):
             return True
+    return False
+
+
+def _is_file_excluded(
+    filepath: str,
+    exclude_patterns: Sequence[str] | None = None,
+    include_patterns: Sequence[str] | None = None,
+) -> bool:
+    """Check if the given filepath matches exclusion patterns or fails inclusion patterns."""
+    if not filepath:
+        return False
+    if _match_pattern(filepath, exclude_patterns):
+        return True
+    if include_patterns and not _match_pattern(filepath, include_patterns):
+        return True
     return False
 
 
@@ -1277,6 +1292,12 @@ def main() -> None:
         help="One or more file patterns (e.g., '*.json', 'tests/*') to exclude from scanning.",
     )
     io_group.add_argument(
+        '-I', '--include',
+        nargs='+',
+        default=None,
+        help="One or more file patterns (e.g., '*.md', 'src/*') to include in scanning (all files are scanned by default).",
+    )
+    io_group.add_argument(
         '-f',
         '--format',
         choices=['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md', 'html', 'htm'],
@@ -1401,6 +1422,7 @@ def main() -> None:
             input_files = ['-']
 
     exclude_patterns = args.exclude
+    include_patterns = args.include
 
     # Expand directories recursively
     expanded_files = []
@@ -1419,13 +1441,13 @@ def main() -> None:
                 dirs[:] = [d for d in dirs if d not in ignored_dirs]
                 for file in files:
                     full_path = os.path.join(root, file)
-                    if _is_file_excluded(full_path, exclude_patterns):
+                    if _is_file_excluded(full_path, exclude_patterns, include_patterns):
                         continue
                     ext = os.path.splitext(file)[1].lower()
                     if ext in supported_extensions:
                         expanded_files.append(full_path)
         else:
-            if not _is_file_excluded(file_path, exclude_patterns):
+            if not _is_file_excluded(file_path, exclude_patterns, include_patterns):
                 expanded_files.append(file_path)
 
     input_files = expanded_files
@@ -1489,7 +1511,7 @@ def main() -> None:
         if include_deletions:
             enabled_features.append("deletions")
         logging.info(f"Enabled Analysis: {', '.join(enabled_features) if enabled_features else 'None'}")
-        logging.info(f"Exclude Patterns: {exclude_patterns if exclude_patterns else 'None'}")
+        logging.info(f"Exclude Patterns: {exclude_patterns if exclude_patterns else 'None'} | Include Patterns: {include_patterns if include_patterns else 'None'}")
 
         # Sample Preview
         logging.info(f"\n{c_blue}Sample Typo Patterns Preview:{c_reset}")

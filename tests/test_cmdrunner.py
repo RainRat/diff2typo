@@ -231,6 +231,38 @@ def test_excluded_folders_integration(tmp_path, monkeypatch):
     assert not excluded_result.exists()
 
 
+def test_main_cli_exclude_flag_aliases(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj1 = base_dir / 'proj1'
+    skip1 = base_dir / 'skip1'
+    skip2 = base_dir / 'skip2'
+    proj1.mkdir()
+    skip1.mkdir()
+    skip2.mkdir()
+
+    command = "python3 -c \"from pathlib import Path; Path('exclude_alias.txt').write_text('ok')\""
+
+    # Test -E alias
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-m', str(base_dir), '-c', command, '-E', 'skip1', 'skip2'])
+    cmdrunner.main()
+
+    assert (proj1 / 'exclude_alias.txt').exists()
+    assert not (skip1 / 'exclude_alias.txt').exists()
+    assert not (skip2 / 'exclude_alias.txt').exists()
+
+    (proj1 / 'exclude_alias.txt').unlink()
+
+    # Test --exclude alias
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-m', str(base_dir), '-c', command, '--exclude', 'skip1', 'skip2'])
+    cmdrunner.main()
+
+    assert (proj1 / 'exclude_alias.txt').exists()
+    assert not (skip1 / 'exclude_alias.txt').exists()
+    assert not (skip2 / 'exclude_alias.txt').exists()
+
+
 def test_main_integration_dry_run(tmp_path, monkeypatch, caplog):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

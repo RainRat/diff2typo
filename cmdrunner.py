@@ -659,7 +659,7 @@ def parse_arguments() -> argparse.Namespace:
         help='The command you want to run in each folder. This overrides the configuration file.'
     )
     direct_group.add_argument(
-        '-e', '--excluded-folders',
+        '-E', '-e', '--exclude', '--excluded-folders',
         dest='excluded_folders',
         nargs='+',
         help='Folders you want the tool to skip. This overrides the configuration file.'

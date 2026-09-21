@@ -1481,3 +1481,91 @@ def test_generate_report_html_attributes(tmp_path):
     assert "[Del]" in content
     assert "[2:1]" in content
     assert "badge-dec" in content
+
+
+def test_generate_report_reverse_sort_count(tmp_path):
+    """Verify reverse sorting by count puts lowest counts first."""
+    from typostats import generate_report
+
+    counts = {
+        ("a", "b"): 10,
+        ("c", "d"): 2,
+        ("e", "f"): 5,
+    }
+    normal_out = tmp_path / "normal.csv"
+    reverse_out = tmp_path / "reverse.csv"
+
+    generate_report(counts, output_file=str(normal_out), output_format='csv', sort_by='count', reverse=False)
+    generate_report(counts, output_file=str(reverse_out), output_format='csv', sort_by='count', reverse=True)
+
+    normal_lines = [line.strip() for line in normal_out.read_text().strip().splitlines() if line.strip()][1:]
+    reverse_lines = [line.strip() for line in reverse_out.read_text().strip().splitlines() if line.strip()][1:]
+
+    # Normal: 10, 5, 2
+    assert normal_lines[0] == "b,a,10"
+    assert normal_lines[1] == "f,e,5"
+    assert normal_lines[2] == "d,c,2"
+
+    # Reverse: 2, 5, 10
+    assert reverse_lines[0] == "d,c,2"
+    assert reverse_lines[1] == "f,e,5"
+    assert reverse_lines[2] == "b,a,10"
+
+
+def test_generate_report_reverse_sort_typo_and_correct(tmp_path):
+    """Verify reverse sorting by typo and correct fields."""
+    from typostats import generate_report
+
+    counts = {
+        ("x_corr", "a_typo"): 1,
+        ("a_corr", "z_typo"): 1,
+    }
+    typo_rev_out = tmp_path / "typo_rev.csv"
+    corr_rev_out = tmp_path / "corr_rev.csv"
+
+    generate_report(counts, output_file=str(typo_rev_out), output_format='csv', sort_by='typo', reverse=True)
+    generate_report(counts, output_file=str(corr_rev_out), output_format='csv', sort_by='correct', reverse=True)
+
+    typo_lines = [line.strip() for line in typo_rev_out.read_text().strip().splitlines() if line.strip()][1:]
+    corr_lines = [line.strip() for line in corr_rev_out.read_text().strip().splitlines() if line.strip()][1:]
+
+    # Reverse typo sort: 'z_typo' before 'a_typo'
+    assert typo_lines[0].startswith("z_typo")
+    assert typo_lines[1].startswith("a_typo")
+
+    # Reverse correct sort: 'x_corr' before 'a_corr'
+    assert corr_lines[0].endswith(",x_corr,1")
+    assert corr_lines[1].endswith(",a_corr,1")
+
+
+def test_main_reverse_flag_and_dry_run(tmp_path, caplog):
+    """Verify CLI -r / --reverse flag and dry-run log output."""
+    import sys
+    import logging
+    from typostats import main
+
+    typo_file = tmp_path / "input.txt"
+    typo_file.write_text("teh -> the\n")
+    out_file = tmp_path / "out.csv"
+
+    # Test CLI invocation with -r flag
+    test_args = ["typostats.py", str(typo_file), "-o", str(out_file), "-f", "csv", "-r"]
+    orig_argv = sys.argv
+    try:
+        sys.argv = test_args
+        main()
+    finally:
+        sys.argv = orig_argv
+
+    assert out_file.exists()
+
+    # Test dry-run with -r flag
+    dry_args = ["typostats.py", str(typo_file), "-n", "-r"]
+    with caplog.at_level(logging.INFO):
+        try:
+            sys.argv = dry_args
+            main()
+        finally:
+            sys.argv = orig_argv
+
+    assert "Sort: count (reverse)" in caplog.text

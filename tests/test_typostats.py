@@ -344,10 +344,14 @@ def test_main_cli_input_flag(tmp_path):
         assert mock_report.call_args[1]['total_pairs'] == 2
 
 
-def test_main_cli_functionality():
+def test_main_cli_functionality(capsys):
     with patch('sys.argv', ['typostats.py', '--help']):
         with pytest.raises(SystemExit):
             typostats.main()
+    captured = capsys.readouterr()
+    assert "INPUT/OUTPUT OPTIONS" in captured.out
+    assert "ANALYSIS OPTIONS" in captured.out
+
     with patch('sys.argv', ['typostats.py', 'input.txt', '-a', '-q']), \
          patch('typostats._extract_pairs', return_value=[("teh", "the")]), \
          patch('typostats.generate_report') as mock_report:

@@ -38,32 +38,26 @@ The tool automatically recognizes several common ways of listing typos:
 
 ## Options
 
+### Input/Output Options
+- `input_files`: One or more files containing typo corrections (`.txt`, `.csv`, `.json`, `.yaml`, `.toml`, `.md`). If empty, reads from standard input.
+- `-i`, `--input`: One or more input files or patterns containing typo corrections.
+- `-o`, `--output`: Save the report to this file instead of printing it to the screen.
+- `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
+- `-f`, `--format`: Choose the output format (`arrow`, `csv`, `json`, `yaml`/`yml`, `table`/`toml`, `markdown`/`md`, `html`/`htm`). If not provided, it is automatically detected from the output file extension (default: `arrow`).
+- `-q`, `--quiet`: Hide progress bars and status messages.
+- `-n`, `--dry-run`: Preview execution settings and found typo patterns without writing or outputting reports.
+
 ### Analysis Options
-- `-m`, `--min`, `-c`, `--min-count`: Only show patterns that appear at least this many times (Default: 1).
+- `-m`, `--min`, `-c`, `--min-count`: Only show patterns that appear at least this many times (default: 1).
 - `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by correction).
 - `-a`, `--all`: Enable all analysis features at once. This is the default if no other analysis options are chosen.
-- `-L`, `--limit`: Only show the top N results.
 - `-2`, `--allow-two-char`: Look for cases where you typed two letters instead of one (like `rn` instead of `m`) or one instead of two (like `f` instead of `ph`).
 - `--1to2`: Specifically look for cases where you typed two letters instead of one (like `rn` instead of `m`).
 - `--2to1`: Specifically look for cases where you typed one letter instead of two (like `f` instead of `ph`).
 - `-D`, `--include-deletions`: Include cases where you added an extra letter or missed one (like typing `aa` instead of `a`).
 - `-t`, `--transposition`: Find swapped letters (like `teh` instead of `the`).
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
-
-### Input & Output Options
-- `-i`, `--input`: One or more input files or patterns containing typo corrections.
-- `-f`, `--format`: Choose the output format:
-  - `arrow` (Default): Easy to read.
-  - `csv`: Standard comma-separated values.
-  - `json`: Data for other programs.
-  - `yaml` / `yml`: YAML format compatible with `custom_substitutions` in `gentypos.yaml`.
-  - `table` / `toml`: TOML table format (`typo = "correction"`), compatible with the `typos` tool.
-  - `markdown` / `md`: Markdown table format (`| Typo | Correction | Count |`).
-  - `html` / `htm`: HTML document report with summary metrics and replacement tables.
-- `-o`, `--output`: Save the report to a file instead of showing it on the screen.
-- `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
-- `-q`, `--quiet`: Hide progress bars and status messages.
-- `-n`, `--dry-run`: Preview execution settings and a sample list of found typo patterns without writing or outputting reports.
+- `-L`, `--limit`: Only show the top N results in the report.
 
 ## Understanding the Report
 

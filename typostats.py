@@ -1255,7 +1255,7 @@ def main() -> None:
     )
 
     # Input/Output Group
-    io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
+    io_group = parser.add_argument_group(f"{_BLUE}INPUT/OUTPUT OPTIONS{_RESET}")
     io_group.add_argument(
         'input_files',
         nargs='*',
@@ -1288,7 +1288,7 @@ def main() -> None:
     io_group.add_argument('-n', '--dry-run', action='store_true', help="Preview execution settings and found typo patterns without writing or outputting reports.")
 
     # Analysis Options Group
-    analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
+    analysis_group = parser.add_argument_group(f"{_BLUE}ANALYSIS OPTIONS{_RESET}")
     analysis_group.add_argument('-m', '--min', '-c', '--min-count', dest='min', type=int, default=1, help="Only show patterns that happen at least this many times.")
     analysis_group.add_argument(
         '-s', '--sort',

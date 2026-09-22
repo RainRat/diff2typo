@@ -2404,3 +2404,24 @@ def test_report_generation_toml_fallback(tmp_path, monkeypatch):
     assert data[0]['folder'] == 'proj1'
     assert data[0]['status'] == 'success'
 
+
+def test_report_generation_toml_serialization_exception_fallback(tmp_path, caplog):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    (base_dir / 'proj1').mkdir()
+
+    output_file = tmp_path / 'report.toml'
+
+    with patch('toml.dumps', side_effect=TypeError('TOML dump error')):
+        cmdrunner.run_command_in_folders(
+            str(base_dir),
+            "echo error-toml",
+            output_file=str(output_file),
+            output_format='toml'
+        )
+
+    assert output_file.exists()
+    data = json.loads(output_file.read_text(encoding='utf-8'))
+    assert isinstance(data, list)
+    assert data[0]['folder'] == 'proj1'
+    assert 'TOML serialization failed' in caplog.text

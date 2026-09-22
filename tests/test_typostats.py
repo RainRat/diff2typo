@@ -1481,3 +1481,47 @@ def test_generate_report_html_attributes(tmp_path):
     assert "[Del]" in content
     assert "[2:1]" in content
     assert "badge-dec" in content
+
+
+def test_reverse_sort_options(tmp_path, monkeypatch, caplog):
+    """Verify that -r / --reverse reverses sorting order for count, typo, and correct sort modes."""
+    from typostats import main
+    import json
+    import logging
+
+    input_file = tmp_path / "typos.txt"
+    input_file.write_text("teh -> the\nteh -> the\nwaht -> what\n", encoding="utf-8")
+
+    output_json = tmp_path / "out.json"
+
+    # Sort count reverse (lowest count first)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["typostats.py", str(input_file), "-s", "count", "-r", "-f", "json", "-o", str(output_json)]
+    )
+    main()
+
+    data = json.loads(output_json.read_text(encoding="utf-8"))
+    repls = data["replacements"]
+    counts = [item["count"] for item in repls]
+    assert counts == sorted(counts)
+
+    # Sort typo reverse (alphabetical descending by typo char)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["typostats.py", str(input_file), "-s", "typo", "-r", "-f", "json", "-o", str(output_json)]
+    )
+    main()
+
+    data = json.loads(output_json.read_text(encoding="utf-8"))
+    typos = [item["typo"] for item in data["replacements"]]
+    assert typos == sorted(typos, reverse=True)
+
+    # Dry run with reverse
+    with caplog.at_level(logging.INFO):
+        monkeypatch.setattr(
+            "sys.argv",
+            ["typostats.py", str(input_file), "-s", "typo", "-r", "-n"]
+        )
+        main()
+    assert "(reverse=True)" in caplog.text

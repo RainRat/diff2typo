@@ -856,6 +856,7 @@ def generate_report(
     total_pairs: int | None = None,
     total_lines: int | None = None,
     start_time: float | None = None,
+    reverse: bool = False,
     **kwargs,
 ) -> None:
     """
@@ -887,13 +888,13 @@ def generate_report(
     # Sort
     if sort_by == 'typo':
         # k is (correct_char, typo_char), sort by typo_char then correct_char
-        sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][1], x[0][0]))
+        sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][1], x[0][0]), reverse=reverse)
     elif sort_by == 'correct':
         # sort by correct_char then typo_char
-        sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][0], x[0][1]))
+        sorted_replacements = sorted(filtered.items(), key=lambda x: (x[0][0], x[0][1]), reverse=reverse)
     else:
         # Default to sort by count
-        sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=True)
+        sorted_replacements = sorted(filtered.items(), key=lambda x: x[1], reverse=not reverse)
 
     if limit is not None:
         sorted_replacements = sorted_replacements[:limit]
@@ -1297,6 +1298,11 @@ def main() -> None:
         help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by the typo), or 'correct' (alphabetical by the correction)."
     )
     analysis_group.add_argument(
+        '-r', '--reverse',
+        action='store_true',
+        help="Reverse the sort order for output results.",
+    )
+    analysis_group.add_argument(
         '-a',
         '--all',
         action='store_true',
@@ -1476,7 +1482,7 @@ def main() -> None:
         input_desc = input_files if input_files else "stdin"
         logging.info(f"Input Source: {input_desc}")
         logging.info(f"Output Target: {output_file or 'stdout'} (Format: {output_format})")
-        logging.info(f"Min Occurrences: {min_occurrences} | Sort: {sort_by} | Limit: {limit if limit is not None else 'None'}")
+        logging.info(f"Min Occurrences: {min_occurrences} | Sort: {sort_by} (reverse={args.reverse}) | Limit: {limit if limit is not None else 'None'}")
         enabled_features = []
         if keyboard:
             enabled_features.append("keyboard")
@@ -1493,7 +1499,12 @@ def main() -> None:
 
         # Sample Preview
         logging.info(f"\n{c_blue}Sample Typo Patterns Preview:{c_reset}")
-        sorted_counts = sorted(all_counts.items(), key=lambda x: x[1], reverse=True)
+        if sort_by == 'typo':
+            sorted_counts = sorted(all_counts.items(), key=lambda x: (x[0][1], x[0][0]), reverse=args.reverse)
+        elif sort_by == 'correct':
+            sorted_counts = sorted(all_counts.items(), key=lambda x: (x[0][0], x[0][1]), reverse=args.reverse)
+        else:
+            sorted_counts = sorted(all_counts.items(), key=lambda x: x[1], reverse=not args.reverse)
         sample_items = sorted_counts[:10]
         if sample_items:
             logging.info(f"  Found {len(all_counts)} pattern candidate(s):")
@@ -1521,6 +1532,7 @@ def main() -> None:
         total_pairs=total_pairs_all,
         total_lines=total_lines_all,
         start_time=start_time,
+        reverse=args.reverse,
     )
 
 

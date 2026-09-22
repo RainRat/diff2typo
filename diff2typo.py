@@ -1088,6 +1088,12 @@ def main():
     )
 
     analysis_group.add_argument(
+        '-r', '--reverse',
+        action='store_true',
+        help="Reverse the sort order (e.g. least frequent first or reverse alphabetical).",
+    )
+
+    analysis_group.add_argument(
         '--limit',
         '-L',
         type=int,
@@ -1295,7 +1301,7 @@ def main():
         logging.info(f"Input Source: {input_desc}")
         logging.info(f"Output Target: {args.output_file} (Format: {args.output_format})")
         logging.info(f"Mode: {args.mode} | Min Length: {args.min_length} | Max Length: {args.max_length if args.max_length is not None else 'None'} | Max Dist: {args.max_dist if args.max_dist is not None else 'None'}")
-        logging.info(f"Min Count: {args.min_count} | Sort: {args.sort} | Limit: {args.limit if args.limit is not None else 'None'}")
+        logging.info(f"Min Count: {args.min_count} | Sort: {args.sort} | Reverse: {args.reverse} | Limit: {args.limit if args.limit is not None else 'None'}")
         logging.info(f"Large Dictionary: {args.dictionary_file} | Allowed File: {args.allowed_file}")
         logging.info(f"Exclude Patterns: {args.exclude if args.exclude else 'None'} | Include Patterns: {args.include if args.include else 'None'}")
 
@@ -1322,6 +1328,8 @@ def main():
             items.sort(key=lambda x: (-counts.get(x, 0), x))
         else:
             items.sort()
+        if args.reverse:
+            items.reverse()
         if args.limit:
             return items[:args.limit]
         return items

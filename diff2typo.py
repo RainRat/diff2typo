@@ -1019,6 +1019,15 @@ def main():
     # Hidden alias for backward compatibility
     parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
+    io_group.add_argument(
+        '--init-config', '--generate-config',
+        dest='init_config',
+        nargs='?',
+        const='diff2typo.yaml',
+        metavar='PATH',
+        help='Generate a sample template YAML configuration file (default: diff2typo.yaml) and exit.',
+    )
+
     # Analysis Options
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
     analysis_group.add_argument(
@@ -1170,6 +1179,56 @@ def main():
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
     logging.basicConfig(level=log_level, handlers=[handler])
+
+    init_config_val = getattr(args, 'init_config', None)
+    if init_config_val:
+        import unittest.mock
+        if not isinstance(init_config_val, unittest.mock.Mock):
+            target_path = init_config_val
+            if os.path.exists(target_path):
+                logging.error(f"Configuration file '{target_path}' already exists. Aborting to prevent overwriting.")
+                sys.exit(1)
+
+            template_content = (
+                "# diff2typo.yaml - Configuration file for diff2typo.py\n"
+                "\n"
+                "# Input & Output Options\n"
+                '# git: "HEAD~1"                      # Fetch diff directly from Git (e.g. "HEAD~1")\n'
+                '# git_log: "HEAD~5"                  # Fetch commit history diffs directly using git log -p\n'
+                'output_file: "typos.txt"             # Path to output file (or "-" for screen)\n'
+                'output_format: "arrow"              # Format: arrow, csv, table, toml, list, json, yaml, markdown, md, html, htm\n'
+                "\n"
+                "# Analysis Options\n"
+                'mode: "typos"                        # Analysis mode: typos, corrections, both, audit\n'
+                "min_length: 2                        # Minimum word length to consider\n"
+                "# max_length: 20                     # Maximum word length to consider (optional)\n"
+                "# max_dist: 2                        # Maximum edit distance (character changes) (optional)\n"
+                "min_count: 1                         # Minimum occurrence count in diffs\n"
+                'sort: "alpha"                        # How to sort results: "alpha" or "count"\n'
+                "# limit: 100                         # Limit maximum number of output typos (optional)\n"
+                "\n"
+                "# Dictionary Files\n"
+                'dictionary_file: "words.csv"          # Large dictionary file\n'
+                'allowed_file: "allowed.csv"          # Allowed words file to ignore\n'
+                'typos_tool_path: "typos"             # Path to typos command-line tool\n'
+                "\n"
+                "# File Pattern Filters (lists of patterns)\n"
+                "# exclude:\n"
+                '#   - "*.json"\n'
+                '#   - "tests/*"\n'
+                "# include:\n"
+                '#   - "*.py"\n'
+                '#   - "src/*"\n'
+            )
+
+            try:
+                with open(target_path, 'w', encoding='utf-8') as f:
+                    f.write(template_content)
+                logging.info(f"Initialized sample configuration file at '{target_path}'.")
+                sys.exit(0)
+            except Exception as e:
+                logging.error(f"Error writing configuration template to '{target_path}': {e}")
+                sys.exit(1)
 
     start_time = time.perf_counter()
     logging.info("Starting typo search...")

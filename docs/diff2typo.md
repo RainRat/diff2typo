@@ -55,6 +55,7 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--git-log`, `-l` | None | Fetch commit history diffs directly from Git. If passed without arguments, it fetches recent commit history (`git log -p`). Optional arguments are passed to `git log` (for example, `-l "HEAD~3"`). |
 | `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` / `toml` (typo = "fix"), `list` (typo only), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. Automatically detected from file extension (`.json`, `.yaml`, `.yml`, `.toml`, `.md`, `.markdown`, `.html`, `.htm`). |
+| `--init-config`, `--generate-config` | None | Generate a sample template YAML configuration file (`diff2typo.yaml` by default, or at a specified path) and exit. |
 | `--mode`, `-m`, `-M` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
 | `--exclude`, `-e` | None | One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from typo scanning. |
 | `--include`, `-I` | None | One or more file patterns (e.g., `*.md`, `src/*`) to include in typo scanning (all files are scanned by default). |

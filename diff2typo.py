@@ -594,6 +594,19 @@ def _partition_typos(typos: Iterable[str]) -> Tuple[List[Tuple[str, str]], List[
     return typo_pairs, single_items
 
 
+def _render_html_table(items: Iterable[str]) -> List[str]:
+    """Render a sequence of typo strings into HTML table elements."""
+    lines = ["<table><thead><tr><th>Typo</th><th>Correction</th></tr></thead><tbody>"]
+    for item in items:
+        if ' -> ' in item:
+            b, a = item.split(' -> ', 1)
+            lines.append(f"<tr><td><code>{html.escape(b)}</code></td><td><code>{html.escape(a)}</code></td></tr>")
+        else:
+            lines.append(f"<tr><td colspan=\"2\"><code>{html.escape(filter_to_letters(item))}</code></td></tr>")
+    lines.append("</tbody></table>")
+    return lines
+
+
 def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     """
     Formats the list of typos based on the specified output format.
@@ -1429,24 +1442,10 @@ def main():
                 ]
                 if typos_final:
                     final_output.append("<h2>Typos</h2>")
-                    final_output.append("<table><thead><tr><th>Typo</th><th>Correction</th></tr></thead><tbody>")
-                    for typo in typos_final:
-                        if ' -> ' in typo:
-                            b, a = typo.split(' -> ')
-                            final_output.append(f"<tr><td><code>{html.escape(b)}</code></td><td><code>{html.escape(a)}</code></td></tr>")
-                        else:
-                            final_output.append(f"<tr><td colspan=\"2\"><code>{html.escape(filter_to_letters(typo))}</code></td></tr>")
-                    final_output.append("</tbody></table>")
+                    final_output.extend(_render_html_table(typos_final))
                 if corrections_final:
                     final_output.append("<h2>Corrections</h2>")
-                    final_output.append("<table><thead><tr><th>Typo</th><th>Correction</th></tr></thead><tbody>")
-                    for corr in corrections_final:
-                        if ' -> ' in corr:
-                            b, a = corr.split(' -> ')
-                            final_output.append(f"<tr><td><code>{html.escape(b)}</code></td><td><code>{html.escape(a)}</code></td></tr>")
-                        else:
-                            final_output.append(f"<tr><td colspan=\"2\"><code>{html.escape(filter_to_letters(corr))}</code></td></tr>")
-                    final_output.append("</tbody></table>")
+                    final_output.extend(_render_html_table(corrections_final))
                 final_output.extend(["</body>", "</html>"])
             elif args.output_format in ('markdown', 'md'):
                 if typos_final:

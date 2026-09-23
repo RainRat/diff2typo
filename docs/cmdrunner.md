@@ -164,6 +164,16 @@ python cmdrunner.py --main-folder /home/user/projects --command "npm test" -j 4
 python cmdrunner.py --main-folder /home/user/projects --command "git status" -M 5
 ```
 
+**Stop execution immediately if any command fails:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command "npm test" --stop-on-first-error
+```
+
+**Set a maximum execution time limit for each command:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command "npm install" -t 30
+```
+
 **Save an execution report in Markdown format:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command "git status" -o report.md

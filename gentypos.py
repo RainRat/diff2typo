@@ -234,7 +234,7 @@ def _merge_defaults(
         else:
             if key not in config:
                 logging.debug(f"Applying default for '{dotted_path}': {default_value}")
-            config.setdefault(key, default_value)
+                config[key] = default_value
 
 def _detect_format_from_extension(path: str, allowed: Sequence[str], default: str) -> str:
     """

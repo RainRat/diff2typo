@@ -1845,33 +1845,12 @@ def _extract_frontmatter(input_file: str, key_path: str = '', quiet: bool = Fals
 
 def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
     """Yield text from Markdown list items, optionally splitting by ':' or '->'."""
-    lines = _read_file_lines_robust(input_file)
-    # Match bullet points: - , * , + at the start of line (optional whitespace)
-    # We require a space after the marker to distinguish from other symbols (like horizontal rules '---')
-    pattern = re.compile(r'^\s*[-*+]\s+(.*)$')
-
-    for line in tqdm(lines, desc=f'Processing {input_file} (markdown)', unit=' lines', disable=quiet):
-        match = pattern.match(line)
-        if match:
-            content = match.group(1).strip()
-            if not content:
-                continue
-
-            # Check for common separators if we want to support --right
-            # This allows getting from pairs like "- typo: correction"
-            separator = None
-            if " -> " in content:
-                separator = " -> "
-            elif ": " in content:
-                separator = ": "
-
-            if separator:
-                # split(separator, 1) always returns a list of length 2 if separator is found
-                parts = content.split(separator, 1)
-                idx = 1 if right_side else 0
-                yield parts[idx].strip()
-            elif not right_side:
-                yield content
+    for left, right in _extract_markdown_items_detailed(input_file, quiet=quiet):
+        if right_side:
+            if right:
+                yield right
+        else:
+            yield left
 
 
 def _extract_markdown_items_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:

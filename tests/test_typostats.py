@@ -1481,3 +1481,69 @@ def test_generate_report_html_attributes(tmp_path):
     assert "[Del]" in content
     assert "[2:1]" in content
     assert "badge-dec" in content
+
+
+def test_generate_report_reverse_sort_count(tmp_path):
+    """Verify that reverse=True with sort_by='count' outputs lowest counts first."""
+    from typostats import generate_report
+
+    counts = {
+        ("a", "b"): 10,
+        ("c", "d"): 1,
+        ("e", "f"): 5,
+    }
+    out_file = tmp_path / "report_reverse_count.csv"
+
+    generate_report(
+        counts,
+        output_file=str(out_file),
+        output_format="csv",
+        sort_by="count",
+        reverse=True,
+    )
+
+    lines = [line.strip() for line in out_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    # CSV header: typo,correction,count
+    # Row 1 (count=1): d,c,1
+    # Row 2 (count=5): f,e,5
+    # Row 3 (count=10): b,a,10
+    assert lines[0] == "typo,correction,count"
+    assert lines[1] == "d,c,1"
+    assert lines[2] == "f,e,5"
+    assert lines[3] == "b,a,10"
+
+
+def test_generate_report_reverse_sort_typo(tmp_path):
+    """Verify that reverse=True with sort_by='typo' sorts typos Z to A."""
+    from typostats import generate_report
+
+    counts = {
+        ("correct1", "apple"): 2,
+        ("correct2", "zebra"): 2,
+        ("correct3", "banana"): 2,
+    }
+    out_file = tmp_path / "report_reverse_typo.csv"
+
+    generate_report(
+        counts,
+        output_file=str(out_file),
+        output_format="csv",
+        sort_by="typo",
+        reverse=True,
+    )
+
+    lines = [line.strip() for line in out_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert lines[1] == "zebra,correct2,2"
+    assert lines[2] == "banana,correct3,2"
+    assert lines[3] == "apple,correct1,2"
+
+
+def test_cli_reverse_dry_run(monkeypatch, capsys):
+    """Verify CLI execution with -r / --reverse in dry-run mode."""
+    import typostats
+
+    monkeypatch.setattr(
+        "sys.argv",
+        ["typostats.py", "--dry-run", "-r", "-s", "typo"]
+    )
+    typostats.main()

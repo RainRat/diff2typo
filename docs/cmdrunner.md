@@ -79,7 +79,7 @@ max_count: 5
 - `-m`, `--main-folder`: The main folder containing your projects. This overrides the configuration file.
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
 - `-c`, `--command`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
-- `-e`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
+- `-E`, `-e`, `--exclude`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
 - `-i`, `--included-folders`: A list of folders you want to run the command on. This overrides the configuration file.
 - `-n`, `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
 - `-q`, `--quiet`: Hide status messages and progress bars.

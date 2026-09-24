@@ -8019,7 +8019,7 @@ MODE_DETAILS = {
         "summary": "Splits paired data into two lists",
         "description": "Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use --right for the right side and --raw to keep the original text.",
         "example": "python multitool.py unzip typos.csv --right --output corrections.txt",
-        "flags": "[FILES...] [--right] [--raw]",
+        "flags": "[FILES...] [--right] [--file2 FILE2] [--raw]",
     },
     "swap": {
         "summary": "Reverses the order of pairs",
@@ -9893,6 +9893,14 @@ def _build_parser() -> argparse.ArgumentParser:
         '--right',
         action='store_true',
         help="Get the right side of the pair (the correction) instead of the left side (the typo).",
+    )
+    unzip_options.add_argument(
+        '--file2',
+        '--output2',
+        '--output-right',
+        type=str,
+        dest='file2',
+        help="Extract both sides of paired data simultaneously by saving the right side to this second output file.",
     )
     _add_common_mode_arguments(unzip_parser)
 

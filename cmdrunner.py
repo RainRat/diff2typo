@@ -244,6 +244,9 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "max_count" in config and (isinstance(config["max_count"], bool) or not isinstance(config["max_count"], int) or config["max_count"] < 1):
         errors.append("'max_count' must be an integer of 1 or more.")
 
+    if "reverse" in config and not isinstance(config["reverse"], bool):
+        errors.append("The field 'reverse' must be a boolean.")
+
     if errors:
         raise ConfigError(" ".join(errors))
 
@@ -264,6 +267,7 @@ def run_command_in_folders(
     included_folders: Optional[List[str]] = None,
     jobs: int = 1,
     max_count: Optional[int] = None,
+    reverse: bool = False,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -279,7 +283,7 @@ def run_command_in_folders(
     directories = sorted([
         item for item in os.listdir(main_folder)
         if os.path.isdir(os.path.join(main_folder, item)) and item not in excluded_folders
-    ])
+    ], reverse=reverse)
 
     if included_folders:
         directories = [item for item in directories if item in included_folders]
@@ -716,6 +720,12 @@ def parse_arguments() -> argparse.Namespace:
         type=int,
         help='Cap the maximum number of folders to process.'
     )
+    options_group.add_argument(
+        '-r', '--reverse',
+        action='store_true',
+        default=None,
+        help='Reverse the order in which folders are processed.'
+    )
 
     # Output Options Group
     output_group = parser.add_argument_group(f"{BLUE}OUTPUT OPTIONS{RESET}")
@@ -781,6 +791,9 @@ stop_on_first_error: false
 
 # Number of concurrent jobs to run (optional, default: 1)
 jobs: 1
+
+# Reverse the order in which folders are processed (optional, default: false)
+# reverse: true
 """
         try:
             with open(init_path, 'w', encoding='utf-8') as f:
@@ -831,6 +844,7 @@ jobs: 1
     if_not_exists = args.if_not_exists or config.get('if_not_exists', None)
     jobs = args.jobs if args.jobs is not None else config.get('jobs', 1)
     max_count = args.max_count if args.max_count is not None else config.get('max_count', None)
+    reverse = args.reverse if args.reverse is not None else config.get('reverse', False)
 
     # Validate that required options are present
     errors = []
@@ -859,6 +873,7 @@ jobs: 1
         included_folders=included,
         jobs=jobs,
         max_count=max_count,
+        reverse=reverse,
     )
 
 if __name__ == "__main__":

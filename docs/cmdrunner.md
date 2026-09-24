@@ -70,6 +70,9 @@ jobs: 4
 
 # (Optional) Cap the maximum number of folders to process
 max_count: 5
+
+# (Optional) Reverse the order in which folders are processed
+reverse: true
 ```
 
 ## Options
@@ -89,6 +92,7 @@ max_count: 5
 - `-X`, `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
 - `-j`, `--jobs`: Run commands concurrently using this many jobs. This overrides the configuration file.
 - `-M`, `--max-count`, `--limit`: Cap the maximum number of target folders to process. This overrides the configuration file.
+- `-r`, `--reverse`: Reverse the order in which folders are processed. This overrides the configuration file.
 - `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`, `markdown`, `md`, `yaml`, `yml`, `html`, `htm`, or `toml`). If you do not specify this, the tool detects the format from the output file's extension.
 
@@ -162,6 +166,11 @@ python cmdrunner.py --main-folder /home/user/projects --command "npm test" -j 4
 **Cap execution to the first 5 project folders:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command "git status" -M 5
+```
+
+**Reverse the order in which folders are processed:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command "git status" -r
 ```
 
 **Stop execution immediately if any command fails:**

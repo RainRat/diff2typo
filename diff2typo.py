@@ -499,8 +499,7 @@ def find_typos(
                     current_file = p[2:]
                 else:
                     current_file = p
-                if current_file.startswith('"') and current_file.endswith('"'):
-                    current_file = current_file[1:-1]
+                current_file = current_file.strip('"')
             if current_file:
                 if _is_file_excluded(current_file, exclude_patterns, include_patterns):
                     skip_current_file = True
@@ -508,15 +507,11 @@ def find_typos(
 
         # Handle file renames and copies
         if line.startswith('rename from ') or line.startswith('copy from '):
-            path = line.split(' from ', 1)[1].strip()
-            if path.startswith('"') and path.endswith('"'):
-                path = path[1:-1]
+            path = line.split(' from ', 1)[1].strip().strip('"')
             removals.append(path)
             continue
         if line.startswith('rename to ') or line.startswith('copy to '):
-            path = line.split(' to ', 1)[1].strip()
-            if path.startswith('"') and path.endswith('"'):
-                path = path[1:-1]
+            path = line.split(' to ', 1)[1].strip().strip('"')
             additions.append(path)
             if not (skip_current_file or _is_file_excluded(path, exclude_patterns, include_patterns)):
                 typos.extend(process_diff_block(removals, additions, min_length, max_dist, max_length))
@@ -527,9 +522,7 @@ def find_typos(
         if line.startswith('---') or line.startswith('+++'):
             p_match = re.match(r'^(?:---|\+\+\+)\s+[ab]/(.*)$', line)
             if p_match:
-                path = p_match.group(1).strip()
-                if path.startswith('"') and path.endswith('"'):
-                    path = path[1:-1]
+                path = p_match.group(1).strip().strip('"')
                 current_file = path
                 if not skip_current_file:
                     typos.extend(process_diff_block(removals, additions, min_length, max_dist, max_length))

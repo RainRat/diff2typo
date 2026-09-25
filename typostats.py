@@ -1258,6 +1258,7 @@ def main() -> None:
                     f"JSON/YAML/TOML mapping files, and Markdown lists or tables.",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
+  {GREEN}python typostats.py --init-config{RESET}        # Create a sample typostats.yaml configuration template
   {GREEN}python typostats.py typos.txt -t{RESET}          # Find swapped letters (like 'teh' -> 'the')
   {GREEN}python typostats.py typos.txt --1to2 --2to1{RESET}  # Find multi-letter mistakes (like 'rn' -> 'm')
   {GREEN}python typostats.py typos.txt -k -L 20{RESET}       # Find top 20 nearby key errors
@@ -1277,6 +1278,14 @@ def main() -> None:
         'input_files',
         nargs='*',
         help="One or more files containing typo corrections (txt, csv, json, yaml, toml, md). If empty, it reads from standard input.",
+    )
+    io_group.add_argument(
+        '--init-config', '--generate-config',
+        dest='init_config',
+        nargs='?',
+        const='typostats.yaml',
+        metavar='PATH',
+        help="Generate a sample template YAML configuration file (default: typostats.yaml) and exit.",
     )
     io_group.add_argument(
         '-i', '--input',
@@ -1378,6 +1387,54 @@ def main() -> None:
         help="Only show the top N results in the report.",
     )
     args = parser.parse_args()
+
+    init_config_val = getattr(args, 'init_config', None)
+    if isinstance(init_config_val, str):
+        target_path = init_config_val
+        if os.path.exists(target_path):
+            logging.error(f"Configuration file '{target_path}' already exists. Aborting to prevent overwriting.")
+            sys.exit(1)
+
+        template_content = (
+            "# typostats.yaml - Configuration file for typostats.py\n"
+            "\n"
+            "# Input / Output Options\n"
+            '# input_files: ["my_typos.txt"]     # One or more input files/directories containing typos\n'
+            '# output: "report.txt"              # Save report to this file instead of printing\n'
+            'format: "arrow"                     # Output report format: arrow, csv, json, yaml, table, toml, markdown, md, html, htm\n'
+            "quiet: false                       # Hide progress bars and status messages\n"
+            "\n"
+            "# Analysis Options\n"
+            "min_count: 1                        # Only show patterns that happen at least this many times\n"
+            'sort: "count"                       # How to sort results: count, typo, or correct\n'
+            "reverse: false                     # Reverse the sort order\n"
+            "limit: null                         # Only show top N results (e.g., 20)\n"
+            "\n"
+            "# Analysis Features\n"
+            "all: true                           # Enable all analysis features below\n"
+            "keyboard: true                      # Find typos caused by hitting keys next to each other\n"
+            "transposition: true                 # Find swapped adjacent letters (e.g. 'teh' -> 'the')\n"
+            "allow_1to2: true                    # Allow 1-to-2 character replacements (e.g. 'm' -> 'rn')\n"
+            "allow_2to1: true                    # Allow 2-to-1 character replacements (e.g. 'ph' -> 'f')\n"
+            "include_deletions: true             # Include insertions and deletions\n"
+            "\n"
+            "# File Pattern Filters\n"
+            "# exclude:\n"
+            '#   - "*.json"\n'
+            '#   - "tests/*"\n'
+            "# include:\n"
+            '#   - "*.md"\n'
+            '#   - "src/*"\n'
+        )
+
+        try:
+            with open(target_path, 'w', encoding='utf-8') as f:
+                f.write(template_content)
+            logging.info(f"Sample configuration template written to '{target_path}'.")
+            sys.exit(0)
+        except Exception as e:
+            logging.error(f"Error writing configuration template to '{target_path}': {e}")
+            sys.exit(1)
 
     # If no analysis flags are provided, enable all of them by default
     analysis_flags = [

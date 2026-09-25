@@ -52,6 +52,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
 
 ### Input & Output Options
+- `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`typostats.yaml` by default, or at a specified path) and exit.
 - `-i`, `--input`: One or more input files or patterns containing typo corrections.
 - `-f`, `--format`: Choose the output format:
   - `arrow` (Default): Easy to read.
@@ -170,6 +171,11 @@ python typostats.py my_data.txt -o report.html
 **See which typos were likely caused by hitting keys next to each other (nearby key errors):**
 ```bash
 python typostats.py my_data.txt --keyboard
+```
+
+**Generate a sample template YAML configuration file:**
+```bash
+python typostats.py --init-config
 ```
 
 **Preview analysis settings and found patterns without saving a report:**

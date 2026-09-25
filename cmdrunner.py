@@ -759,9 +759,17 @@ command_to_run: "git status"
 
 # List of folder names to exclude from processing
 excluded_folders:
-  - "node_modules"
   - ".git"
+  - "node_modules"
   - "venv"
+  - ".venv"
+  - "__pycache__"
+  - "dist"
+  - "build"
+  - ".pytest_cache"
+  - ".ruff_cache"
+  - ".vscode"
+  - ".idea"
 
 # List of specific folder names to process (optional)
 # included_folders:

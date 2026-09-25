@@ -2332,6 +2332,8 @@ def test_init_config_default(tmp_path, monkeypatch):
     content = default_config.read_text(encoding="utf-8")
     assert 'main_folder: "./projects"' in content
     assert 'command_to_run: "git status"' in content
+    for expected_folder in [".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "build", ".pytest_cache", ".ruff_cache", ".vscode", ".idea"]:
+        assert expected_folder in content
 
 
 def test_init_config_custom_path(tmp_path, monkeypatch):

@@ -43,9 +43,17 @@ command_to_run: "git diff >> ../daily_diff.txt"
 
 # Folders you want the tool to skip
 excluded_folders:
-  - "node_modules"
   - ".git"
+  - "node_modules"
   - "venv"
+  - ".venv"
+  - "__pycache__"
+  - "dist"
+  - "build"
+  - ".pytest_cache"
+  - ".ruff_cache"
+  - ".vscode"
+  - ".idea"
 
 # (Optional) Specific folders you want to run the command on
 included_folders:

@@ -727,7 +727,7 @@ def parse_arguments() -> argparse.Namespace:
     output_group.add_argument(
         '-f', '--format',
         choices=['json', 'csv', 'txt', 'markdown', 'md', 'yaml', 'yml', 'html', 'htm', 'toml'],
-        help='Choose the format for the output report (default: txt).'
+        help='Choose the format for the output report. If not provided, it is automatically detected from the output file extension.'
     )
 
     return parser.parse_args()

@@ -30,6 +30,22 @@ def test_format_typos_json():
     assert data[2] == {"typo": "lonelyword", "correction": ""}
 
 
+def test_format_typos_multiple_arrow_delimiters():
+    typos = ["foo -> bar -> baz", "a -> b -> c -> d"]
+    dicts = diff2typo._typos_to_dicts(typos)
+    assert dicts == [
+        {"typo": "foo", "correction": "bar -> baz"},
+        {"typo": "a", "correction": "b -> c -> d"},
+    ]
+
+    res_json = diff2typo.format_typos(typos, "json")
+    data = json.loads("\n".join(res_json))
+    assert data[0] == {"typo": "foo", "correction": "bar -> baz"}
+
+    res_arrow = diff2typo.format_typos(typos, "arrow")
+    assert res_arrow[0] == "foo -> bar -> baz"
+
+
 def test_format_typos_yaml():
     typos = ["teh -> the", "recieve -> receive"]
     res = diff2typo.format_typos(typos, "yaml")

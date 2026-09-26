@@ -31,3 +31,26 @@ def test_main_summary_extra_metrics_limit(capsys, monkeypatch):
     captured = capsys.readouterr()
     assert "Output limit (--limit):" in captured.err
     assert "2" in captured.err
+
+
+def test_main_write_file_exception(tmp_path, monkeypatch, caplog):
+    """Verify that OSError during output file writing logs an error and exits."""
+    output_file = tmp_path / "output.txt"
+    test_args = ["gentypos.py", "hello", "world", "-o", str(output_file), "-N"]
+
+    orig_open = open
+
+    def mock_open_func(file, mode="r", *args, **kwargs):
+        if str(file) == str(output_file) and "w" in mode:
+            raise OSError("Disk write permission denied")
+        return orig_open(file, mode, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", mock_open_func)
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    with pytest.raises(SystemExit) as exc_info:
+        gentypos.main()
+
+    assert exc_info.value.code == 1
+    assert "Error writing to" in caplog.text
+

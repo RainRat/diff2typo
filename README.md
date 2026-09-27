@@ -54,7 +54,7 @@ A virtual environment keeps your project dependencies separate from your global 
 ### 3. Install the dependencies
 Install all required Python packages:
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## 🛠️ Tools Overview

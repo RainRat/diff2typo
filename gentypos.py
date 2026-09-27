@@ -210,6 +210,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         'max_length': None,
     },
     'output_header': None,
+    'reverse': False,
 }
 
 
@@ -984,6 +985,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
         min_length=min_length,
         max_length=max_length,
         limit=config.get('limit'),
+        reverse=bool(config.get('reverse', False)),
         custom_substitutions_config=config.get('custom_substitutions', {}),
         substitutions_file=config.get('substitutions_file'),
         ad_hoc=config.get('ad_hoc'),
@@ -1176,7 +1178,8 @@ def _run_typo_generation(
         for typo, correct_words in typo_to_correct_word.items():
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
-    sorted_typos = sorted(filtered_typo_to_correct_word.items())
+    is_reverse = getattr(settings, 'reverse', False)
+    sorted_typos = sorted(filtered_typo_to_correct_word.items(), reverse=is_reverse)
     settings.total_typos_generated = total_typos_generated
     settings.filtered_typos_count = filtered_typos_count
     return dict(sorted_typos)
@@ -1342,6 +1345,11 @@ def main() -> None:
         help="Limit the number of typos in the output.",
     )
     gen_group.add_argument(
+        '-R', '--reverse',
+        action='store_true',
+        help="Reverse the sort order for output results (e.g., reverse alphabetical sorting).",
+    )
+    gen_group.add_argument(
         '-M', '--max-length',
         type=int,
         help="Ignore words longer than this length.",
@@ -1385,6 +1393,9 @@ def main() -> None:
             "\n"
             "# Output Format: arrow (a -> b), csv (a,b), table (a = \"b\"), list (a), json, yaml, markdown, md, html, htm\n"
             'output_format: "arrow"\n'
+            "\n"
+            "# Reverse the sort order for generated typos\n"
+            "# reverse: false\n"
             "\n"
             "# Number of times to repeat typo generation, stacking modifications\n"
             "repeat_modifications: 1\n"
@@ -1532,6 +1543,8 @@ def main() -> None:
 
     if args.limit is not None:
         config['limit'] = args.limit
+    if args.reverse:
+        config['reverse'] = True
 
     if sys.stdin.isatty() and not cli_words:
         resolved_input = config.get('input_file')
@@ -1629,7 +1642,8 @@ def main() -> None:
             )
 
             # Show a preview of up to 10 accumulated typos
-            preview_typos = sorted(list(accumulated_typos))
+            is_reverse = getattr(settings, 'reverse', False)
+            preview_typos = sorted(list(accumulated_typos), reverse=is_reverse)
             kept = []
             filtered = []
             for t in preview_typos:

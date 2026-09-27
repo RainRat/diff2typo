@@ -77,6 +77,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--output`, `-o` | None | Save results to this file. Use `-` to print to the screen. |
 | `--quiet`, `-q` | Off | Hide progress bars and status messages. |
 | `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |
+| `--reverse`, `-R` | Off | Reverse the sort order for output results (e.g., reverse alphabetical sorting). |
 | `--substitutions`, `-s` | None | One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, or plain text). Useful for loading your personal typo history from `typostats.py`. |
 | `--transposition`, `--transpositions`, `-t` | Off | Generate transpositions (swapping adjacent letters, e.g., 'word' becomes 'wrod'). |
 | `--transposition-distance`, `-T` | `1` | Distance between letters to swap for transposition typos. |
@@ -96,6 +97,9 @@ output_file: "typos.txt"          # Where to save the results
 
 # Output Format: arrow (a -> b), csv (a,b), table (a = "b"), list (a), json, yaml, markdown, md, html, or htm
 output_format: "arrow"
+
+# Reverse the sort order for generated typos
+reverse: false
 
 # How many times to repeat the process (makes more complex typos)
 repeat_modifications: 1

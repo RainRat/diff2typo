@@ -103,3 +103,35 @@ def test_typostats_dry_run_short_flag(tmp_path, caplog):
     log_text = caplog.text
     assert "--- TYPOSTATS DRY RUN ---" in log_text
     assert "Dry run complete. No files were written or exported." in log_text
+
+
+def test_typostats_dry_run_sort_options(tmp_path, caplog):
+    typo_file = tmp_path / "typos.txt"
+    typo_file.write_text("teh -> the\nrecieve -> receive\n", encoding="utf-8")
+
+    sort_combinations = [
+        (["-s", "typo"], "'eh' -> 'he'"),
+        (["-s", "typo", "-r"], "'ie' -> 'ei'"),
+        (["-s", "correct"], "'ie' -> 'ei'"),
+        (["-s", "correct", "-r"], "'eh' -> 'he'"),
+        (["-s", "count", "-r"], "Count:"),
+    ]
+
+    for flags, expected_pattern in sort_combinations:
+        caplog.clear()
+        with patch(
+            "sys.argv",
+            [
+                "typostats.py",
+                str(typo_file),
+                "--dry-run",
+                "-a",
+            ]
+            + flags,
+        ):
+            with caplog.at_level("INFO"):
+                typostats.main()
+
+        log_text = caplog.text
+        assert "--- TYPOSTATS DRY RUN ---" in log_text
+        assert expected_pattern in log_text

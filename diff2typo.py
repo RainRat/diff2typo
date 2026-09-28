@@ -991,13 +991,13 @@ def main():
         help="Fetch commit history diffs directly from Git using 'git log -p'. Optional arguments are passed to 'git log'.",
     )
     io_group.add_argument(
-        '--input',
-        '-i',
+        '-i', '--input',
         dest='input_files_flag',
         nargs='+',
+        metavar='FILE',
         type=str,
         default=None,
-        help=argparse.SUPPRESS,
+        help="One or more input Git diff files, directories, or glob patterns.",
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--input_file', dest='input_files_flag', nargs='+', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)

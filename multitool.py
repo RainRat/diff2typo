@@ -29,6 +29,7 @@ except ImportError:
         def set_postfix(self, *args, **kwargs): pass
 import logging
 import json
+import html
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
 
@@ -232,6 +233,8 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
         'arrow': 'arrow',
         'table': 'table',
         'xml': 'xml',
+        'html': 'html',
+        'htm': 'html',
     }
 
     detected = mapping.get(ext)
@@ -852,6 +855,24 @@ def write_output(
             xml_str = ET.tostring(root, encoding='utf-8')
             pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
             outfile.write(pretty_xml)
+        elif output_format in ('html', 'htm'):
+            outfile.write("<!DOCTYPE html>\n")
+            outfile.write('<html lang="en">\n<head>\n  <meta charset="utf-8">\n')
+            outfile.write("  <title>Multitool Report</title>\n")
+            outfile.write("  <style>\n")
+            outfile.write("    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; background: #f8f9fa; color: #212529; }\n")
+            outfile.write("    h1 { font-size: 1.25rem; color: #0d6efd; margin-bottom: 12px; }\n")
+            outfile.write("    table { border-collapse: collapse; width: 100%; max-width: 800px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; }\n")
+            outfile.write("    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #dee2e6; }\n")
+            outfile.write("    th { background-color: #0d6efd; color: #fff; font-weight: 600; }\n")
+            outfile.write("    tr:hover { background-color: #f1f3f5; }\n")
+            outfile.write("    code { font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #e9ecef; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; }\n")
+            outfile.write("  </style>\n</head>\n<body>\n")
+            outfile.write("  <h1>Multitool Output</h1>\n")
+            outfile.write("  <table>\n    <thead><tr><th>Item</th></tr></thead>\n    <tbody>\n")
+            for item in items_list:
+                outfile.write(f"      <tr><td><code>{html.escape(str(item))}</code></td></tr>\n")
+            outfile.write("    </tbody>\n  table>\n</body>\n</html>\n".replace("table>", "</table>"))
         else:  # 'line' or fallback
             for item in items_list:
                 outfile.write(item)
@@ -910,6 +931,20 @@ def _write_structured_data(
             xml_str = ET.tostring(xml_root, encoding='utf-8')
             pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
             out.write(pretty_xml)
+        elif output_format in ('html', 'htm'):
+            out.write("<!DOCTYPE html>\n")
+            out.write('<html lang="en">\n<head>\n  <meta charset="utf-8">\n')
+            out.write("  <title>Multitool Report</title>\n")
+            out.write("  <style>\n")
+            out.write("    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; background: #f8f9fa; color: #212529; }\n")
+            out.write("    h1 { font-size: 1.25rem; color: #0d6efd; margin-bottom: 12px; }\n")
+            out.write("    pre { background: #fff; padding: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #dee2e6; overflow-x: auto; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9em; }\n")
+            out.write("  </style>\n</head>\n<body>\n")
+            out.write("  <h1>Multitool Output</h1>\n")
+            out.write("  <pre><code>")
+            formatted_json = json.dumps(data, indent=2)
+            out.write(html.escape(formatted_json))
+            out.write("</code></pre>\n</body>\n</html>\n")
         else:
             # Fallback to JSON for structured data
             json.dump(data, out, indent=2)
@@ -1350,6 +1385,35 @@ def _write_paired_output(
             xml_str = ET.tostring(root, encoding='utf-8')
             pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
             out_file.write(pretty_xml)
+        elif output_format in ('html', 'htm'):
+            out_file.write("<!DOCTYPE html>\n")
+            out_file.write('<html lang="en">\n<head>\n  <meta charset="utf-8">\n')
+            out_file.write("  <title>Multitool Report</title>\n")
+            out_file.write("  <style>\n")
+            out_file.write("    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; background: #f8f9fa; color: #212529; }\n")
+            out_file.write("    h1 { font-size: 1.25rem; color: #0d6efd; margin-bottom: 12px; }\n")
+            out_file.write("    table { border-collapse: collapse; width: 100%; max-width: 900px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; }\n")
+            out_file.write("    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #dee2e6; }\n")
+            out_file.write("    th { background-color: #0d6efd; color: #fff; font-weight: 600; }\n")
+            out_file.write("    tr:hover { background-color: #f1f3f5; }\n")
+            out_file.write("    code { font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #e9ecef; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; }\n")
+            out_file.write("  </style>\n</head>\n<body>\n")
+            title_text = f"{mode_label} Mode Output" if mode_label else "Multitool Output"
+            out_file.write(f"  <h1>{html.escape(title_text)}</h1>\n")
+            out_file.write("  <table>\n    <thead><tr>")
+            out_file.write(f"<th>{html.escape(left_header)}</th><th>{html.escape(right_header)}</th>")
+            if has_attr:
+                out_file.write(f"<th>{html.escape(attr_header)}</th>")
+            out_file.write("</tr></thead>\n    <tbody>\n")
+            for p in pairs_list:
+                left_esc = html.escape(str(p[0]))
+                right_esc = html.escape(str(p[1]))
+                if has_attr:
+                    attr_esc = html.escape(str(p[2]))
+                    out_file.write(f"      <tr><td><code>{left_esc}</code></td><td><code>{right_esc}</code></td><td><code>{attr_esc}</code></td></tr>\n")
+                else:
+                    out_file.write(f"      <tr><td><code>{left_esc}</code></td><td><code>{right_esc}</code></td></tr>\n")
+            out_file.write("    </tbody>\n  table>\n</body>\n</html>\n".replace("table>", "</table>"))
         else:  # 'line' or fallback
             for p in pairs_list:
                 left, right = p[0], p[1]
@@ -8508,10 +8572,10 @@ def _build_parser() -> argparse.ArgumentParser:
     io_group.add_argument(
         '-f', '--output-format', '--format',
         dest='output_format',
-        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml'],
+        choices=['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml', 'html', 'htm'],
         metavar='FORMAT',
         default=None,
-        help="Choose the format for the output. If not provided, it is automatically detected from the output file extension. Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml, xml.",
+        help="Choose the format for the output. If not provided, it is automatically detected from the output file extension. Choices: line, json, csv, markdown, md-table, arrow, table, yaml, toml, xml, html, htm.",
     )
     io_group.add_argument(
         '-q', '--quiet',
@@ -10433,7 +10497,7 @@ def main() -> None:
     limit = getattr(args, 'limit', None)
     output_format = getattr(args, 'output_format', None)
     if output_format is None:
-        allowed_formats = ['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml']
+        allowed_formats = ['line', 'json', 'csv', 'markdown', 'md-table', 'arrow', 'table', 'yaml', 'toml', 'xml', 'html', 'htm']
         default_format = 'line'
 
         # Analysis modes should default to 'arrow' when run in a terminal for better UX

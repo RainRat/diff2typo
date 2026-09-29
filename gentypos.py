@@ -210,6 +210,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         'max_length': None,
     },
     'output_header': None,
+    'sort': 'typo',
+    'reverse': False,
 }
 
 
@@ -969,6 +971,14 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
     min_length = word_length.get('min_length', 8)
     max_length = word_length.get('max_length', None)
 
+    sort = config.get('sort', 'typo')
+    if isinstance(sort, str):
+        sort = sort.lower()
+    if sort not in ('typo', 'correct'):
+        sort = 'typo'
+
+    reverse = bool(config.get('reverse', False))
+
     settings = SimpleNamespace(
         input_files=input_files,
         dictionary_file=dictionary_file,
@@ -984,6 +994,8 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
         min_length=min_length,
         max_length=max_length,
         limit=config.get('limit'),
+        sort=sort,
+        reverse=reverse,
         custom_substitutions_config=config.get('custom_substitutions', {}),
         substitutions_file=config.get('substitutions_file'),
         ad_hoc=config.get('ad_hoc'),
@@ -1176,7 +1188,22 @@ def _run_typo_generation(
         for typo, correct_words in typo_to_correct_word.items():
             filtered_typo_to_correct_word[typo] = ', '.join(correct_words)
 
-    sorted_typos = sorted(filtered_typo_to_correct_word.items())
+    sort_by = getattr(settings, 'sort', 'typo')
+    reverse_sort = getattr(settings, 'reverse', False)
+
+    if sort_by == 'correct':
+        sorted_typos = sorted(
+            filtered_typo_to_correct_word.items(),
+            key=lambda item: (item[1], item[0]),
+            reverse=reverse_sort,
+        )
+    else:
+        sorted_typos = sorted(
+            filtered_typo_to_correct_word.items(),
+            key=lambda item: (item[0], item[1]),
+            reverse=reverse_sort,
+        )
+
     settings.total_typos_generated = total_typos_generated
     settings.filtered_typos_count = filtered_typos_count
     return dict(sorted_typos)
@@ -1337,6 +1364,17 @@ def main() -> None:
         help=argparse.SUPPRESS,
     )
     gen_group.add_argument(
+        '--sort',
+        choices=['typo', 'correct'],
+        default=None,
+        help="How to sort output results: 'typo' (alphabetical by typo, default) or 'correct' (alphabetical by correction).",
+    )
+    gen_group.add_argument(
+        '--reverse',
+        action='store_true',
+        help="Reverse the sort order of the output results.",
+    )
+    gen_group.add_argument(
         '-L', '--limit',
         type=int,
         help="Limit the number of typos in the output.",
@@ -1410,6 +1448,10 @@ def main() -> None:
             "word_length:\n"
             "  min_length: 3\n"
             "  max_length: 20\n"
+            "\n"
+            "# Sorting Options\n"
+            '# sort: "typo"                        # How to sort output: typo or correct\n'
+            "# reverse: false                     # Reverse the sort order\n"
             "\n"
             "# Custom Replacement Rules (optional)\n"
             "# custom_substitutions:\n"
@@ -1532,6 +1574,10 @@ def main() -> None:
 
     if args.limit is not None:
         config['limit'] = args.limit
+    if args.sort:
+        config['sort'] = args.sort
+    if args.reverse:
+        config['reverse'] = True
 
     if sys.stdin.isatty() and not cli_words:
         resolved_input = config.get('input_file')
@@ -1614,6 +1660,7 @@ def main() -> None:
         logging.info(f"Input: {input_desc}")
         logging.info(f"Output File: {settings.output_file} (Format: {settings.output_format})")
         logging.info(f"Min Word Length: {settings.min_length} | Max Word Length: {settings.max_length}")
+        logging.info(f"Sort: {settings.sort} (Reverse: {settings.reverse})")
         logging.info(f"Limit: {limit if limit is not None else 'None'}")
         logging.info(f"Repeat Modifications: {settings.repeat_modifications}")
         enabled_types = [t for t, enabled in settings.typo_types.items() if enabled]

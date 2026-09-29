@@ -54,7 +54,18 @@ A virtual environment keeps your project dependencies separate from your global 
 ### 3. Install the dependencies
 Install all required Python packages:
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+```
+
+## ⚙️ Configuration Files
+
+Most tools in the suite support YAML configuration files. You can generate a sample template configuration file for any tool using the `--init-config` flag:
+
+```bash
+python gentypos.py --init-config
+python diff2typo.py --init-config
+python cmdrunner.py --init-config
+python typostats.py --init-config
 ```
 
 ## 🛠️ Tools Overview

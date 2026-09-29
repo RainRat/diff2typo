@@ -73,6 +73,20 @@ def test_gentypos_dry_run_short_flag(monkeypatch, caplog):
     assert "--- GENTYPOS DRY RUN ---" in caplog.text
 
 
+def test_gentypos_repeat_uppercase_short_flag(monkeypatch, capsys):
+    # -R 2 repeats modifications 2 times
+    test_args = ["gentypos.py", "word", "-u", "-R", "2", "--no-filter", "-f", "arrow", "-q"]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    gentypos.main()
+
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+
+    # With repeat 2, 2nd-level duplications like 'tttest', 'wwwoord' etc. will be generated
+    assert len(lines) > 4
+
+
 def test_gentypos_plural_option_aliases(monkeypatch, capsys):
     # Test --deletions
     monkeypatch.setattr(sys, "argv", ["gentypos.py", "word", "--deletions", "--no-filter", "-f", "arrow", "-q"])

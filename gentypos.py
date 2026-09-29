@@ -1324,7 +1324,7 @@ def main() -> None:
         help='Extra substitution pairs (for example "ph:f" or "th:teh") to use during typo generation.',
     )
     gen_group.add_argument(
-        '-r', '--repeat',
+        '-r', '-R', '--repeat',
         dest='repeat_modifications',
         type=int,
         help="Number of times to repeat typo generation, stacking modifications.",

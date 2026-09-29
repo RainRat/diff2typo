@@ -103,3 +103,52 @@ def test_typostats_dry_run_short_flag(tmp_path, caplog):
     log_text = caplog.text
     assert "--- TYPOSTATS DRY RUN ---" in log_text
     assert "Dry run complete. No files were written or exported." in log_text
+
+
+def test_typostats_dry_run_sort_options(tmp_path, caplog):
+    typo_file = tmp_path / "typos.txt"
+    typo_file.write_text("b -> x\na -> y\n", encoding="utf-8")
+
+    # Test sorting by typo (alphabetical by typo_char: 'a' before 'b')
+    with patch("sys.argv", ["typostats.py", str(typo_file), "-n", "-s", "typo"]):
+        caplog.clear()
+        with caplog.at_level("INFO"):
+            typostats.main()
+        log_text = caplog.text
+        pos_b = log_text.find("'b' -> 'x'")
+        pos_a = log_text.find("'a' -> 'y'")
+        assert pos_b != -1 and pos_a != -1
+        assert pos_a < pos_b
+
+    # Test sorting by typo reverse ('b' before 'a')
+    with patch("sys.argv", ["typostats.py", str(typo_file), "-n", "-s", "typo", "-r"]):
+        caplog.clear()
+        with caplog.at_level("INFO"):
+            typostats.main()
+        log_text = caplog.text
+        pos_b = log_text.find("'b' -> 'x'")
+        pos_a = log_text.find("'a' -> 'y'")
+        assert pos_b != -1 and pos_a != -1
+        assert pos_b < pos_a
+
+    # Test sorting by correct (alphabetical by correct_char: 'x' before 'y')
+    with patch("sys.argv", ["typostats.py", str(typo_file), "-n", "-s", "correct"]):
+        caplog.clear()
+        with caplog.at_level("INFO"):
+            typostats.main()
+        log_text = caplog.text
+        pos_b = log_text.find("'b' -> 'x'")
+        pos_a = log_text.find("'a' -> 'y'")
+        assert pos_b != -1 and pos_a != -1
+        assert pos_b < pos_a
+
+    # Test sorting by correct reverse ('y' before 'x')
+    with patch("sys.argv", ["typostats.py", str(typo_file), "-n", "-s", "correct", "-r"]):
+        caplog.clear()
+        with caplog.at_level("INFO"):
+            typostats.main()
+        log_text = caplog.text
+        pos_b = log_text.find("'b' -> 'x'")
+        pos_a = log_text.find("'a' -> 'y'")
+        assert pos_b != -1 and pos_a != -1
+        assert pos_a < pos_b

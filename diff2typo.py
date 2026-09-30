@@ -753,6 +753,14 @@ def _run_git_subcommand(base_command: List[str], git_args: Optional[str]) -> str
     return _run_git_command(command)
 
 
+def _read_diff_file(file_path: str) -> str:
+    """Read binary contents of a diff file and decode with UTF-8 / latin-1 fallback."""
+
+    with open(file_path, "rb") as file_handle:
+        data = file_handle.read()
+    return _decode_with_fallback(data, f"input diff file '{file_path}'")
+
+
 def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
     """Return concatenated diff text from standard input or the provided file patterns."""
 
@@ -785,13 +793,9 @@ def _read_diff_sources(input_files: Optional[Sequence[str]]) -> str:
                         ext = os.path.splitext(file)[1].lower()
                         if ext in supported_extensions:
                             file_path = os.path.join(root, file)
-                            with open(file_path, "rb") as file_handle:
-                                data = file_handle.read()
-                            contents.append(_decode_with_fallback(data, f"input diff file '{file_path}'"))
+                            contents.append(_read_diff_file(file_path))
             elif os.path.isfile(match):
-                with open(match, "rb") as file_handle:
-                    data = file_handle.read()
-                contents.append(_decode_with_fallback(data, f"input diff file '{match}'"))
+                contents.append(_read_diff_file(match))
             else:
                 logging.error(f"Input file '{match}' not found. Exiting.")
                 sys.exit(1)

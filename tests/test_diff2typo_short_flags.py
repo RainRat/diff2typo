@@ -98,3 +98,49 @@ def test_diff2typo_dry_run_short_flag(monkeypatch, caplog):
         diff2typo.main()
 
     assert "--- DIFF2TYPO DRY RUN ---" in caplog.text
+
+
+def test_input_flag_short_and_help(monkeypatch, capsys):
+    """Verify that -i / --input parses input files and appears in --help output."""
+    import argparse
+    original_parse = argparse.ArgumentParser.parse_args
+    captured_args = []
+
+    def mock_parse(self, *args, **kwargs):
+        res = original_parse(self, *args, **kwargs)
+        captured_args.append(res)
+        return res
+
+    monkeypatch.setattr(argparse.ArgumentParser, 'parse_args', mock_parse)
+    monkeypatch.setattr(diff2typo, '_read_diff_sources', lambda files: "--- a/f\n+++ b/f\n-teh\n+the")
+    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **kw: {})
+    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **kw: set())
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'diff2typo.py',
+            '-i', 'patch1.diff', 'patch2.diff',
+            '--quiet'
+        ]
+    )
+
+    try:
+        diff2typo.main()
+    except SystemExit:
+        pass
+
+    assert len(captured_args) > 0
+    args = captured_args[-1]
+    assert args.input_files_flag == ['patch1.diff', 'patch2.diff']
+
+    # Verify that -i / --input is present in --help output
+    monkeypatch.setattr(sys, 'argv', ['diff2typo.py', '--help'])
+    try:
+        diff2typo.main()
+    except SystemExit:
+        pass
+
+    captured = capsys.readouterr()
+    assert "-i FILE [FILE ...], --input FILE [FILE ...]" in captured.out

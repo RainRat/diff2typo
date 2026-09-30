@@ -5969,30 +5969,62 @@ def unzip_mode(
     max_length: int,
     process_output: bool,
     right_side: bool = False,
+    file2: Optional[str] = None,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use --right for the right side and --raw to keep the original text."""
-    def extractor(f, quiet=False):
-        for left, right in _extract_pairs([f], quiet=quiet):
-            yield right if right_side else left
+    """Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use --right for the right side, --file2/--output2 to save both sides simultaneously, and --raw to keep the original text."""
+    if file2:
+        start_time = time.perf_counter()
+        left_items = []
+        right_items = []
+        total_pairs = 0
+        for f in input_files:
+            for left, right in _extract_pairs([f], quiet=quiet):
+                total_pairs += 1
+                left_clean = filter_to_letters(left) if clean_items else left
+                right_clean = filter_to_letters(right) if clean_items else right
 
-    _process_items(
-        extractor,
-        input_files,
-        output_file,
-        min_length,
-        max_length,
-        process_output,
-        'Unzip',
-        f"Successfully extracted {'right' if right_side else 'left'} side from pairs.",
-        output_format,
-        quiet,
-        clean_items=clean_items,
-        limit=limit,
-    )
+                if min_length <= len(left_clean) <= max_length:
+                    left_items.append(left_clean)
+                if min_length <= len(right_clean) <= max_length:
+                    right_items.append(right_clean)
+
+        if process_output:
+            left_items = sorted(set(left_items))
+            right_items = sorted(set(right_items))
+
+        primary_items = right_items if right_side else left_items
+        secondary_items = left_items if right_side else right_items
+
+        write_output(primary_items, output_file, output_format, quiet, limit=limit)
+        write_output(secondary_items, file2, output_format, quiet, limit=limit)
+
+        print_processing_stats(total_pairs, primary_items, item_label="unzipped item", start_time=start_time)
+        logging.info(
+            f"[Unzip Mode] Successfully unzipped pairs into '{output_file}' and '{file2}'."
+        )
+    else:
+        def extractor(f, quiet=False):
+            for left, right in _extract_pairs([f], quiet=quiet):
+                yield right if right_side else left
+
+        _process_items(
+            extractor,
+            input_files,
+            output_file,
+            min_length,
+            max_length,
+            process_output,
+            'Unzip',
+            f"Successfully extracted {'right' if right_side else 'left'} side from pairs.",
+            output_format,
+            quiet,
+            clean_items=clean_items,
+            limit=limit,
+        )
 
 
 def _process_pairs(
@@ -8017,9 +8049,9 @@ MODE_DETAILS = {
     },
     "unzip": {
         "summary": "Splits paired data into two lists",
-        "description": "Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use --right for the right side and --raw to keep the original text.",
-        "example": "python multitool.py unzip typos.csv --right --output corrections.txt",
-        "flags": "[FILES...] [--right] [--raw]",
+        "description": "Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use --right for the right side, --file2/--output2 to save both sides simultaneously, and --raw to keep the original text.",
+        "example": "python multitool.py unzip typos.csv --output typos.txt --file2 corrections.txt",
+        "flags": "[FILES...] [--right] [--file2 FILE2] [--raw]",
     },
     "swap": {
         "summary": "Reverses the order of pairs",
@@ -9894,6 +9926,13 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help="Get the right side of the pair (the correction) instead of the left side (the typo).",
     )
+    unzip_options.add_argument(
+        '--file2', '--output2', '--output-right',
+        dest='file2',
+        type=str,
+        default=None,
+        help="Path to save the second (right-side) list simultaneously.",
+    )
     _add_common_mode_arguments(unzip_parser)
 
     swap_parser = subparsers.add_parser(
@@ -10838,6 +10877,7 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'file2': file2,
                 'output_format': output_format,
             },
         ),

@@ -1,3 +1,24 @@
+"""cmdrunner.py
+
+Purpose:
+    Runs a specified command across all subdirectories in a main directory.
+    This helps you automate batch execution (such as running git status, npm test,
+    or typo cleanup scripts) across multiple project folders at once.
+
+Features:
+    - Automatically scans subdirectories in a target main folder.
+    - Excludes common development, build, and system folders (e.g., .git, venv).
+    - Filters target folders by presence or absence of specific files (--if-exists / --if-not-exists).
+    - Supports dynamic placeholders ({}) in commands replaced by the active folder name.
+    - Supports concurrent execution with configurable job counts (-j/--jobs).
+    - Exports execution reports in multiple formats (JSON, CSV, YAML, TOML, Markdown, HTML).
+
+Usage:
+    python cmdrunner.py config.yaml
+    python cmdrunner.py -m /path/to/projects -c "git status"
+    python cmdrunner.py -m /path/to/projects -c "npm test" -j 4 -o report.html
+"""
+
 import os
 import subprocess
 import shlex

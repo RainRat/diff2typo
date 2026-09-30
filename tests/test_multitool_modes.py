@@ -95,3 +95,14 @@ def test_markdown_mode_pairs_cli_execution(tmp_path, monkeypatch):
     content = out.read_text()
     assert "teh" in content
     assert "the" in content
+
+
+# TABLE MODE CLI DISPATCH
+def test_table_mode_cli_execution(tmp_path, monkeypatch):
+    f = tmp_path / "f.txt"
+    f.write_text('key = "value"\n')
+    out = tmp_path / "out.txt"
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "table", str(f), "-o", str(out)])
+    multitool.main()
+    assert "key" in out.read_text()
+

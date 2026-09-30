@@ -67,6 +67,28 @@ def test_gentypos_cli_override_dictionary_file_filters_typos(capsys, empty_confi
     assert len(stdout_lines) > 0
     assert not any("spple -> apple" in line for line in stdout_lines)
 
+def test_gentypos_cli_output_auto_detect_overrides_config_default(tmp_path):
+    table_config = tmp_path / "gentypos.yaml"
+    table_config.write_text('output_format: "table"\noutput_header: "[custom.header]"\n', encoding="utf-8")
+    output_file = tmp_path / "result.csv"
+
+    test_args = [
+        "gentypos.py",
+        "hello",
+        "-c", str(table_config),
+        "-o", str(output_file)
+    ]
+    with patch.object(sys, 'argv', test_args):
+        gentypos.main()
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    assert len(lines) > 0
+    assert not content.startswith("[custom.header]")
+    assert any("ehllo,hello" in line or "ello,hello" in line for line in lines)
+    assert not any(' = "hello"' in line for line in lines)
+
 def test_gentypos_cli_override_add_custom_substitutions(capsys, empty_config_file):
     # Testing that passing --add "e:a" maps hello -> hallo (replacement of 'e' with 'a')
     test_args = [

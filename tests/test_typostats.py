@@ -1547,3 +1547,20 @@ def test_cli_reverse_dry_run(monkeypatch, capsys):
         ["typostats.py", "--dry-run", "-r", "-s", "typo"]
     )
     typostats.main()
+
+
+def test_generate_report_output_file_write_error(monkeypatch, caplog):
+    def mock_open(*args, **kwargs):
+        raise OSError("Permission denied")
+
+    monkeypatch.setattr("builtins.open", mock_open)
+    counts = {("e", "i"): 1}
+
+    with caplog.at_level(logging.ERROR):
+        typostats.generate_report(
+            counts,
+            output_file="invalid_path.txt",
+            output_format="arrow",
+        )
+
+    assert "Failed to write report to 'invalid_path.txt'. Error: Permission denied" in caplog.text

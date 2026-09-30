@@ -7,7 +7,7 @@
 - **Python 3.10 or newer**
 - **PyYAML:** This package is required to read your configuration file. You can install it using:
   ```bash
-  pip install PyYAML
+  python -m pip install PyYAML
   ```
 
 ## Usage

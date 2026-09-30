@@ -54,7 +54,7 @@ A virtual environment keeps your project dependencies separate from your global 
 ### 3. Install the dependencies
 Install all required Python packages:
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## 🛠️ Tools Overview
@@ -111,6 +111,19 @@ Use `cmdrunner.py` to run checks or commands across multiple project folders at 
 ```bash
 python cmdrunner.py --main-folder /path/to/projects --command-to-run "python multitool.py scrub . -s my_typos.txt --dry-run"
 ```
+
+## ⚙️ Configuration Files
+
+Most tools in the suite support YAML configuration files to store your settings. You can generate a sample configuration file for any tool using the `--init-config` flag:
+
+```bash
+python diff2typo.py --init-config
+python gentypos.py --init-config
+python typostats.py --init-config
+python cmdrunner.py --init-config
+```
+
+Running these commands creates a starter configuration file (for example, `gentypos.yaml`) with documented options and default settings.
 
 ## 🧪 Running Tests
 

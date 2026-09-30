@@ -1545,7 +1545,7 @@ def main() -> None:
         config['output_file'] = args.output
     if args.format:
         config['output_format'] = args.format
-    elif config.get('output_format') is None:
+    elif args.output or config.get('output_format') is None:
         allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm']
         config['output_format'] = _detect_format_from_extension(config.get('output_file'), allowed_formats, 'arrow')
     if args.substitutions:
@@ -1715,15 +1715,16 @@ def main() -> None:
     # Write to output file
     try:
         output_target = settings.output_file
+        should_write_header = bool(settings.output_header and settings.output_format in ('table', 'toml'))
         if output_target == '-':
             # Write to the screen
-            if settings.output_header:
+            if should_write_header:
                 print(settings.output_header)
             for typo in formatted_typos:
                 print(typo)
         else:
             with open(output_target, 'w', encoding='utf-8') as file:
-                if settings.output_header:
+                if should_write_header:
                     file.write(settings.output_header + "\n")
                 for typo in formatted_typos:
                     file.write(f"{typo}\n")

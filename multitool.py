@@ -1,3 +1,24 @@
+"""multitool.py
+
+Purpose:
+    A multipurpose command-line utility for processing, analyzing, and cleaning text files,
+    typo mappings, structured data, and repository structures.
+
+Features:
+    - GET DATA: Extracts arrows, tables, backticks, quotes, CSV columns, Markdown list items,
+      headings, links, code blocks, comments, TODOs, JSON/YAML/TOML/XML keys, paths, and N-grams.
+    - CHANGE DATA: Combines, sorts, shuffles, deduplicates, maps, transforms casing, un/flattens,
+      converts formats, batch renames files, and scrubs typos across files.
+    - CHECK & ANALYZE: Counts occurrences, classifies error types, identifies conflicts/cycles,
+      computes text similarity, finds near-duplicates, searches patterns, and scans projects.
+
+Usage:
+    python multitool.py <MODE> [FILES...] [OPTIONS]
+    python multitool.py help
+    python multitool.py count my_typos.txt --smart
+    python multitool.py scrub . --add teh:the --diff --dry-run
+"""
+
 import os
 import shutil
 import hashlib

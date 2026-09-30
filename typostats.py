@@ -1,3 +1,22 @@
+"""typostats.py
+
+Purpose:
+    Analyzes typo-correction mappings to identify common typing error patterns,
+    such as hitting adjacent keys, swapping letters, or omitting characters.
+
+Features:
+    - Parses typo mappings from arrow formats, CSV, JSON, YAML, TOML, and Markdown.
+    - Classifies letter replacement patterns (nearby key, transposition, 1-to-2, 2-to-1, deletion, insertion).
+    - Generates visual summary dashboards with character replacement breakdown tables.
+    - Exports reports in arrow text, CSV, JSON, YAML, TOML, Markdown, or HTML formats.
+    - Integrates with gentypos.py for custom typo pattern generation.
+
+Usage:
+    python typostats.py my_typos.txt
+    python typostats.py my_typos.txt --keyboard --transposition
+    python typostats.py my_typos.txt --format html --output report.html
+"""
+
 from collections import defaultdict
 import contextlib
 import json

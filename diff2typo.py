@@ -567,7 +567,7 @@ def _typos_to_dicts(typos: Iterable[str]) -> List[Dict[str, str]]:
     items: List[Dict[str, str]] = []
     for typo in typos:
         if ' -> ' in typo:
-            before, after = typo.split(' -> ')
+            before, after = typo.split(' -> ', 1)
             items.append({"typo": before, "correction": after})
         else:
             items.append({"typo": typo, "correction": ""})
@@ -686,7 +686,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
     formatted: List[str] = []
     for typo in typos:
         if ' -> ' in typo:
-            before, after = typo.split(' -> ')
+            before, after = typo.split(' -> ', 1)
             if output_format == 'csv':
                 formatted.append(f"{before},{after}")
             elif output_format in ('table', 'toml'):
@@ -835,7 +835,7 @@ def filter_known_typos(candidates, typos_tool_path):
             known_typos = {s.lower() for s in re.findall(r'`([^`]+)`', result.stdout) if len(s) > 1}
             filtered = [
                 line for line in candidates
-                if line.split(' -> ')[0].lower() not in known_typos
+                if line.split(' -> ', 1)[0].lower() not in known_typos
             ]
             logging.info(f"Filtered out {len(candidates) - len(filtered)} known typo(s).")
             return filtered
@@ -857,7 +857,7 @@ def _filter_candidates_by_set(candidates, filter_set, desc, quiet=False):
         iterator = progress
 
     for typo in iterator:
-        if typo.split(' -> ')[0].lower() not in filter_set:
+        if typo.split(' -> ', 1)[0].lower() not in filter_set:
             filtered_list.append(typo)
 
     if progress:

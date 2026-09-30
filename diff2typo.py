@@ -1030,6 +1030,13 @@ def main():
     parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     io_group.add_argument(
+        '-C', '--config',
+        dest='config_file',
+        type=str,
+        default=None,
+        help='Path to YAML configuration file (e.g., diff2typo.yaml).',
+    )
+    io_group.add_argument(
         '--init-config', '--generate-config',
         dest='init_config',
         nargs='?',
@@ -1164,32 +1171,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Resolve output format if not provided
-    if args.output_format is None:
-        default_fmt = 'arrow'
-        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm']
-        if args.output_file and args.output_file != '-':
-            ext = os.path.splitext(args.output_file)[1].lower().lstrip('.')
-            mapping = {
-                'txt': 'arrow',
-                'csv': 'csv',
-                'table': 'table',
-                'toml': 'table',
-                'list': 'list',
-                'arrow': 'arrow',
-                'json': 'json',
-                'yaml': 'yaml',
-                'yml': 'yaml',
-                'md': 'markdown',
-                'markdown': 'markdown',
-                'html': 'html',
-                'htm': 'html',
-            }
-            detected = mapping.get(ext)
-            args.output_format = detected if detected in allowed_formats else default_fmt
-        else:
-            args.output_format = default_fmt
-
     log_level = logging.WARNING if args.quiet else logging.INFO
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
@@ -1244,6 +1225,90 @@ def main():
             logging.error(f"Error writing configuration template to '{target_path}': {e}")
             sys.exit(1)
 
+    # Load configuration file if specified or default diff2typo.yaml exists
+    config_path = args.config_file
+    if not config_path and os.path.exists('diff2typo.yaml'):
+        config_path = 'diff2typo.yaml'
+
+    config = {}
+    if config_path:
+        if not _YAML_AVAILABLE:
+            logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML configuration files.")
+            sys.exit(1)
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {}
+                logging.info(f"Loaded configuration from '{config_path}'.")
+        except FileNotFoundError:
+            logging.error(f"Configuration file '{config_path}' not found.")
+            sys.exit(1)
+        except Exception as e:
+            logging.error(f"Error parsing configuration file '{config_path}': {e}")
+            sys.exit(1)
+
+    # Apply configuration defaults if CLI arguments were left at defaults
+    if config:
+        if args.output_file == '-' and 'output_file' in config:
+            args.output_file = config['output_file']
+        if args.output_format is None and 'output_format' in config:
+            args.output_format = config['output_format']
+        if args.mode == 'typos' and 'mode' in config:
+            args.mode = config['mode']
+        if args.min_length == 2 and 'min_length' in config:
+            args.min_length = config['min_length']
+        if args.max_length is None and 'max_length' in config:
+            args.max_length = config['max_length']
+        if args.max_dist is None and 'max_dist' in config:
+            args.max_dist = config['max_dist']
+        if args.min_count == 1 and 'min_count' in config:
+            args.min_count = config['min_count']
+        if args.sort == 'alpha' and 'sort' in config:
+            args.sort = config['sort']
+        if not args.reverse and 'reverse' in config:
+            args.reverse = bool(config['reverse'])
+        if args.limit is None and 'limit' in config:
+            args.limit = config['limit']
+        if args.dictionary_file == 'words.csv' and 'dictionary_file' in config:
+            args.dictionary_file = config['dictionary_file']
+        if args.allowed_file == 'allowed.csv' and 'allowed_file' in config:
+            args.allowed_file = config['allowed_file']
+        if args.typos_tool_path == 'typos' and 'typos_tool_path' in config:
+            args.typos_tool_path = config['typos_tool_path']
+        if args.exclude is None and 'exclude' in config:
+            args.exclude = config['exclude'] if isinstance(config['exclude'], list) else [config['exclude']]
+        if args.include is None and 'include' in config:
+            args.include = config['include'] if isinstance(config['include'], list) else [config['include']]
+        if getattr(args, 'git', None) is None and 'git' in config:
+            args.git = config['git']
+        if getattr(args, 'git_log', None) is None and 'git_log' in config:
+            args.git_log = config['git_log']
+
+    # Resolve output format if not provided
+    if args.output_format is None:
+        default_fmt = 'arrow'
+        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm']
+        if args.output_file and args.output_file != '-':
+            ext = os.path.splitext(args.output_file)[1].lower().lstrip('.')
+            mapping = {
+                'txt': 'arrow',
+                'csv': 'csv',
+                'table': 'table',
+                'toml': 'table',
+                'list': 'list',
+                'arrow': 'arrow',
+                'json': 'json',
+                'yaml': 'yaml',
+                'yml': 'yaml',
+                'md': 'markdown',
+                'markdown': 'markdown',
+                'html': 'html',
+                'htm': 'html',
+            }
+            detected = mapping.get(ext)
+            args.output_format = detected if detected in allowed_formats else default_fmt
+        else:
+            args.output_format = default_fmt
+
     start_time = time.perf_counter()
     logging.info("Starting typo search...")
 
@@ -1251,6 +1316,9 @@ def main():
     pos_inputs = getattr(args, 'input_files', []) or []
     flag_inputs = getattr(args, 'input_files_flag', []) or []
     input_files = pos_inputs + flag_inputs
+    if not input_files and config.get('input_files'):
+        cfg_inputs = config['input_files']
+        input_files = cfg_inputs if isinstance(cfg_inputs, list) else [cfg_inputs]
 
     git_val = getattr(args, 'git', None)
     git_log_val = getattr(args, 'git_log', None)

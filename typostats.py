@@ -1215,7 +1215,9 @@ def generate_report(
                 f.write(report_content)
                 if not report_content.endswith('\n'):
                     f.write('\n')
-            logging.info(f"Report successfully written to '{output_file}'.")
+            line_count = len(report_content.splitlines()) if report_content else 0
+            dest_label = f"'{output_file}'"
+            logging.info(f"{c_blue}[typostats]{c_reset} Wrote {line_count} line(s) to {dest_label}.\n")
         except Exception as e:
             logging.error(f"Failed to write report to '{output_file}'. Error: {e}")
     else:

@@ -75,3 +75,23 @@ def test_near_duplicates_mode_basic(tmp_path):
     multitool.near_duplicates_mode([str(f)], str(out), 1, 100, False, min_dist=1, max_dist=1, output_format='line')
     content = out.read_text().strip()
     assert content == "cat -> bat [R]" or content == "bat -> cat [R]"
+
+# ARROW MODE CLI DISPATCH
+def test_arrow_mode_cli_execution(tmp_path, monkeypatch):
+    f = tmp_path / "f.txt"
+    f.write_text("teh -> the\n")
+    out = tmp_path / "out.txt"
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "arrow", str(f), "-o", str(out)])
+    multitool.main()
+    assert "teh" in out.read_text()
+
+# MARKDOWN MODE PAIRS CLI DISPATCH
+def test_markdown_mode_pairs_cli_execution(tmp_path, monkeypatch):
+    f = tmp_path / "f.txt"
+    f.write_text("- teh -> the\n")
+    out = tmp_path / "out.txt"
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "markdown", str(f), "-p", "-o", str(out), "-f", "json"])
+    multitool.main()
+    content = out.read_text()
+    assert "teh" in content
+    assert "the" in content

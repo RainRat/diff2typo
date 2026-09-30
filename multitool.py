@@ -10576,7 +10576,6 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
-                'pairs': pairs,
                 'output_format': output_format,
             },
         ),
@@ -10777,6 +10776,7 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'pairs': pairs,
                 'output_format': output_format,
             },
         ),
@@ -10813,6 +10813,7 @@ def main() -> None:
             {
                 **common_kwargs,
                 'right_side': right_side,
+                'pairs': pairs,
                 'output_format': output_format,
             },
         ),

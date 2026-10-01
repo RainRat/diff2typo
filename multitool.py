@@ -2124,16 +2124,6 @@ def _extract_comment_items_detailed(input_file: str, quiet: bool = False) -> Ite
         yield (location, text)
 
 
-def _extract_todo_items(
-    input_file: str,
-    markers: Sequence[str] | None = None,
-    quiet: bool = False,
-) -> Iterable[str]:
-    """Yields TODO and FIXME items extracted from a file."""
-    for _, text, _ in _extract_todo_items_detailed(input_file, markers=markers, quiet=quiet):
-        yield text
-
-
 def _extract_todo_items_detailed(
     input_file: str,
     markers: Sequence[str] | None = None,
@@ -2943,7 +2933,8 @@ def todo_mode(
         print_processing_stats(total_items, results, item_label="todo", start_time=start_time)
     else:
         def extractor(f, quiet=False):
-            return _extract_todo_items(f, markers=parsed_markers, quiet=quiet)
+            for _, text, _ in _extract_todo_items_detailed(f, markers=parsed_markers, quiet=quiet):
+                yield text
 
         _process_items(
             extractor,

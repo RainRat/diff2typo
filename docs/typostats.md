@@ -52,6 +52,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
 
 ### Input & Output Options
+- `-C`, `--config`: Path to a YAML configuration file. If not provided, the tool automatically loads `typostats.yaml` from your current directory if it exists.
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`typostats.yaml` by default, or at a specified path) and exit.
 - `-i`, `--input`: One or more input files or patterns containing typo corrections.
 - `-f`, `--format`: Choose the output format:
@@ -173,9 +174,13 @@ python typostats.py my_data.txt -o report.html
 python typostats.py my_data.txt --keyboard
 ```
 
-**Generate a sample template YAML configuration file:**
+**Generate and use a YAML configuration file:**
 ```bash
+# Generate a template configuration file
 python typostats.py --init-config
+
+# Run with a custom configuration file
+python typostats.py my_data.txt --config custom_typostats.yaml
 ```
 
 **Preview analysis settings and found patterns without saving a report:**

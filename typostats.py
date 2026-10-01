@@ -1282,6 +1282,13 @@ def main() -> None:
         help="One or more files containing typo corrections (txt, csv, json, yaml, toml, md). If empty, it reads from standard input.",
     )
     io_group.add_argument(
+        '-C', '--config',
+        dest='config_file',
+        type=str,
+        default=None,
+        help="Path to YAML configuration file (e.g., typostats.yaml).",
+    )
+    io_group.add_argument(
         '--init-config', '--generate-config',
         dest='init_config',
         nargs='?',
@@ -1438,15 +1445,28 @@ def main() -> None:
             logging.error(f"Error writing configuration template to '{target_path}': {e}")
             sys.exit(1)
 
-    # If no analysis flags are provided, enable all of them by default
-    analysis_flags = [
-        'allow_1to2', 'allow_2to1', 'include_deletions',
-        'transposition', 'keyboard', 'all', 'allow_two_char'
-    ]
-    if not any(getattr(args, flag) for flag in analysis_flags):
-        args.all = True
+    # Load configuration file if specified or default typostats.yaml exists
+    config_path = args.config_file
+    if not config_path and os.path.exists('typostats.yaml'):
+        config_path = 'typostats.yaml'
 
-    log_level = logging.WARNING if args.quiet else logging.INFO
+    config = {}
+    if config_path:
+        if not _YAML_AVAILABLE:
+            logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML configuration files.")
+            sys.exit(1)
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {}
+                logging.info(f"Loaded configuration from '{config_path}'.")
+        except FileNotFoundError:
+            logging.error(f"Configuration file '{config_path}' not found.")
+            sys.exit(1)
+        except Exception as e:
+            logging.error(f"Error parsing configuration file '{config_path}': {e}")
+            sys.exit(1)
+
+    log_level = logging.WARNING if (args.quiet or config.get('quiet', False)) else logging.INFO
     # Use a custom handler and formatter to keep output clean
     handler = logging.StreamHandler()
     handler.setFormatter(MinimalFormatter('%(levelname)s: %(message)s'))
@@ -1455,18 +1475,67 @@ def main() -> None:
     pos_inputs = getattr(args, 'input_files', []) or []
     flag_inputs = getattr(args, 'input_files_flag', []) or []
     input_files = pos_inputs + flag_inputs
+    if not input_files and config.get('input_files'):
+        cfg_inputs = config['input_files']
+        input_files = cfg_inputs if isinstance(cfg_inputs, list) else [cfg_inputs]
+
     output_file = args.output
-    min_occurrences = args.min
-    sort_by = args.sort
+    if output_file is None and ('output' in config or 'output_file' in config):
+        output_file = config.get('output', config.get('output_file'))
+
     output_format = args.format
+    if output_format is None and ('format' in config or 'output_format' in config):
+        output_format = config.get('format', config.get('output_format'))
+
     if output_format is None:
         allowed_formats = ['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md', 'html', 'htm']
         output_format = _detect_format_from_extension(output_file, allowed_formats, 'arrow')
+
+    if not args.quiet and 'quiet' in config:
+        args.quiet = bool(config['quiet'])
+
+    min_occurrences = args.min
+    if min_occurrences == 1 and ('min_count' in config or 'min' in config):
+        min_occurrences = config.get('min_count', config.get('min'))
+
+    sort_by = args.sort
+    if sort_by == 'count' and 'sort' in config:
+        sort_by = config['sort']
+
+    if not args.reverse and 'reverse' in config:
+        args.reverse = bool(config['reverse'])
+
+    limit = args.limit
+    if limit is None and 'limit' in config:
+        limit = config['limit']
+
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1
     include_deletions = args.include_deletions
     allow_transposition = args.transposition
     keyboard = args.keyboard
+
+    if not args.all and 'all' in config:
+        args.all = bool(config['all'])
+    if not keyboard and 'keyboard' in config:
+        keyboard = bool(config['keyboard'])
+    if not allow_transposition and 'transposition' in config:
+        allow_transposition = bool(config['transposition'])
+    if not allow_1to2 and 'allow_1to2' in config:
+        allow_1to2 = bool(config['allow_1to2'])
+    if not allow_2to1 and 'allow_2to1' in config:
+        allow_2to1 = bool(config['allow_2to1'])
+    if not include_deletions and 'include_deletions' in config:
+        include_deletions = bool(config['include_deletions'])
+
+    analysis_flags = [
+        'allow_1to2', 'allow_2to1', 'include_deletions',
+        'transposition', 'keyboard', 'all', 'allow_two_char'
+    ]
+    cli_flag_set = any(getattr(args, flag) for flag in analysis_flags)
+    cfg_flag_set = any(k in config for k in ['allow_1to2', 'allow_2to1', 'include_deletions', 'transposition', 'keyboard', 'all'])
+    if not cli_flag_set and not cfg_flag_set:
+        args.all = True
 
     if args.all:
         allow_1to2 = True
@@ -1478,7 +1547,6 @@ def main() -> None:
     if args.allow_two_char:
         allow_1to2 = True
         allow_2to1 = True
-    limit = args.limit
 
     if not input_files:
         if sys.stdin.isatty():
@@ -1488,7 +1556,14 @@ def main() -> None:
             input_files = ['-']
 
     exclude_patterns = args.exclude
+    if exclude_patterns is None and 'exclude' in config:
+        cfg_exc = config['exclude']
+        exclude_patterns = cfg_exc if isinstance(cfg_exc, list) else [cfg_exc]
+
     include_patterns = args.include
+    if include_patterns is None and 'include' in config:
+        cfg_inc = config['include']
+        include_patterns = cfg_inc if isinstance(cfg_inc, list) else [cfg_inc]
 
     # Expand directories recursively
     expanded_files = []

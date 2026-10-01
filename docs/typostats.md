@@ -52,6 +52,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
 
 ### Input & Output Options
+- `-C`, `--config`: Path to YAML configuration file (`typostats.yaml`).
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`typostats.yaml` by default, or at a specified path) and exit.
 - `-i`, `--input`: One or more input files or patterns containing typo corrections.
 - `-f`, `--format`: Choose the output format:

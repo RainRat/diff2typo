@@ -120,3 +120,68 @@ def test_diff2typo_config_invalid_yaml(monkeypatch, tmp_path):
     with pytest.raises(SystemExit) as exc_info:
         diff2typo.main()
     assert exc_info.value.code == 1
+
+
+def test_diff2typo_config_all_options(monkeypatch, tmp_path):
+    """Test configuration merging for max_length, max_dist, min_count, sort, reverse, limit, dictionary_file, allowed_file, typos_tool_path."""
+    diff_file = tmp_path / "sample.diff"
+    diff_file.write_text("--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n", encoding="utf-8")
+
+    out_file = tmp_path / "out.txt"
+    dict_file = tmp_path / "custom_words.csv"
+    dict_file.write_text("", encoding="utf-8")
+    allowed_file = tmp_path / "custom_allowed.csv"
+    allowed_file.write_text("", encoding="utf-8")
+
+    cfg_file = tmp_path / "all_opts.yaml"
+    cfg_data = {
+        "output_file": str(out_file),
+        "max_length": 10,
+        "max_dist": 2,
+        "min_count": 1,
+        "sort": "count",
+        "reverse": True,
+        "limit": 5,
+        "dictionary_file": str(dict_file),
+        "allowed_file": str(allowed_file),
+        "typos_tool_path": "nonexistent_typos_bin",
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["diff2typo.py", str(diff_file), "-C", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    diff2typo.main()
+
+    assert out_file.exists()
+    content = out_file.read_text(encoding="utf-8").strip()
+    assert content == "teh -> the"
+
+
+def test_diff2typo_config_list_filters_and_git_options(monkeypatch, tmp_path):
+    """Test configuration merging for exclude, include, git, git_log, and input_files in config."""
+    diff_file = tmp_path / "sample.diff"
+    diff_file.write_text("diff --git a/foo.txt b/foo.txt\n--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n", encoding="utf-8")
+
+    out_file = tmp_path / "out.txt"
+
+    cfg_file = tmp_path / "filters_git.yaml"
+    cfg_data = {
+        "output_file": str(out_file),
+        "exclude": ["*.json"],
+        "include": ["*.txt"],
+        "git": None,
+        "git_log": None,
+        "input_files": str(diff_file)
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    test_args = ["diff2typo.py", "-C", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    diff2typo.main()
+
+    assert out_file.exists()
+    content = out_file.read_text(encoding="utf-8").strip()
+    assert content == "teh -> the"

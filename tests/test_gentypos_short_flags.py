@@ -102,3 +102,30 @@ def test_gentypos_plural_option_aliases(monkeypatch, capsys):
     lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
     assert len(lines) > 0
     assert all("-> a" in line for line in lines)
+
+
+def test_gentypos_config_uppercase_short_flag(tmp_path, monkeypatch, capsys):
+    cfg_file = tmp_path / "custom_gentypos.yaml"
+    cfg_file.write_text(
+        "output_format: arrow\n"
+        "word_length:\n"
+        "  min_length: 0\n"
+        "typo_types:\n"
+        "  deletion: true\n"
+        "  transposition: false\n"
+        "  replacement: false\n"
+        "  duplication: false\n",
+        encoding="utf-8",
+    )
+
+    test_args = ["gentypos.py", "test", "-C", str(cfg_file), "--no-filter", "-q"]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    gentypos.main()
+
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+
+    # 'test' -> deletions: 'est', 'tst', 'tet', 'tes'
+    expected_typos = {"est -> test", "tst -> test", "tet -> test", "tes -> test"}
+    assert set(lines) == expected_typos

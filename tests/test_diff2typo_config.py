@@ -99,6 +99,44 @@ def test_diff2typo_config_missing_pyyaml(monkeypatch, tmp_path):
     assert exc_info.value.code == 1
 
 
+def test_diff2typo_config_git_options(monkeypatch, tmp_path):
+    """Test that git and git_log settings in YAML config file are correctly applied when CLI flags are absent."""
+    out_file = tmp_path / "out.txt"
+
+    cfg_file = tmp_path / "git_cfg.yaml"
+    cfg_data = {
+        "git": "HEAD~1",
+        "output_file": str(out_file)
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["diff2typo.py", "--config", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    diff_content = "--- a/bar.txt\n+++ b/bar.txt\n@@ -1 +1 @@\n-comit\n+commit\n"
+    with patch("diff2typo._run_git_subcommand", return_value=diff_content) as mock_git:
+        diff2typo.main()
+        mock_git.assert_called_once_with(["git", "diff"], "HEAD~1")
+
+    assert out_file.exists()
+    assert "comit -> commit" in out_file.read_text(encoding="utf-8")
+
+    # Now test git_log config option
+    cfg_file_log = tmp_path / "git_log_cfg.yaml"
+    cfg_data_log = {
+        "git_log": "HEAD~3",
+        "output_file": str(out_file)
+    }
+    cfg_file_log.write_text(yaml.dump(cfg_data_log), encoding="utf-8")
+
+    test_args_log = ["diff2typo.py", "--config", str(cfg_file_log)]
+    monkeypatch.setattr(sys, "argv", test_args_log)
+
+    with patch("diff2typo._run_git_subcommand", return_value=diff_content) as mock_git_log:
+        diff2typo.main()
+        mock_git_log.assert_called_once_with(["git", "log", "-p"], "HEAD~3")
+
+
 def test_diff2typo_config_file_not_found(monkeypatch):
     """Test error handling when specified config file does not exist."""
     test_args = ["diff2typo.py", "--config", "non_existent_config.yaml"]

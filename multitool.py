@@ -3490,6 +3490,7 @@ def count_mode(
     mapping_file: str | None = None,
     ad_hoc: List[str] | None = None,
     by_file: bool = False,
+    reverse: bool = False,
 ) -> None:
     """
     Counts the frequency of each word, pair, line, or character in the input file(s)
@@ -3596,7 +3597,10 @@ def count_mode(
                 filtered_items.extend(list(file_items))
                 item_counts.update(file_items)
 
-    sorted_words = sorted(item_counts.items(), key=lambda x: (-x[1], x[0]))
+    if reverse:
+        sorted_words = sorted(item_counts.items(), key=lambda x: (x[1], x[0]))
+    else:
+        sorted_words = sorted(item_counts.items(), key=lambda x: (-x[1], x[0]))
 
     # Apply frequency filtering
     final_results = []
@@ -8053,9 +8057,9 @@ MODE_DETAILS = {
     },
     "count": {
         "summary": "Counts how often items appear",
-        "description": "Counts how often each word, pair, line, character, or paragraph appears and sorts the list by frequency. It defaults to the rich 'arrow' format when run in a terminal. Use --pairs to count word pairs, --lines to count raw lines, --chars to count individual characters, or --paragraphs to count entire paragraphs. Use --by-file to count how many files contain each item. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
+        "description": "Counts how often each word, pair, line, character, or paragraph appears and sorts the list by frequency. It defaults to the rich 'arrow' format when run in a terminal. Use --pairs to count word pairs, --lines to count raw lines, --chars to count individual characters, or --paragraphs to count entire paragraphs. Use --by-file to count how many files contain each item. Use -r/--reverse to show lowest counts / least frequent items first. You can also provide a mapping (via --mapping or --add) to count matches of specific typos across your files.",
         "example": "python multitool.py count . --lines --min-count 5",
-        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-S] [-p|l|c|E|G] [-B]",
+        "flags": "[FILES...] [-s MAPPING] [-a KEY:VALUE] [-d DELIM] [-S] [-p|l|c|E|G] [-B] [-r]",
     },
     "filterfragments": {
         "summary": "Removes words found inside others",
@@ -9170,6 +9174,11 @@ def _build_parser() -> argparse.ArgumentParser:
         '-B', '--by-file',
         action='store_true',
         help='Count how many files contain each item instead of total matches.',
+    )
+    count_options.add_argument(
+        '-r', '--reverse',
+        action='store_true',
+        help='Reverse the sort order (show lowest counts / least frequent items first).',
     )
     unit_group = count_options.add_mutually_exclusive_group()
     unit_group.add_argument(
@@ -10894,6 +10903,7 @@ def main() -> None:
                 'mapping_file': getattr(args, 'mapping', None),
                 'ad_hoc': getattr(args, 'ad_hoc', None),
                 'by_file': getattr(args, 'by_file', False),
+                'reverse': getattr(args, 'reverse', False),
             },
         ),
         'filterfragments': (

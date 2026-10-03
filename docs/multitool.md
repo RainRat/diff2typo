@@ -337,6 +337,7 @@ Use these modes to analyze your data.
     - `-E`, `--sentences`: Count frequencies of individual sentences.
     - `-G`, `--paragraphs`: Count frequencies of individual paragraphs.
     - `-B`, `--by-file`: Count how many files contain each item.
+    - `-r`, `--reverse`: Reverse frequency sort order (show lowest counts / least frequent items first).
   - **Visual Report:** Use `--output-format arrow` for a rich report with metrics and bar charts.
   - **Supported Formats:** `arrow`, `json`, `csv`, `markdown`, `md-table`, `line`, and `xml`.
   - **Note:** This mode has built-in sorting.

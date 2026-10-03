@@ -99,6 +99,93 @@ def test_diff2typo_config_missing_pyyaml(monkeypatch, tmp_path):
     assert exc_info.value.code == 1
 
 
+def test_diff2typo_config_all_options(monkeypatch, tmp_path):
+    """Test loading configuration file with all remaining analysis and file path settings."""
+    diff_file = tmp_path / "sample.diff"
+    diff_file.write_text("--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n", encoding="utf-8")
+
+    out_file = tmp_path / "out.txt"
+    words_file = tmp_path / "custom_words.csv"
+    words_file.write_text("teh,the\n", encoding="utf-8")
+    allowed_file = tmp_path / "custom_allowed.csv"
+    allowed_file.write_text("allowedword\n", encoding="utf-8")
+
+    cfg_file = tmp_path / "full_config.yaml"
+    cfg_data = {
+        "output_file": str(out_file),
+        "output_format": "arrow",
+        "mode": "typos",
+        "min_length": 2,
+        "max_length": 15,
+        "max_dist": 2,
+        "min_count": 1,
+        "sort": "count",
+        "reverse": True,
+        "limit": 10,
+        "dictionary_file": str(words_file),
+        "allowed_file": str(allowed_file),
+        "typos_tool_path": "nonexistent_typos_tool",
+        "exclude": "*.py",
+        "include": "*.txt",
+        "input_files": [str(diff_file)]
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["diff2typo.py", "-C", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    diff2typo.main()
+
+    assert out_file.exists()
+
+
+def test_diff2typo_config_list_filters_and_git_options(monkeypatch, tmp_path):
+    """Test list format for exclude/include and git/git_log options in YAML configuration."""
+    diff_file = tmp_path / "sample.diff"
+    diff_file.write_text("--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n", encoding="utf-8")
+
+    out_file = tmp_path / "out.txt"
+
+    cfg_file = tmp_path / "git_config.yaml"
+    cfg_data = {
+        "output_file": str(out_file),
+        "exclude": ["*.json", "tests/*"],
+        "include": ["*.txt", "src/*"],
+        "git": "--cached",
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["diff2typo.py", "-C", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    with patch("diff2typo._run_git_subcommand", return_value="--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n") as mock_git:
+        diff2typo.main()
+        mock_git.assert_called_once_with(["git", "diff"], "--cached")
+
+    assert out_file.exists()
+
+
+def test_diff2typo_config_git_log_option(monkeypatch, tmp_path):
+    """Test git_log configuration option in YAML configuration."""
+    out_file = tmp_path / "out.txt"
+
+    cfg_file = tmp_path / "git_log_config.yaml"
+    cfg_data = {
+        "output_file": str(out_file),
+        "git_log": "-n 1",
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["diff2typo.py", "-C", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    with patch("diff2typo._run_git_subcommand", return_value="--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n") as mock_git_log:
+        diff2typo.main()
+        mock_git_log.assert_called_once_with(["git", "log", "-p"], "-n 1")
+
+    assert out_file.exists()
+
+
 def test_diff2typo_config_file_not_found(monkeypatch):
     """Test error handling when specified config file does not exist."""
     test_args = ["diff2typo.py", "--config", "non_existent_config.yaml"]

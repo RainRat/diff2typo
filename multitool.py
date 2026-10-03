@@ -1613,9 +1613,40 @@ def _flatten_data(data: Any, path: str = "") -> Iterable[Tuple[str, str]]:
         yield path, str(data)
 
 
+def _xml_element_to_dict(elem: ET.Element) -> Any:
+    """
+    Converts an XML Element tree into a nested dictionary structure.
+    """
+    children = list(elem)
+    if not children:
+        text = elem.text.strip() if elem.text else ""
+        if elem.attrib:
+            d: dict[str, Any] = {"@attributes": dict(elem.attrib)}
+            if text:
+                d["#text"] = text
+            return d
+        return text
+
+    result: dict[str, Any] = {}
+    if elem.attrib:
+        result["@attributes"] = dict(elem.attrib)
+
+    for child in children:
+        child_data = _xml_element_to_dict(child)
+        tag = child.tag
+        if tag in result:
+            if not isinstance(result[tag], list):
+                result[tag] = [result[tag]]
+            result[tag].append(child_data)
+        else:
+            result[tag] = child_data
+
+    return result
+
+
 def _yield_structured_docs(input_file: str) -> Iterable[Any]:
     """
-    Yields structured documents (dicts or lists) from JSON, YAML, or TOML files.
+    Yields structured documents (dicts or lists) from JSON, YAML, TOML, or XML files.
     Supports multi-document YAML and JSON Lines (JSONL).
     """
     ext = input_file.lower()
@@ -1652,8 +1683,14 @@ def _yield_structured_docs(input_file: str) -> Iterable[Any]:
                 yield toml.loads(content)
         except Exception:
             pass
+    elif ext.endswith('.xml'):
+        try:
+            root = ET.fromstring(content)
+            yield {root.tag: _xml_element_to_dict(root)}
+        except Exception as e:
+            logging.error(f"Failed to parse XML in '{input_file}': {e}")
     else:
-        # Default fallback: try JSON, then YAML
+        # Default fallback: try JSON, then YAML, then XML
         try:
             yield json.loads(content)
         except json.JSONDecodeError:
@@ -1663,7 +1700,11 @@ def _yield_structured_docs(input_file: str) -> Iterable[Any]:
                     if doc is not None:
                         yield doc
             except (ImportError, Exception):
-                pass
+                try:
+                    root = ET.fromstring(content)
+                    yield {root.tag: _xml_element_to_dict(root)}
+                except Exception:
+                    pass
 
 
 def _extract_json_items(input_file: str, key_path: str, quiet: bool = False) -> Iterable[str]:

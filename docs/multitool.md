@@ -170,13 +170,15 @@ Use these modes to transform or combine your data.
   - **Example:** `python multitool.py unique raw_typos.txt`
 
 - **`sort`**
-  - Sorts items in a list by alphabetical order, length, or numeric value. It supports reverse sorting and deduplication.
+  - Sorts items or key-value pairs in a list by alphabetical order, length, or numeric value. It supports reverse sorting, deduplication, and paired data structures.
   - **Options:**
     - Use `--by` to choose the sorting method: `alpha` (alphabetical, default), `length` (string length), or `numeric` (numeric value).
     - Use `--reverse` to sort in descending order.
     - Use the `-u` (or `--unique`) flag to remove duplicates before sorting.
+    - Use the `-p` (or `--pairs`) flag to process and sort key-value pairs (for example, `typo -> correction`).
   - **Note:** For numeric sorting, the tool extracts the first number found in each item. Numeric sorting works best with the `--raw` flag to prevent digits from being stripped.
   - **Example:** `python multitool.py sort wordlist.txt --by length --reverse`
+  - **Pairs Example:** `python multitool.py sort typos.json -p --by alpha -f csv`
 
 - **`resolve`**
   - Shortens typo correction chains. For example, if your mapping file contains `A -> B` and `B -> C`, this mode resolves them to `A -> C` and `B -> C`.

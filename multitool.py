@@ -5914,16 +5914,67 @@ def sort_mode(
     by: str = 'alpha',
     reverse: bool = False,
     unique: bool = False,
+    pairs: bool = False,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
 ) -> None:
-    """Sorts items from input file(s) by alphabetical order, length, or numeric value."""
+    """Sorts items or pairs from input file(s) by alphabetical order, length, or numeric value."""
     start_time = time.perf_counter()
 
     if by == 'numeric' and clean_items:
         logging.warning("Numeric sorting works best with the --raw (-R) flag. Default cleaning might remove digits.")
+
+    def numeric_key(s):
+        match = re.search(r'\d+', s)
+        return int(match.group()) if match else 0
+
+    if pairs:
+        raw_pairs = list(_extract_pairs(input_files, quiet=quiet))
+        all_raw_count = len(raw_pairs)
+
+        filtered_pairs = []
+        for left, right in raw_pairs:
+            left_clean = filter_to_letters(left) if clean_items else left
+            right_clean = filter_to_letters(right) if clean_items else right
+
+            if min_length <= len(left_clean) <= max_length and min_length <= len(right_clean) <= max_length:
+                filtered_pairs.append((left_clean, right_clean))
+
+        if unique or process_output:
+            filtered_pairs = list(dict.fromkeys(filtered_pairs))
+
+        if by == 'length':
+            sort_key = lambda p: (len(p[0]), p[0].lower(), p[1].lower())
+        elif by == 'numeric':
+            sort_key = lambda p: (numeric_key(p[0]), p[0].lower(), p[1].lower())
+        else:  # 'alpha'
+            sort_key = lambda p: (p[0].lower(), p[1].lower())
+
+        final_pairs = sorted(filtered_pairs, key=sort_key, reverse=reverse)
+
+        _write_paired_output(
+            final_pairs,
+            output_file,
+            output_format,
+            "Sort",
+            quiet,
+            limit=limit,
+        )
+        print_processing_stats(
+            all_raw_count,
+            [p[0] for p in final_pairs],
+            item_label="pair",
+            start_time=start_time,
+        )
+        logging.info(
+            "[Sort Mode] Sorted %d pair(s) by %s. Output written to '%s'.",
+            len(final_pairs),
+            by,
+            output_file,
+        )
+        return
 
     all_raw_count = 0
     all_items = []
@@ -5939,10 +5990,6 @@ def sort_mode(
 
     if unique or process_output:
         all_items = list(dict.fromkeys(all_items))
-
-    def numeric_key(s):
-        match = re.search(r'\d+', s)
-        return int(match.group()) if match else 0
 
     if by == 'length':
         sort_key = len
@@ -8274,10 +8321,10 @@ MODE_DETAILS = {
         "flags": "[FILES...]",
     },
     "sort": {
-        "summary": "Sorts items in a list",
-        "description": "Sorts items from input file(s) by alphabetical order, length, or numeric value. It supports reverse sorting and deduplication. Numeric sorting extracts the first number found in each item for comparison.",
+        "summary": "Sorts items or pairs in a list",
+        "description": "Sorts items or key-value pairs from input file(s) by alphabetical order, length, or numeric value. It supports reverse sorting, deduplication, and paired data structures.",
         "example": "python multitool.py sort wordlist.txt --by length --reverse",
-        "flags": "[FILES...] [--by TYPE] [-r] [-u]",
+        "flags": "[FILES...] [--by TYPE] [-r] [-u] [-p]",
     },
     "replace": {
         "summary": "Replaces text or patterns",
@@ -10217,6 +10264,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help="Remove duplicate items before sorting.",
     )
+    sort_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help="Sort word pairs (typo -> correction) instead of single words.",
+    )
     _add_common_mode_arguments(sort_parser)
 
     replace_parser = subparsers.add_parser(
@@ -10714,6 +10766,7 @@ def main() -> None:
                 'by': getattr(args, 'by', 'alpha'),
                 'reverse': getattr(args, 'reverse', False),
                 'unique': getattr(args, 'unique', False),
+                'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             },
         ),

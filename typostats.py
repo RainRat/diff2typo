@@ -1282,6 +1282,13 @@ def main() -> None:
         help="One or more files containing typo corrections (txt, csv, json, yaml, toml, md). If empty, it reads from standard input.",
     )
     io_group.add_argument(
+        '-C', '--config',
+        dest='config_file',
+        type=str,
+        default=None,
+        help="Path to YAML configuration file (e.g., typostats.yaml).",
+    )
+    io_group.add_argument(
         '--init-config', '--generate-config',
         dest='init_config',
         nargs='?',
@@ -1437,6 +1444,62 @@ def main() -> None:
         except Exception as e:
             logging.error(f"Error writing configuration template to '{target_path}': {e}")
             sys.exit(1)
+
+    # Load configuration file if specified or default typostats.yaml exists
+    config_path = args.config_file
+    if not config_path and os.path.exists('typostats.yaml'):
+        config_path = 'typostats.yaml'
+
+    config = {}
+    if config_path:
+        if not _YAML_AVAILABLE:
+            logging.error("PyYAML is not installed. Install via 'pip install PyYAML' to use YAML configuration files.")
+            sys.exit(1)
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {}
+                logging.info(f"Loaded configuration from '{config_path}'.")
+        except FileNotFoundError:
+            logging.error(f"Configuration file '{config_path}' not found.")
+            sys.exit(1)
+        except Exception as e:
+            logging.error(f"Error parsing configuration file '{config_path}': {e}")
+            sys.exit(1)
+
+    if config:
+        if not args.input_files and not args.input_files_flag and 'input_files' in config:
+            cfg_in = config['input_files']
+            args.input_files = cfg_in if isinstance(cfg_in, list) else [cfg_in]
+        if args.output is None and 'output' in config:
+            args.output = config['output']
+        if args.format is None and 'format' in config:
+            args.format = config['format']
+        if not args.quiet and 'quiet' in config:
+            args.quiet = bool(config['quiet'])
+        if args.min == 1 and ('min_count' in config or 'min' in config):
+            args.min = config.get('min_count', config.get('min'))
+        if args.sort == 'count' and 'sort' in config:
+            args.sort = config['sort']
+        if not args.reverse and 'reverse' in config:
+            args.reverse = bool(config['reverse'])
+        if args.limit is None and 'limit' in config:
+            args.limit = config['limit']
+        if not args.all and 'all' in config:
+            args.all = bool(config['all'])
+        if not args.keyboard and 'keyboard' in config:
+            args.keyboard = bool(config['keyboard'])
+        if not args.transposition and 'transposition' in config:
+            args.transposition = bool(config['transposition'])
+        if not args.allow_1to2 and 'allow_1to2' in config:
+            args.allow_1to2 = bool(config['allow_1to2'])
+        if not args.allow_2to1 and 'allow_2to1' in config:
+            args.allow_2to1 = bool(config['allow_2to1'])
+        if not args.include_deletions and 'include_deletions' in config:
+            args.include_deletions = bool(config['include_deletions'])
+        if args.exclude is None and 'exclude' in config:
+            args.exclude = config['exclude'] if isinstance(config['exclude'], list) else [config['exclude']]
+        if args.include is None and 'include' in config:
+            args.include = config['include'] if isinstance(config['include'], list) else [config['include']]
 
     # If no analysis flags are provided, enable all of them by default
     analysis_flags = [

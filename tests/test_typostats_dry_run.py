@@ -120,6 +120,14 @@ def test_typostats_dry_run_sort_options(tmp_path, caplog):
         assert pos_b != -1 and pos_a != -1
         assert pos_a < pos_b
 
+    # Test sorting by count without reverse (ascending count)
+    with patch("sys.argv", ["typostats.py", str(typo_file), "-n", "-s", "count"]):
+        caplog.clear()
+        with caplog.at_level("INFO"):
+            typostats.main()
+        log_text = caplog.text
+        assert "'b' -> 'x'" in log_text or "'a' -> 'y'" in log_text
+
     # Test sorting by typo reverse ('b' before 'a')
     with patch("sys.argv", ["typostats.py", str(typo_file), "-n", "-s", "typo", "-r"]):
         caplog.clear()

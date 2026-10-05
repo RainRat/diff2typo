@@ -854,6 +854,11 @@ jobs: 1
     max_count = args.max_count if args.max_count is not None else config.get('max_count', None)
     reverse = args.reverse if args.reverse is not None else config.get('reverse', False)
 
+    # Friction reduction: if command_to_run is provided but main_folder is not specified, default to current directory ('.')
+    if not main_folder and command_to_run:
+        main_folder = "."
+        logging.info("No main folder specified (-m/--main-folder). Defaulting to current directory ('.').")
+
     # Validate that required options are present
     errors = []
     if not main_folder:

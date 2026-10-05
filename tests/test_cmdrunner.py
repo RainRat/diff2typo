@@ -913,11 +913,26 @@ def test_main_with_output_integration(tmp_path, monkeypatch):
             cmdrunner.main()
     assert excinfo.value.code == 1
 
-    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-c', 'echo 1'])
-    with patch("os.path.isfile", return_value=False):
-        with pytest.raises(SystemExit) as excinfo:
-            cmdrunner.main()
-    assert excinfo.value.code == 1
+
+def test_main_default_main_folder_when_command_provided(tmp_path, monkeypatch, caplog):
+    proj1 = tmp_path / 'proj1'
+    proj1.mkdir()
+
+    monkeypatch.chdir(tmp_path)
+    command = "python3 -c \"from pathlib import Path; Path('default_folder.txt').write_text('default_ok')\""
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['cmdrunner.py', '-c', command]
+    )
+
+    with caplog.at_level(logging.INFO):
+        cmdrunner.main()
+
+    assert (proj1 / 'default_folder.txt').exists()
+    assert (proj1 / 'default_folder.txt').read_text() == 'default_ok'
+    assert any("Defaulting to current directory" in msg for msg in caplog.messages)
 
 
 def test_main_fallback_to_default_config_file(tmp_path, monkeypatch):

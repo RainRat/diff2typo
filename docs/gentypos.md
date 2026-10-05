@@ -61,7 +61,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `WORDS` | None | One or more words to generate typos for. If provided, the tool ignores the input file in your configuration. |
 | `--add`, `-a` | None | Extra substitution pairs (for example `ph:f` or `th:teh`) to use during typo generation. |
 | `--all`, `-A` | Off | Generate all typo types (deletions, transpositions, replacements, and duplications). |
-| `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
+| `--config`, `-c`, `-C` | `gentypos.yaml` | The path to your YAML configuration file. |
 | `--deletion`, `--deletions`, `-D` | Off | Generate deletions (skipping a letter, e.g., 'word' becomes 'wrd'). |
 | `--init-config`, `--generate-config` | Off | Generate a sample template YAML configuration file (default: `gentypos.yaml`) and exit. |
 | `--dry-run`, `-n` | Off | Show configuration details and a sample preview of typo generation without writing files. |
@@ -76,9 +76,9 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--no-filter`, `-N` | Off | Do not check typos against the large dictionary (makes generation faster). |
 | `--output`, `-o` | None | Save results to this file. Use `-` to print to the screen. |
 | `--quiet`, `-q` | Off | Hide progress bars and status messages. |
-| `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |
+| `--repeat`, `-r`, `-R` | `1` | Number of times to repeat typo generation, stacking modifications. |
 | `--reverse` | Off | Reverse the sort order of the output results. |
-| `--sort` | `typo` | Choose how to sort output results: `typo` (alphabetical by typo) or `correct` (alphabetical by correction). |
+| `--sort`, `-S` | `typo` | Choose how to sort output results: `typo` (alphabetical by typo) or `correct` (alphabetical by correction). |
 | `--substitutions`, `-s` | None | One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, or plain text). Useful for loading your personal typo history from `typostats.py`. |
 | `--transposition`, `--transpositions`, `-t` | Off | Generate transpositions (swapping adjacent letters, e.g., 'word' becomes 'wrod'). |
 | `--transposition-distance`, `-T` | `1` | Distance between letters to swap for transposition typos. |

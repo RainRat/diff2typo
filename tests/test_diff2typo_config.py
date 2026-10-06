@@ -99,6 +99,75 @@ def test_diff2typo_config_missing_pyyaml(monkeypatch, tmp_path):
     assert exc_info.value.code == 1
 
 
+def test_diff2typo_config_all_options(monkeypatch, tmp_path):
+    """Test loading all remaining configuration options from YAML config in main()."""
+    diff_file = tmp_path / "sample.diff"
+    diff_file.write_text("--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n", encoding="utf-8")
+
+    out_file = tmp_path / "out.txt"
+    dict_file = tmp_path / "custom_words.csv"
+    dict_file.write_text("the\n", encoding="utf-8")
+    allowed_file = tmp_path / "custom_allowed.csv"
+    allowed_file.write_text("teh\n", encoding="utf-8")
+
+    cfg_file = tmp_path / "full_config.yaml"
+    cfg_data = {
+        "output_file": str(out_file),
+        "max_length": 20,
+        "max_dist": 3,
+        "min_count": 1,
+        "sort": "alpha",
+        "reverse": True,
+        "limit": 10,
+        "dictionary_file": str(dict_file),
+        "allowed_file": str(allowed_file),
+        "typos_tool_path": "typos",
+        "exclude": "vendor/*",
+        "include": "*.txt",
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["diff2typo.py", str(diff_file), "-C", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    diff2typo.main()
+
+
+def test_diff2typo_config_list_filters_and_git_options(monkeypatch, tmp_path):
+    """Test list format for exclude/include and git options from YAML config."""
+    diff_file = tmp_path / "sample.diff"
+    diff_file.write_text("--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n", encoding="utf-8")
+
+    cfg_file = tmp_path / "git_config.yaml"
+    cfg_data = {
+        "exclude": ["vendor/*", "node_modules/*"],
+        "include": ["*.py", "*.md"],
+        "input_files": [str(diff_file)]
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["diff2typo.py", "-C", str(cfg_file), "--dry-run"]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    diff2typo.main()
+
+
+def test_diff2typo_config_git_options(monkeypatch, tmp_path):
+    """Test git options execution path from config when git subcommand is mocked."""
+    cfg_file = tmp_path / "git_run_config.yaml"
+    cfg_data = {
+        "git": "HEAD~1..HEAD",
+        "git_log": "HEAD~1..HEAD",
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["diff2typo.py", "-C", str(cfg_file), "--dry-run"]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    with patch("diff2typo._run_git_subcommand", return_value="--- a/foo.txt\n+++ b/foo.txt\n@@ -1 +1 @@\n-teh\n+the\n"):
+        diff2typo.main()
+
+
 def test_diff2typo_config_file_not_found(monkeypatch):
     """Test error handling when specified config file does not exist."""
     test_args = ["diff2typo.py", "--config", "non_existent_config.yaml"]

@@ -121,6 +121,7 @@ python diff2typo.py --init-config
 python gentypos.py --init-config
 python typostats.py --init-config
 python cmdrunner.py --init-config
+python multitool.py --init-config
 ```
 
 Running these commands creates a starter configuration file (for example, `gentypos.yaml`) with documented options and default settings.

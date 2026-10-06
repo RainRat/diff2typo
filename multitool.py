@@ -8539,6 +8539,47 @@ class ModeHelpAction(argparse.Action):
         show_mode_help(values, parser)
 
 
+class InitConfigAction(argparse.Action):
+    """Custom argparse action to generate starter YAML configuration template."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: str | None,
+        option_string: str | None = None,
+    ) -> None:
+        target_path = values or "multitool.yaml"
+        if os.path.exists(target_path):
+            logging.error(f"Configuration file '{target_path}' already exists. Aborting to prevent overwriting.")
+            sys.exit(1)
+
+        template_content = (
+            "# multitool.yaml - Configuration file for multitool.py\n"
+            "\n"
+            "# Input / Output Options\n"
+            '# output: "output.txt"               # Path to save results\n'
+            '# output_format: "line"              # Output format: line, json, csv, markdown, md-table, arrow, table, yaml, toml, xml, html, htm\n'
+            "quiet: false                       # Hide progress bars and status messages\n"
+            "\n"
+            "# Processing Options\n"
+            "min_length: 1                       # Skip items shorter than this length\n"
+            "max_length: 1000                    # Skip items longer than this length\n"
+            "process_output: false               # Sort output and remove duplicates\n"
+            "raw: false                          # Preserve original capitalization and punctuation\n"
+            "# limit: 100                        # Limit maximum number of output items\n"
+        )
+
+        try:
+            with open(target_path, 'w', encoding='utf-8') as f:
+                f.write(template_content)
+            logging.info(f"Sample configuration template written to '{target_path}'.")
+            sys.exit(0)
+        except Exception as e:
+            logging.error(f"Error writing configuration template to '{target_path}': {e}")
+            sys.exit(1)
+
+
 class TypoTolerantArgumentParser(argparse.ArgumentParser):
     """Custom ArgumentParser subclass to suggest valid subcommands on typos."""
 
@@ -8595,6 +8636,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # Input/Output Group
     io_group = parser.add_argument_group(f"{BLUE}INPUT/OUTPUT OPTIONS{RESET}")
+    io_group.add_argument(
+        '--init-config', '--generate-config',
+        dest='init_config',
+        nargs='?',
+        const='multitool.yaml',
+        metavar='PATH',
+        action=InitConfigAction,
+        help="Generate a sample template YAML configuration file (default: multitool.yaml) and exit.",
+    )
     io_group.add_argument(
         '-o', '--output',
         type=str,

@@ -77,7 +77,7 @@ The tools work best when they know which words are correct. Create a file named 
 ### 2. Find Your Recent Typos
 Run `diff2typo.py` to find typos you fixed in your recent Git history. If you run `diff2typo.py` inside a Git repository without arguments, it automatically scans your unstaged changes. You can also fetch diffs directly using the `-g` / `--git` option:
 ```bash
-python diff2typo.py -g "HEAD~1" --output my_typos.txt --mode typos --format csv
+python diff2typo.py -g --output my_typos.txt --mode typos --format csv
 ```
 
 ### 3. See Your Patterns

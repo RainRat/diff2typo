@@ -5974,6 +5974,7 @@ def zip_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    swap: bool = False,
 ) -> None:
     """Combines items from input_files and file2 line-by-line into a paired format."""
     start_time = time.perf_counter()
@@ -5996,7 +5997,7 @@ def zip_mode(
     # Read file2 for the right side
     right_items = get_cleaned_lines(file2)
 
-    raw_pairs = list(zip(left_items, right_items))
+    raw_pairs = list(zip(right_items, left_items)) if swap else list(zip(left_items, right_items))
 
     # Filter pairs
     filtered_pairs = []
@@ -8107,9 +8108,9 @@ MODE_DETAILS = {
     },
     "zip": {
         "summary": "Pairs lines from two files",
-        "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists. Length filters are applied to both items in each pair.",
+        "description": "Joins two files line-by-line into a paired format like 'typo -> correction'. Useful for creating mapping files from two separate lists. Use --swap to reverse pair order. Length filters are applied to both items in each pair.",
         "example": "python multitool.py zip typos.txt corrections.txt --output-format table --output typos.toml",
-        "flags": "[FILES...] FILE2",
+        "flags": "[FILES...] FILE2 [--swap]",
     },
     "unzip": {
         "summary": "Splits paired data into two lists",
@@ -9975,6 +9976,12 @@ def _build_parser() -> argparse.ArgumentParser:
         required=False,
         help='Path to the second file to zip with the first.',
     )
+    zip_options.add_argument(
+        '--swap', '--reverse-pairs',
+        dest='swap',
+        action='store_true',
+        help='Swap left and right items when creating pairs.',
+    )
     _add_common_mode_arguments(zip_parser)
 
     unzip_parser = subparsers.add_parser(
@@ -11124,6 +11131,7 @@ def main() -> None:
                 **common_kwargs,
                 'file2': file2,
                 'output_format': output_format,
+                'swap': getattr(args, 'swap', False),
             }
         ),
         'swap': (

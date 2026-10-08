@@ -143,4 +143,7 @@ def test_input_flag_short_and_help(monkeypatch, capsys):
         pass
 
     captured = capsys.readouterr()
-    assert "-i FILE [FILE ...], --input FILE [FILE ...]" in captured.out
+    assert (
+        "-i FILE [FILE ...], --input FILE [FILE ...]" in captured.out
+        or "-i, --input FILE [FILE ...]" in captured.out
+    )

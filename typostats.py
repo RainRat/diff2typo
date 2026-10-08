@@ -5,7 +5,7 @@ Purpose:
     such as hitting adjacent keys, swapping letters, or omitting characters.
 
 Features:
-    - Parses typo mappings from arrow formats, CSV, JSON, YAML, TOML, and Markdown.
+    - Parses typo mappings from arrow formats, CSV, JSON, YAML, TOML, Markdown, and HTML.
     - Classifies letter replacement patterns (nearby key, transposition, 1-to-2, 2-to-1, deletion, insertion).
     - Generates visual summary dashboards with character replacement breakdown tables.
     - Exports reports in arrow text, CSV, JSON, YAML, TOML, Markdown, or HTML formats.
@@ -651,6 +651,33 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                     logging.error(f"Failed to parse TOML in '{input_file}': {e}")
             continue
 
+        if ext.endswith('.html') or ext.endswith('.htm'):
+            content = "".join(_read_file_lines_robust(input_file))
+            if content.strip():
+                tr_blocks = re.findall(r'<tr[^>]*>(.*?)</tr>', content, flags=re.IGNORECASE | re.DOTALL)
+                found_html_pairs = False
+                for block in tr_blocks:
+                    cells = re.findall(r'<(?:td|th)[^>]*>(.*?)</(?:td|th)>', block, flags=re.IGNORECASE | re.DOTALL)
+                    if len(cells) >= 2:
+                        c1 = html.unescape(re.sub(r'<[^>]+>', '', cells[0])).strip()
+                        c2 = html.unescape(re.sub(r'<[^>]+>', '', cells[1])).strip()
+                        if c1.lower() in ('typo', 'original', 'word', 'left', 'key') and c2.lower() in ('correction', 'fix', 'replacement', 'right', 'value', 'count', 'percentage'):
+                            continue
+                        if c1 and c2:
+                            yield c1, c2
+                            found_html_pairs = True
+                if not found_html_pairs:
+                    clean_text = html.unescape(re.sub(r'<[^>]+>', ' ', content))
+                    for line in clean_text.splitlines():
+                        line_str = line.strip()
+                        if " -> " in line_str:
+                            parts = line_str.split(" -> ", 1)
+                            yield parts[0].strip(), parts[1].strip()
+                        elif ": " in line_str:
+                            parts = line_str.split(": ", 1)
+                            yield parts[0].strip(), parts[1].strip()
+            continue
+
         # Text formats
         lines = _read_file_lines_robust(input_file)
         if not quiet and _TQDM_AVAILABLE:
@@ -1276,7 +1303,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=f"{BOLD}Find common patterns in your typos. This tool analyzes typo corrections and tells you which keys you hit by mistake most often.{RESET}\n\n"
                     f"It supports multiple input formats including standard typo lists (arrow, table, colon, CSV),\n"
-                    f"JSON/YAML/TOML mapping files, and Markdown lists or tables.",
+                    f"JSON/YAML/TOML mapping files, Markdown lists or tables, and HTML document reports.",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=f"""{BLUE}Examples:{RESET}
   {GREEN}python typostats.py --init-config{RESET}        # Create a sample typostats.yaml configuration template
@@ -1578,7 +1605,7 @@ def main() -> None:
         '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
         '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
     }
-    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.toml'}
+    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.toml', '.html', '.htm'}
 
     for file_path in input_files:
         if file_path == '-':

@@ -118,3 +118,32 @@ def test_gentypos_dry_run_shows_sort_and_reverse(capsys, monkeypatch):
     with pytest.raises(SystemExit) as exc_info:
         main()
     assert exc_info.value.code == 0
+
+
+def test_gentypos_invalid_sort_config_fallback(capsys, monkeypatch, tmp_path):
+    """Test fallback to 'typo' sort when config file contains an invalid sort value."""
+    config_data = {
+        "output_file": "-",
+        "output_format": "arrow",
+        "sort": "invalid_sort_option",
+        "typo_types": {
+            "transposition": True,
+        },
+    }
+
+    config_file = tmp_path / "invalid_sort_config.yaml"
+    with open(config_file, "w", encoding="utf-8") as f:
+        yaml.dump(config_data, f)
+
+    test_args = [
+        "gentypos.py", "apple",
+        "-c", str(config_file),
+        "--no-filter",
+    ]
+    monkeypatch.setattr("sys.argv", test_args)
+
+    main()
+    captured = capsys.readouterr()
+    lines = [line for line in captured.out.strip().split("\n") if "->" in line]
+    typos = [line.split("->")[0].strip() for line in lines]
+    assert typos == sorted(typos)

@@ -2096,12 +2096,6 @@ def _extract_markdown_codeblocks(input_file: str, quiet: bool = False) -> Iterab
         yield language, content
 
 
-def _extract_comment_items(input_file: str, quiet: bool = False) -> Iterable[str]:
-    """Yields comments extracted from a file using various common comment markers."""
-    for _, comment in _extract_comment_items_detailed(input_file, quiet=quiet):
-        yield comment
-
-
 def _extract_comment_items_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
     """Yields (location, comment_text) tuples for comments extracted from a file."""
     lines = _read_file_lines_robust(input_file)
@@ -2889,7 +2883,7 @@ def comments_mode(
         print_processing_stats(total_items, results, item_label="comment", start_time=start_time)
     else:
         def extractor(input_file: str, quiet: bool = False) -> Iterable[str]:
-            for comment in _extract_comment_items(input_file, quiet=quiet):
+            for _, comment in _extract_comment_items_detailed(input_file, quiet=quiet):
                 # For multi-line comments, we split into lines if cleaning is requested
                 # to allow filtering specific words/lines within the comment.
                 if clean_items:

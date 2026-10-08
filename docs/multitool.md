@@ -266,7 +266,8 @@ Use these modes to transform or combine your data.
 - **`zip`**
   - Joins two files line-by-line into a paired format.
   - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, `toml`, and `xml`.
-  - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --output-format arrow`
+  - **Options:** Use `--swap` (or `--reverse-pairs`) to swap the left and right items when creating pairs.
+  - **Example:** `python multitool.py zip typos.txt --file2 corrections.txt --swap --output-format arrow`
 
 - **`unzip`**
   - Extracts one side of paired data (like 'typo -> correction'). It saves the left side and cleans the text by default. Use `--right` for the right side and `--raw` to keep the original text.

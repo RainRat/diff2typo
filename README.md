@@ -71,8 +71,8 @@ python -m pip install -r requirements.txt
 
 Follow these steps to find typos you have fixed recently, see your common mistakes, and fix them in your project.
 
-### 1. Create a Large Dictionary
-The tools work best when they know which words are correct. Create a file named `words.csv` and add words you use often (like project names or technical terms), one per line. This is your "large dictionary." If you skip this, the tools will still work, but they might flag some correct words as typos.
+### 1. Create a Word List and Dictionary
+The tools work best when they know which words you use. Create a file named `words.csv` and add words you use often (like project names or technical terms), one per line. This file acts as your word list and dictionary. If you skip this step, the tools still work, but creating it ensures `gentypos.py` can generate predicted typos for your terms.
 
 ### 2. Find Your Recent Typos
 Run `diff2typo.py` to find typos you fixed in your recent Git history. If you run `diff2typo.py` inside a Git repository without arguments, it automatically scans your unstaged changes. You can also fetch diffs directly using the `-g` / `--git` option:
@@ -90,6 +90,10 @@ python typostats.py my_typos.txt --sort count
 Use `gentypos.py` to generate lists of likely typos for your key words based on common keyboard mistakes:
 ```bash
 python gentypos.py --input words.csv --output predicted_typos.txt --keyboard --transposition
+```
+To quickly generate typos for words directly from the command line without creating a file first, pass the words as arguments:
+```bash
+python gentypos.py hello world --output predicted_typos.txt --keyboard --transposition --no-filter
 ```
 
 ### 5. Fix Your Project

@@ -1364,7 +1364,7 @@ def main() -> None:
         help=argparse.SUPPRESS,
     )
     gen_group.add_argument(
-        '--sort',
+        '-S', '--sort',
         choices=['typo', 'correct'],
         default=None,
         help="How to sort output results: 'typo' (alphabetical by typo, default) or 'correct' (alphabetical by correction).",

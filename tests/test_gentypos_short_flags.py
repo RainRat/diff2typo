@@ -129,3 +129,24 @@ def test_gentypos_config_uppercase_short_flag(tmp_path, monkeypatch, capsys):
     # 'test' -> deletions: 'est', 'tst', 'tet', 'tes'
     expected_typos = {"est -> test", "tst -> test", "tet -> test", "tes -> test"}
     assert set(lines) == expected_typos
+
+
+def test_gentypos_sort_short_flag(monkeypatch, capsys):
+    # Test -S typo (alphabetical by typo)
+    test_args_typo = ["gentypos.py", "apple", "banana", "-D", "-N", "-f", "arrow", "-S", "typo", "-q"]
+    monkeypatch.setattr(sys, "argv", test_args_typo)
+    gentypos.main()
+    captured = capsys.readouterr()
+    lines_typo = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    typos_only = [line.split(" -> ")[0] for line in lines_typo]
+    assert typos_only == sorted(typos_only)
+
+    # Test -S correct (alphabetical by correction word)
+    test_args_correct = ["gentypos.py", "apple", "banana", "-D", "-N", "-f", "arrow", "-S", "correct", "-q"]
+    monkeypatch.setattr(sys, "argv", test_args_correct)
+    gentypos.main()
+    captured = capsys.readouterr()
+    lines_correct = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    corrections_only = [line.split(" -> ")[1] for line in lines_correct]
+    assert corrections_only == sorted(corrections_only)
+

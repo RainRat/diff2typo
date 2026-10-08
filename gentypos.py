@@ -1241,7 +1241,7 @@ def main() -> None:
         help="One or more words to generate typos for. If provided, the tool ignores the input file in your configuration.",
     )
     io_group.add_argument(
-        '-c', '--config',
+        '-C', '-c', '--config',
         type=str,
         default="gentypos.yaml",
         help="The path to your YAML configuration file.",

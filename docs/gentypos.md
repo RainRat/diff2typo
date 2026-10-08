@@ -61,7 +61,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `WORDS` | None | One or more words to generate typos for. If provided, the tool ignores the input file in your configuration. |
 | `--add`, `-a` | None | Extra substitution pairs (for example `ph:f` or `th:teh`) to use during typo generation. |
 | `--all`, `-A` | Off | Generate all typo types (deletions, transpositions, replacements, and duplications). |
-| `--config`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
+| `--config`, `-C`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
 | `--deletion`, `--deletions`, `-D` | Off | Generate deletions (skipping a letter, e.g., 'word' becomes 'wrd'). |
 | `--init-config`, `--generate-config` | Off | Generate a sample template YAML configuration file (default: `gentypos.yaml`) and exit. |
 | `--dry-run`, `-n` | Off | Show configuration details and a sample preview of typo generation without writing files. |

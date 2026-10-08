@@ -429,7 +429,7 @@ def process_diff_block(
 
 
 def _match_pattern(filepath: str, patterns: Optional[List[str]]) -> bool:
-    if not patterns or not filepath:
+    if not patterns:
         return False
     for pattern in patterns:
         if fnmatch.fnmatch(filepath, pattern) or fnmatch.fnmatch(os.path.basename(filepath), pattern):

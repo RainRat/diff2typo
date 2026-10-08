@@ -136,3 +136,17 @@ def test_invalid_subcommand_suggestion_no_close(monkeypatch, capsys):
     output = captured.err + captured.out
     assert "invalid mode: 'non_existent_gibberish'" in output
     assert "Use 'multitool.py help' to see all available modes." in output
+
+
+def test_multitool_version_flag(monkeypatch, capsys):
+    """Test 'multitool.py --version' displays program version and exits with status 0."""
+    monkeypatch.setattr(sys, 'argv', ['multitool.py', '--version'])
+
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+
+    assert excinfo.value.code == 0
+
+    captured = capsys.readouterr()
+    output = captured.err + captured.out
+    assert f"multitool.py {multitool.VERSION}" in output

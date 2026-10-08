@@ -456,6 +456,8 @@ Use these modes to analyze your data.
 
 These options work with most modes:
 
+- `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`multitool.yaml` by default) and exit.
+- `--version`: Display program version number and exit.
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input** if not provided.
 - `--output` (or **`-o`**): The file to write results to. Defaults to printing to the screen.
 - `--output-format` (or **`-f`**): The format of the output. Options include `line` (default), `json`, `yaml`, `toml`, `csv`, `markdown`, `md-table`, `arrow`, `table`, `xml`, `html`, and `htm`. The tool automatically detects the format from the output file extension.

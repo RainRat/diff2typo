@@ -1378,7 +1378,7 @@ def main() -> None:
     parser.add_argument('--allow_two_char', action='store_true', help=argparse.SUPPRESS)
 
     analysis_group.add_argument(
-        '--1to2',
+        '-1', '--1to2',
         dest='allow_1to2',
         action='store_true',
         help="Allow cases where you typed two letters instead of one (like 'rn' instead of 'm').",

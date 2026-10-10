@@ -68,7 +68,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
 | `--duplication`, `--duplications`, `-u` | Off | Generate duplications (typing a letter twice, e.g., 'word' becomes 'woord'). |
 | `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` / `toml` (typo = "correction"), `list` (typo), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. By default, it is automatically detected from the output file extension. |
-| `--input`, `-i` | None | One or more input files, directories, or glob patterns containing words to process (one per line). |
+| `--input`, `-i`, `-I` | None | One or more input files, directories, or glob patterns containing words to process (one per line). |
 | `--keyboard`, `--replacement`, `--replacements`, `-k` | Off | Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' becomes 'wprd'). |
 | `--limit`, `-L` | None | Limit the number of typos in the output. |
 | `--max-length`, `-M` | None | Ignore words longer than this length. |

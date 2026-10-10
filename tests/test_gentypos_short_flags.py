@@ -150,3 +150,26 @@ def test_gentypos_sort_short_flag(monkeypatch, capsys):
     corrections_only = [line.split(" -> ")[1] for line in lines_correct]
     assert corrections_only == sorted(corrections_only)
 
+
+def test_gentypos_input_uppercase_short_flag(tmp_path, monkeypatch, capsys):
+    input_file = tmp_path / "words.txt"
+    input_file.write_text("banana\n", encoding="utf-8")
+
+    test_args = ["gentypos.py", "-I", str(input_file), "-D", "-N", "-f", "arrow", "-q"]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    gentypos.main()
+
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+
+    # Deletions for 'banana': 'anana', 'bnana', 'baana', 'banna', 'banaa', 'banan'
+    expected_typos = {
+        "anana -> banana",
+        "bnana -> banana",
+        "baana -> banana",
+        "banna -> banana",
+        "banaa -> banana",
+        "banan -> banana",
+    }
+    assert set(lines) == expected_typos

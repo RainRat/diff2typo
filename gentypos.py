@@ -1272,7 +1272,7 @@ def main() -> None:
         help="One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, or plain text). Useful for using personal typo history from 'typostats.py'.",
     )
     io_group.add_argument(
-        '-i', '--input',
+        '-i', '-I', '--input',
         dest='input_file',
         nargs='+',
         help="One or more input files, directories, or glob patterns containing words to process (one per line).",

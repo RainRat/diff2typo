@@ -43,6 +43,7 @@ If you want to keep the slashes, dots, and original capital letters, always add 
 
 | Flag | Description |
 | :--- | :--- |
+| `-i`, `--input` | One or more input file or directory paths to process. |
 | `--basename` | Extract the final part of the path (the filename). |
 | `--dirname` | Extract the directory part of the path. |
 | `--extension` | Extract the file extension. |
@@ -53,7 +54,7 @@ If you want to keep the slashes, dots, and original capital letters, always add 
 | `-M`, `--max-length` | Skip path items longer than this character length. |
 | `-L`, `--limit` | Limit the number of extracted path items in the output. |
 | `-o`, `--output` | Save the results to this file instead of printing to the screen. |
-| `-f`, `--format` | Choose the output format (`line`, `csv`, `json`, `yaml`, `toml`, `markdown`, `md-table`, `arrow`, `table`, `xml`). Automatically detected from file extension. |
+| `-f`, `--format`, `--output-format` | Choose the output format (`line`, `csv`, `json`, `yaml`, `toml`, `markdown`, `md-table`, `arrow`, `table`, `xml`). Automatically detected from file extension. |
 | `-q`, `--quiet` | Hide progress bars and status summary messages. |
 
 ## Examples
@@ -88,6 +89,14 @@ Extract folder paths, sort them, and remove duplicates while keeping the origina
 
 ```bash
 python multitool.py paths . --dirname --process-output --raw
+```
+
+### Pass input paths using the `-i` / `--input` flag
+
+Specify one or more input directories or files using the explicit input flag:
+
+```bash
+python multitool.py paths -i src/ docs/ --basename --raw
 ```
 
 ### Save unique file extensions to a CSV file

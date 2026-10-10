@@ -96,6 +96,68 @@ def test_typostats_config_missing_pyyaml(monkeypatch, tmp_path):
     assert exc_info.value.code == 1
 
 
+def test_typostats_config_all_options(monkeypatch, tmp_path):
+    """Test loading all configuration settings and analysis flags from YAML config file."""
+    data_file = tmp_path / "typos.txt"
+    data_file.write_text("teh -> the\nrecieve -> receive\n", encoding="utf-8")
+
+    out_file = tmp_path / "out_all.json"
+
+    cfg_file = tmp_path / "all_options.yaml"
+    cfg_data = {
+        "input_files": [str(data_file)],
+        "output": str(out_file),
+        "format": "json",
+        "quiet": True,
+        "min_count": 1,
+        "sort": "typo",
+        "reverse": True,
+        "limit": 5,
+        "exclude": ["ignore_pattern"],
+        "include": ["*.txt"],
+        "all": True,
+        "keyboard": True,
+        "transposition": True,
+        "allow_1to2": True,
+        "allow_2to1": True,
+        "include_deletions": True,
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["typostats.py", "-C", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    typostats.main()
+
+    assert out_file.exists()
+
+
+def test_typostats_config_single_string_inputs_and_filters(monkeypatch, tmp_path):
+    """Test auto-wrapping single string values into lists for input_files, exclude, and include in config."""
+    data_file = tmp_path / "typos.txt"
+    data_file.write_text("teh -> the\n", encoding="utf-8")
+
+    out_file = tmp_path / "out_single.csv"
+
+    cfg_file = tmp_path / "single_string.yaml"
+    cfg_data = {
+        "input_files": str(data_file),
+        "output": str(out_file),
+        "format": "csv",
+        "quiet": True,
+        "exclude": "single_exclude",
+        "include": "single_include",
+    }
+    cfg_file.write_text(yaml.dump(cfg_data), encoding="utf-8")
+
+    test_args = ["typostats.py", "-C", str(cfg_file)]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    typostats.main()
+
+    assert out_file.exists()
+
+
 def test_typostats_config_file_not_found(monkeypatch):
     """Test error handling when specified config file does not exist."""
     test_args = ["typostats.py", "--config", "non_existent_config.yaml"]

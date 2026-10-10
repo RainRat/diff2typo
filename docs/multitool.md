@@ -281,7 +281,7 @@ Use these modes to transform or combine your data.
 
 - **`scrub`**
   - Fixes typos in text files using a mapping file or extra pairs. It preserves surrounding context while fixing errors.
-  - **Supported Formats:** CSV, Arrow, Table, JSON, YAML, TOML, and XML mapping formats.
+  - **Supported Formats:** CSV, Arrow, Table, JSON, YAML, TOML, XML, and HTML mapping formats.
   - **Options:**
     - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
     - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
@@ -306,7 +306,7 @@ Use these modes to transform or combine your data.
 
 - **`pairs`**
   - Converts paired data (like `typo -> correction`) between any supported format.
-  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, `toml`, and `xml`.
+  - **Supported Formats:** `arrow`, `table`, `csv`, `markdown`, `md-table`, `json`, `yaml`, `toml`, `xml`, `html`, and `htm`.
   - **Example:** `python multitool.py pairs typos.json --output-format csv`
 
 ### CHECK & ANALYZE

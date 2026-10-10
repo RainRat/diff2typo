@@ -173,7 +173,7 @@ Use these modes to transform or combine your data.
   - Sorts items or key-value pairs in a list by alphabetical order, length, or numeric value. It supports reverse sorting, deduplication, and paired data structures.
   - **Options:**
     - Use `--by` to choose the sorting method: `alpha` (alphabetical, default), `length` (string length), or `numeric` (numeric value).
-    - Use `--reverse` to sort in descending order.
+    - Use `--reverse` (or **`-r`**) to sort in descending order.
     - Use the `-u` (or `--unique`) flag to remove duplicates before sorting.
     - Use the `-p` (or `--pairs`) flag to process and sort key-value pairs (for example, `typo -> correction`).
   - **Note:** For numeric sorting, the tool extracts the first number found in each item. Numeric sorting works best with the `--raw` flag to prevent digits from being stripped.

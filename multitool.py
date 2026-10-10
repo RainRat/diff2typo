@@ -981,7 +981,7 @@ def _get_typo_correction(item: Any) -> Tuple[str | None, str | None]:
 
 
 def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[Tuple[str, str]]:
-    """Yield (left, right) pairs from input files, supporting multiple formats."""
+    """Yield (left, right) pairs from input files, supporting multiple formats (JSON, YAML, TOML, XML, HTML, and text formats)."""
     for input_file in input_files:
         ext = input_file.lower()
         if ext.endswith('.json'):
@@ -1090,6 +1090,24 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                 except Exception as e:
                     logging.error(f"Failed to parse XML in '{input_file}': {e}")
             continue
+
+        if ext.endswith('.html') or ext.endswith('.htm'):
+            content = "".join(_read_file_lines_robust(input_file))
+            if content.strip():
+                tr_blocks = re.findall(r'<tr[^>]*>(.*?)</tr>', content, flags=re.IGNORECASE | re.DOTALL)
+                found_html_pairs = False
+                for block in tr_blocks:
+                    cells = re.findall(r'<(?:td|th)[^>]*>(.*?)</(?:td|th)>', block, flags=re.IGNORECASE | re.DOTALL)
+                    if len(cells) >= 2:
+                        c1 = html.unescape(re.sub(r'<[^>]+>', '', cells[0])).strip()
+                        c2 = html.unescape(re.sub(r'<[^>]+>', '', cells[1])).strip()
+                        if c1.lower() in ('typo', 'original', 'word', 'left', 'key') and c2.lower() in ('correction', 'fix', 'replacement', 'right', 'value', 'count'):
+                            continue
+                        if c1 and c2:
+                            found_html_pairs = True
+                            yield c1, c2
+                if found_html_pairs:
+                    continue
 
         # Text formats
         lines = _read_file_lines_robust(input_file)
@@ -6539,7 +6557,7 @@ def _resolve_full_mapping(
     # 1. Load from file if provided
     if mapping_file:
         # Load mapping or list
-        if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml', '.xml')):
+        if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml', '.xml', '.html', '.htm')):
             full_mapping.update(dict(_extract_pairs([mapping_file], quiet=quiet)))
         else:
             # Treat as a simple list of words if not a common mapping format

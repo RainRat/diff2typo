@@ -2713,3 +2713,25 @@ def test_main_with_pattern_config(tmp_path, monkeypatch):
     assert (app1 / 'out_cfg_pat.txt').exists()
     assert not (app_old / 'out_cfg_pat.txt').exists()
     assert not (svc1 / 'out_cfg_pat.txt').exists()
+
+
+def test_run_command_exclude_patterns_string_format(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj_app = base_dir / 'app-service'
+    proj_old = base_dir / 'app-old'
+
+    proj_app.mkdir()
+    proj_old.mkdir()
+
+    command = "python3 -c \"open('test_file.txt','w').write('ran')\""
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        exclude_patterns='*-old'
+    )
+
+    assert (proj_app / 'test_file.txt').exists()
+    assert not (proj_old / 'test_file.txt').exists()

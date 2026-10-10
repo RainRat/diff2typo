@@ -370,6 +370,15 @@ def test_main_cli_short_flag_deletion():
         assert mock_process.call_args[1]['include_deletions'] is True
 
 
+def test_main_cli_short_flag_1to2():
+    with patch('sys.argv', ['typostats.py', 'input.txt', '-1', '-q']), \
+         patch('typostats._extract_pairs', return_value=[("rn", "m")]), \
+         patch('typostats.process_typos', return_value=({}, 0)) as mock_process, \
+         patch('typostats.generate_report'):
+        typostats.main()
+        assert mock_process.call_args[1]['allow_1to2'] is True
+
+
 def test_typostats_min_count_aliases(tmp_path):
     f = tmp_path / "typos.txt"
     f.write_text("teh -> the\nteh -> the\nrecived -> received\n")

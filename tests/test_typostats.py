@@ -1573,3 +1573,66 @@ def test_generate_report_output_file_write_error(monkeypatch, caplog):
         )
 
     assert "Failed to write report to 'invalid_path.txt'. Error: Permission denied" in caplog.text
+
+
+def test_extract_pairs_html_table(tmp_path):
+    """Verify that _extract_pairs extracts typo-correction pairs from HTML table rows."""
+    html_content = """<!DOCTYPE html>
+<html>
+<body>
+<table>
+<thead><tr><th>Typo</th><th>Correction</th><th>Count</th></tr></thead>
+<tbody>
+<tr><td><code>teh</code></td><td><code>the</code></td><td>5</td></tr>
+<tr><td><code>wrold</code></td><td><code>world</code></td><td>3</td></tr>
+<tr><td><code>&lt;foo&gt;</code></td><td><code>&lt;bar&gt;</code></td><td>1</td></tr>
+</tbody>
+</table>
+</body>
+</html>
+"""
+    html_file = tmp_path / "typos.html"
+    html_file.write_text(html_content, encoding="utf-8")
+
+    pairs = list(typostats._extract_pairs([str(html_file)]))
+    assert ("teh", "the") in pairs
+    assert ("wrold", "world") in pairs
+    assert ("<foo>", "<bar>") in pairs
+
+
+def test_extract_pairs_html_fallback(tmp_path):
+    """Verify that _extract_pairs falls back to text parsing if no HTML table rows exist."""
+    html_content = """<!DOCTYPE html>
+<html>
+<body>
+<p>teh -> the</p>
+<p>wrold: world</p>
+</body>
+</html>
+"""
+    html_file = tmp_path / "simple.htm"
+    html_file.write_text(html_content, encoding="utf-8")
+
+    pairs = list(typostats._extract_pairs([str(html_file)]))
+    assert ("teh", "the") in pairs
+    assert ("wrold", "world") in pairs
+
+
+def test_typostats_end_to_end_html_input(tmp_path, capsys):
+    """Verify end-to-end processing of an HTML input file in typostats."""
+    html_content = """<!DOCTYPE html>
+<html>
+<body>
+<table>
+<tr><td><code>teh</code></td><td><code>the</code></td></tr>
+</table>
+</body>
+</html>
+"""
+    html_file = tmp_path / "input.html"
+    html_file.write_text(html_content, encoding="utf-8")
+
+    pairs = typostats._extract_pairs([str(html_file)])
+    counts, total_pairs = typostats.process_typos(pairs, allow_transposition=True)
+    assert total_pairs == 1
+    assert counts[("he", "eh")] == 1

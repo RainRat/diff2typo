@@ -33,6 +33,7 @@ The tool automatically recognizes several common ways of listing typos:
 6. **YAML:** Supports key-value pairs or lists of typo-correction objects.
 7. **TOML:** Supports standard key-value tables (`typo = "correction"`), nested tables, and `replacements` lists.
 8. **Markdown:** Extracts items from bulleted lists and tables.
+9. **HTML:** Extracts typo and correction pairs from HTML table rows (`<tr><td>typo</td><td>correction</td></tr>`) or embedded HTML elements.
 
 > **Tip:** You can send the output from `diff2typo.py` directly into `typostats.py`.
 

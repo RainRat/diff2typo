@@ -1969,16 +1969,6 @@ def _extract_frontmatter(input_file: str, key_path: str = '', quiet: bool = Fals
         return
 
 
-def _extract_markdown_items(input_file: str, right_side: bool = False, quiet: bool = False) -> Iterable[str]:
-    """Yield text from Markdown list items, optionally splitting by ':' or '->'."""
-    for left, right in _extract_markdown_items_detailed(input_file, quiet=quiet):
-        if right_side:
-            if right:
-                yield right
-        else:
-            yield left
-
-
 def _extract_markdown_items_detailed(input_file: str, quiet: bool = False) -> Iterable[Tuple[str, str]]:
     """Yields (left, right) tuples for Markdown list items containing separators (' -> ' or ': ')."""
     lines = _read_file_lines_robust(input_file)
@@ -2726,8 +2716,13 @@ def markdown_mode(
         _write_paired_output(results, output_file, output_format, "Markdown", quiet, limit=limit)
         print_processing_stats(total_items, results, item_label="markdown item", start_time=start_time)
     else:
-        def extractor(f, quiet=False):
-            return _extract_markdown_items(f, right_side=right_side, quiet=quiet)
+        def extractor(input_file: str, quiet: bool = False) -> Iterable[str]:
+            for left, right in _extract_markdown_items_detailed(input_file, quiet=quiet):
+                if right_side:
+                    if right:
+                        yield right
+                else:
+                    yield left
         _process_items(
             extractor,
             input_files,

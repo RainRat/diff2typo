@@ -516,7 +516,7 @@ def _read_file_lines_robust(path: str, newline: str | None = None) -> List[str]:
 
 def _match_pattern(filepath: str, patterns: Sequence[str] | None) -> bool:
     """Check if the given filepath matches any pattern in the list."""
-    if not patterns or not filepath:
+    if not patterns:
         return False
     for pattern in patterns:
         if fnmatch.fnmatch(filepath, pattern) or fnmatch.fnmatch(os.path.basename(filepath), pattern):

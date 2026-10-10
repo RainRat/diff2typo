@@ -26,6 +26,7 @@ import csv
 import json
 import html
 import time
+import fnmatch
 try:
     import yaml
     _YAML_AVAILABLE = True
@@ -244,6 +245,12 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if "included_folders" in config and not isinstance(config["included_folders"], list):
         errors.append("'included_folders' must be a list if provided.")
 
+    if "include_patterns" in config and not isinstance(config["include_patterns"], (list, str)):
+        errors.append("'include_patterns' must be a list or string if provided.")
+
+    if "exclude_patterns" in config and not isinstance(config["exclude_patterns"], (list, str)):
+        errors.append("'exclude_patterns' must be a list or string if provided.")
+
     if "fail_fast" in config and not isinstance(config["fail_fast"], bool):
         errors.append("The field 'fail_fast' must be a boolean.")
 
@@ -289,6 +296,8 @@ def run_command_in_folders(
     jobs: int = 1,
     max_count: Optional[int] = None,
     reverse: bool = False,
+    include_patterns: Optional[List[str]] = None,
+    exclude_patterns: Optional[List[str]] = None,
 ) -> None:
     """
     Run a specified command in each folder within the main folder,
@@ -308,6 +317,22 @@ def run_command_in_folders(
 
     if included_folders:
         directories = [item for item in directories if item in included_folders]
+
+    if include_patterns:
+        if isinstance(include_patterns, str):
+            include_patterns = [include_patterns]
+        directories = [
+            item for item in directories
+            if any(fnmatch.fnmatch(item, pat) for pat in include_patterns)
+        ]
+
+    if exclude_patterns:
+        if isinstance(exclude_patterns, str):
+            exclude_patterns = [exclude_patterns]
+        directories = [
+            item for item in directories
+            if not any(fnmatch.fnmatch(item, pat) for pat in exclude_patterns)
+        ]
 
     if if_exists:
         directories = [
@@ -696,6 +721,18 @@ def parse_arguments() -> argparse.Namespace:
         help='Specific folders you want to run the command on. Overrides config file if provided.'
     )
     direct_group.add_argument(
+        '-p', '--pattern', '--include-pattern',
+        dest='include_patterns',
+        nargs='+',
+        help='Wildcard pattern(s) to filter target folders to process (e.g. "proj-*" or "*-service").'
+    )
+    direct_group.add_argument(
+        '-P', '--exclude-pattern',
+        dest='exclude_patterns',
+        nargs='+',
+        help='Wildcard pattern(s) of folders to skip (e.g. "*-old" or "tmp*").'
+    )
+    direct_group.add_argument(
         '-x', '--if-exists',
         type=str,
         help='Only run the command in folders that contain this file or path (for example, "package.json").'
@@ -806,6 +843,16 @@ excluded_folders:
 # included_folders:
 #   - "proj1"
 
+# Wildcard pattern(s) to filter target folders to process (optional)
+# include_patterns:
+#   - "proj-*"
+#   - "*-service"
+
+# Wildcard pattern(s) of folders to skip (optional)
+# exclude_patterns:
+#   - "*-old"
+#   - "tmp*"
+
 # Stop execution immediately if any command fails (optional)
 stop_on_first_error: false
 
@@ -864,6 +911,8 @@ jobs: 1
     command_to_run = args.command_to_run or config.get('command_to_run', '')
     excluded = args.excluded_folders if args.excluded_folders is not None else config.get('excluded_folders', [])
     included = args.included_folders if args.included_folders is not None else config.get('included_folders', None)
+    include_patterns = args.include_patterns if args.include_patterns is not None else config.get('include_patterns', None)
+    exclude_patterns = args.exclude_patterns if args.exclude_patterns is not None else config.get('exclude_patterns', None)
 
     # Prioritize CLI values over config file values
     config_fail_fast = config.get('stop_on_first_error', config.get('fail_fast', False))
@@ -908,6 +957,8 @@ jobs: 1
         jobs=jobs,
         max_count=max_count,
         reverse=reverse,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
     )
 
 if __name__ == "__main__":

@@ -2583,3 +2583,133 @@ def test_report_generation_toml_serialization_exception_fallback(tmp_path, monke
     assert isinstance(data, list)
     assert data[0]['folder'] == 'proj1'
     assert any("TOML serialization failed" in record.message for record in caplog.records)
+
+
+def test_load_config_invalid_include_exclude_patterns(tmp_path):
+    config_file = tmp_path / 'config_invalid_patterns.yaml'
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                'main_folder': str(tmp_path),
+                'command_to_run': 'echo test',
+                'include_patterns': 123,
+                'exclude_patterns': True,
+            }
+        )
+    )
+
+    with pytest.raises(cmdrunner.ConfigError) as exc_info:
+        cmdrunner.load_config(str(config_file))
+
+    message = str(exc_info.value)
+    assert "'include_patterns' must be a list or string" in message
+    assert "'exclude_patterns' must be a list or string" in message
+
+
+def test_run_command_include_exclude_patterns_filtering(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj_app1 = base_dir / 'app-service'
+    proj_app2 = base_dir / 'app-web'
+    proj_lib = base_dir / 'lib-core'
+    proj_app_old = base_dir / 'app-old'
+
+    for p in [proj_app1, proj_app2, proj_lib, proj_app_old]:
+        p.mkdir()
+
+    command = "python3 -c \"open('test_file.txt','w').write('ran')\""
+
+    # Test include_patterns only
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        include_patterns=['app-*']
+    )
+
+    assert (proj_app1 / 'test_file.txt').exists()
+    assert (proj_app2 / 'test_file.txt').exists()
+    assert (proj_app_old / 'test_file.txt').exists()
+    assert not (proj_lib / 'test_file.txt').exists()
+
+    # Clean up test files
+    for p in [proj_app1, proj_app2, proj_app_old]:
+        (p / 'test_file.txt').unlink()
+
+    # Test both include_patterns and exclude_patterns (with single string and list)
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        include_patterns='app-*',  # single string format
+        exclude_patterns=['*-old'] # list format
+    )
+
+    assert (proj_app1 / 'test_file.txt').exists()
+    assert (proj_app2 / 'test_file.txt').exists()
+    assert not (proj_app_old / 'test_file.txt').exists()
+    assert not (proj_lib / 'test_file.txt').exists()
+
+
+def test_main_with_pattern_cli_flags(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    app1 = base_dir / 'app-api'
+    app2 = base_dir / 'app-ui'
+    app_legacy = base_dir / 'app-legacy'
+    service1 = base_dir / 'srv-data'
+
+    for p in [app1, app2, app_legacy, service1]:
+        p.mkdir()
+
+    command = "python3 -c \"open('out_pattern.txt','w').write('ok')\""
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'cmdrunner.py',
+            '-m', str(base_dir),
+            '-c', command,
+            '-p', 'app-*',
+            '-P', '*-legacy'
+        ]
+    )
+
+    cmdrunner.main()
+
+    assert (app1 / 'out_pattern.txt').exists()
+    assert (app2 / 'out_pattern.txt').exists()
+    assert not (app_legacy / 'out_pattern.txt').exists()
+    assert not (service1 / 'out_pattern.txt').exists()
+
+
+def test_main_with_pattern_config(tmp_path, monkeypatch):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    app1 = base_dir / 'app-api'
+    app_old = base_dir / 'app-old'
+    svc1 = base_dir / 'svc-main'
+
+    for p in [app1, app_old, svc1]:
+        p.mkdir()
+
+    command = "python3 -c \"open('out_cfg_pat.txt','w').write('ok')\""
+
+    config_data = {
+        'main_folder': str(base_dir),
+        'command_to_run': command,
+        'include_patterns': ['app-*'],
+        'exclude_patterns': ['*-old'],
+    }
+    config_file = tmp_path / 'config_pat.yaml'
+    config_file.write_text(yaml.safe_dump(config_data))
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file)])
+
+    cmdrunner.main()
+
+    assert (app1 / 'out_cfg_pat.txt').exists()
+    assert not (app_old / 'out_cfg_pat.txt').exists()
+    assert not (svc1 / 'out_cfg_pat.txt').exists()

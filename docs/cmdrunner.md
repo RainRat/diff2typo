@@ -60,6 +60,16 @@ included_folders:
   - "my-app-1"
   - "my-app-2"
 
+# (Optional) Wildcard pattern(s) to filter target folders to process
+include_patterns:
+  - "proj-*"
+  - "*-service"
+
+# (Optional) Wildcard pattern(s) of folders to skip
+exclude_patterns:
+  - "*-old"
+  - "tmp*"
+
 # (Optional) Stop execution immediately if any command fails or times out
 stop_on_first_error: false
 fail_fast: false
@@ -92,6 +102,8 @@ reverse: true
 - `-c`, `--command`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
 - `-E`, `-e`, `--exclude`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
 - `-i`, `--included-folders`: A list of folders you want to run the command on. This overrides the configuration file.
+- `-p`, `--pattern`, `--include-pattern`: One or more wildcard patterns (e.g. `proj-*` or `*-service`) to filter target folders to process.
+- `-P`, `--exclude-pattern`: One or more wildcard patterns (e.g. `*-old` or `tmp*`) of folders to skip.
 - `-n`, `--dry-run`: Show which folders the tool will check without running any commands. Use this to test your setup safely.
 - `-q`, `--quiet`: Hide status messages and progress bars.
 - `-s`, `--stop-on-first-error`, `--fail-fast`: Stop running commands immediately if any command fails. This overrides the configuration file.
@@ -164,6 +176,16 @@ python cmdrunner.py --main-folder /home/user/projects --command "bash setup.sh &
 **Only run commands in specific folders:**
 ```bash
 python cmdrunner.py --main-folder /home/user/projects --command "npm run build" --included-folders proj1 proj2
+```
+
+**Filter folders using wildcard patterns:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command "npm test" -p "app-*" "*-service"
+```
+
+**Exclude folders using wildcard patterns:**
+```bash
+python cmdrunner.py --main-folder /home/user/projects --command "git status" -P "*-legacy" "tmp*"
 ```
 
 **Run commands concurrently across multiple projects:**

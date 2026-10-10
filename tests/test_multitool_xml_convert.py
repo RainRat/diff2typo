@@ -106,6 +106,31 @@ def test_xml_attributes_handling(tmp_path):
         }
     }
 
+def test_xml_element_with_attributes_and_children(tmp_path):
+    input_file = tmp_path / "parent.xml"
+    output_file = tmp_path / "output.json"
+
+    xml_content = """<parent id="999" status="active">
+    <child>Value</child>
+</parent>"""
+    input_file.write_text(xml_content)
+
+    convert_mode(
+        input_files=[str(input_file)],
+        output_file=str(output_file),
+        output_format='json'
+    )
+
+    with open(output_file, 'r') as f:
+        output_data = json.load(f)
+
+    assert output_data == {
+        "parent": {
+            "@attributes": {"id": "999", "status": "active"},
+            "child": "Value"
+        }
+    }
+
 def test_yield_structured_docs_xml(tmp_path):
     input_file = tmp_path / "data.xml"
     xml_content = "<root><status>ok</status></root>"

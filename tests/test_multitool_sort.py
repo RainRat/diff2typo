@@ -56,6 +56,19 @@ def test_sort_reverse(tmp_path, monkeypatch):
 
     assert output_file.read_text().strip().split('\n') == ["cherry", "banana", "apple"]
 
+def test_sort_reverse_short_flag(tmp_path, monkeypatch):
+    input_file = tmp_path / "input.txt"
+    input_file.write_text("apple\nbanana\ncherry\n")
+
+    output_file = tmp_path / "output.txt"
+
+    args = ["multitool.py", "sort", str(input_file), "-o", str(output_file), "-r"]
+    monkeypatch.setattr(sys, 'argv', args)
+
+    main()
+
+    assert output_file.read_text().strip().split('\n') == ["cherry", "banana", "apple"]
+
 def test_sort_unique(tmp_path, monkeypatch):
     input_file = tmp_path / "input.txt"
     input_file.write_text("apple\nbanana\napple\n")

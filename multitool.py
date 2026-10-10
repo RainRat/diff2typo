@@ -10368,7 +10368,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="How to sort the items: 'alpha' (alphabetical), 'length' (string length), or 'numeric' (numeric value).",
     )
     sort_options.add_argument(
-        '--reverse',
+        '-r', '--reverse',
         action='store_true',
         help="Sort in reverse order.",
     )

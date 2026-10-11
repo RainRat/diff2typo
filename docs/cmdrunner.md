@@ -97,7 +97,7 @@ reverse: true
 
 - `CONFIG_PATH`, `-C`, `--config`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`cmdrunner.yaml` by default, or at a specified path).
-- `-m`, `--main-folder`: The main folder containing your projects. This overrides the configuration file.
+- `-m`, `--main-folder`: The main folder containing your projects (defaults to the current directory `.` if a command is specified without `-m`). This overrides the configuration file.
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
 - `-c`, `--command`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.
 - `-E`, `-e`, `--exclude`, `--excluded-folders`: A list of folders you want the tool to skip. This overrides the configuration file.
@@ -146,6 +146,11 @@ python cmdrunner.py --init-config
 **Run a command across your projects directly without a config file:**
 ```bash
 python cmdrunner.py -m /home/user/projects -c "git status"
+```
+
+**Run a command across subfolders in the current directory:**
+```bash
+python cmdrunner.py -c "git status"
 ```
 
 **Override configuration file settings from the command line:**

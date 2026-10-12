@@ -236,9 +236,9 @@ Use these modes to transform or combine your data.
 
 - **`unflatten`**
   - Reconstructs nested structures from dot-separated `key.path = value` pairs. The default output format is `json`.
-  - **Options:** Use the `-k` (or `--key`) flag to unflatten only paths starting with a specific key.
+  - **Options:** Use the `-k` (or `--key`) flag to unflatten only paths starting with a specific key. Use `--parse-types` (or `--typed`) to automatically parse string values into native booleans, numbers, nulls, and JSON arrays/objects.
   - **Supported Formats:** `json`, `yaml`, `toml`, and `xml`.
-  - **Example:** `python multitool.py unflatten data.txt --output-format json`
+  - **Example:** `python multitool.py unflatten data.txt --parse-types --output-format json`
 
 - **`convert`**
   - Transforms structured data between JSON, YAML, TOML, and XML while preserving nested structures. It supports extracting sub-keys using dot notation (for example, `metadata.items`).

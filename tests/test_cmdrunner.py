@@ -2650,6 +2650,27 @@ def test_run_command_include_exclude_patterns_filtering(tmp_path):
     assert not (proj_lib / 'test_file.txt').exists()
 
 
+def test_run_command_exclude_patterns_string_format(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj_app = base_dir / 'app-service'
+    proj_old = base_dir / 'app-old'
+    proj_app.mkdir()
+    proj_old.mkdir()
+
+    command = "python3 -c \"open('test_file.txt','w').write('ran')\""
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        exclude_patterns='*-old'  # single string format
+    )
+
+    assert (proj_app / 'test_file.txt').exists()
+    assert not (proj_old / 'test_file.txt').exists()
+
+
 def test_main_with_pattern_cli_flags(tmp_path, monkeypatch):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

@@ -51,12 +51,21 @@ If you want to keep the slashes, dots, and original capital letters, always add 
 | `-P`, `--process-output` | Sort the final list and remove duplicate lines. |
 | `-m`, `--min-length` | Skip path items shorter than this character length. |
 | `-M`, `--max-length` | Skip path items longer than this character length. |
+| `-i`, `--input` | One or more input files, directories, or glob patterns. |
 | `-L`, `--limit` | Limit the number of extracted path items in the output. |
 | `-o`, `--output` | Save the results to this file instead of printing to the screen. |
-| `-f`, `--format` | Choose the output format (`line`, `csv`, `json`, `yaml`, `toml`, `markdown`, `md-table`, `arrow`, `table`, `xml`). Automatically detected from file extension. |
+| `-f`, `--format`, `--output-format` | Choose the output format (`line`, `csv`, `json`, `yaml`, `toml`, `markdown`, `md-table`, `arrow`, `table`, `xml`). Automatically detected from file extension. |
 | `-q`, `--quiet` | Hide progress bars and status summary messages. |
 
 ## Examples
+
+### Specify input paths explicitly with `--input`
+
+Extract filenames from multiple input paths using the `-i` / `--input` flag:
+
+```bash
+python multitool.py paths -i src/ docs/ --basename --raw
+```
 
 ### List all filenames in a folder
 

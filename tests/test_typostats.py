@@ -1636,3 +1636,20 @@ def test_typostats_end_to_end_html_input(tmp_path, capsys):
     counts, total_pairs = typostats.process_typos(pairs, allow_transposition=True)
     assert total_pairs == 1
     assert counts[("he", "eh")] == 1
+
+
+def test_typostats_limit_short_flag_l(monkeypatch, tmp_path, capsys):
+    """Verify that -l correctly limits output items in typostats CLI."""
+    sample_file = tmp_path / "typos.txt"
+    sample_file.write_text("teh -> the\nwrold -> world\n", encoding="utf-8")
+
+    test_args = ["typostats.py", str(sample_file), "-l", "1", "-f", "csv", "-q"]
+    monkeypatch.setattr("sys.argv", test_args)
+
+    typostats.main()
+
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    # CSV header + 1 row
+    assert len(lines) == 2
+    assert lines[0] == "typo,correction,count"

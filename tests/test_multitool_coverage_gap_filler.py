@@ -199,8 +199,8 @@ def test_extract_markdown_items_empty_content(tmp_path):
     f = tmp_path / "test.md"
     f.write_text("- \n- item")
 
-    items = list(multitool._extract_markdown_items(str(f)))
-    assert items == ["item"]
+    items = list(multitool._extract_markdown_items_detailed(str(f)))
+    assert items == [("item", "")]
 
 def test_extract_regex_items_groups(tmp_path):
     """Covers lines 819-820: multiple groups in regex yield separate items"""

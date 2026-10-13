@@ -2479,6 +2479,38 @@ def test_init_config_already_exists(tmp_path, monkeypatch, caplog):
     assert any("already exists" in msg for msg in caplog.messages)
 
 
+def test_init_config_force_overwrite(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    existing_config = tmp_path / "cmdrunner.yaml"
+    existing_config.write_text("main_folder: old_content", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config", "--force"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 0
+
+    assert existing_config.exists()
+    content = existing_config.read_text(encoding="utf-8")
+    assert 'main_folder: "./projects"' in content
+
+
+def test_init_config_force_short_flag_overwrite(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    custom_config = tmp_path / "custom.yaml"
+    custom_config.write_text("main_folder: old_content", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config", str(custom_config), "-F"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cmdrunner.main()
+    assert excinfo.value.code == 0
+
+    assert custom_config.exists()
+    content = custom_config.read_text(encoding="utf-8")
+    assert 'main_folder: "./projects"' in content
+
+
 def test_init_config_write_error(tmp_path, monkeypatch, caplog):
     invalid_path = tmp_path / "non_existent_subdir" / "cmdrunner.yaml"
     monkeypatch.setattr(sys, "argv", ["cmdrunner.py", "--init-config", str(invalid_path)])

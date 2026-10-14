@@ -14,7 +14,7 @@ Run the command with the `paths` mode and provide your files or folders:
 python multitool.py paths [FILES...] [OPTIONS]
 ```
 
-If you pipe data into the command, the tool reads from standard input. If you run the command in an interactive terminal without providing any files or folders, it automatically scans the current directory (`.`) recursively.
+If you pipe data into the command, the tool reads from standard input. If you run the command in an interactive terminal without providing any files or folders, it automatically scans the current directory (`.`) recursively. You can also explicitly specify input paths using `-i` or `--input`.
 
 ## Features
 
@@ -43,6 +43,7 @@ If you want to keep the slashes, dots, and original capital letters, always add 
 
 | Flag | Description |
 | :--- | :--- |
+| `-i`, `--input` | One or more input file or directory paths to process. |
 | `--basename` | Extract the final part of the path (the filename). |
 | `--dirname` | Extract the directory part of the path. |
 | `--extension` | Extract the file extension. |
@@ -53,7 +54,7 @@ If you want to keep the slashes, dots, and original capital letters, always add 
 | `-M`, `--max-length` | Skip path items longer than this character length. |
 | `-L`, `--limit` | Limit the number of extracted path items in the output. |
 | `-o`, `--output` | Save the results to this file instead of printing to the screen. |
-| `-f`, `--format` | Choose the output format (`line`, `csv`, `json`, `yaml`, `toml`, `markdown`, `md-table`, `arrow`, `table`, `xml`). Automatically detected from file extension. |
+| `-f`, `--format`, `--output-format` | Choose the output format (`line`, `csv`, `json`, `yaml`, `toml`, `markdown`, `md-table`, `arrow`, `table`, `xml`). Automatically detected from file extension. |
 | `-q`, `--quiet` | Hide progress bars and status summary messages. |
 
 ## Examples
@@ -64,6 +65,14 @@ Get only the filenames and keep their original casing and dots:
 
 ```bash
 python multitool.py paths src/ --basename --raw
+```
+
+### Explicitly specify input paths
+
+Specify target directories or files using `-i` or `--input`:
+
+```bash
+python multitool.py paths -i src/ --basename --raw
 ```
 
 ### Extract all unique file extensions

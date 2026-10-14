@@ -51,6 +51,41 @@ def test_short_flags_parsing(monkeypatch):
     assert args.allowed_file == 'my_allowed.csv'
 
 
+def test_sort_uppercase_s_short_flag(monkeypatch):
+    """Verify that -S works as a short flag alias for --sort."""
+    import argparse
+    original_parse = argparse.ArgumentParser.parse_args
+    captured_args = []
+    def mock_parse(self, *args, **kwargs):
+        res = original_parse(self, *args, **kwargs)
+        captured_args.append(res)
+        return res
+
+    monkeypatch.setattr(argparse.ArgumentParser, 'parse_args', mock_parse)
+    monkeypatch.setattr(diff2typo, '_read_diff_sources', lambda _: "--- a/f\n+++ b/f\n-teh\n+the")
+    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **kw: {})
+    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **kw: set())
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'diff2typo.py',
+            '-S', 'count',
+            '--quiet'
+        ]
+    )
+
+    try:
+        diff2typo.main()
+    except SystemExit:
+        pass
+
+    assert len(captured_args) > 0
+    args = captured_args[-1]
+    assert args.sort == 'count'
+
+
 def test_mode_lowercase_m_short_flag(monkeypatch):
     """Verify that -m works as a short flag alias for --mode."""
     import argparse

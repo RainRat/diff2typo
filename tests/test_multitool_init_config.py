@@ -55,6 +55,23 @@ def test_init_config_already_exists(tmp_path, monkeypatch, caplog):
     assert any("already exists. Aborting to prevent overwriting." in record.message for record in caplog.records)
 
 
+def test_init_config_force_overwrite(tmp_path, monkeypatch):
+    """Test force overwriting existing configuration file with -F flag."""
+    monkeypatch.chdir(tmp_path)
+    existing_config = tmp_path / "multitool.yaml"
+    existing_config.write_text("existing: content", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "argv", ["multitool.py", "--init-config", "-F"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        multitool.main()
+
+    assert excinfo.value.code == 0
+    content = existing_config.read_text(encoding="utf-8")
+    assert "# multitool.yaml - Configuration file for multitool.py" in content
+    assert "existing: content" not in content
+
+
 def test_init_config_write_error(tmp_path, monkeypatch, caplog):
     """Test error handling when writing configuration template fails."""
     invalid_path = tmp_path / "nonexistent_dir" / "multitool.yaml"

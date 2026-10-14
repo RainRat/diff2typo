@@ -8649,7 +8649,8 @@ class InitConfigAction(argparse.Action):
         option_string: str | None = None,
     ) -> None:
         target_path = values or "multitool.yaml"
-        if os.path.exists(target_path):
+        force_overwrite = getattr(namespace, 'force', False) or '-F' in sys.argv or '--force' in sys.argv
+        if os.path.exists(target_path) and not force_overwrite:
             logging.error(f"Configuration file '{target_path}' already exists. Aborting to prevent overwriting.")
             sys.exit(1)
 
@@ -8743,6 +8744,11 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar='PATH',
         action=InitConfigAction,
         help="Generate a sample template YAML configuration file (default: multitool.yaml) and exit.",
+    )
+    io_group.add_argument(
+        '-F', '--force',
+        action='store_true',
+        help="Force overwrite of existing configuration file when generating template config via --init-config.",
     )
     io_group.add_argument(
         '-o', '--output',

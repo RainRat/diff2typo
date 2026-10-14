@@ -689,6 +689,11 @@ def parse_arguments() -> argparse.Namespace:
         metavar='FILE',
         help='Generate a template YAML configuration file (default: cmdrunner.yaml).'
     )
+    config_group.add_argument(
+        '-F', '--force',
+        action='store_true',
+        help='Force overwrite of existing configuration file when generating template config via --init-config.'
+    )
 
     # Direct Execution / Overrides Group
     direct_group = parser.add_argument_group(f"{BLUE}CLI OVERRIDES / DIRECT OPTIONS{RESET}")
@@ -812,7 +817,8 @@ def main() -> None:
 
     if args.init_config:
         init_path = args.init_config
-        if os.path.exists(init_path):
+        force_overwrite = getattr(args, 'force', False)
+        if os.path.exists(init_path) and not force_overwrite:
             logging.error(f"Configuration file '{init_path}' already exists. Aborting to prevent overwriting.")
             sys.exit(1)
 

@@ -97,6 +97,7 @@ reverse: true
 
 - `CONFIG_PATH`, `-C`, `--config`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`cmdrunner.yaml` by default, or at a specified path).
+- `-F`, `--force`: Force overwrite of existing configuration file when generating template config via `--init-config`.
 - `-m`, `--main-folder`: The main folder containing your projects. This overrides the configuration file.
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
 - `-c`, `--command`, `--command-to-run`: The command you want to run in each folder. This overrides the configuration file.

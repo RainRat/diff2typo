@@ -1044,6 +1044,11 @@ def main():
         metavar='PATH',
         help='Generate a sample template YAML configuration file (default: diff2typo.yaml) and exit.',
     )
+    io_group.add_argument(
+        '-F', '--force',
+        action='store_true',
+        help='Force overwrite of existing configuration file when generating template config via --init-config.',
+    )
 
     # Analysis Options
     analysis_group = parser.add_argument_group(f"{BLUE}ANALYSIS OPTIONS{RESET}")
@@ -1180,7 +1185,8 @@ def main():
     init_config_val = getattr(args, 'init_config', None)
     if isinstance(init_config_val, str):
         target_path = init_config_val
-        if os.path.exists(target_path):
+        force_overwrite = getattr(args, 'force', False)
+        if os.path.exists(target_path) and not force_overwrite:
             logging.error(f"Configuration file '{target_path}' already exists. Aborting to prevent overwriting.")
             sys.exit(1)
 

@@ -1343,6 +1343,11 @@ def main() -> None:
         help="Generate a sample template YAML configuration file (default: typostats.yaml) and exit.",
     )
     io_group.add_argument(
+        '-F', '--force',
+        action='store_true',
+        help="Force overwrite of existing configuration file when generating template config via --init-config.",
+    )
+    io_group.add_argument(
         '-i', '--input',
         dest='input_files_flag',
         nargs='+',
@@ -1446,7 +1451,8 @@ def main() -> None:
     init_config_val = getattr(args, 'init_config', None)
     if isinstance(init_config_val, str):
         target_path = init_config_val
-        if os.path.exists(target_path):
+        force_overwrite = getattr(args, 'force', False)
+        if os.path.exists(target_path) and not force_overwrite:
             logging.error(f"Configuration file '{target_path}' already exists. Aborting to prevent overwriting.")
             sys.exit(1)
 

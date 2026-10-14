@@ -1255,6 +1255,11 @@ def main() -> None:
         help="Generate a sample template YAML configuration file (default: gentypos.yaml) and exit.",
     )
     io_group.add_argument(
+        '-F', '--force',
+        action='store_true',
+        help="Force overwrite of existing configuration file when generating template config via --init-config.",
+    )
+    io_group.add_argument(
         '-o', '--output',
         type=str,
         help="Save results to this file. Use '-' to print to the screen.",
@@ -1409,7 +1414,8 @@ def main() -> None:
 
     if args.init_config:
         target_path = args.init_config
-        if os.path.exists(target_path):
+        force_overwrite = getattr(args, 'force', False)
+        if os.path.exists(target_path) and not force_overwrite:
             logging.error(f"Configuration file '{target_path}' already exists. Aborting to prevent overwriting.")
             sys.exit(1)
 

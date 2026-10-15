@@ -33,6 +33,16 @@ import copy
 import json
 import csv
 import html
+import re
+
+try:
+    import tomllib
+    _TOMLLIB_AVAILABLE = True
+except ImportError:
+    _TOMLLIB_AVAILABLE = False
+
+import importlib.util
+_TOML_AVAILABLE = importlib.util.find_spec("toml") is not None
 from collections import defaultdict
 from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, MutableMapping, Sequence, Set, Optional
@@ -706,9 +716,26 @@ def generate_all_typos(
     return typos
 
 
+def _extract_words_from_obj(obj: Any, words: set[str]) -> None:
+    """Recursively extract ASCII words from JSON/YAML/TOML object structures."""
+    if isinstance(obj, str):
+        for token in re.split(r'\s+|(?:\s*->\s*)|(?:\s*=\s*)|[,;:]', obj):
+            cleaned = token.strip('\'"()[]{}<>`.,;:')
+            if cleaned and all(ord(c) < 128 for c in cleaned):
+                words.add(cleaned.lower())
+    elif isinstance(obj, Mapping):
+        for k, v in obj.items():
+            _extract_words_from_obj(k, words)
+            _extract_words_from_obj(v, words)
+    elif isinstance(obj, Iterable) and not isinstance(obj, (bytes, bytearray)):
+        for item in obj:
+            _extract_words_from_obj(item, words)
+
+
 def load_file(file_path: Optional[str]) -> set[str]:
     """
     Generic function to load words from a file into a set.
+    Supports structured formats (JSON, YAML, TOML, CSV, Markdown, HTML) as well as plain text.
     Filters out non-ASCII words and converts them to lowercase.
 
     Args:
@@ -724,18 +751,113 @@ def load_file(file_path: Optional[str]) -> set[str]:
         words = set()
         if file_path == '-':
             logging.info("Reading from input data...")
-            source = sys.stdin
+            content = sys.stdin.read()
+            ext = ''
         else:
-            source = open(file_path, 'r', encoding='utf-8')
+            ext = os.path.splitext(file_path)[1].lower()
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except UnicodeDecodeError:
+                with open(file_path, 'r', encoding='latin-1') as f:
+                    content = f.read()
 
-        try:
-            for line in source:
-                line = line.strip()
-                if line and all(ord(c) < 128 for c in line):
-                    words.add(line.lower())
-        finally:
-            if file_path != '-':
-                source.close()
+        if not content.strip():
+            return words
+
+        parsed_structured = False
+
+        # JSON format
+        if ext == '.json' or (not ext and content.strip().startswith(('[', '{'))):
+            try:
+                data = json.loads(content)
+                _extract_words_from_obj(data, words)
+                parsed_structured = True
+            except Exception:
+                pass
+
+        # YAML format
+        if not parsed_structured and (ext in ('.yaml', '.yml') and _YAML_AVAILABLE):
+            try:
+                data = yaml.safe_load(content)
+                if data is not None:
+                    _extract_words_from_obj(data, words)
+                    parsed_structured = True
+            except Exception:
+                pass
+
+        # TOML format
+        if not parsed_structured and ext == '.toml':
+            try:
+                data = None
+                if _TOMLLIB_AVAILABLE:
+                    data = tomllib.loads(content)
+                elif _TOML_AVAILABLE:
+                    import toml
+                    data = toml.loads(content)
+                if data is not None:
+                    _extract_words_from_obj(data, words)
+                    parsed_structured = True
+            except Exception:
+                pass
+
+        # HTML format
+        if not parsed_structured and (ext in ('.html', '.htm') or '<tr' in content.lower() or '<td' in content.lower() or '<li' in content.lower()):
+            cell_matches = re.findall(r'<(?:td|th|li|code)[^>]*>(.*?)</(?:td|th|li|code)>', content, flags=re.IGNORECASE | re.DOTALL)
+            if cell_matches:
+                for cell in cell_matches:
+                    clean_cell = html.unescape(re.sub(r'<[^>]+>', '', cell)).strip()
+                    for token in re.split(r'\s+|(?:\s*->\s*)|(?:\s*=\s*)|[,;:]', clean_cell):
+                        cleaned = token.strip('\'"()[]{}<>`.,;:')
+                        if cleaned and all(ord(c) < 128 for c in cleaned):
+                            if cleaned.lower() not in ('typo', 'correction', 'word', 'correct', 'left', 'right'):
+                                words.add(cleaned.lower())
+                parsed_structured = True
+
+        # CSV format
+        if not parsed_structured and ext == '.csv':
+            try:
+                reader = csv.reader(content.splitlines())
+                first_row = True
+                for row in reader:
+                    if first_row:
+                        first_row = False
+                        row_lower = [c.strip().lower() for c in row]
+                        if any(h in row_lower for h in ('typo', 'correction', 'word 1', 'word 2', 'left', 'right', 'before', 'after', 'key', 'val', 'value')):
+                            continue
+                    for cell in row:
+                        for token in re.split(r'\s+|(?:\s*->\s*)|(?:\s*=\s*)|[,;:]', cell):
+                            cleaned = token.strip('\'"()[]{}<>`.,;:')
+                            if cleaned and all(ord(c) < 128 for c in cleaned):
+                                words.add(cleaned.lower())
+                parsed_structured = True
+            except Exception:
+                pass
+
+        # Markdown format or plain text fallback
+        if not parsed_structured:
+            for line in content.splitlines():
+                line_str = line.strip()
+                if not line_str or line_str.startswith('#'):
+                    continue
+
+                if line_str.startswith('|') and line_str.count('|') >= 2:
+                    cells = [c.strip() for c in line_str.split('|') if c.strip()]
+                    if all(re.match(r'^:?-+:?$', c) for c in cells):
+                        continue
+                    for cell in cells:
+                        for token in re.split(r'\s+|(?:\s*->\s*)|(?:\s*=\s*)|[,;:]', cell):
+                            cleaned = token.strip('\'"()[]{}<>`.,;:`')
+                            if cleaned and all(ord(c) < 128 for c in cleaned):
+                                if cleaned.lower() not in ('typo', 'correction', 'word', 'correct'):
+                                    words.add(cleaned.lower())
+                else:
+                    clean_line = re.sub(r'^\s*[-*+]\s+', '', line_str)
+                    for token in re.split(r'\s+|(?:\s*->\s*)|(?:\s*=\s*)|[,;:]', clean_line):
+                        cleaned = token.strip('\'"()[]{}<>`.,;:')
+                        if cleaned and all(ord(c) < 128 for c in cleaned):
+                            words.add(cleaned.lower())
+
         logging.debug(f"Loaded {len(words)} unique words from '{file_path}'.")
         return words
     except FileNotFoundError:

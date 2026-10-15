@@ -2631,6 +2631,27 @@ def test_load_config_invalid_include_exclude_patterns(tmp_path):
     assert "'exclude_patterns' must be a list or string" in message
 
 
+def test_run_command_include_patterns_string_format(tmp_path):
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+
+    proj_app1 = base_dir / 'app-service'
+    proj_lib = base_dir / 'lib-core'
+    proj_app1.mkdir()
+    proj_lib.mkdir()
+
+    command = "python3 -c \"open('test_file.txt','w').write('ran')\""
+
+    cmdrunner.run_command_in_folders(
+        str(base_dir),
+        command,
+        include_patterns='app-*'
+    )
+
+    assert (proj_app1 / 'test_file.txt').exists()
+    assert not (proj_lib / 'test_file.txt').exists()
+
+
 def test_run_command_include_exclude_patterns_filtering(tmp_path):
     base_dir = tmp_path / 'projects'
     base_dir.mkdir()

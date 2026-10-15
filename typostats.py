@@ -1056,11 +1056,12 @@ def generate_report(
 
         # Generate a list of all replacements to use summary statistics
         all_replacements = [k for k, v in filtered.items() for _ in range(v)]
+        use_color_err = _should_enable_color(sys.stderr)
         summary_lines = _format_analysis_summary(
             total_typos,
             all_replacements,
             item_label="pattern",
-            use_color=use_color,
+            use_color=use_color_err,
             extra_metrics=extra_metrics,
             start_time=start_time,
             total_input_items=total_pairs,
@@ -1099,18 +1100,21 @@ def generate_report(
 
         divider = f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}"
 
-        # Human-readable report should be unified.
-        # If quiet is not set, we include the summary and headers.
+        report_lines = []
         if not quiet:
-            report_lines = summary_lines[:]
+            if output_file:
+                report_lines.extend(summary_lines)
+            else:
+                sys.stderr.write("\n".join(summary_lines) + "\n")
+
             if sorted_replacements:
                 # Use colored title if possible
                 title_color = c_bold + c_blue if use_color else ""
                 reset_color = c_reset if use_color else ""
                 table_title = f"{padding}{title_color}LETTER REPLACEMENTS{reset_color}"
-                report_lines.extend(["", table_title, f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}", header_row, divider])
-        else:
-            report_lines = []
+                if report_lines:
+                    report_lines.append("")
+                report_lines.extend([table_title, f"{padding}{c_bold}{c_blue}{'─' * visible_header_len}{c_reset}", header_row, divider])
 
         if not sorted_replacements:
             no_results = f"{padding}{c_yellow}No replacements found matching the criteria.{c_reset}"

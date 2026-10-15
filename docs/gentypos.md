@@ -18,6 +18,15 @@ python gentypos.py hello --all --no-filter
 
 # Generate typos for multiple words
 python gentypos.py apple banana orange --no-filter
+
+# Add custom typo rules directly on the command line
+python gentypos.py "phrase" --add "ph:f" -k --no-filter
+
+# Sort results by the correction word instead of the typo
+python gentypos.py apple banana --sort correct --no-filter
+
+# Reverse the output sort order
+python gentypos.py apple banana --sort typo --reverse --no-filter
 ```
 
 ### 2. Process words from files or directories

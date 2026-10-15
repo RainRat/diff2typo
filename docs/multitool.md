@@ -261,7 +261,8 @@ Use these modes to transform or combine your data.
     - `union`: Combines all unique items from both files.
     - `difference`: Finds items present only in the first file.
     - `symmetric_difference`: Finds items present in either file, but not both.
-  - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation symmetric_difference`
+  - **Options:** Use `-p` (or `--pairs`) to perform set operations on key-value / typo-correction pairs instead of single items.
+  - **Example:** `python multitool.py set_operation a.txt --file2 b.txt --operation symmetric_difference -p`
 
 - **`zip`**
   - Joins two files line-by-line into a paired format.

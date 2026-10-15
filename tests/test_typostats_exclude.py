@@ -26,7 +26,7 @@ def test_main_with_single_file_exclusion(tmp_path):
     f2 = tmp_path / "f2.txt"
     f2.write_text("c -> d\n", encoding="utf-8")
 
-    with patch('sys.argv', ['typostats.py', str(f1), str(f2), '--exclude', '*f2*']), \
+    with patch('sys.argv', ['typostats.py', str(f1), str(f2), '--exclude', 'f2.txt']), \
          patch('typostats.generate_report') as mock_report:
         typostats.main()
         assert mock_report.call_args[1]['total_pairs'] == 1

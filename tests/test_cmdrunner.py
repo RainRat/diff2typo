@@ -416,7 +416,8 @@ def test_minimal_formatter_warning_no_tty():
         assert formatter.format(record) == "WARNING: warning message"
 
 def test_minimal_formatter_error_with_tty():
-    with patch("cmdrunner.RED", "\033[31m"), patch("cmdrunner.RESET", "\033[0m"):
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True), \
+         patch("cmdrunner.RED", "\033[31m"), patch("cmdrunner.RESET", "\033[0m"):
         # Patch the class attribute
         with patch.dict(MinimalFormatter.LEVEL_COLORS, {logging.ERROR: "\033[31m"}):
             formatter = MinimalFormatter()

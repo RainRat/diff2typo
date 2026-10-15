@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import runpy
 from pathlib import Path
@@ -9,7 +10,8 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 import gentypos
 
 def test_minimal_formatter_colorization():
-    with patch("sys.stderr.isatty", return_value=True), \
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True), \
+         patch("sys.stderr.isatty", return_value=True), \
          patch("gentypos.RESET", "\033[0m"), \
          patch.dict(gentypos.MinimalFormatter.LEVEL_COLORS, {logging.WARNING: "\033[33m"}):
         formatter = gentypos.MinimalFormatter()

@@ -1,5 +1,6 @@
 import json
 import csv
+import os
 import sys
 import logging
 import io
@@ -448,7 +449,8 @@ def test_minimal_formatter():
 def test_minimal_formatter_color_full():
     formatter = typostats.MinimalFormatter()
     record = logging.LogRecord('n', logging.WARNING, 'p', 1, 'msg', None, None)
-    with patch('typostats.sys.stderr.isatty', return_value=True), \
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True), \
+         patch('typostats.sys.stderr.isatty', return_value=True), \
          patch.dict(formatter.LEVEL_COLORS, {logging.WARNING: "\033[1;33m"}), \
          patch('typostats.RESET', "\033[0m"):
         res = formatter.format(record)

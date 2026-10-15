@@ -305,6 +305,6 @@ class TestDiff2TypoMainGaps(unittest.TestCase):
             self.assertEqual(diff2typo.BLUE, "")
 
         # Reset it back
-        with patch.dict(os.environ, {}), patch('diff2typo.sys.stdout.isatty', return_value=True):
+        with patch.dict(os.environ, {}, clear=True), patch('diff2typo.sys.stdout.isatty', return_value=True):
             importlib.reload(diff2typo)
             self.assertNotEqual(diff2typo.BLUE, "")

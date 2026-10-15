@@ -1,5 +1,6 @@
 import json
 import io
+import os
 from unittest.mock import MagicMock, patch
 import pytest
 from pathlib import Path
@@ -108,7 +109,8 @@ def test_diff_color_output(tmp_path):
     file2.write_text("banana\n")
 
     # Mock sys.stdout.isatty to True to force colors
-    with patch("sys.stdout.isatty", return_value=True):
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True), \
+         patch("sys.stdout.isatty", return_value=True):
         # We also need to ensure RED/GREEN constants are set
         with patch("multitool.RED", "\033[1;31m"), \
              patch("multitool.GREEN", "\033[1;32m"), \

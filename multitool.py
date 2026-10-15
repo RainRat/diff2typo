@@ -2510,6 +2510,41 @@ def convert_mode(
     )
 
 
+def _parse_value_type(val_str: str) -> Any:
+    """Helper to parse string values into native Python types (bool, None, int, float, dict/list)."""
+    s = val_str.strip()
+    s_lower = s.lower()
+    if s_lower == 'true':
+        return True
+    if s_lower == 'false':
+        return False
+    if s_lower in ('null', 'none'):
+        return None
+
+    # Try integer
+    try:
+        return int(s)
+    except ValueError:
+        pass
+
+    # Try float
+    try:
+        val_float = float(s)
+        if not (val_float != val_float or val_float == float('inf') or val_float == float('-inf')):
+            return val_float
+    except ValueError:
+        pass
+
+    # Try JSON (arrays / objects)
+    if (s.startswith('{') and s.endswith('}')) or (s.startswith('[') and s.endswith(']')):
+        try:
+            return json.loads(s)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    return val_str
+
+
 def unflatten_mode(
     input_files: Sequence[str],
     output_file: str,
@@ -2521,6 +2556,7 @@ def unflatten_mode(
     quiet: bool = False,
     clean_items: bool = True,
     limit: int | None = None,
+    parse_types: bool = False,
 ) -> None:
     """
     Reconstructs nested structures from dot-separated key.path = value pairs.
@@ -2549,6 +2585,11 @@ def unflatten_mode(
         if not (min_length <= len(v_processed) <= max_length):
             continue
 
+        if parse_types and isinstance(v_processed, str):
+            v_final = _parse_value_type(v_processed)
+        else:
+            v_final = v_processed
+
         filtered_paths.append(orig_p)
         parts = p.split('.')
         curr = root
@@ -2557,7 +2598,7 @@ def unflatten_mode(
                 curr[part] = {}
             curr = curr[part]
 
-        curr[parts[-1]] = v_processed
+        curr[parts[-1]] = v_final
 
     def dict_to_lists(d):
         if not isinstance(d, dict):
@@ -8105,9 +8146,9 @@ MODE_DETAILS = {
     },
     "unflatten": {
         "summary": "Reconstructs nested structures",
-        "description": "Transforms dot-separated 'key.path = value' pairs back into nested JSON, YAML, or TOML structures. It automatically converts numeric path segments into lists if they form a continuous sequence.",
-        "example": "python multitool.py unflatten data.txt --output-format json",
-        "flags": "[FILES...] [-k KEY]",
+        "description": "Transforms dot-separated 'key.path = value' pairs back into nested JSON, YAML, or TOML structures. It automatically converts numeric path segments into lists if they form a continuous sequence. Use --parse-types to parse primitives (booleans, numbers, nulls, JSON arrays/objects) from string values.",
+        "example": "python multitool.py unflatten data.txt --parse-types --output-format json",
+        "flags": "[FILES...] [-k KEY] [--parse-types]",
     },
     "convert": {
         "summary": "Convert between data formats",
@@ -9225,6 +9266,12 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         default='',
         help="The key path to unflatten under (for example 'users'). Only paths starting with this key will be processed, and the prefix will be removed.",
+    )
+    unflatten_options.add_argument(
+        '--parse-types', '--typed',
+        dest='parse_types',
+        action='store_true',
+        help="Automatically convert string values to native primitives (booleans, numbers, nulls, and JSON structures).",
     )
     _add_common_mode_arguments(unflatten_parser)
 
@@ -10811,6 +10858,7 @@ def main() -> None:
                 **common_kwargs,
                 'key': getattr(args, 'key', ''),
                 'output_format': output_format,
+                'parse_types': getattr(args, 'parse_types', False),
             },
         ),
         'toc': (
@@ -10857,6 +10905,7 @@ def main() -> None:
                 **common_kwargs,
                 'key': getattr(args, 'key', ''),
                 'output_format': output_format,
+                'parse_types': getattr(args, 'parse_types', False),
             },
         ),
         'shuffle': (

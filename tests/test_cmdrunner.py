@@ -2388,6 +2388,31 @@ def test_main_with_max_count_cli_flags(tmp_path, monkeypatch):
     assert (base_dir / "proj1" / "out_limit.txt").exists()
     assert not (base_dir / "proj2" / "out_limit.txt").exists()
 
+    # Test -l short flag alias
+    command_l = "python3 -c \"open('out_l.txt','w').write('ok')\""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command_l, "-l", "2"]
+    )
+    cmdrunner.main()
+
+    assert (base_dir / "proj1" / "out_l.txt").exists()
+    assert (base_dir / "proj2" / "out_l.txt").exists()
+    assert not (base_dir / "proj3" / "out_l.txt").exists()
+
+    # Test -L short flag alias
+    command_L = "python3 -c \"open('out_L.txt','w').write('ok')\""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cmdrunner.py", "-m", str(base_dir), "-c", command_L, "-L", "1"]
+    )
+    cmdrunner.main()
+
+    assert (base_dir / "proj1" / "out_L.txt").exists()
+    assert not (base_dir / "proj2" / "out_L.txt").exists()
+
 
 def test_main_with_max_count_config(tmp_path, monkeypatch):
     base_dir = tmp_path / "projects"

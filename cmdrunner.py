@@ -773,7 +773,7 @@ def parse_arguments() -> argparse.Namespace:
         help='Run commands concurrently using this many jobs.'
     )
     options_group.add_argument(
-        '-M', '--max-count', '--limit',
+        '-M', '-l', '-L', '--max-count', '--limit',
         dest='max_count',
         type=int,
         help='Cap the maximum number of folders to process.'

@@ -7953,6 +7953,7 @@ def set_operation_mode(
     max_length: int,
     process_output: bool,
     operation: str,
+    pairs: bool = False,
     output_format: str = 'line',
     quiet: bool = False,
     clean_items: bool = True,
@@ -7965,6 +7966,68 @@ def set_operation_mode(
         raise ValueError(
             f"Invalid operation '{operation}'. Must be one of: {', '.join(sorted(allowed_operations))}."
         )
+
+    if pairs:
+        raw_pairs_a = list(_extract_pairs(input_files, quiet=quiet))
+        raw_item_count_a = len(raw_pairs_a)
+
+        filtered_a = []
+        for left, right in raw_pairs_a:
+            left_clean = filter_to_letters(left) if clean_items else left
+            right_clean = filter_to_letters(right) if clean_items else right
+            if min_length <= len(left_clean) <= max_length and min_length <= len(right_clean) <= max_length:
+                filtered_a.append((left_clean, right_clean))
+
+        unique_a = list(dict.fromkeys(filtered_a))
+
+        raw_pairs_b = list(_extract_pairs([file2], quiet=quiet))
+        raw_item_count_b = len(raw_pairs_b)
+
+        filtered_b = []
+        for left, right in raw_pairs_b:
+            left_clean = filter_to_letters(left) if clean_items else left
+            right_clean = filter_to_letters(right) if clean_items else right
+            if min_length <= len(left_clean) <= max_length and min_length <= len(right_clean) <= max_length:
+                filtered_b.append((left_clean, right_clean))
+
+        unique_b = list(dict.fromkeys(filtered_b))
+        set_b = set(unique_b)
+
+        if operation == 'intersection':
+            result_pairs = [item for item in unique_a if item in set_b]
+        elif operation == 'union':
+            result_pairs = list(dict.fromkeys(unique_a + unique_b))
+        elif operation == 'difference':
+            result_pairs = [item for item in unique_a if item not in set_b]
+        else:  # symmetric_difference
+            only_a = [item for item in unique_a if item not in set_b]
+            set_a = set(unique_a)
+            only_b = [item for item in unique_b if item not in set_a]
+            result_pairs = only_a + only_b
+
+        if process_output:
+            result_pairs = sorted(set(result_pairs))
+
+        _write_paired_output(
+            result_pairs,
+            output_file,
+            output_format,
+            "Set Operation",
+            quiet,
+            limit=limit,
+        )
+
+        print_processing_stats(
+            raw_item_count_a + raw_item_count_b,
+            [p[0] for p in result_pairs],
+            item_label="pair",
+            start_time=start_time,
+        )
+        logging.info(
+            f"[Set Operation Mode] Completed {operation} on pairs between {len(input_files)} input file(s) and "
+            f"'{file2}'. Output written to '{output_file}'."
+        )
+        return
 
     # Load and merge all input files
     raw_item_count_a = 0
@@ -8224,9 +8287,9 @@ MODE_DETAILS = {
     },
     "set_operation": {
         "summary": "Compares files using set logic",
-        "description": "Compares two files to find shared lines (intersection), all lines (union), lines unique to the first file (difference), or lines unique to either file (symmetric_difference).",
+        "description": "Compares two files to find shared lines (intersection), all lines (union), lines unique to the first file (difference), or lines unique to either file (symmetric_difference). Use -p/--pairs to perform set operations on key-value pairs.",
         "example": "python multitool.py set_operation fileA.txt fileB.txt --operation difference --output unique.txt",
-        "flags": "[FILES...] FILE2 --operation OP",
+        "flags": "[FILES...] FILE2 --operation OP [-p]",
     },
     "sample": {
         "summary": "Picks a random set of lines",
@@ -9847,6 +9910,11 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         help='Set operation to perform between the two files.',
     )
+    set_options.add_argument(
+        '-p', '--pairs',
+        action='store_true',
+        help='Perform set operation on word pairs (for example, typo -> correction) instead of single items.',
+    )
     _add_common_mode_arguments(set_parser)
 
     sample_parser = subparsers.add_parser(
@@ -11145,6 +11213,7 @@ def main() -> None:
                 **common_kwargs,
                 'file2': file2,
                 'operation': operation,
+                'pairs': getattr(args, 'pairs', False),
                 'output_format': output_format,
             },
         ),

@@ -587,15 +587,18 @@ def _partition_typos(typos: Iterable[str]) -> Tuple[List[Tuple[str, str]], List[
     return typo_pairs, single_items
 
 
-def _render_html_table(items: Iterable[str]) -> List[str]:
-    """Render a sequence of typo strings into HTML table elements."""
+def _render_html_table(items: Iterable[Any]) -> List[str]:
+    """Render a sequence of typo strings or (before, after) tuples into HTML table elements."""
     lines = ["<table><thead><tr><th>Typo</th><th>Correction</th></tr></thead><tbody>"]
     for item in items:
-        if ' -> ' in item:
+        if isinstance(item, tuple) and len(item) == 2:
+            b, a = item
+            lines.append(f"<tr><td><code>{html.escape(b)}</code></td><td><code>{html.escape(a)}</code></td></tr>")
+        elif isinstance(item, str) and ' -> ' in item:
             b, a = item.split(' -> ', 1)
             lines.append(f"<tr><td><code>{html.escape(b)}</code></td><td><code>{html.escape(a)}</code></td></tr>")
         else:
-            lines.append(f"<tr><td colspan=\"2\"><code>{html.escape(filter_to_letters(item))}</code></td></tr>")
+            lines.append(f"<tr><td colspan=\"2\"><code>{html.escape(filter_to_letters(str(item)))}</code></td></tr>")
     lines.append("</tbody></table>")
     return lines
 
@@ -645,14 +648,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
         typo_pairs, single_items = _partition_typos(typos)
 
         if typo_pairs:
-            formatted.append("<table>")
-            formatted.append("<thead><tr><th>Typo</th><th>Correction</th></tr></thead>")
-            formatted.append("<tbody>")
-            for before, after in typo_pairs:
-                b_esc = html.escape(before)
-                a_esc = html.escape(after)
-                formatted.append(f"<tr><td><code>{b_esc}</code></td><td><code>{a_esc}</code></td></tr>")
-            formatted.append("</tbody></table>")
+            formatted.extend(_render_html_table(typo_pairs))
 
         if single_items:
             formatted.append("<ul>")

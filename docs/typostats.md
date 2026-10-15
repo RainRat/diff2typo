@@ -55,6 +55,7 @@ The tool automatically recognizes several common ways of listing typos:
 ### Input & Output Options
 - `-C`, `--config`: Path to a YAML configuration file (e.g. `typostats.yaml`). If not provided, `typostats.yaml` in the current directory is loaded automatically if present.
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`typostats.yaml` by default, or at a specified path) and exit.
+- `-F`, `--force`: Force overwrite of existing configuration file when generating template config via `--init-config`.
 - `-i`, `--input`: One or more input files or patterns containing typo corrections.
 - `-f`, `--format`: Choose the output format:
   - `arrow` (Default): Easy to read.

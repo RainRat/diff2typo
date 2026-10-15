@@ -128,7 +128,7 @@ python cmdrunner.py --init-config
 python multitool.py --init-config
 ```
 
-Running these commands creates a starter configuration file (for example, `gentypos.yaml`) with documented options and default settings.
+Running these commands creates a starter configuration file (for example, `gentypos.yaml`) with documented options and default settings. If a configuration file already exists, pass `-F` or `--force` to force-overwrite it.
 
 ## 🧪 Running Tests
 

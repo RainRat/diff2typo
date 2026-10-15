@@ -69,6 +69,23 @@ def test_init_config_existing_file_error(tmp_path, monkeypatch, caplog):
     assert "already exists. Aborting to prevent overwriting." in caplog.text
 
 
+def test_init_config_existing_file_force_overwrite(tmp_path, monkeypatch, caplog):
+    monkeypatch.chdir(tmp_path)
+    existing_file = tmp_path / "typostats.yaml"
+    existing_file.write_text("existing content", encoding="utf-8")
+
+    monkeypatch.setattr("sys.argv", ["typostats.py", "--init-config", "-F"])
+
+    with caplog.at_level(logging.INFO):
+        with pytest.raises(SystemExit) as exc_info:
+            typostats.main()
+
+    assert exc_info.value.code == 0
+    content = existing_file.read_text(encoding="utf-8")
+    assert "typostats.yaml - Configuration file for typostats.py" in content
+    assert "existing content" not in content
+
+
 def test_init_config_write_error(tmp_path, monkeypatch, caplog):
     monkeypatch.chdir(tmp_path)
 

@@ -64,6 +64,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--config`, `-C`, `-c` | `gentypos.yaml` | The path to your YAML configuration file. |
 | `--deletion`, `--deletions`, `-D` | Off | Generate deletions (skipping a letter, e.g., 'word' becomes 'wrd'). |
 | `--init-config`, `--generate-config` | Off | Generate a sample template YAML configuration file (default: `gentypos.yaml`) and exit. |
+| `-F`, `--force` | Off | Force overwrite of existing configuration file when generating template config via `--init-config`. |
 | `--dry-run`, `-n` | Off | Show configuration details and a sample preview of typo generation without writing files. |
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
 | `--duplication`, `--duplications`, `-u` | Off | Generate duplications (typing a letter twice, e.g., 'word' becomes 'woord'). |

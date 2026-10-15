@@ -69,3 +69,19 @@ def test_init_config_existing_file_error(tmp_path, monkeypatch, caplog):
 
     assert exc_info.value.code == 1
     assert "already exists" in caplog.text
+
+
+def test_init_config_existing_file_force_overwrite(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    existing_file = tmp_path / "gentypos.yaml"
+    existing_file.write_text("existing_content: true\n", encoding="utf-8")
+
+    test_args = ["gentypos.py", "--init-config", "-F"]
+    with patch.object(sys, "argv", test_args):
+        with pytest.raises(SystemExit) as exc_info:
+            gentypos.main()
+
+    assert exc_info.value.code == 0
+    content = existing_file.read_text(encoding="utf-8")
+    assert "input_file" in content
+    assert "existing_content" not in content

@@ -458,6 +458,7 @@ Use these modes to analyze your data.
 These options work with most modes:
 
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`multitool.yaml` by default) and exit.
+- `-F`, `--force`: Force overwrite of existing configuration file when generating template config via `--init-config`.
 - `--version`: Display program version number and exit.
 - `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input** if not provided.
 - `--output` (or **`-o`**): The file to write results to. Defaults to printing to the screen.

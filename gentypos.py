@@ -1880,7 +1880,7 @@ def main() -> None:
             )
             sys.stderr.write("\n".join(summary))
 
-            dest_label = "the screen" if output_target == "-" else f"'{output_target}'"
+            dest_label = "standard output" if output_target == "-" else f"'{output_target}'"
             c_blue = (_BOLD + _BLUE) if use_color else ""
             c_reset = _RESET if use_color else ""
             logging.info(f"{c_blue}[gentypos]{c_reset} Wrote {len(formatted_typos)} line(s) to {dest_label}.\n")

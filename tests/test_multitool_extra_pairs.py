@@ -73,6 +73,7 @@ def test_scan_extra(tmp_path, monkeypatch):
     monkeypatch.setattr(multitool, "CYAN", "[Cy]")
     monkeypatch.setattr(multitool, "GREEN", "[G]")
     monkeypatch.setattr(multitool, "MAGENTA", "[M]")
+    monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setenv("FORCE_COLOR", "1")
 
     # Scan with line numbers and extra

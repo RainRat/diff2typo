@@ -8,7 +8,7 @@ def test_should_enable_color_env_vars():
     with patch.dict(os.environ, {"NO_COLOR": "1"}):
         assert diff2typo._should_enable_color(sys.stderr) is False
 
-    with patch.dict(os.environ, {"FORCE_COLOR": "1"}):
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True):
         assert diff2typo._should_enable_color(sys.stderr) is True
 
 def test_render_visual_bar():

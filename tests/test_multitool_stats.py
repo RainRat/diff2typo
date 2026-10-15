@@ -126,6 +126,7 @@ def test_stats_mode_human_readable_tty(tmp_path, monkeypatch):
     monkeypatch.setattr(multitool, "GREEN", "\033[1;32m")
     monkeypatch.setattr(multitool, "YELLOW", "\033[1;33m")
     monkeypatch.setattr(multitool, "RESET", "\033[0m")
+    monkeypatch.delenv("NO_COLOR", raising=False)
 
     # Mock isatty to True for colors
     mock_file = MagicMock()

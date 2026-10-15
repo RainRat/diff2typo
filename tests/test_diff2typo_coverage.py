@@ -1,4 +1,5 @@
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -30,7 +31,8 @@ def test_minimal_formatter_error_tty():
 
     formatter = TestFormatter()
     record = logging.LogRecord("name", logging.ERROR, "path", 10, "Error message", None, None)
-    with patch("sys.stderr.isatty", return_value=True), \
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True), \
+         patch("sys.stderr.isatty", return_value=True), \
          patch("diff2typo.RESET", "\033[0m"):
         formatted = formatter.format(record)
         assert "\033[1;31mERROR\033[0m" in formatted

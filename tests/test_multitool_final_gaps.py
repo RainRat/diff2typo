@@ -93,7 +93,7 @@ def test_minimal_formatter_colorized_branch():
     )
 
     # Force YELLOW/RED/RESET to be colored to simulate color-capable environment
-    with patch.dict("os.environ", {"FORCE_COLOR": "1"}), \
+    with patch.dict("os.environ", {"FORCE_COLOR": "1"}, clear=True), \
          patch("multitool.YELLOW", "\033[1;33m"), \
          patch("multitool.RED", "\033[1;31m"), \
          patch("multitool.RESET", "\033[0m"):

@@ -27,7 +27,7 @@ def test_search_fuzzy_highlighting(tmp_path):
     output_file = tmp_path / "out.txt"
 
     # We need to simulate a terminal or FORCE_COLOR to get highlighting
-    with patch.dict(os.environ, {"FORCE_COLOR": "1"}):
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True):
         # We need to re-import or somehow ensure YELLOW is not empty.
         # In search_mode, use_color = bool(YELLOW).
         # Since YELLOW is a global, it's determined at import time.
@@ -64,7 +64,7 @@ def test_search_multi_word_highlighting(tmp_path):
         multitool.YELLOW = "\033[1;33m"
         multitool.RESET = "\033[0m"
 
-    with patch.dict(os.environ, {"FORCE_COLOR": "1"}):
+    with patch.dict(os.environ, {"FORCE_COLOR": "1"}, clear=True):
         search_mode(
             input_files=[str(input_file)],
             query="quick brown",

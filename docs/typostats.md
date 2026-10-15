@@ -44,7 +44,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-s`, `--sort`: How to sort the results. Choose `count` (most frequent first), `typo` (alphabetical by typo), or `correct` (alphabetical by correction).
 - `-r`, `--reverse`: Reverse the sort order (e.g. show lowest counts first or reverse alphabetical sorting).
 - `-a`, `--all`: Enable all analysis features at once. This is the default if no other analysis options are chosen.
-- `-L`, `--limit`: Only show the top N results.
+- `-l`, `-L`, `--limit`: Only show the top N results.
 - `-2`, `--allow-two-char`: Look for cases where you typed two letters instead of one (like `rn` instead of `m`) or one instead of two (like `f` instead of `ph`).
 - `-1`, `--1to2`: Specifically look for cases where you typed two letters instead of one (like `rn` instead of `m`).
 - `--2to1`: Specifically look for cases where you typed one letter instead of two (like `f` instead of `ph`).

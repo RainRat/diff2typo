@@ -1436,6 +1436,7 @@ def main() -> None:
         help="Find cases where you hit a key next to the correct one on your keyboard (like 'p' instead of 'o').",
     )
     analysis_group.add_argument(
+        '-l',
         '-L',
         '--limit',
         type=int,

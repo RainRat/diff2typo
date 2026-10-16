@@ -1709,7 +1709,14 @@ def main() -> None:
 
     if sys.stdin.isatty() and not cli_words:
         resolved_input = config.get('input_file')
-        if not resolved_input or (resolved_input != '-' and not os.path.exists(resolved_input)):
+        if isinstance(resolved_input, list):
+            input_exists = any(p == '-' or os.path.exists(p) for p in resolved_input)
+        elif isinstance(resolved_input, str):
+            input_exists = resolved_input == '-' or os.path.exists(resolved_input)
+        else:
+            input_exists = False
+
+        if not input_exists:
             logging.error(
                 "No input words or valid input file provided.\n"
                 "Please specify words as arguments, pipe them to stdin, or provide a valid input file.\n\n"

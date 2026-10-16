@@ -62,3 +62,18 @@ def test_gentypos_interactive_missing_input_exits_gracefully(caplog, monkeypatch
     assert excinfo.value.code == 1
     # Check that our user-friendly error is in logs
     assert any("No input words or valid input file provided" in record.message for record in caplog.records)
+
+
+def test_gentypos_interactive_list_input_file_missing_exits_gracefully(caplog, monkeypatch):
+    monkeypatch.setattr(gentypos, "parse_yaml_config", lambda path: {"input_file": ["nonexistent_a.txt", "nonexistent_b.txt"]})
+    monkeypatch.setattr(os.path, "exists", lambda path: False)
+
+    test_args = ["gentypos.py"]
+
+    with patch("sys.stdin.isatty", return_value=True), \
+         patch("sys.argv", test_args), \
+         pytest.raises(SystemExit) as excinfo:
+        gentypos.main()
+
+    assert excinfo.value.code == 1
+    assert any("No input words or valid input file provided" in record.message for record in caplog.records)

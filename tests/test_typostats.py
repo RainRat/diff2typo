@@ -1657,3 +1657,30 @@ def test_typostats_limit_short_flag_l(monkeypatch, tmp_path, capsys):
     # CSV header + 1 row
     assert len(lines) == 2
     assert lines[0] == "typo,correction,count"
+
+
+def test_main_input_glob_expansion(tmp_path, monkeypatch):
+    """Verify that input glob patterns expand correctly in typostats main()."""
+    dir1 = tmp_path / "logs"
+    dir1.mkdir()
+    f1 = dir1 / "log1.txt"
+    f1.write_text("teh -> the\n", encoding="utf-8")
+    f2 = dir1 / "log2.txt"
+    f2.write_text("wrod -> word\n", encoding="utf-8")
+
+    out_file = tmp_path / "report.csv"
+    glob_pattern = str(dir1 / "*.txt")
+
+    test_args = [
+        "typostats.py",
+        "-i", glob_pattern,
+        "-o", str(out_file),
+        "-f", "csv",
+        "-a"
+    ]
+    monkeypatch.setattr("sys.argv", test_args)
+    typostats.main()
+
+    assert out_file.exists()
+    content = out_file.read_text(encoding="utf-8")
+    assert "eh,he,1" in content or "ro,or,1" in content

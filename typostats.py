@@ -26,6 +26,7 @@ import csv
 import html
 import io
 import os
+import glob
 import re
 import time
 import fnmatch
@@ -1329,7 +1330,7 @@ def main() -> None:
     io_group.add_argument(
         'input_files',
         nargs='*',
-        help="One or more files containing typo corrections (txt, csv, json, yaml, toml, md). If empty, it reads from standard input.",
+        help="One or more files, directories, or glob patterns containing typo corrections (txt, csv, json, yaml, toml, md). If empty, it reads from standard input.",
     )
     io_group.add_argument(
         '-C', '--config',
@@ -1357,7 +1358,7 @@ def main() -> None:
         nargs='+',
         metavar='FILE',
         default=None,
-        help="One or more input files or patterns containing typo corrections.",
+        help="One or more input files, directories, or glob patterns containing typo corrections.",
     )
     io_group.add_argument('-o', '--output', help="Save the report to this file instead of printing it.")
     io_group.add_argument(
@@ -1618,23 +1619,31 @@ def main() -> None:
     }
     supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.toml', '.html', '.htm'}
 
-    for file_path in input_files:
-        if file_path == '-':
+    for path in input_files:
+        if path == '-':
             expanded_files.append('-')
-        elif os.path.isdir(file_path):
-            for root, dirs, files in os.walk(file_path):
-                # Prune ignored directories in-place to avoid walking into them
-                dirs[:] = [d for d in dirs if d not in ignored_dirs]
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    if _is_file_excluded(full_path, exclude_patterns, include_patterns):
-                        continue
-                    ext = os.path.splitext(file)[1].lower()
-                    if ext in supported_extensions:
-                        expanded_files.append(full_path)
-        else:
-            if not _is_file_excluded(file_path, exclude_patterns, include_patterns):
-                expanded_files.append(file_path)
+            continue
+
+        # Handle glob expansion for patterns containing wildcards or matching files
+        matches = glob.glob(path) if any(c in path for c in '*?[]') else [path]
+        if not matches and not os.path.exists(path):
+            matches = [path]
+
+        for file_path in matches:
+            if os.path.isdir(file_path):
+                for root, dirs, files in os.walk(file_path):
+                    # Prune ignored directories in-place to avoid walking into them
+                    dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        if _is_file_excluded(full_path, exclude_patterns, include_patterns):
+                            continue
+                        ext = os.path.splitext(file)[1].lower()
+                        if ext in supported_extensions:
+                            expanded_files.append(full_path)
+            else:
+                if not _is_file_excluded(file_path, exclude_patterns, include_patterns):
+                    expanded_files.append(file_path)
 
     input_files = expanded_files
 

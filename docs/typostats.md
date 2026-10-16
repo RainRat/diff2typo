@@ -13,6 +13,9 @@ python typostats.py my_typos.txt
 # Read from multiple files
 python typostats.py file1.txt file2.txt
 
+# Read from glob patterns
+python typostats.py "logs/*.txt" "data_*.csv"
+
 # Read from a directory recursively
 # This scans all supported files (.txt, .csv, .json, .yaml, .yml, .toml, .md) under the directory,
 # while ignoring common development and environment folders (like .git, node_modules, .venv).
@@ -56,7 +59,7 @@ The tool automatically recognizes several common ways of listing typos:
 - `-C`, `--config`: Path to a YAML configuration file (e.g. `typostats.yaml`). If not provided, `typostats.yaml` in the current directory is loaded automatically if present.
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`typostats.yaml` by default, or at a specified path) and exit.
 - `-F`, `--force`: Force overwrite of existing configuration file when generating template config via `--init-config`.
-- `-i`, `--input`: One or more input files or patterns containing typo corrections.
+- `-i`, `--input`: One or more input files, directories, or glob patterns containing typo corrections.
 - `-f`, `--format`: Choose the output format:
   - `arrow` (Default): Easy to read.
   - `csv`: Standard comma-separated values.

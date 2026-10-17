@@ -1657,3 +1657,14 @@ def test_typostats_limit_short_flag_l(monkeypatch, tmp_path, capsys):
     # CSV header + 1 row
     assert len(lines) == 2
     assert lines[0] == "typo,correction,count"
+
+
+def test_typostats_sort_uppercase_short_flag_S(monkeypatch, tmp_path):
+    """Verify that -S works identically to -s/--sort in typostats CLI."""
+    sample_file = tmp_path / "typos.txt"
+    sample_file.write_text("teh -> the\n", encoding="utf-8")
+
+    with patch("sys.argv", ["typostats.py", str(sample_file), "-S", "typo", "-q"]), \
+         patch("typostats.generate_report") as mock_report:
+        typostats.main()
+        assert mock_report.call_args[1]["sort_by"] == "typo"

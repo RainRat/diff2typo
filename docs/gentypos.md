@@ -27,6 +27,9 @@ python gentypos.py apple banana --sort correct --no-filter
 
 # Reverse the output sort order
 python gentypos.py apple banana --sort typo --reverse --no-filter
+
+# Generate complex typos by stacking multiple modifications
+python gentypos.py hello --repeat 2 --no-filter
 ```
 
 ### 2. Process words from files or directories

@@ -26,6 +26,7 @@ import argparse
 import csv
 import glob
 import difflib
+import functools
 from collections import Counter, defaultdict, deque
 import random
 import contextlib
@@ -2459,10 +2460,8 @@ def xml_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for getting fields from XML files."""
-    def extractor(f, quiet=False):
-        return _extract_xml_items(f, key, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_xml_items, key_path=key),
         input_files,
         output_file,
         min_length,

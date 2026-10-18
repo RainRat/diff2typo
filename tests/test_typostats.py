@@ -1657,3 +1657,21 @@ def test_typostats_limit_short_flag_l(monkeypatch, tmp_path, capsys):
     # CSV header + 1 row
     assert len(lines) == 2
     assert lines[0] == "typo,correction,count"
+
+
+def test_typostats_uppercase_s_sort_flag(monkeypatch, tmp_path, capsys):
+    """Verify that -S works as an uppercase short flag alias for --sort."""
+    sample_file = tmp_path / "typos.txt"
+    sample_file.write_text("b -> a\na -> b\n", encoding="utf-8")
+
+    # Sort by typo alphabetically using -S typo
+    test_args = ["typostats.py", str(sample_file), "-S", "typo", "-f", "csv", "-q"]
+    monkeypatch.setattr("sys.argv", test_args)
+
+    typostats.main()
+
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    assert lines[0] == "typo,correction,count"
+    assert lines[1] == "a,b,1"
+    assert lines[2] == "b,a,1"

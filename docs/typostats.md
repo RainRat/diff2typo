@@ -176,6 +176,11 @@ python typostats.py my_data.txt -o report.html
 python typostats.py my_data.txt --keyboard
 ```
 
+**Sort analysis results alphabetically by typo or correction:**
+```bash
+python typostats.py my_data.txt --sort typo
+```
+
 **Generate a sample template YAML configuration file:**
 ```bash
 python typostats.py --init-config

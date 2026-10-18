@@ -8,7 +8,7 @@ Features:
     - Parses typo mappings from arrow formats, CSV, JSON, YAML, TOML, Markdown, and HTML.
     - Classifies letter replacement patterns (nearby key, transposition, 1-to-2, 2-to-1, deletion, insertion).
     - Generates visual summary dashboards with character replacement breakdown tables.
-    - Exports reports in arrow text, CSV, JSON, YAML, TOML, Markdown, or HTML formats.
+    - Exports reports in arrow text, CSV, JSON, YAML, TOML, Markdown, HTML, or XML formats.
     - Integrates with gentypos.py for custom typo pattern generation.
 
 Usage:
@@ -29,6 +29,8 @@ import os
 import re
 import time
 import fnmatch
+import xml.etree.ElementTree as ET
+import xml.dom.minidom
 from typing import Any, Iterable, List, Mapping, Sequence, Tuple
 
 VERSION = "1.1.0"
@@ -152,6 +154,7 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
         'markdown': 'markdown',
         'html': 'html',
         'htm': 'html',
+        'xml': 'xml',
     }
 
     detected = mapping.get(ext)
@@ -649,6 +652,45 @@ def _extract_pairs(input_files: Sequence[str], quiet: bool = False) -> Iterable[
                     yield from _traverse_toml_data(data)
                 except Exception as e:
                     logging.error(f"Failed to parse TOML in '{input_file}': {e}")
+            continue
+
+        if ext.endswith('.xml'):
+            content = "".join(_read_file_lines_robust(input_file))
+            if content.strip():
+                try:
+                    root = ET.fromstring(content)
+                    for elem in root.findall('.//*'):
+                        left = elem.find('left')
+                        right = elem.find('right')
+                        if left is not None and right is not None:
+                            c1 = (left.text or '').strip()
+                            c2 = (right.text or '').strip()
+                            if c1 and c2:
+                                yield c1, c2
+                            continue
+                        typo = elem.find('typo')
+                        correct = elem.find('correct')
+                        if correct is None:
+                            correct = elem.find('correction')
+                        if typo is not None and correct is not None:
+                            c1 = (typo.text or '').strip()
+                            c2 = (correct.text or '').strip()
+                            if c1 and c2:
+                                yield c1, c2
+                            continue
+                        if elem.attrib:
+                            if 'typo' in elem.attrib and ('correct' in elem.attrib or 'correction' in elem.attrib):
+                                c1 = elem.attrib['typo'].strip()
+                                c2 = elem.attrib.get('correct', elem.attrib.get('correction', '')).strip()
+                                if c1 and c2:
+                                    yield c1, c2
+                            elif 'left' in elem.attrib and 'right' in elem.attrib:
+                                c1 = elem.attrib['left'].strip()
+                                c2 = elem.attrib['right'].strip()
+                                if c1 and c2:
+                                    yield c1, c2
+                except Exception as e:
+                    logging.error(f"Failed to parse XML in '{input_file}': {e}")
             continue
 
         if ext.endswith('.html') or ext.endswith('.htm'):
@@ -1174,6 +1216,34 @@ def generate_report(
         for (correct_char, typo_char), count in sorted_replacements:
             lines.append(f"| {typo_char} | {correct_char} | {count} |")
         report_content = "\n".join(lines)
+    elif output_format == 'xml':
+        adjacent_map = {}
+        if keyboard:
+            adjacent_map = get_adjacent_keys(include_diagonals=True)
+
+        root = ET.Element("typostats")
+        summary_elem = ET.SubElement(root, "summary")
+        ET.SubElement(summary_elem, "word_pairs_analyzed").text = str(total_pairs or 0)
+        ET.SubElement(summary_elem, "patterns_analyzed").text = str(total_typos)
+        ET.SubElement(summary_elem, "unique_patterns").text = str(unique_filtered)
+
+        replacements_elem = ET.SubElement(root, "replacements")
+        for (correct_char, typo_char), count in sorted_replacements:
+            percent = (count / total_typos * 100) if total_typos > 0 else 0
+            marker_text, category = _classify_replacement_attribute(
+                correct_char, typo_char, keyboard=keyboard, adjacent_map=adjacent_map
+            )
+            item_elem = ET.SubElement(replacements_elem, "item")
+            ET.SubElement(item_elem, "typo").text = str(typo_char)
+            ET.SubElement(item_elem, "correct").text = str(correct_char)
+            ET.SubElement(item_elem, "count").text = str(count)
+            ET.SubElement(item_elem, "percentage").text = f"{percent:.1f}"
+            if marker_text:
+                ET.SubElement(item_elem, "attribute").text = str(marker_text)
+
+        xml_str = ET.tostring(root, encoding='utf-8')
+        pretty_xml = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
+        report_content = pretty_xml
     elif output_format in ('html', 'htm'):
         adjacent_map = {}
         if keyboard:
@@ -1329,7 +1399,7 @@ def main() -> None:
     io_group.add_argument(
         'input_files',
         nargs='*',
-        help="One or more files containing typo corrections (txt, csv, json, yaml, toml, md). If empty, it reads from standard input.",
+        help="One or more files containing typo corrections (txt, csv, json, yaml, toml, md, xml). If empty, it reads from standard input.",
     )
     io_group.add_argument(
         '-C', '--config',
@@ -1375,7 +1445,7 @@ def main() -> None:
     io_group.add_argument(
         '-f',
         '--format',
-        choices=['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md', 'html', 'htm'],
+        choices=['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md', 'html', 'htm', 'xml'],
         metavar='FMT',
         default=None,
         help="The format of the report. If not provided, it is automatically detected from the output file extension. (default: arrow).",
@@ -1467,7 +1537,7 @@ def main() -> None:
             "# Input / Output Options\n"
             '# input_files: ["my_typos.txt"]     # One or more input files/directories containing typos\n'
             '# output: "report.txt"              # Save report to this file instead of printing\n'
-            'format: "arrow"                     # Output report format: arrow, csv, json, yaml, table, toml, markdown, md, html, htm\n'
+            'format: "arrow"                     # Output report format: arrow, csv, json, yaml, table, toml, markdown, md, html, htm, xml\n'
             "quiet: false                       # Hide progress bars and status messages\n"
             "\n"
             "# Analysis Options\n"
@@ -1580,7 +1650,7 @@ def main() -> None:
     sort_by = args.sort
     output_format = args.format
     if output_format is None:
-        allowed_formats = ['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md', 'html', 'htm']
+        allowed_formats = ['arrow', 'yaml', 'yml', 'json', 'csv', 'table', 'toml', 'markdown', 'md', 'html', 'htm', 'xml']
         output_format = _detect_format_from_extension(output_file, allowed_formats, 'arrow')
     allow_1to2 = args.allow_1to2
     allow_2to1 = args.allow_2to1
@@ -1616,7 +1686,7 @@ def main() -> None:
         '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
         '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
     }
-    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.toml', '.html', '.htm'}
+    supported_extensions = {'.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.toml', '.html', '.htm', '.xml'}
 
     for file_path in input_files:
         if file_path == '-':

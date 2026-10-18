@@ -14,7 +14,7 @@ python typostats.py my_typos.txt
 python typostats.py file1.txt file2.txt
 
 # Read from a directory recursively
-# This scans all supported files (.txt, .csv, .json, .yaml, .yml, .toml, .md) under the directory,
+# This scans all supported files (.txt, .csv, .json, .yaml, .yml, .toml, .md, .xml) under the directory,
 # while ignoring common development and environment folders (like .git, node_modules, .venv).
 python typostats.py my_typos_directory/
 
@@ -34,6 +34,7 @@ The tool automatically recognizes several common ways of listing typos:
 7. **TOML:** Supports standard key-value tables (`typo = "correction"`), nested tables, and `replacements` lists.
 8. **Markdown:** Extracts items from bulleted lists and tables.
 9. **HTML:** Extracts typo and correction pairs from HTML table rows (`<tr><td>typo</td><td>correction</td></tr>`) or embedded HTML elements.
+10. **XML:** Extracts typo and correction pairs from XML tags (`<pair>`, `<item>`, `<replacement>`) or attributes (`typo="..."`, `correct="..."`).
 
 > **Tip:** You can send the output from `diff2typo.py` directly into `typostats.py`.
 
@@ -65,6 +66,7 @@ The tool automatically recognizes several common ways of listing typos:
   - `table` / `toml`: TOML table format (`typo = "correction"`), compatible with the `typos` tool.
   - `markdown` / `md`: Markdown table format (`| Typo | Correction | Count |`).
   - `html` / `htm`: HTML document report with summary metrics and replacement tables.
+  - `xml`: Structured XML document report with summary metrics and replacement tables.
 - `-o`, `--output`: Save the report to a file instead of showing it on the screen.
 - `-e`, `--exclude`: One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from scanning.
 - `-I`, `--include`: One or more file patterns (e.g., `*.md`, `src/*`) to include in scanning (all files are scanned by default).

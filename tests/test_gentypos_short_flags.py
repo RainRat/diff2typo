@@ -173,3 +173,15 @@ def test_gentypos_input_uppercase_short_flag(tmp_path, monkeypatch, capsys):
         "banan -> banana",
     }
     assert set(lines) == expected_typos
+
+
+def test_gentypos_reverse_uppercase_short_flag(monkeypatch, capsys):
+    test_args = ["gentypos.py", "apple", "banana", "-D", "-N", "-f", "arrow", "-S", "typo", "-R", "-q"]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    gentypos.main()
+
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    typos_only = [line.split(" -> ")[0] for line in lines]
+    assert typos_only == sorted(typos_only, reverse=True)

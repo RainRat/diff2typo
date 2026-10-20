@@ -1052,7 +1052,13 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
     else:
         input_files = [input_file_val]
 
-    dictionary_file = config.get('dictionary_file')
+    dict_file_val = config.get('dictionary_file')
+    if dict_file_val is None:
+        dictionary_file = []
+    elif isinstance(dict_file_val, list):
+        dictionary_file = dict_file_val
+    else:
+        dictionary_file = [dict_file_val]
     output_file = config.get('output_file')
     output_format = config.get('output_format', 'arrow').lower()
     output_header = config.get('output_header')
@@ -1414,14 +1420,14 @@ def main() -> None:
     io_group.add_argument(
         '-d', '--dictionary',
         dest='dictionary_file',
-        type=str,
-        help="The path to a large dictionary file used to filter out real words.",
+        nargs='+',
+        help="One or more large dictionary files, directories, or glob patterns used to filter out real words.",
     )
     # Hidden alias
     parser.add_argument(
         '--dictionary-file',
         dest='dictionary_file',
-        type=str,
+        nargs='+',
         help=argparse.SUPPRESS,
     )
     # Legacy flag, suppressed from help
@@ -1641,9 +1647,11 @@ def main() -> None:
             config['input_file'] = '-'
             if not args.output:
                 config['output_file'] = '-'
-            dict_file = config.get('dictionary_file')
-            if dict_file and not os.path.exists(dict_file):
-                config['dictionary_file'] = None
+            dict_files = config.get('dictionary_file')
+            if dict_files:
+                d_list = dict_files if isinstance(dict_files, list) else [dict_files]
+                if not any(os.path.exists(f) for f in d_list if isinstance(f, str)):
+                    config['dictionary_file'] = None
 
     # Prepare defaults for this run
     # Avoid mutating global DEFAULT_CONFIG to ensure thread/process safety and testability
@@ -1762,20 +1770,26 @@ def main() -> None:
     # Load dictionary if needed
     all_words: set[str] = set()
     if settings.dictionary_file:
-        if is_cli_mode and not os.path.exists(settings.dictionary_file):
-            # In CLI mode, if the dictionary file (likely from default config) is missing,
-            # log info and skip filtering instead of exiting or emitting a warning.
+        dict_sources = settings.dictionary_file if isinstance(settings.dictionary_file, list) else [settings.dictionary_file]
+        resolved_dict_paths = _resolve_input_sources(dict_sources)
+        existing_dict_paths = [p for p in resolved_dict_paths if p == '-' or os.path.exists(p)]
+        if is_cli_mode and not existing_dict_paths:
+            dict_desc = ", ".join(dict_sources)
             logging.info(
-                "Dictionary file '%s' not found; skipping large dictionary filtering.",
-                settings.dictionary_file,
+                "Dictionary file(s) '%s' not found; skipping large dictionary filtering.",
+                dict_desc,
             )
         else:
             logging.info("Loading large dictionary...")
-            all_words = load_file(settings.dictionary_file)
+            all_words = load_words_from_sources(dict_sources)
+            if len(dict_sources) == 1:
+                dict_desc = f"'{dict_sources[0]}'"
+            else:
+                dict_desc = f"{len(dict_sources)} source(s)"
             logging.info(
-                "Loaded %d words from the large dictionary ('%s').",
+                "Loaded %d words from the large dictionary (%s).",
                 len(all_words),
-                settings.dictionary_file,
+                dict_desc,
             )
 
     adjacent_keys, custom_subs = _setup_generation_tools(settings)
@@ -1793,7 +1807,8 @@ def main() -> None:
         logging.info(f"Repeat Modifications: {settings.repeat_modifications}")
         enabled_types = [t for t, enabled in settings.typo_types.items() if enabled]
         logging.info(f"Enabled Typo Types: {', '.join(enabled_types)}")
-        logging.info(f"Large Dictionary: {settings.dictionary_file or 'None'}")
+        dict_desc = ", ".join(settings.dictionary_file) if isinstance(settings.dictionary_file, list) else (settings.dictionary_file or 'None')
+        logging.info(f"Large Dictionary: {dict_desc or 'None'}")
 
         # Sample Preview
         logging.info(f"\n{BOLD}{BLUE}Sample Typo Generation Preview:{RESET}")

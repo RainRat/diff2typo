@@ -24,6 +24,7 @@ import shutil
 import hashlib
 import argparse
 import csv
+import functools
 import glob
 import difflib
 from collections import Counter, defaultdict, deque
@@ -3520,10 +3521,8 @@ def json_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for getting fields from JSON files."""
-    def extractor(f, quiet=False):
-        return _extract_json_items(f, key, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_json_items, key_path=key),
         input_files,
         output_file,
         min_length,

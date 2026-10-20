@@ -47,6 +47,9 @@ python gentypos.py --input my_wordlists/ --output typos.txt
 
 # Process words using glob patterns
 python gentypos.py --input "data/*.txt" --output typos.txt
+
+# Filter generated typos against multiple dictionary files or directories
+python gentypos.py --input words.txt --dictionary dict1.csv dict2.txt --output typos.txt
 ```
 
 ### 3. Piping words (Standard Input)
@@ -75,7 +78,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--init-config`, `--generate-config` | Off | Generate a sample template YAML configuration file (default: `gentypos.yaml`) and exit. |
 | `-F`, `--force` | Off | Force overwrite of existing configuration file when generating template config via `--init-config`. |
 | `--dry-run`, `-n` | Off | Show configuration details and a sample preview of typo generation without writing files. |
-| `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
+| `--dictionary`, `-d` | None | One or more large dictionary files, directories, or glob patterns used to filter out real words. |
 | `--duplication`, `--duplications`, `-u` | Off | Generate duplications (typing a letter twice, e.g., 'word' becomes 'woord'). |
 | `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` / `toml` (typo = "correction"), `list` (typo), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. By default, it is automatically detected from the output file extension. |
 | `--input`, `-i`, `-I` | None | One or more input files, directories, or glob patterns containing words to process (one per line). |
@@ -103,7 +106,7 @@ The tool uses a YAML file to control how typos are generated.
 ```yaml
 # File Paths
 input_file: "words.txt"           # Small dictionary to process (can also be a list of files/directories)
-dictionary_file: "dictionary.txt"  # Large dictionary (to filter out real words)
+dictionary_file: "dictionary.txt"  # Large dictionary file(s), directory, or glob patterns (to filter out real words)
 output_file: "typos.txt"          # Where to save the results
 
 # Output Format: arrow (a -> b), csv (a,b), table (a = "b"), list (a), json, yaml, markdown, md, html, or htm

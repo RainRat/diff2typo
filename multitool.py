@@ -29,6 +29,7 @@ import difflib
 from collections import Counter, defaultdict, deque
 import random
 import contextlib
+import functools
 import sys
 import re
 import time
@@ -2664,10 +2665,8 @@ def toml_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for getting fields from TOML files."""
-    def extractor(f, quiet=False):
-        return _extract_toml_items(f, key, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_toml_items, key_path=key),
         input_files,
         output_file,
         min_length,
@@ -3551,10 +3550,8 @@ def yaml_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for getting fields from YAML files."""
-    def extractor(f, quiet=False):
-        return _extract_yaml_items(f, key, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_yaml_items, key_path=key),
         input_files,
         output_file,
         min_length,

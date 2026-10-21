@@ -70,7 +70,7 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--reverse`, `-r` | Off | Reverse the sort order (e.g., least frequent first or reverse alphabetical). |
 | `--limit`, `-L` | None | Limit the number of typos in the output. |
 | `--dictionary`, `-d` | `words.csv` | A file containing the large dictionary of correct words. The tool uses this to make sure the "fix" is a real word. |
-| `--allowed`, `-a` | `allowed.csv` | A list of words to explicitly ignore, even if they look like typos. |
+| `--allowed`, `-a` | `allowed.csv` | One or more files, directories, or glob patterns containing allowed words to explicitly ignore, even if they look like typos. |
 | `--typos-path` | `typos` | The path to the external `typos` tool. |
 | `--dry-run`, `-n` | Off | Show configuration details and a sample preview of typo extraction without writing files. |
 | `--quiet`, `-q` | Off | Hide progress bars and status messages. |

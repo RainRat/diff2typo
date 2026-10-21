@@ -48,7 +48,7 @@ def test_short_flags_parsing(monkeypatch):
     assert args.max_dist == 3
     assert args.min_count == 2
     assert args.sort == 'count'
-    assert args.allowed_file == 'my_allowed.csv'
+    assert args.allowed_file == ['my_allowed.csv']
 
 
 def test_sort_uppercase_s_short_flag(monkeypatch):

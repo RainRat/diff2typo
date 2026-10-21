@@ -51,7 +51,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, TextIO, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, TextIO, Tuple, Union
 
 try:
     import yaml
@@ -259,30 +259,68 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
-def read_allowed_words(allowed_file: str) -> Set[str]:
+def read_allowed_words(allowed_sources: Union[str, Sequence[str]]) -> Set[str]:
     """
-    Reads allowed words from a CSV file and returns a set of lowercase words.
+    Reads allowed words from one or more CSV files, directories, or glob patterns
+    and returns a set of lowercase words.
     These are words that have been explicitly rejected from being considered typos.
 
     Args:
-        allowed_file (str): Path to the allowed words CSV file.
+        allowed_sources: Path(s), directory path(s), or glob pattern(s) for allowed words files.
 
     Returns:
         set: A set of allowed words in lowercase.
     """
-    try:
-        with open(allowed_file, "r", encoding="utf-8") as file_handle:
-            rows = list(csv.reader(file_handle))
-    except FileNotFoundError:
-        logging.warning(f"Allowed words file '{allowed_file}' not found. Skipping.")
-        rows = []
-    except Exception as exc:
-        logging.error(f"Error reading allowed words file '{allowed_file}': {exc}")
-        rows = []
+    if isinstance(allowed_sources, str):
+        sources = [allowed_sources]
+    else:
+        sources = list(allowed_sources)
 
-    allowed_words = {row[0].strip().lower() for row in rows if row}
-    if rows:
-        logging.info(f"Loaded {len(allowed_words)} allowed words from '{allowed_file}'.")
+    allowed_words: Set[str] = set()
+    loaded_files = 0
+    ignored_dirs = {
+        '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
+        '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
+    }
+
+    for source in sources:
+        if not source:
+            continue
+        matches = glob.glob(source) if ('*' in source or '?' in source or '[' in source) else ([source] if os.path.exists(source) else [])
+        if not matches and os.path.exists(source):
+            matches = [source]
+
+        if not matches:
+            if not ('*' in source or '?' in source or '[' in source):
+                logging.warning(f"Allowed words file '{source}' not found. Skipping.")
+            continue
+
+        for match in matches:
+            file_paths = []
+            if os.path.isdir(match):
+                for root, dirs, files in os.walk(match):
+                    dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                    for file in sorted(files):
+                        file_paths.append(os.path.join(root, file))
+            elif os.path.isfile(match):
+                file_paths.append(match)
+
+            for fp in file_paths:
+                try:
+                    with open(fp, "r", encoding="utf-8") as file_handle:
+                        rows = list(csv.reader(file_handle))
+                        for row in rows:
+                            if row:
+                                word = row[0].strip().lower()
+                                if word:
+                                    allowed_words.add(word)
+                        loaded_files += 1
+                except Exception as exc:
+                    logging.error(f"Error reading allowed words file '{fp}': {exc}")
+
+    if loaded_files > 0:
+        source_desc = f"'{sources[0]}'" if len(sources) == 1 else f"{loaded_files} source(s)"
+        logging.info(f"Loaded {len(allowed_words)} allowed words from {source_desc}.")
     return allowed_words
 
 def split_into_subwords(word: str) -> List[str]:
@@ -1141,12 +1179,12 @@ def main():
     analysis_group.add_argument(
         '-a', '--allowed',
         dest='allowed_file',
-        type=str,
+        nargs='+',
         default='allowed.csv',
-        help='The file with allowed words to ignore (default: allowed.csv).',
+        help='One or more files, directories, or glob patterns containing allowed words to ignore (default: allowed.csv).',
     )
     # Hidden alias for backward compatibility
-    parser.add_argument('--allowed_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+    parser.add_argument('--allowed_file', nargs='+', help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
         '--typos-path',
@@ -1206,7 +1244,7 @@ def main():
             "\n"
             "# Dictionary Files\n"
             'dictionary_file: "words.csv"          # Large dictionary file\n'
-            'allowed_file: "allowed.csv"          # Allowed words file to ignore\n'
+            'allowed_file: "allowed.csv"          # Allowed words file, directory, or pattern to ignore\n'
             'typos_tool_path: "typos"             # Path to typos command-line tool\n'
             "\n"
             "# File Pattern Filters (lists of patterns)\n"
@@ -1273,7 +1311,8 @@ def main():
         if args.dictionary_file == 'words.csv' and 'dictionary_file' in config:
             args.dictionary_file = config['dictionary_file']
         if args.allowed_file == 'allowed.csv' and 'allowed_file' in config:
-            args.allowed_file = config['allowed_file']
+            cfg_allowed = config['allowed_file']
+            args.allowed_file = cfg_allowed if isinstance(cfg_allowed, list) else [cfg_allowed]
         if args.typos_tool_path == 'typos' and 'typos_tool_path' in config:
             args.typos_tool_path = config['typos_tool_path']
         if args.exclude is None and 'exclude' in config:
@@ -1439,7 +1478,8 @@ def main():
         logging.info(f"Output Target: {args.output_file} (Format: {args.output_format})")
         logging.info(f"Mode: {args.mode} | Min Length: {args.min_length} | Max Length: {args.max_length if args.max_length is not None else 'None'} | Max Dist: {args.max_dist if args.max_dist is not None else 'None'}")
         logging.info(f"Min Count: {args.min_count} | Sort: {args.sort} (Reverse: {args.reverse}) | Limit: {args.limit if args.limit is not None else 'None'}")
-        logging.info(f"Large Dictionary: {args.dictionary_file} | Allowed File: {args.allowed_file}")
+        allowed_desc = args.allowed_file if isinstance(args.allowed_file, list) else [args.allowed_file]
+        logging.info(f"Large Dictionary: {args.dictionary_file} | Allowed Sources: {allowed_desc}")
         logging.info(f"Exclude Patterns: {args.exclude if args.exclude else 'None'} | Include Patterns: {args.include if args.include else 'None'}")
 
         # Sample Preview

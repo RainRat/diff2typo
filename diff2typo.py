@@ -51,7 +51,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, TextIO, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, TextIO, Tuple, Union
 
 try:
     import yaml
@@ -301,42 +301,90 @@ def split_into_subwords(word: str) -> List[str]:
         subwords.extend(re.findall(pattern, part) or [part])
     return subwords
 
-def read_words_mapping(file_path: str, required: bool = True) -> Dict[str, Set[str]]:
+def _resolve_dictionary_sources(file_paths: Union[str, Sequence[str]]) -> List[str]:
+    """Resolve file paths, directories, and glob patterns into a list of file paths."""
+    if isinstance(file_paths, str):
+        paths = [file_paths]
+    else:
+        paths = list(file_paths)
+
+    resolved: List[str] = []
+    ignored_dirs = {
+        '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
+        '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
+    }
+    supported_extensions = {
+        '.csv', '.txt', '.log', '.lst'
+    }
+
+    for path in paths:
+        if path == '-':
+            resolved.append('-')
+            continue
+
+        matches = glob.glob(path)
+        if not matches:
+            matches = [path]
+
+        for match in sorted(matches):
+            if os.path.isdir(match):
+                for root, dirs, files in os.walk(match):
+                    dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                    for file in sorted(files):
+                        ext = os.path.splitext(file)[1].lower()
+                        if ext in supported_extensions:
+                            resolved.append(os.path.join(root, file))
+            else:
+                resolved.append(match)
+
+    return list(dict.fromkeys(resolved))
+
+
+def read_words_mapping(file_paths: Union[str, Sequence[str]], required: bool = True) -> Dict[str, Set[str]]:
     """
-    Reads a CSV file of typo fixes and returns a mapping:
+    Reads CSV or structured files of typo fixes and returns a aggregated mapping:
          incorrect_word -> corrections
 
-    Each row should be in the form:
-         incorrect_word, correction1, correction2, ...
-
-    We can also accept a list of words for the large dictionary. They will
-        not have any corrections.
+    Each row or entry should map an incorrect word to its corrections, or list
+    words for the large dictionary without corrections. Accepts single or multiple
+    file paths, directories, or wildcard glob patterns.
     """
-    try:
-        with open(file_path, "r", encoding="utf-8") as file_handle:
-            rows = list(csv.reader(file_handle))
-    except FileNotFoundError:
-        message = f"Large dictionary file '{file_path}' not found."
-        if required:
-            logging.error(message)
-            sys.exit(1)
-        logging.warning(message + " Skipping.")
-        rows = []
-    except Exception as exc:
-        logging.error(f"Error reading large dictionary file '{file_path}': {exc}")
-        if required:
-            sys.exit(1)
-        rows = []
+    resolved_paths = _resolve_dictionary_sources(file_paths)
+    combined_mapping: Dict[str, Set[str]] = {}
+    total_loaded = 0
 
-    mapping: Dict[str, Set[str]] = {}
-    for row in rows:
-        if row:
-            incorrect = row[0].strip().lower()
-            corrections = {col.strip().lower() for col in row[1:] if col.strip()}
-            mapping[incorrect] = corrections
-    if rows:
-        logging.info(f"Loaded mapping for {len(mapping)} words from '{file_path}'.")
-    return mapping
+    for file_path in resolved_paths:
+        try:
+            with open(file_path, "r", encoding="utf-8") as file_handle:
+                rows = list(csv.reader(file_handle))
+        except FileNotFoundError:
+            message = f"Large dictionary file '{file_path}' not found."
+            if required:
+                logging.error(message)
+                sys.exit(1)
+            logging.warning(message + " Skipping.")
+            rows = []
+        except Exception as exc:
+            logging.error(f"Error reading large dictionary file '{file_path}': {exc}")
+            if required:
+                sys.exit(1)
+            rows = []
+
+        file_count = 0
+        for row in rows:
+            if row:
+                incorrect = row[0].strip().lower()
+                corrections = {col.strip().lower() for col in row[1:] if col.strip()}
+                if incorrect in combined_mapping:
+                    combined_mapping[incorrect].update(corrections)
+                else:
+                    combined_mapping[incorrect] = corrections
+                file_count += 1
+        total_loaded += file_count
+
+    if total_loaded:
+        logging.info(f"Loaded mapping for {len(combined_mapping)} unique words across specified dictionary source(s).")
+    return combined_mapping
 
 def _compare_word_lists(
     before_words: Sequence[str],
@@ -1131,12 +1179,12 @@ def main():
         '--dictionary',
         '-d',
         dest='dictionary_file',
-        type=str,
+        nargs='+',
         default='words.csv',
-        help='The file containing the large dictionary (default: words.csv).',
+        help='One or more files, directories, or glob patterns containing the large dictionary (default: words.csv).',
     )
     # Hidden alias for backward compatibility
-    parser.add_argument('--dictionary_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+    parser.add_argument('--dictionary_file', nargs='+', help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
         '-a', '--allowed',
@@ -1270,7 +1318,7 @@ def main():
             args.reverse = bool(config['reverse'])
         if args.limit is None and 'limit' in config:
             args.limit = config['limit']
-        if args.dictionary_file == 'words.csv' and 'dictionary_file' in config:
+        if (args.dictionary_file == 'words.csv' or args.dictionary_file == ['words.csv']) and 'dictionary_file' in config:
             args.dictionary_file = config['dictionary_file']
         if args.allowed_file == 'allowed.csv' and 'allowed_file' in config:
             args.allowed_file = config['allowed_file']

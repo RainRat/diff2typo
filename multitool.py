@@ -30,6 +30,7 @@ from collections import Counter, defaultdict, deque
 import random
 import contextlib
 import sys
+import functools
 import re
 import time
 from textwrap import dedent
@@ -5574,10 +5575,8 @@ def words_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for getting individual words from file(s)."""
-    def extractor(f, quiet=False):
-        return _extract_words_items(f, delimiter=delimiter, quiet=quiet, smart=smart)
     _process_items(
-        extractor,
+        functools.partial(_extract_words_items, delimiter=delimiter, smart=smart),
         input_files,
         output_file,
         min_length,

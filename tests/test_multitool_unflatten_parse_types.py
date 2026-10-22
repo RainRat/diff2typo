@@ -120,3 +120,14 @@ def test_unflatten_cli_parse_types_integration(tmp_path):
             "port": 8080
         }
     }
+
+
+def test_parse_value_type_invalid_json_fallback():
+    assert multitool._parse_value_type("{invalid json}") == "{invalid json}"
+    assert multitool._parse_value_type("[1, 2, unquoted]") == "[1, 2, unquoted]"
+
+
+def test_parse_value_type_nan_and_inf_handling():
+    assert multitool._parse_value_type("nan") == "nan"
+    assert multitool._parse_value_type("inf") == "inf"
+    assert multitool._parse_value_type("-inf") == "-inf"

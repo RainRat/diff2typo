@@ -1393,7 +1393,7 @@ def main() -> None:
         help="How to sort the results: 'count' (most frequent first), 'typo' (alphabetical by the typo), or 'correct' (alphabetical by the correction)."
     )
     analysis_group.add_argument(
-        '-r', '--reverse',
+        '-r', '-R', '--reverse',
         action='store_true',
         help="Reverse the sort order (e.g. show lowest counts first or reverse alphabetical sorting)."
     )

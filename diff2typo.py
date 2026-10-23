@@ -1115,7 +1115,7 @@ def main():
     )
 
     analysis_group.add_argument(
-        '-r', '--reverse',
+        '-r', '-R', '--reverse',
         action='store_true',
         help="Reverse the sort order (e.g., least frequent first or reverse alphabetical).",
     )

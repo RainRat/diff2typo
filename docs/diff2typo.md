@@ -59,11 +59,11 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` / `toml` (typo = "fix"), `list` (typo only), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. Automatically detected from file extension (`.json`, `.yaml`, `.yml`, `.toml`, `.md`, `.markdown`, `.html`, `.htm`). |
 | `--init-config`, `--generate-config` | None | Generate a sample template YAML configuration file (`diff2typo.yaml` by default, or at a specified path) and exit. |
 | `-F`, `--force` | Off | Force overwrite of existing configuration file when generating template config via `--init-config`. |
-| `--mode`, `-m`, `-M` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
+| `--mode`, `-m` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
 | `--exclude`, `-e` | None | One or more file patterns (e.g., `*.json`, `tests/*`) to exclude from typo scanning. |
 | `--include`, `-I` | None | One or more file patterns (e.g., `*.md`, `src/*`) to include in typo scanning (all files are scanned by default). |
 | `--min-length` | `2` | Ignore words shorter than this length. |
-| `--max-length` | None | Ignore words longer than this length. |
+| `--max-length`, `-M` | None | Ignore words longer than this length. |
 | `--max-dist`, `-D` | None | Only include typos with a number of character changes up to this value. Useful for filtering out intentional word changes. |
 | `--min-count`, `-c` | `1` | Minimum occurrences of a typo in the diff to include it in the output. |
 | `--sort`, `-s`, `-S` | `alpha` | How to sort the results: `count` (most frequent first) or `alpha` (alphabetical). |

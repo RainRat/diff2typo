@@ -113,7 +113,7 @@ reverse: true
 - `-X`, `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
 - `-j`, `--jobs`: Run commands concurrently using this many jobs. This overrides the configuration file.
 - `-M`, `-l`, `-L`, `--max-count`, `--limit`: Cap the maximum number of target folders to process. This overrides the configuration file.
-- `-r`, `--reverse`: Reverse the order in which folders are processed. This overrides the configuration file.
+- `-r`, `-R`, `--reverse`: Reverse the order in which folders are processed. This overrides the configuration file.
 - `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`, `markdown`, `md`, `yaml`, `yml`, `html`, `htm`, or `toml`). If you do not specify this, the tool detects the format from the output file's extension.
 

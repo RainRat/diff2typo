@@ -1657,3 +1657,20 @@ def test_typostats_limit_short_flag_l(monkeypatch, tmp_path, capsys):
     # CSV header + 1 row
     assert len(lines) == 2
     assert lines[0] == "typo,correction,count"
+
+
+def test_cli_reverse_uppercase_short_flag(monkeypatch, capsys, tmp_path):
+    """Verify that -R flag reverses sort order in typostats CLI."""
+    sample_file = tmp_path / "typos.txt"
+    sample_file.write_text("teh -> the\nteh -> the\nwrold -> world\n", encoding="utf-8")
+
+    test_args = ["typostats.py", str(sample_file), "-f", "csv", "-R", "-q"]
+    monkeypatch.setattr("sys.argv", test_args)
+
+    typostats.main()
+
+    captured = capsys.readouterr()
+    lines = [line.strip() for line in captured.out.strip().splitlines() if line.strip()]
+    # Lowest count first when -R is used
+    assert len(lines) >= 2
+    assert lines[1].endswith(",1")

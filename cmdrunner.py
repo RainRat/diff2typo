@@ -784,7 +784,7 @@ def parse_arguments() -> argparse.Namespace:
         help='Cap the maximum number of folders to process.'
     )
     options_group.add_argument(
-        '-r', '--reverse',
+        '-r', '-R', '--reverse',
         action='store_true',
         default=None,
         help='Reverse the order in which folders are processed.'

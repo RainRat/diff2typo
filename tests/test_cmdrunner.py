@@ -2800,3 +2800,22 @@ def test_main_with_pattern_config(tmp_path, monkeypatch):
     assert (app1 / 'out_cfg_pat.txt').exists()
     assert not (app_old / 'out_cfg_pat.txt').exists()
     assert not (svc1 / 'out_cfg_pat.txt').exists()
+
+
+def test_main_with_reverse_uppercase_short_flag(tmp_path, monkeypatch):
+    """Verify that -R flag sets reverse=True when running cmdrunner main."""
+    base_dir = tmp_path / 'projects'
+    base_dir.mkdir()
+    config_file = tmp_path / 'config.yaml'
+    config_file.write_text("main_folder: " + str(base_dir) + "\ncommand_to_run: 'echo test'\n")
+
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', str(config_file), '-R'])
+
+    run_args = {}
+    def mock_run_command_in_folders(*args, **kwargs):
+        run_args.update(kwargs)
+
+    monkeypatch.setattr(cmdrunner, 'run_command_in_folders', mock_run_command_in_folders)
+    cmdrunner.main()
+
+    assert run_args.get("reverse") is True

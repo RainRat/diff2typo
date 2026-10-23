@@ -96,7 +96,7 @@ reverse: true
 ## Options
 
 - `CONFIG_PATH`, `-C`, `--config`: (Optional) The path to your YAML configuration file. If you do not specify this, the tool automatically loads `cmdrunner.yaml` from your current directory if it exists.
-- `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`cmdrunner.yaml` by default, or at a specified path).
+- `--init-config [FILE]`, `--generate-config [FILE]`: Generate a sample template YAML configuration file (`cmdrunner.yaml` by default, or at a specified path).
 - `-F`, `--force`: Force overwrite of existing configuration file when generating template config via `--init-config`.
 - `-m`, `--main-folder`: The main folder containing your projects (defaults to the current directory `.` if a command is specified without `-m`). This overrides the configuration file.
 - `-b`, `--base-directory`: Legacy name for the main folder. This overrides the configuration file.
@@ -113,7 +113,7 @@ reverse: true
 - `-X`, `--if-not-exists`: Only run the command in folders that do not contain this file or path (for example, `initialized.log`). This overrides the configuration file.
 - `-j`, `--jobs`: Run commands concurrently using this many jobs. This overrides the configuration file.
 - `-M`, `-l`, `-L`, `--max-count`, `--limit`: Cap the maximum number of target folders to process. This overrides the configuration file.
-- `-r`, `--reverse`: Reverse the order in which folders are processed. This overrides the configuration file.
+- `-r`, `-R`, `--reverse`: Reverse the order in which folders are processed. This overrides the configuration file.
 - `-o`, `--output`: Save the execution report to this file. If you do not specify this, the tool will not save a report.
 - `-f`, `--format`: Choose the format for the output report (`json`, `csv`, `txt`, `markdown`, `md`, `yaml`, `yml`, `html`, `htm`, or `toml`). If you do not specify this, the tool detects the format from the output file's extension.
 

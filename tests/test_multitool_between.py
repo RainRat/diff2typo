@@ -33,7 +33,7 @@ class TestBetweenMode(unittest.TestCase):
 
     def test_between_mode_execution(self):
         # Mocking _process_items to ensure between_mode calls it correctly
-        with patch('multitool._process_items') as mock_process:
+        with patch('multitool._extract_between_items') as mock_extract, patch('multitool._process_items') as mock_process:
             between_mode(
                 input_files=['input.txt'],
                 output_file='output.txt',
@@ -51,10 +51,8 @@ class TestBetweenMode(unittest.TestCase):
             # Verify that the extractor passed to _process_items calls _extract_between_items correctly
             args, kwargs = mock_process.call_args
             extractor = args[0]
-
-            with patch('multitool._extract_between_items') as mock_extract:
-                extractor('some_file', quiet=True)
-                mock_extract.assert_called_once_with('some_file', '[[', ']]', multi_line=False, quiet=True)
+            extractor('some_file', quiet=True)
+            mock_extract.assert_called_once_with('some_file', start='[[', end=']]', multi_line=False, quiet=True)
 
             self.assertEqual(args[1], ['input.txt'])
             self.assertEqual(args[2], 'output.txt')

@@ -32,6 +32,7 @@ import contextlib
 import sys
 import re
 import time
+import functools
 from textwrap import dedent
 from typing import Any, Callable, Iterable, List, Mapping, Sequence, Set, Tuple, TextIO, Optional
 try:
@@ -6561,10 +6562,8 @@ def regex_mode(
     # Regex mode skips the default 'clean_and_filter' (to lower, letters only)
     # because users often want exact matches (for example Emails, URLs, IDs).
     # Users can still use --process-output to sort/dedup, but we don't force lowercase/clean.
-    def extractor(f, quiet=False):
-        return _extract_regex_items(f, pattern, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_regex_items, pattern=pattern),
         input_files,
         output_file,
         min_length,

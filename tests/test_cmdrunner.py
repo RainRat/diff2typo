@@ -1003,6 +1003,31 @@ def test_main_no_fallback_when_direct_options_provided(tmp_path, monkeypatch):
     assert (base_dir / 'proj1' / 'direct_test.txt').read_text() == 'direct_ok'
 
 
+def test_main_command_only_bypasses_cmdrunner_yaml_and_defaults_main_folder(tmp_path, monkeypatch):
+    # Create a project folder directly inside tmp_path
+    (tmp_path / 'proj1').mkdir()
+
+    # Write a bad cmdrunner.yaml in tmp_path pointing to a non-existent directory
+    bad_config_data = {
+        'main_folder': '/invalid/path/that/does/not/exist',
+        'command_to_run': 'echo bad',
+    }
+    config_file = tmp_path / 'cmdrunner.yaml'
+    config_file.write_text(yaml.safe_dump(bad_config_data))
+
+    monkeypatch.chdir(tmp_path)
+
+    # Run with only -c command (without specifying -m)
+    command = "python3 -c \"from pathlib import Path; Path('cmd_only.txt').write_text('cmd_ok')\""
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-c', command])
+
+    cmdrunner.main()
+
+    # Verify that it ran in current directory (proj1) and did NOT load bad cmdrunner.yaml
+    assert (tmp_path / 'proj1' / 'cmd_only.txt').exists()
+    assert (tmp_path / 'proj1' / 'cmd_only.txt').read_text() == 'cmd_ok'
+
+
 def test_load_config_invalid_reverse(tmp_path):
     config_file = tmp_path / 'config_invalid_reverse.yaml'
     config_file.write_text(

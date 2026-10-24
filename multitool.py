@@ -26,6 +26,7 @@ import argparse
 import csv
 import glob
 import difflib
+import functools
 from collections import Counter, defaultdict, deque
 import random
 import contextlib
@@ -3489,10 +3490,8 @@ def between_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for getting text between markers."""
-    def extractor(f, quiet=False):
-        return _extract_between_items(f, start, end, multi_line=multi_line, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_between_items, start=start, end=end, multi_line=multi_line),
         input_files,
         output_file,
         min_length,

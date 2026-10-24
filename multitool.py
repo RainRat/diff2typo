@@ -7911,23 +7911,23 @@ def filter_fragments_mode(
         clean_items=clean_items,
     )
 
-    # Aho-Corasick automaton for efficient substring matching
-    if not _AHOCORASICK_AVAILABLE:
-        logging.error("The 'ahocorasick' package is not installed. Install via 'pip install pyahocorasick' to use this mode.")
-        sys.exit(1)
-
-    auto = ahocorasick.Automaton()
-    for keyword in all_cleaned_list1:
-        auto.add_word(keyword, keyword)
-    auto.make_automaton()
-
     matched_words = set()
     # Optimization: Skip iteration if no keywords to search for.
-    # Also prevents potential issues with iterating an empty automaton in some library versions.
     if len(all_cleaned_list1) > 0:
-        for item in tqdm(unique_list2, desc="Finding matches", disable=quiet):
-            for end_index, keyword in auto.iter(item):
-                matched_words.add(keyword)
+        if _AHOCORASICK_AVAILABLE:
+            auto = ahocorasick.Automaton()
+            for keyword in all_cleaned_list1:
+                auto.add_word(keyword, keyword)
+            auto.make_automaton()
+
+            for item in tqdm(unique_list2, desc="Finding matches", disable=quiet):
+                for end_index, keyword in auto.iter(item):
+                    matched_words.add(keyword)
+        else:
+            for item in tqdm(unique_list2, desc="Finding matches", disable=quiet):
+                for keyword in all_cleaned_list1:
+                    if keyword in item:
+                        matched_words.add(keyword)
 
     non_matches = [word for word in all_cleaned_list1 if word not in matched_words]
     # Items were cleaned during loading; only length filtering is needed now.

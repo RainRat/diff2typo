@@ -342,9 +342,9 @@ def _add_mapping_to_subs(data: dict, subs: dict[str, list[str]]) -> None:
 
 def _load_substitutions_file(path: str) -> dict[str, list[str]]:
     """
-    Load substitution rules from a file. Supports JSON, CSV, YAML, TOML, and
+    Load substitution rules from a file. Supports JSON, CSV, YAML, TOML, HTML, and
     various line-oriented plain-text mapping formats (such as arrow, table, colon, etc.).
-    JSON and CSV formats match the output of typostats.py.
+    JSON, CSV, and HTML formats match the output of typostats.py.
     """
     subs = defaultdict(list)
     if not os.path.exists(path):
@@ -364,6 +364,41 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                 # Plain mapping: {"a": ["e", "i"], ...}
                 elif isinstance(data, dict):
                     _add_mapping_to_subs(data, subs)
+        elif ext in ('.html', '.htm'):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except UnicodeDecodeError:
+                with open(path, 'r', encoding='latin-1') as f:
+                    content = f.read()
+
+            tr_blocks = re.findall(r'<tr[^>]*>(.*?)</tr>', content, flags=re.IGNORECASE | re.DOTALL)
+            typo_indicators = {'typo', 'typo_char', 'before', 'incorrect', 'incorrect_word', 'bad', 'left', 'key'}
+            correct_indicators = {'correction', 'correct', 'correct_char', 'after', 'word', 'good', 'right', 'value', 'fix', 'replacement'}
+
+            idx_correct, idx_typo = 1, 0  # Default for HTML reports: typo in col 0, correction in col 1
+            header_checked = False
+
+            for block in tr_blocks:
+                cells = re.findall(r'<(?:td|th)[^>]*>(.*?)</(?:td|th)>', block, flags=re.IGNORECASE | re.DOTALL)
+                if len(cells) >= 2:
+                    c1 = html.unescape(re.sub(r'<[^>]+>', '', cells[0])).strip()
+                    c2 = html.unescape(re.sub(r'<[^>]+>', '', cells[1])).strip()
+                    if not c1 or not c2:
+                        continue
+
+                    if not header_checked:
+                        header_checked = True
+                        val1, val2 = c1.lower(), c2.lower()
+                        if val1 in typo_indicators or val2 in correct_indicators or val1 in correct_indicators or val2 in typo_indicators:
+                            if val1 in typo_indicators and val2 in correct_indicators:
+                                idx_correct, idx_typo = 1, 0
+                            elif val1 in correct_indicators and val2 in typo_indicators:
+                                idx_correct, idx_typo = 0, 1
+                            continue
+
+                    vals = [c1, c2]
+                    subs[str(vals[idx_correct])].append(str(vals[idx_typo]))
         elif ext == '.csv':
             with open(path, 'r', encoding='utf-8') as f:
                 # Use a simple check for typostats header instead of complex sniffing
@@ -1396,7 +1431,7 @@ def main() -> None:
     io_group.add_argument(
         '-s', '--substitutions',
         nargs='+',
-        help="One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, or plain text). Useful for using personal typo history from 'typostats.py'.",
+        help="One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, HTML, or plain text). Useful for using personal typo history from 'typostats.py'.",
     )
     io_group.add_argument(
         '-i', '-I', '--input',

@@ -891,9 +891,9 @@ jobs: 1
     config = {}
     if not config_file:
         # Friction reduction: if no configuration file path is specified via the command line,
-        # and direct run parameters (both main folder and command to run) are not fully provided as CLI overrides,
+        # and direct run parameters (command to run or main folder) are not provided as CLI overrides,
         # automatically fall back to loading 'cmdrunner.yaml' from the current working directory if it exists.
-        has_direct = bool(args.main_folder or args.base_directory) and bool(args.command_to_run)
+        has_direct = bool(args.command_to_run) or bool(args.main_folder or args.base_directory)
         if not has_direct:
             default_config_path = "cmdrunner.yaml"
             if os.path.isfile(default_config_path):

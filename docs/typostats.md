@@ -10,8 +10,9 @@ Process one or more files/directories or send data directly to the tool using a 
 # Read from a file
 python typostats.py my_typos.txt
 
-# Read from multiple files
+# Read from multiple files or glob wildcard patterns
 python typostats.py file1.txt file2.txt
+python typostats.py "logs/*.txt" "data_*.csv"
 
 # Read from a directory recursively
 # This scans all supported files (.txt, .csv, .json, .yaml, .yml, .toml, .md) under the directory,

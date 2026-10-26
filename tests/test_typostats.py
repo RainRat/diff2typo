@@ -1657,3 +1657,22 @@ def test_typostats_limit_short_flag_l(monkeypatch, tmp_path, capsys):
     # CSV header + 1 row
     assert len(lines) == 2
     assert lines[0] == "typo,correction,count"
+
+
+def test_typostats_glob_pattern_input(tmp_path, monkeypatch, capsys):
+    """Verify wildcard glob pattern expansion for input path CLI arguments in typostats."""
+    f1 = tmp_path / "data_1.txt"
+    f1.write_text("teh -> the\n", encoding="utf-8")
+    f2 = tmp_path / "data_2.txt"
+    f2.write_text("waht -> what\n", encoding="utf-8")
+
+    glob_pattern = str(tmp_path / "data_*.txt")
+    monkeypatch.setattr(sys, "argv", ["typostats.py", glob_pattern, "--format", "json", "-q"])
+
+    typostats.main()
+
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    typos = {item["typo"]: item["correct"] for item in data["replacements"]}
+    assert typos.get("eh") == "he"
+    assert typos.get("ah") == "ha"

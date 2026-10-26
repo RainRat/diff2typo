@@ -26,6 +26,7 @@ import csv
 import html
 import io
 import os
+import glob
 import re
 import time
 import fnmatch
@@ -1621,20 +1622,27 @@ def main() -> None:
     for file_path in input_files:
         if file_path == '-':
             expanded_files.append('-')
-        elif os.path.isdir(file_path):
-            for root, dirs, files in os.walk(file_path):
-                # Prune ignored directories in-place to avoid walking into them
-                dirs[:] = [d for d in dirs if d not in ignored_dirs]
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    if _is_file_excluded(full_path, exclude_patterns, include_patterns):
-                        continue
-                    ext = os.path.splitext(file)[1].lower()
-                    if ext in supported_extensions:
-                        expanded_files.append(full_path)
-        else:
-            if not _is_file_excluded(file_path, exclude_patterns, include_patterns):
-                expanded_files.append(file_path)
+            continue
+
+        matches = glob.glob(file_path) if glob.has_magic(file_path) or not os.path.exists(file_path) else [file_path]
+        if not matches and glob.has_magic(file_path):
+            continue
+
+        for path_entry in sorted(matches) if matches else [file_path]:
+            if os.path.isdir(path_entry):
+                for root, dirs, files in os.walk(path_entry):
+                    # Prune ignored directories in-place to avoid walking into them
+                    dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        if _is_file_excluded(full_path, exclude_patterns, include_patterns):
+                            continue
+                        ext = os.path.splitext(file)[1].lower()
+                        if ext in supported_extensions:
+                            expanded_files.append(full_path)
+            else:
+                if not _is_file_excluded(path_entry, exclude_patterns, include_patterns):
+                    expanded_files.append(path_entry)
 
     input_files = expanded_files
 

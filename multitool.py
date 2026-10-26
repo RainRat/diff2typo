@@ -32,6 +32,7 @@ import contextlib
 import sys
 import re
 import time
+import functools
 from textwrap import dedent
 from typing import Any, Callable, Iterable, List, Mapping, Sequence, Set, Tuple, TextIO, Optional
 try:
@@ -5437,12 +5438,13 @@ def csv_mode(
     columns: List[int] | None = None,
 ) -> None:
     """Wrapper for getting fields from CSV files."""
-    def extractor(f, quiet=False):
-        return _extract_csv_items(
-            f, first_column, delimiter, quiet=quiet, columns=columns
-        )
     _process_items(
-        extractor,
+        functools.partial(
+            _extract_csv_items,
+            first_column=first_column,
+            delimiter=delimiter,
+            columns=columns,
+        ),
         input_files,
         output_file,
         min_length,

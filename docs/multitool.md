@@ -190,9 +190,9 @@ Use these modes to transform or combine your data.
   - **Example:** `python multitool.py align typos.csv --sep ' | '`
 
 - **`rename`**
-  - Batch renames files and folders using a mapping file or extra pairs. It handles nested renames by processing files before their parent folders.
+  - Batch renames files and folders using one or more mapping files, directories, or glob patterns, or extra pairs. It handles nested renames by processing files before their parent folders.
   - **Options:**
-    - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
+    - Use the `--mapping` (or **`-s`**) flag to specify one or more mapping files, directories, or glob patterns.
     - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs (for example, `--add old_name:new_name`) directly on the command line.
     - Supports `--in-place` (or **`-I`**) renaming and `--dry-run` (or **`-n`**) preview.
     - Use the `--smart-case` (or **`-S`**) flag to match the casing of the original filename.
@@ -210,9 +210,9 @@ Use these modes to transform or combine your data.
   - **Example:** `python multitool.py filterfragments candidates.txt --file2 dictionary.txt`
 
 - **`map`**
-  - Replaces items in your list using a mapping file or extra pairs. By default, it keeps items that are not in the mapping.
+  - Replaces items in your list using one or more mapping files, directories, or glob patterns, or extra pairs. By default, it keeps items that are not in the mapping.
   - **Options:**
-    - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
+    - Use the `--mapping` (or **`-s`**) flag to specify one or more mapping files, directories, or glob patterns.
     - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
     - Use the `--drop-missing` flag to remove items not found in the mapping file.
     - Use the `--pairs` (or **`-p`**) flag to output both the original word and its transformed replacement.
@@ -281,10 +281,10 @@ Use these modes to transform or combine your data.
   - **Example:** `python multitool.py swap mappings.csv --output-format arrow`
 
 - **`scrub`**
-  - Fixes typos in text files using a mapping file or extra pairs. It preserves surrounding context while fixing errors.
+  - Fixes typos in text files using one or more mapping files, directories, or glob patterns, or extra pairs. It preserves surrounding context while fixing errors.
   - **Supported Formats:** CSV, Arrow, Table, JSON, YAML, TOML, XML, and HTML mapping formats.
   - **Options:**
-    - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
+    - Use the `--mapping` (or **`-s`**) flag to specify one or more mapping files, directories, or glob patterns.
     - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
     - Supports `--in-place` (or **`-I`**), `--dry-run` (or **`-n`**), `--diff` (or **`-D`**), and `--smart-case` (or **`-S`**).
   - **Example:** `python multitool.py scrub input.txt --add teh:the --diff`
@@ -299,9 +299,9 @@ Use these modes to transform or combine your data.
   - **Example:** `python multitool.py standardize . --diff --min-length 4 --fuzzy 1 --keyboard`
 
 - **`highlight`**
-  - Color-codes words from a list or mapping in the output. This is useful as a preview before using `scrub` mode.
+  - Color-codes words from one or more mapping files, directories, glob patterns, or `--add` pairs in the output. This is useful as a preview before using `scrub` mode.
   - **Options:**
-    - Use the `--mapping` flag or `--add` to provide words to find.
+    - Use the `--mapping` (or **`-s`**) flag to specify one or more mapping files, directories, or glob patterns.
     - The `--smart` flag allows for coloring subwords within larger compound words.
   - **Example:** `python multitool.py highlight input.txt --add teh:the`
 
@@ -416,9 +416,9 @@ Use these modes to analyze your data.
   - **Example:** `python multitool.py search 'teh' report.txt --keyboard --line-numbers -C 1`
 
 - **`scan`**
-  - Searches for every word in a mapping file and reports matches with filename, line number, and highlighting.
+  - Searches for every word in one or more mapping files, directories, or glob patterns and reports matches with filename, line number, and highlighting.
   - **Options:**
-    - Use the `--mapping` (or **`-s`**) flag to specify a mapping file path.
+    - Use the `--mapping` (or **`-s`**) flag to specify one or more mapping files, directories, or glob patterns.
     - Use the `--add` (or **`-a`**) flag to provide extra mapping pairs directly on the command line.
     - Use the `--smart` (or **`-S`**) flag to scan for subwords within compound words.
     - Use `--line-numbers` (or **`-n`**) to show line numbers for matches.
@@ -427,9 +427,9 @@ Use these modes to analyze your data.
   - **Example:** `python multitool.py scan . --add teh:the --smart -n -H -C 1`
 
 - **`verify`**
-  - Checks which entries in a mapping file are present in your project.
+  - Checks which entries in one or more mapping files, directories, or glob patterns are present in your project.
   - **Options:**
-    - Use the `--mapping` flag or `--add` to provide typos to check.
+    - Use the `--mapping` (or **`-s`**) flag to specify one or more mapping files, directories, or glob patterns.
     - Use the `--prune` flag to output a new mapping file containing only the found typos.
     - Use the `--smart` flag to find subword matches.
   - **Example:** `python multitool.py verify . --add teh:the --prune`

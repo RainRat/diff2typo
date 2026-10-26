@@ -6579,38 +6579,85 @@ def regex_mode(
     )
 
 
+def _resolve_input_sources(input_files: Sequence[str]) -> list[str]:
+    """
+    Recursively expand directory paths, handle glob patterns,
+    and ignore common development/environment folders.
+    """
+    expanded_files = []
+    ignored_dirs = {
+        '.git', 'node_modules', 'venv', '.venv', '.pytest_cache',
+        '.ruff_cache', '.vscode', '.idea', '__pycache__', 'dist', 'build'
+    }
+    supported_extensions = {
+        '.txt', '.csv', '.json', '.yaml', '.yml', '.md', '.log',
+        '.lst', '.toml', '.table', '.xml', '.html', '.htm'
+    }
+
+    for path in input_files:
+        if path == '-':
+            expanded_files.append('-')
+            continue
+
+        # Handle glob expansion
+        matches = glob.glob(path)
+        if not matches:
+            matches = [path]
+
+        for match in sorted(matches):
+            if os.path.isdir(match):
+                for root, dirs, files in os.walk(match):
+                    # Prune ignored directories in-place to avoid walking into them
+                    dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                    for file in sorted(files):
+                        ext = os.path.splitext(file)[1].lower()
+                        if ext in supported_extensions:
+                            expanded_files.append(os.path.join(root, file))
+            else:
+                expanded_files.append(match)
+
+    # Deduplicate while preserving order
+    return list(dict.fromkeys(expanded_files))
+
+
 def _resolve_full_mapping(
-    mapping_file: str | None,
+    mapping_file: Sequence[str] | str | None,
     ad_hoc_pairs: List[str] | None,
     clean_items: bool,
     quiet: bool = False,
 ) -> dict[str, str]:
     """
-    Merge a mapping file with extra pairs from the command line.
+    Merge one or more mapping files/directories with extra pairs from the command line.
     """
     full_mapping = {}
 
-    # 1. Load from file if provided
+    # 1. Load from file(s) / directories if provided
     if mapping_file:
-        # Load mapping or list
-        if mapping_file.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml', '.xml', '.html', '.htm')):
-            full_mapping.update(dict(_extract_pairs([mapping_file], quiet=quiet)))
+        if isinstance(mapping_file, (str, bytes)):
+            sub_paths = [mapping_file]
         else:
-            # Treat as a simple list of words if not a common mapping format
-            lines = _read_file_lines_robust(mapping_file)
-            for line in lines:
-                content = line.strip()
-                if not content or content.startswith('#'):
-                    continue
+            sub_paths = list(mapping_file)
 
-                if " -> " in content:
-                    parts = content.split(" -> ", 1)
-                    full_mapping[parts[0].strip()] = parts[1].strip()
-                elif ": " in content:
-                    parts = content.split(": ", 1)
-                    full_mapping[parts[0].strip()] = parts[1].strip()
-                else:
-                    full_mapping[content] = ""
+        resolved_sources = _resolve_input_sources(sub_paths)
+        for map_src in resolved_sources:
+            if map_src.lower().endswith(('.json', '.csv', '.yaml', '.yml', '.toml', '.xml', '.html', '.htm')):
+                full_mapping.update(dict(_extract_pairs([map_src], quiet=quiet)))
+            else:
+                # Treat as a simple list of words if not a common mapping format
+                lines = _read_file_lines_robust(map_src)
+                for line in lines:
+                    content = line.strip()
+                    if not content or content.startswith('#'):
+                        continue
+
+                    if " -> " in content:
+                        parts = content.split(" -> ", 1)
+                        full_mapping[parts[0].strip()] = parts[1].strip()
+                    elif ": " in content:
+                        parts = content.split(": ", 1)
+                        full_mapping[parts[0].strip()] = parts[1].strip()
+                    else:
+                        full_mapping[content] = ""
 
     # 2. Add extra pairs (for example, "teh:the" or "old:correction")
     if ad_hoc_pairs:
@@ -9482,9 +9529,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     count_options.add_argument(
         '-s', '--mapping',
-        type=str,
+        nargs='+',
         required=False,
-        help='Path to the mapping file for auditing.',
+        help='One or more mapping files, directories, or glob patterns for auditing.',
     )
     count_options.add_argument(
         '-a', '--add',
@@ -10039,9 +10086,9 @@ def _build_parser() -> argparse.ArgumentParser:
     map_options = map_parser.add_argument_group(f"{BLUE}MAP OPTIONS{RESET}")
     map_options.add_argument(
         '-s', '--mapping',
-        type=str,
+        nargs='+',
         required=False,
-        help='Path to the mapping file (CSV or Arrow format).',
+        help='One or more mapping files, directories, or glob patterns.',
     )
     map_options.add_argument(
         '-a', '--add',
@@ -10099,9 +10146,9 @@ def _build_parser() -> argparse.ArgumentParser:
     scrub_options = scrub_parser.add_argument_group(f"{BLUE}SCRUB OPTIONS{RESET}")
     scrub_options.add_argument(
         '-s', '--mapping',
-        type=str,
+        nargs='+',
         required=False,
-        help='Path to the mapping file.',
+        help='One or more mapping files, directories, or glob patterns.',
     )
     scrub_options.add_argument(
         '-a', '--add',
@@ -10145,9 +10192,9 @@ def _build_parser() -> argparse.ArgumentParser:
     rename_options = rename_parser.add_argument_group(f"{BLUE}RENAME OPTIONS{RESET}")
     rename_options.add_argument(
         '-s', '--mapping',
-        type=str,
+        nargs='+',
         required=False,
-        help='Path to the mapping file.',
+        help='One or more mapping files, directories, or glob patterns.',
     )
     rename_options.add_argument(
         '-a', '--add',
@@ -10321,9 +10368,9 @@ def _build_parser() -> argparse.ArgumentParser:
     highlight_options = highlight_parser.add_argument_group(f"{BLUE}HIGHLIGHT OPTIONS{RESET}")
     highlight_options.add_argument(
         '-s', '--mapping',
-        type=str,
+        nargs='+',
         required=False,
-        help='Path to the mapping file or word list.',
+        help='One or more mapping files, directories, or glob patterns.',
     )
     highlight_options.add_argument(
         '-a', '--add',
@@ -10350,9 +10397,9 @@ def _build_parser() -> argparse.ArgumentParser:
     scan_options = scan_parser.add_argument_group(f"{BLUE}SCAN OPTIONS{RESET}")
     scan_options.add_argument(
         '-s', '--mapping',
-        type=str,
+        nargs='+',
         required=False,
-        help='Path to the mapping file or word list.',
+        help='One or more mapping files, directories, or glob patterns.',
     )
     scan_options.add_argument(
         '-a', '--add',
@@ -10427,9 +10474,9 @@ def _build_parser() -> argparse.ArgumentParser:
     verify_options = verify_parser.add_argument_group(f"{BLUE}VERIFY OPTIONS{RESET}")
     verify_options.add_argument(
         '-s', '--mapping',
-        type=str,
+        nargs='+',
         required=False,
-        help='Path to the mapping file or word list.',
+        help='One or more mapping files, directories, or glob patterns.',
     )
     verify_options.add_argument(
         '-a', '--add',

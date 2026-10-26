@@ -112,3 +112,16 @@ def test_filter_fragments_substring_reverse_case(tmp_path):
     multitool.filter_fragments_mode([str(list1)], str(list2), str(output_file), 1, 20, True)
 
     assert output_file.read_text().splitlines() == ["superman"]
+
+def test_filter_fragments_pure_python_fallback(tmp_path, monkeypatch):
+    """Verify filter_fragments_mode behavior when _AHOCORASICK_AVAILABLE is False."""
+    monkeypatch.setattr(multitool, "_AHOCORASICK_AVAILABLE", False)
+
+    list1 = tmp_path / "list1.txt"
+    list1.write_text("apple\ncar\nplane\ncarpet\n")
+    list2 = tmp_path / "list2.txt"
+    list2.write_text("an applepie\ncarpeted floor\ncar\n")
+    output_file = tmp_path / "output.txt"
+
+    multitool.filter_fragments_mode([str(list1)], str(list2), str(output_file), 1, 10, True)
+    assert output_file.read_text().splitlines() == ["plane"]

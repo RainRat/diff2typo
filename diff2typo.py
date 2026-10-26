@@ -1088,7 +1088,7 @@ def main():
         dest='max_length',
         type=int,
         default=None,
-        help='Ignore words longer than this.',
+        help='Ignore words longer than this character count.',
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--max_length', type=int, help=argparse.SUPPRESS, default=argparse.SUPPRESS)

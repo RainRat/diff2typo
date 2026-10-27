@@ -62,3 +62,13 @@ def test_gentypos_interactive_missing_input_exits_gracefully(caplog, monkeypatch
     assert excinfo.value.code == 1
     # Check that our user-friendly error is in logs
     assert any("No input words or valid input file provided" in record.message for record in caplog.records)
+
+
+def test_gentypos_cli_words_log_format(caplog, monkeypatch):
+    test_args = ["gentypos.py", "hello", "--no-filter"]
+    with patch("sys.argv", test_args), caplog.at_level("INFO"):
+        gentypos.main()
+
+    log_messages = [record.message for record in caplog.records]
+    assert any("Processing 1 words from CLI arguments." in msg for msg in log_messages)
+    assert not any(" Processing " in msg for msg in log_messages)

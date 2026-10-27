@@ -1744,7 +1744,7 @@ def main() -> None:
     # Load words
     if cli_words:
         word_list = [w.lower() for w in cli_words]
-        logging.info(f"Processing {len(word_list)} words from CLI arguments.")
+        logging.info("Processing %d words from CLI arguments.", len(word_list))
     else:
         logging.info("Loading wordlist (small dictionary)...")
         word_set = load_words_from_sources(settings.input_files)

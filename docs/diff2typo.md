@@ -56,7 +56,7 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--input`, `-i` | None | One or more input Git diff files, directories, or glob patterns. |
 | `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
 | `--config`, `-C` | None | Path to a YAML configuration file. If not provided, the tool automatically loads `diff2typo.yaml` from your current directory if it exists. |
-| `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` / `toml` (typo = "fix"), `list` (typo only), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. Automatically detected from file extension (`.json`, `.yaml`, `.yml`, `.toml`, `.md`, `.markdown`, `.html`, `.htm`). |
+| `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` / `toml` (typo = "fix"), `list` (typo only), `json`, `yaml`, `markdown`, `md`, `html`, `htm`, or `xml`. Automatically detected from file extension (`.json`, `.yaml`, `.yml`, `.toml`, `.md`, `.markdown`, `.html`, `.htm`, `.xml`). |
 | `--init-config`, `--generate-config` | None | Generate a sample template YAML configuration file (`diff2typo.yaml` by default, or at a specified path) and exit. |
 | `-F`, `--force` | Off | Force overwrite of existing configuration file when generating template config via `--init-config`. |
 | `--mode`, `-m`, `-M` | `typos` | **`typos`**: Find typos that are not in your large dictionary (default).<br>**`corrections`**: Find corrections for typos in your large dictionary.<br>**`both`**: Run both checks and label the results.<br>**`audit`**: Find cases where a correct word was changed into a typo. |
@@ -113,13 +113,14 @@ python diff2typo.py --git "HEAD~5" --output recent_typos.txt
 python diff2typo.py --git-log "HEAD~5" --output recent_typos.txt
 ```
 
-**Export typos as JSON, YAML, Markdown, or HTML:**
+**Export typos as JSON, YAML, Markdown, HTML, or XML:**
 
 ```bash
 python diff2typo.py feature.diff --format json --output typos.json
 python diff2typo.py feature.diff --format yaml --output typos.yaml
 python diff2typo.py feature.diff --format markdown --output typos.md
 python diff2typo.py feature.diff --format html --output typos.html
+python diff2typo.py feature.diff --format xml --output typos.xml
 ```
 
 **Pipe directly from Git and save to a file:**

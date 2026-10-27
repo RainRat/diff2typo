@@ -587,6 +587,29 @@ def _partition_typos(typos: Iterable[str]) -> Tuple[List[Tuple[str, str]], List[
     return typo_pairs, single_items
 
 
+def _get_html_report_header() -> List[str]:
+    """Return standard HTML report header lines for diff2typo output."""
+    return [
+        "<!DOCTYPE html>",
+        "<html lang=\"en\">",
+        "<head>",
+        "<meta charset=\"UTF-8\">",
+        "<title>diff2typo Report</title>",
+        "<style>",
+        "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f8f9fa; color: #212529; }",
+        "h1, h2, h3 { color: #343a40; }",
+        "table { border-collapse: collapse; width: 100%; max-width: 800px; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }",
+        "th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #dee2e6; }",
+        "th { background-color: #e9ecef; }",
+        "code { background-color: #e9ecef; padding: 2px 4px; border-radius: 4px; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; }",
+        "ul { background: #fff; padding: 1.5rem 2.5rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 800px; }",
+        "</style>",
+        "</head>",
+        "<body>",
+        "<h1>Diff2Typo Report</h1>",
+    ]
+
+
 def _render_html_table(items: Iterable[Any]) -> List[str]:
     """Render a sequence of typo strings or (before, after) tuples into HTML table elements."""
     lines = ["<table><thead><tr><th>Typo</th><th>Correction</th></tr></thead><tbody>"]
@@ -626,25 +649,7 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
         return json.dumps(items, indent=2).split('\n')
 
     if output_format in ('html', 'htm'):
-        formatted: List[str] = [
-            "<!DOCTYPE html>",
-            "<html lang=\"en\">",
-            "<head>",
-            "<meta charset=\"UTF-8\">",
-            "<title>diff2typo Report</title>",
-            "<style>",
-            "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f8f9fa; color: #212529; }",
-            "h1, h2, h3 { color: #343a40; }",
-            "table { border-collapse: collapse; width: 100%; max-width: 800px; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }",
-            "th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #dee2e6; }",
-            "th { background-color: #e9ecef; }",
-            "code { background-color: #e9ecef; padding: 2px 4px; border-radius: 4px; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; }",
-            "ul { background: #fff; padding: 1.5rem 2.5rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 800px; }",
-            "</style>",
-            "</head>",
-            "<body>",
-            "<h1>Diff2Typo Report</h1>",
-        ]
+        formatted: List[str] = _get_html_report_header()
         typo_pairs, single_items = _partition_typos(typos)
 
         if typo_pairs:
@@ -1496,24 +1501,7 @@ def main():
                 final_output = json.dumps(data, indent=2).split('\n')
         else:
             if args.output_format in ('html', 'htm'):
-                final_output = [
-                    "<!DOCTYPE html>",
-                    "<html lang=\"en\">",
-                    "<head>",
-                    "<meta charset=\"UTF-8\">",
-                    "<title>diff2typo Report</title>",
-                    "<style>",
-                    "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f8f9fa; color: #212529; }",
-                    "h1, h2, h3 { color: #343a40; }",
-                    "table { border-collapse: collapse; width: 100%; max-width: 800px; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }",
-                    "th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #dee2e6; }",
-                    "th { background-color: #e9ecef; }",
-                    "code { background-color: #e9ecef; padding: 2px 4px; border-radius: 4px; font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace; }",
-                    "</style>",
-                    "</head>",
-                    "<body>",
-                    "<h1>Diff2Typo Report</h1>",
-                ]
+                final_output = _get_html_report_header()
                 if typos_final:
                     final_output.append("<h2>Typos</h2>")
                     final_output.extend(_render_html_table(typos_final))

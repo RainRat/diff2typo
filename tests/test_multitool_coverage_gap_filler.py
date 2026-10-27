@@ -413,16 +413,14 @@ def test_fuzzymatch_mode_len_optimization(tmp_path):
     assert out.read_text() == ""
 
 def test_filter_fragments_no_ahocorasick(tmp_path, monkeypatch, caplog):
-    """Covers lines 2501-2502: ahocorasick not available"""
     monkeypatch.setattr(multitool, "_AHOCORASICK_AVAILABLE", False)
     f1 = tmp_path / "f1.txt"
     f1.write_text("a")
     f2 = tmp_path / "f2.txt"
     f2.write_text("b")
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(SystemExit):
-            multitool.filter_fragments_mode([str(f1)], str(f2), "out", 1, 100, False)
-        assert "pyahocorasick' to use this mode." in caplog.text
+    out = tmp_path / "out.txt"
+    multitool.filter_fragments_mode([str(f1)], str(f2), str(out), 1, 100, False)
+    assert out.read_text().strip() == "a"
 
 def test_similarity_mode_process_output(tmp_path):
     """Covers line 1443: sorted(set()) in similarity_mode"""

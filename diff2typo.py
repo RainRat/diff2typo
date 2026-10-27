@@ -609,11 +609,27 @@ def format_typos(typos: Iterable[str], output_format: str) -> List[str]:
 
     Args:
         typos (list): List of typo strings in the format "before -> after".
-        output_format (str): Desired output format ('arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm').
+        output_format (str): Desired output format ('arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm', 'xml').
 
     Returns:
         list: Formatted list of typo strings.
     """
+    if output_format == 'xml':
+        formatted: List[str] = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<typos>',
+        ]
+        typo_pairs, single_items = _partition_typos(typos)
+        for before, after in typo_pairs:
+            b_esc = html.escape(before)
+            a_esc = html.escape(after)
+            formatted.append(f'  <pair><typo>{b_esc}</typo><correction>{a_esc}</correction></pair>')
+        for item in single_items:
+            clean_item = html.escape(filter_to_letters(item))
+            formatted.append(f'  <item><typo>{clean_item}</typo></item>')
+        formatted.append('</typos>')
+        return formatted
+
     if output_format in ('json', 'yaml'):
         items = _typos_to_dicts(typos)
 
@@ -1018,12 +1034,12 @@ def main():
         '-f',
         dest='output_format',
         type=str,
-        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'],
+        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm', 'xml'],
         default=None,
-        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table / toml (typo = "correction"), list (typo), json, yaml, markdown, md, html, htm. Default is arrow.',
+        help='Format of the output typos. If not provided, it is automatically detected from the output file extension. Choices are: arrow (typo -> correction), csv (typo,correction), table / toml (typo = "correction"), list (typo), json, yaml, markdown, md, html, htm, xml. Default is arrow.',
     )
     # Hidden alias for backward compatibility
-    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
+    parser.add_argument('--output_format', type=str, choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm', 'xml'], help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     io_group.add_argument(
         '-C', '--config',
@@ -1288,7 +1304,7 @@ def main():
     # Resolve output format if not provided
     if args.output_format is None:
         default_fmt = 'arrow'
-        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm']
+        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm', 'xml']
         if args.output_file and args.output_file != '-':
             ext = os.path.splitext(args.output_file)[1].lower().lstrip('.')
             mapping = {
@@ -1305,6 +1321,7 @@ def main():
                 'markdown': 'markdown',
                 'html': 'html',
                 'htm': 'html',
+                'xml': 'xml',
             }
             detected = mapping.get(ext)
             args.output_format = detected if detected in allowed_formats else default_fmt

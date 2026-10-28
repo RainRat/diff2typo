@@ -700,7 +700,7 @@ def parse_arguments() -> argparse.Namespace:
     direct_group.add_argument(
         '-m', '--main-folder',
         type=str,
-        help='The main folder containing your projects. This overrides the configuration file.'
+        help='The main folder containing your projects (defaults to current directory "." if a command is specified). This overrides the configuration file.'
     )
     direct_group.add_argument(
         '-b', '--base-directory',

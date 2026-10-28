@@ -54,7 +54,7 @@ If you run the tool without specifying any input files or piping any changes, it
 | `--git`, `-g` | None | Fetch diff directly from Git. If passed without arguments, it fetches current unstaged changes (`git diff`). Optional arguments are passed to `git diff` (for example, `-g "HEAD~3"`). |
 | `--git-log`, `-l` | None | Fetch commit history diffs directly from Git. If passed without arguments, it fetches recent commit history (`git log -p`). Optional arguments are passed to `git log` (for example, `-l "HEAD~3"`). |
 | `--input`, `-i` | None | One or more input Git diff files, directories, or glob patterns. |
-| `--output`, `-o` | the screen | Path to the output file. Use `-` to print to the screen. |
+| `--output`, `-o` | standard output | Path to the output file. Use `-` to print to standard output. |
 | `--config`, `-C` | None | Path to a YAML configuration file. If not provided, the tool automatically loads `diff2typo.yaml` from your current directory if it exists. |
 | `--format`, `-f` | `arrow` | Choose the output format: `arrow` (typo -> fix), `csv` (typo,fix), `table` / `toml` (typo = "fix"), `list` (typo only), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. Automatically detected from file extension (`.json`, `.yaml`, `.yml`, `.toml`, `.md`, `.markdown`, `.html`, `.htm`). |
 | `--init-config`, `--generate-config` | None | Generate a sample template YAML configuration file (`diff2typo.yaml` by default, or at a specified path) and exit. |

@@ -547,6 +547,28 @@ def test_main_default_values_preserved(monkeypatch):
     assert args.typos_tool_path == 'typos'
 
 
+def test_output_destination_standard_output_logging(monkeypatch, caplog):
+    monkeypatch.setattr(sys, 'argv', ['diff2typo.py', '-o', '-'])
+    monkeypatch.setattr(diff2typo, '_read_diff_sources', lambda _: "--- a/f\n+++ b/f\n@@\n-eror\n+error\n")
+    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **k: {})
+    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **k: set())
+    monkeypatch.setattr(sys, 'stdout', io.StringIO())
+
+    with caplog.at_level(logging.INFO):
+        diff2typo.main()
+
+    assert any("Wrote" in msg and "standard output" in msg for msg in caplog.messages)
+
+
+def test_help_string_standard_output(capsys, monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['diff2typo.py', '--help'])
+    with pytest.raises(SystemExit):
+        diff2typo.main()
+
+    captured = capsys.readouterr()
+    assert "default: standard output" in captured.out
+
+
 def test_compare_word_lists_misaligned():
     before = ["the", "teh", "house"]
     after = ["the", "big", "the", "house"]

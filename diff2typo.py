@@ -1008,7 +1008,7 @@ def main():
         dest='output_file',
         type=str,
         default='-',
-        help="Path to the output file. Use '-' to print to the screen (default: the screen).",
+        help="Path to the output file. Use '-' to print to standard output (default: standard output).",
     )
     # Hidden alias for backward compatibility
     parser.add_argument('--output_file', type=str, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
@@ -1587,7 +1587,7 @@ def main():
         )
         sys.stderr.write("\n".join(summary))
 
-        dest_label = "the screen" if args.output_file == "-" else f"'{args.output_file}'"
+        dest_label = "standard output" if args.output_file == "-" else f"'{args.output_file}'"
         c_blue = (BOLD + _BLUE) if use_color else ""
         c_reset = _RESET if use_color else ""
         logging.info(f"{c_blue}[diff2typo]{c_reset} Wrote {len(final_output)} line(s) to {dest_label}.\n")

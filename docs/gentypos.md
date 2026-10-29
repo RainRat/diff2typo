@@ -89,7 +89,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--repeat`, `-r` | `1` | Number of times to repeat typo generation, stacking modifications. |
 | `--reverse` | Off | Reverse the sort order of the output results. |
 | `--sort`, `-S` | `typo` | Choose how to sort output results: `typo` (alphabetical by typo) or `correct` (alphabetical by correction). |
-| `--substitutions`, `-s` | None | One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, or plain text). Useful for loading your personal typo history from `typostats.py`. |
+| `--substitutions`, `-s` | None | One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, XML, or plain text). Useful for loading your personal typo history from `typostats.py`. |
 | `--transposition`, `--transpositions`, `-t` | Off | Generate transpositions (swapping adjacent letters, e.g., 'word' becomes 'wrod'). |
 | `--transposition-distance`, `-T` | `1` | Distance between letters to swap for transposition typos. |
 | `--verbose`, `-v` | Off | Show more detailed log messages. |
@@ -168,6 +168,7 @@ Supported formats:
 - **JSON:** Supports the `replacements` format from `typostats.py` or a simple key-value mapping.
 - **CSV:** Supports the `correct_char,typo_char,count` format from `typostats.py`, or plain columns of typo and correction pairs.
 - **YAML & TOML:** Supports standard key-value mappings or lists of replacements.
+- **XML:** Supports XML reports from `typostats.py` or element/attribute tag replacement rules.
 - **Plain Text and Tables:** Supports Markdown tables (using `|`), arrow mappings (`->`), colon mappings (`:`), or equals-sign mappings (`=`) so you can easily load any text files containing typo mappings.
 
 ## How it Works

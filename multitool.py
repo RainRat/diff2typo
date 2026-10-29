@@ -27,6 +27,7 @@ import csv
 import glob
 import difflib
 from collections import Counter, defaultdict, deque
+import functools
 import random
 import contextlib
 import sys
@@ -2336,13 +2337,15 @@ def ngrams_mode(
     smart: bool = False,
 ) -> None:
     """Wrapper for getting N-grams from file(s)."""
-    def extractor(f, quiet=False):
-        return _extract_ngram_items(
-            f, n=n, delimiter=delimiter, quiet=quiet, smart=smart, clean_items=clean_items
-        )
     # Pass clean_items=False to _process_items to preserve spaces in sequences of words.
     _process_items(
-        extractor,
+        functools.partial(
+            _extract_ngram_items,
+            n=n,
+            delimiter=delimiter,
+            smart=smart,
+            clean_items=clean_items,
+        ),
         input_files,
         output_file,
         min_length,
@@ -2370,10 +2373,8 @@ def arrow_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for processing items separated by ' -> '."""
-    def extractor(f, quiet=False):
-        return _extract_arrow_items(f, right_side=right_side, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_arrow_items, right_side=right_side),
         input_files,
         output_file,
         min_length,

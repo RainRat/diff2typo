@@ -65,6 +65,15 @@ def test_generate_typos_by_transposition_identical_chars():
     result = gentypos.generate_typos_by_transposition('aa', distance=1)
     assert result == set()
 
+def test_load_file_latin1_encoding_fallback(tmp_path):
+    latin1_file = tmp_path / "latin1_words.txt"
+    # "caf\xe9" contains invalid UTF-8 byte 0xe9, triggering UnicodeDecodeError on UTF-8 read
+    # gentypos.load_file falls back to latin-1 and extracts ASCII words like "resume"
+    latin1_file.write_bytes("caf\xe9\nresume\n".encode("latin-1"))
+
+    words = gentypos.load_file(str(latin1_file))
+    assert "resume" in words
+
 def test_load_file_none():
     assert gentypos.load_file(None) == set()
 

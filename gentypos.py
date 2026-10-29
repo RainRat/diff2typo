@@ -1497,7 +1497,7 @@ def main() -> None:
         help="How to sort output results: 'typo' (alphabetical by typo, default) or 'correct' (alphabetical by correction).",
     )
     gen_group.add_argument(
-        '--reverse',
+        '-R', '--reverse',
         action='store_true',
         help="Reverse the sort order of the output results.",
     )

@@ -23,6 +23,7 @@ import os
 import shutil
 import hashlib
 import argparse
+import functools
 import csv
 import glob
 import difflib
@@ -5533,18 +5534,14 @@ def paths_mode(
     smart: bool = False,
 ) -> None:
     """Extracts components from file and directory paths."""
-    def extractor(path: str, quiet: bool = False) -> Iterable[str]:
-        return _extract_path_items(
-            path,
+    _process_items(
+        functools.partial(
+            _extract_path_items,
             basename=basename,
             dirname=dirname,
             extension=extension,
             smart=smart,
-            quiet=quiet,
-        )
-
-    _process_items(
-        extractor,
+        ),
         input_files,
         output_file,
         min_length,

@@ -34,6 +34,7 @@ import json
 import csv
 import html
 import re
+import xml.etree.ElementTree as ET
 
 try:
     import tomllib
@@ -342,9 +343,9 @@ def _add_mapping_to_subs(data: dict, subs: dict[str, list[str]]) -> None:
 
 def _load_substitutions_file(path: str) -> dict[str, list[str]]:
     """
-    Load substitution rules from a file. Supports JSON, CSV, YAML, TOML, and
+    Load substitution rules from a file. Supports JSON, CSV, YAML, TOML, XML, and
     various line-oriented plain-text mapping formats (such as arrow, table, colon, etc.).
-    JSON and CSV formats match the output of typostats.py.
+    JSON, CSV, and XML formats match the output of typostats.py.
     """
     subs = defaultdict(list)
     if not os.path.exists(path):
@@ -401,6 +402,58 @@ def _load_substitutions_file(path: str) -> dict[str, list[str]]:
                                 continue
 
                         subs[str(row[idx_correct])].append(str(row[idx_typo]))
+        elif ext == '.xml':
+            tree = ET.parse(path)
+            root = tree.getroot()
+
+            found_structured = False
+            correct_tags = {'correct', 'correct_char', 'key', 'word', 'original', 'from'}
+            typo_tags = {'typo', 'typo_char', 'value', 'val', 'fix', 'replacement', 'to'}
+
+            for elem in root.iter():
+                children = {child.tag.lower(): (child.text or '').strip() for child in elem if child.tag}
+                c_val = None
+                t_val = None
+                for c_tag in correct_tags:
+                    if c_tag in children:
+                        c_val = children[c_tag]
+                        break
+                for t_tag in typo_tags:
+                    if t_tag in children:
+                        t_val = children[t_tag]
+                        break
+
+                if c_val is not None and t_val is not None:
+                    subs[c_val].append(t_val)
+                    found_structured = True
+                    continue
+
+                attrs = {k.lower(): str(v).strip() for k, v in elem.attrib.items()}
+                c_attr = None
+                t_attr = None
+                for c_tag in correct_tags:
+                    if c_tag in attrs:
+                        c_attr = attrs[c_tag]
+                        break
+                for t_tag in typo_tags:
+                    if t_tag in attrs:
+                        t_attr = attrs[t_tag]
+                        break
+
+                if c_attr is not None and t_attr is not None:
+                    subs[c_attr].append(t_attr)
+                    found_structured = True
+
+            if not found_structured:
+                for child in root:
+                    if child.tag:
+                        tag_name = html.unescape(child.tag).strip()
+                        child_items = [html.unescape(sub.text).strip() for sub in child if sub.text and sub.text.strip()]
+                        if child_items:
+                            subs[tag_name].extend(child_items)
+                        elif child.text and child.text.strip():
+                            val_str = html.unescape(child.text).strip()
+                            subs[tag_name].append(val_str)
         else:
             # For backwards-compatibility with tests expecting SystemExit on YAML with PyYAML missing
             if not _YAML_AVAILABLE and ext in ('.yaml', '.yml'):
@@ -1396,7 +1449,7 @@ def main() -> None:
     io_group.add_argument(
         '-s', '--substitutions',
         nargs='+',
-        help="One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, or plain text). Useful for using personal typo history from 'typostats.py'.",
+        help="One or more files, directories, or glob patterns containing custom typo patterns (JSON, CSV, YAML, TOML, XML, or plain text). Useful for using personal typo history from 'typostats.py'.",
     )
     io_group.add_argument(
         '-i', '-I', '--input',

@@ -275,6 +275,7 @@ def _detect_format_from_extension(path: str, allowed: Sequence[str], default: st
         'markdown': 'markdown',
         'html': 'html',
         'htm': 'html',
+        'xml': 'xml',
     }
 
     detected = mapping.get(ext)
@@ -994,6 +995,14 @@ def format_typos(
         else:
             logging.warning("PyYAML not installed. Falling back to JSON for YAML output format.")
             return [json.dumps(typo_to_correct_word, indent=2)]
+    elif output_format == 'xml':
+        lines = ["<root>"]
+        for typo, correct_word in typo_to_correct_word.items():
+            t_esc = html.escape(str(typo))
+            c_esc = html.escape(str(correct_word))
+            lines.append(f"  <item><typo>{t_esc}</typo><correction>{c_esc}</correction></item>")
+        lines.append("</root>")
+        return lines
     elif output_format in ('html', 'htm'):
         lines = [
             "<!DOCTYPE html>",
@@ -1057,7 +1066,7 @@ def _extract_config_settings(config: MutableMapping[str, Any], quiet: bool = Fal
     output_format = config.get('output_format', 'arrow').lower()
     output_header = config.get('output_header')
 
-    valid_formats = {'arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'}
+    valid_formats = {'arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm', 'xml'}
     if output_format not in valid_formats:
         logging.warning(
             f"Unknown output format '{output_format}'. Defaulting to 'arrow'."
@@ -1388,10 +1397,10 @@ def main() -> None:
     )
     io_group.add_argument(
         '-f', '--format',
-        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm'],
+        choices=['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm', 'xml'],
         metavar='FMT',
         default=None,
-        help="Choose an output format: arrow (typo -> correction), csv (typo,correction), table / toml (typo = \"correction\"), list (typo), json, yaml, markdown / md, html / htm. By default, it is automatically detected from the output file extension.",
+        help="Choose an output format: arrow (typo -> correction), csv (typo,correction), table / toml (typo = \"correction\"), list (typo), json, yaml, markdown / md, html / htm, xml. By default, it is automatically detected from the output file extension.",
     )
     io_group.add_argument(
         '-s', '--substitutions',
@@ -1549,7 +1558,7 @@ def main() -> None:
             'dictionary_file: "dictionary.txt"  # Large dictionary used to filter out real words\n'
             'output_file: "typos.txt"          # Where to save generated typos\n'
             "\n"
-            "# Output Format: arrow (a -> b), csv (a,b), table (a = \"b\"), list (a), json, yaml, markdown, md, html, htm\n"
+            "# Output Format: arrow (a -> b), csv (a,b), table (a = \"b\"), list (a), json, yaml, markdown, md, html, htm, xml\n"
             'output_format: "arrow"\n'
             "\n"
             "# Number of times to repeat typo generation, stacking modifications\n"
@@ -1674,7 +1683,7 @@ def main() -> None:
     if args.format:
         config['output_format'] = args.format
     elif args.output or config.get('output_format') is None:
-        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm']
+        allowed_formats = ['arrow', 'csv', 'table', 'toml', 'list', 'json', 'yaml', 'markdown', 'md', 'html', 'htm', 'xml']
         config['output_format'] = _detect_format_from_extension(config.get('output_file'), allowed_formats, 'arrow')
     if args.substitutions:
         config['substitutions_file'] = args.substitutions

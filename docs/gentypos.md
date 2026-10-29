@@ -77,7 +77,7 @@ echo "banana" | python gentypos.py --all --no-filter
 | `--dry-run`, `-n` | Off | Show configuration details and a sample preview of typo generation without writing files. |
 | `--dictionary`, `-d` | None | The path to a large dictionary file used to filter out real words. |
 | `--duplication`, `--duplications`, `-u` | Off | Generate duplications (typing a letter twice, e.g., 'word' becomes 'woord'). |
-| `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` / `toml` (typo = "correction"), `list` (typo), `json`, `yaml`, `markdown`, `md`, `html`, or `htm`. By default, it is automatically detected from the output file extension. |
+| `--format`, `-f` | None | Choose an output format: `arrow` (typo -> correction), `csv` (typo,correction), `table` / `toml` (typo = "correction"), `list` (typo), `json`, `yaml`, `markdown`, `md`, `html`, `htm`, or `xml`. By default, it is automatically detected from the output file extension. |
 | `--input`, `-i`, `-I` | None | One or more input files, directories, or glob patterns containing words to process (one per line). |
 | `--keyboard`, `--replacement`, `--replacements`, `-k` | Off | Generate replacements (hitting a nearby key or custom substitution, e.g., 'word' becomes 'wprd'). |
 | `--limit`, `-L` | None | Limit the number of typos in the output. |
@@ -106,7 +106,7 @@ input_file: "words.txt"           # Small dictionary to process (can also be a l
 dictionary_file: "dictionary.txt"  # Large dictionary (to filter out real words)
 output_file: "typos.txt"          # Where to save the results
 
-# Output Format: arrow (a -> b), csv (a,b), table (a = "b"), list (a), json, yaml, markdown, md, html, or htm
+# Output Format: arrow (a -> b), csv (a,b), table (a = "b"), list (a), json, yaml, markdown, md, html, htm, or xml
 output_format: "arrow"
 
 # How many times to repeat the process (makes more complex typos)

@@ -53,6 +53,13 @@ def test_yield_structured_docs_fallback_yaml(tmp_path):
     results = list(_yield_structured_docs(str(f)))
     assert results == [{"key": "value"}]
 
+def test_yield_structured_docs_fallback_xml(tmp_path):
+    f = tmp_path / "test.unknown"
+    f.write_text("<root><child>value</child></root>")
+    with patch("yaml.safe_load_all", side_effect=Exception("YAML error")):
+        results = list(_yield_structured_docs(str(f)))
+        assert results == [{"root": {"child": "value"}}]
+
 def test_to_case_no_words():
     assert to_case("", "snake") == ""
     assert to_case("!!!", "camel") == "!!!"

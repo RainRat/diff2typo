@@ -29,6 +29,7 @@ import difflib
 from collections import Counter, defaultdict, deque
 import random
 import contextlib
+import functools
 import sys
 import re
 import time
@@ -3398,12 +3399,8 @@ def md_table_mode(
     columns: List[int] | None = None,
 ) -> None:
     """Wrapper for processing items from Markdown tables."""
-    def extractor(f, quiet=False):
-        return _extract_md_table_items(
-            f, right_side=right_side, quiet=quiet, columns=columns
-        )
     _process_items(
-        extractor,
+        functools.partial(_extract_md_table_items, right_side=right_side, columns=columns),
         input_files,
         output_file,
         min_length,

@@ -20,14 +20,15 @@ def test_short_flags_parsing(monkeypatch):
     monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **kw: {})
     monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **kw: set())
 
-    # Test short flags: -g, -M, -D, -c, -s
+    # Test short flags: -g, -m, -M, -D, -c, -s
     monkeypatch.setattr(
         sys,
         'argv',
         [
             'diff2typo.py',
             '-g', 'HEAD~1',
-            '-M', 'both',
+            '-m', 'both',
+            '-M', '15',
             '-D', '3',
             '-c', '2',
             '-s', 'count',
@@ -45,6 +46,7 @@ def test_short_flags_parsing(monkeypatch):
     args = captured_args[-1]
     assert args.git == 'HEAD~1'
     assert args.mode == 'both'
+    assert args.max_length == 15
     assert args.max_dist == 3
     assert args.min_count == 2
     assert args.sort == 'count'

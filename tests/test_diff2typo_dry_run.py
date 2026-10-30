@@ -53,7 +53,7 @@ def test_diff2typo_dry_run_both_mode(tmp_path, caplog):
         str(diff_file),
         "-o",
         str(output_file),
-        "-M",
+        "-m",
         "both",
         "--dry-run",
     ]
@@ -88,7 +88,7 @@ def test_diff2typo_dry_run_corrections_mode(tmp_path, caplog):
         str(diff_file),
         "-o",
         str(output_file),
-        "-M",
+        "-m",
         "corrections",
         "--dry-run",
     ]
@@ -120,7 +120,7 @@ def test_diff2typo_dry_run_audit_mode(tmp_path, caplog):
         str(diff_file),
         "-o",
         str(output_file),
-        "-M",
+        "-m",
         "audit",
         "--dry-run",
     ]

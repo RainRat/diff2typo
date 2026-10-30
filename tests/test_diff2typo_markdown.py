@@ -107,7 +107,7 @@ def test_main_markdown_corrections_mode(monkeypatch, tmp_path):
         "diff2typo.py",
         str(diff_file),
         "-o", str(output_file),
-        "-M", "corrections",
+        "-m", "corrections",
         "-d", str(dict_file),
         "-q"
     ]
@@ -141,7 +141,7 @@ def test_main_markdown_audit_mode(monkeypatch, tmp_path):
         "diff2typo.py",
         str(diff_file),
         "-o", str(output_file),
-        "-M", "audit",
+        "-m", "audit",
         "-d", str(dict_file),
         "-q"
     ]
@@ -178,7 +178,7 @@ def test_main_markdown_both_mode(monkeypatch, tmp_path):
         str(diff_file),
         "-o", str(output_file),
         "-f", "markdown",
-        "-M", "both",
+        "-m", "both",
         "-d", str(dict_file),
         "-q"
     ]
@@ -214,7 +214,7 @@ def test_main_markdown_both_mode_partial_empty(monkeypatch, tmp_path):
         "diff2typo.py",
         str(diff_file),
         "-o", str(output_file_1),
-        "-M", "both",
+        "-m", "both",
         "-d", str(dict_file),
         "-q"
     ]
@@ -232,7 +232,7 @@ def test_main_markdown_both_mode_partial_empty(monkeypatch, tmp_path):
         "diff2typo.py",
         str(diff_file),
         "-o", str(output_file_2),
-        "-M", "both",
+        "-m", "both",
         "-d", str(dict_file),
         "-q"
     ]

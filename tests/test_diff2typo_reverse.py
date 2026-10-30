@@ -20,6 +20,42 @@ SAMPLE_DIFF = """diff --git a/test.py b/test.py
 """
 
 
+def test_diff2typo_uppercase_reverse_flag():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        diff_file = os.path.join(tmpdir, "test.diff")
+        out_file = os.path.join(tmpdir, "out.txt")
+        words_file = os.path.join(tmpdir, "words.csv")
+        allowed_file = os.path.join(tmpdir, "allowed.csv")
+
+        with open(diff_file, "w", encoding="utf-8") as f:
+            f.write(SAMPLE_DIFF)
+        with open(words_file, "w", encoding="utf-8") as f:
+            f.write("correct\n")
+        with open(allowed_file, "w", encoding="utf-8") as f:
+            f.write("allowed\n")
+
+        test_args = [
+            "diff2typo.py",
+            diff_file,
+            "-o", out_file,
+            "-s", "alpha",
+            "-R",
+            "-d", words_file,
+            "-a", allowed_file,
+            "-f", "list",
+            "--quiet",
+        ]
+
+        with patch.object(sys, "argv", test_args):
+            diff2typo.main()
+
+        with open(out_file, "r", encoding="utf-8") as f:
+            lines = [line.strip() for line in f if line.strip()]
+
+        # Alpha descending: cherry -> banana -> apple
+        assert lines == ["cherry", "banana", "apple"]
+
+
 def test_diff2typo_reverse_alpha():
     with tempfile.TemporaryDirectory() as tmpdir:
         diff_file = os.path.join(tmpdir, "test.diff")

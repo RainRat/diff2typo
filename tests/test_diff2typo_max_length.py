@@ -57,3 +57,24 @@ def test_diff2typo_cli_max_length(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "shortword -> shortwrd" in captured.out
     assert "veryveryverylongword" not in captured.out
+
+
+def test_diff2typo_cli_max_length_short_flag(monkeypatch, capsys):
+    diff_content = """diff --git a/test.py b/test.py
+--- a/test.py
++++ b/test.py
+- shortword veryveryverylongword
++ shortwrd veryveryverylongwrd
+"""
+    monkeypatch.setattr(diff2typo, '_read_diff_sources', lambda _: diff_content)
+    monkeypatch.setattr(diff2typo, 'read_words_mapping', lambda *a, **kw: {})
+    monkeypatch.setattr(diff2typo, 'read_allowed_words', lambda *a, **kw: set())
+    monkeypatch.setattr(diff2typo, 'filter_known_typos', lambda candidates, **kw: candidates)
+
+    monkeypatch.setattr(sys, 'argv', ['diff2typo.py', 'test.diff', '-M', '12', '-q'])
+
+    diff2typo.main()
+
+    captured = capsys.readouterr()
+    assert "shortword -> shortwrd" in captured.out
+    assert "veryveryverylongword" not in captured.out

@@ -1061,7 +1061,7 @@ def main():
         help="One or more file patterns (e.g., '*.md', 'src/*') to include in typo scanning (all files are scanned by default).",
     )
     analysis_group.add_argument(
-        '-m', '-M', '--mode',
+        '-m', '--mode',
         type=str,
         choices=['typos', 'corrections', 'both', 'audit'],
         default='typos',
@@ -1084,7 +1084,7 @@ def main():
     parser.add_argument('--min_length', type=int, help=argparse.SUPPRESS, default=argparse.SUPPRESS)
 
     analysis_group.add_argument(
-        '--max-length',
+        '-M', '--max-length',
         dest='max_length',
         type=int,
         default=None,

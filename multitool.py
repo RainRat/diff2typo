@@ -26,6 +26,7 @@ import argparse
 import csv
 import glob
 import difflib
+import functools
 from collections import Counter, defaultdict, deque
 import random
 import contextlib
@@ -2695,10 +2696,8 @@ def table_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for processing items in 'key = \"value\"' format."""
-    def extractor(f, quiet=False):
-        return _extract_table_items(f, right_side=right_side, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_table_items, right_side=right_side),
         input_files,
         output_file,
         min_length,
@@ -2726,10 +2725,8 @@ def frontmatter_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for getting fields from Markdown frontmatter."""
-    def extractor(f, quiet=False):
-        return _extract_frontmatter(f, key, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_frontmatter, key_path=key),
         input_files,
         output_file,
         min_length,

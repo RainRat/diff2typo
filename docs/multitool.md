@@ -461,7 +461,7 @@ These options work with most modes:
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`multitool.yaml` by default) and exit.
 - `-F`, `--force`: Force overwrite of existing configuration file when generating template config via `--init-config`.
 - `--version`: Display program version number and exit.
-- `[INPUT_FILES...]`: One or more files to read. Defaults to **standard input** if not provided.
+- `[INPUT_FILES...]`, `-i`, `--input`: One or more files or directories to read. Defaults to **standard input** if not provided.
 - `--output` (or **`-o`**): The file to write results to. Defaults to printing to the screen.
 - `--output-format` (or **`-f`**): The format of the output. Options include `line` (default), `json`, `yaml`, `toml`, `csv`, `markdown`, `md-table`, `arrow`, `table`, `xml`, `html`, and `htm`. The tool automatically detects the format from the output file extension.
 - `--min-length` (or **`-m`**): Skip items shorter than this length (default: 1 for most modes, 3 for word extraction modes like 'words' and 'count', 10 for sentence-based modes, and 20 for paragraph-based modes).

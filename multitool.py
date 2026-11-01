@@ -27,6 +27,7 @@ import csv
 import glob
 import difflib
 from collections import Counter, defaultdict, deque
+import functools
 import random
 import contextlib
 import sys
@@ -2370,10 +2371,8 @@ def arrow_mode(
     limit: int | None = None,
 ) -> None:
     """Wrapper for processing items separated by ' -> '."""
-    def extractor(f, quiet=False):
-        return _extract_arrow_items(f, right_side=right_side, quiet=quiet)
     _process_items(
-        extractor,
+        functools.partial(_extract_arrow_items, right_side=right_side),
         input_files,
         output_file,
         min_length,

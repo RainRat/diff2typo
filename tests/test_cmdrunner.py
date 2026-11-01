@@ -1003,6 +1003,30 @@ def test_main_no_fallback_when_direct_options_provided(tmp_path, monkeypatch):
     assert (base_dir / 'proj1' / 'direct_test.txt').read_text() == 'direct_ok'
 
 
+def test_main_command_only_bypasses_default_config_and_defaults_main_folder(tmp_path, monkeypatch, caplog):
+    proj1 = tmp_path / 'proj1'
+    proj1.mkdir()
+
+    # Place a bad cmdrunner.yaml in tmp_path pointing to a non-existent main_folder
+    bad_config_data = {
+        'main_folder': '/non/existent/path/that/would/fail',
+        'command_to_run': 'echo bad',
+    }
+    config_file = tmp_path / 'cmdrunner.yaml'
+    config_file.write_text(yaml.safe_dump(bad_config_data))
+
+    monkeypatch.chdir(tmp_path)
+    command = "python3 -c \"from pathlib import Path; Path('cmd_only_test.txt').write_text('cmd_only_ok')\""
+    monkeypatch.setattr(sys, 'argv', ['cmdrunner.py', '-c', command])
+
+    with caplog.at_level(logging.INFO):
+        cmdrunner.main()
+
+    assert (proj1 / 'cmd_only_test.txt').exists()
+    assert (proj1 / 'cmd_only_test.txt').read_text() == 'cmd_only_ok'
+    assert any("Defaulting to current directory" in msg for msg in caplog.messages)
+
+
 def test_load_config_invalid_reverse(tmp_path):
     config_file = tmp_path / 'config_invalid_reverse.yaml'
     config_file.write_text(

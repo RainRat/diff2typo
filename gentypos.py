@@ -1414,14 +1414,14 @@ def main() -> None:
     io_group.add_argument(
         '-d', '--dictionary',
         dest='dictionary_file',
-        type=str,
-        help="The path to a large dictionary file used to filter out real words.",
+        nargs='+',
+        help="One or more files, directories, or glob patterns for the large dictionary used to filter out real words.",
     )
     # Hidden alias
     parser.add_argument(
         '--dictionary-file',
         dest='dictionary_file',
-        type=str,
+        nargs='+',
         help=argparse.SUPPRESS,
     )
     # Legacy flag, suppressed from help
@@ -1642,8 +1642,13 @@ def main() -> None:
             if not args.output:
                 config['output_file'] = '-'
             dict_file = config.get('dictionary_file')
-            if dict_file and not os.path.exists(dict_file):
-                config['dictionary_file'] = None
+            if dict_file:
+                if isinstance(dict_file, (str, bytes)):
+                    if not os.path.exists(dict_file):
+                        config['dictionary_file'] = None
+                elif isinstance(dict_file, (list, tuple, set)):
+                    if not any(isinstance(f, (str, bytes)) and os.path.exists(f) for f in dict_file):
+                        config['dictionary_file'] = None
 
     # Prepare defaults for this run
     # Avoid mutating global DEFAULT_CONFIG to ensure thread/process safety and testability
@@ -1762,20 +1767,34 @@ def main() -> None:
     # Load dictionary if needed
     all_words: set[str] = set()
     if settings.dictionary_file:
-        if is_cli_mode and not os.path.exists(settings.dictionary_file):
-            # In CLI mode, if the dictionary file (likely from default config) is missing,
+        if isinstance(settings.dictionary_file, (str, bytes)):
+            dict_sources = [settings.dictionary_file]
+        else:
+            dict_sources = list(settings.dictionary_file)
+
+        resolved_dict_files = _resolve_input_sources(dict_sources)
+        existing_files = [f for f in resolved_dict_files if f == '-' or os.path.exists(f)]
+
+        dict_desc = (
+            settings.dictionary_file
+            if isinstance(settings.dictionary_file, str)
+            else (", ".join(str(f) for f in settings.dictionary_file) if len(settings.dictionary_file) > 1 else str(settings.dictionary_file[0]))
+        )
+
+        if is_cli_mode and not existing_files:
+            # In CLI mode, if the dictionary files (likely from default config) are missing,
             # log info and skip filtering instead of exiting or emitting a warning.
             logging.info(
                 "Dictionary file '%s' not found; skipping large dictionary filtering.",
-                settings.dictionary_file,
+                dict_desc,
             )
         else:
             logging.info("Loading large dictionary...")
-            all_words = load_file(settings.dictionary_file)
+            all_words = load_words_from_sources(dict_sources)
             logging.info(
                 "Loaded %d words from the large dictionary ('%s').",
                 len(all_words),
-                settings.dictionary_file,
+                dict_desc,
             )
 
     adjacent_keys, custom_subs = _setup_generation_tools(settings)

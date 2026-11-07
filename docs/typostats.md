@@ -53,10 +53,11 @@ The tool automatically recognizes several common ways of listing typos:
 - `-k`, `--keyboard`: Find typos caused by hitting keys next to each other on the keyboard.
 
 ### Input & Output Options
+- `INPUT_FILES`: One or more input files, directories, or glob patterns containing typo corrections. Defaults to standard input if empty, or automatically scans the current directory (`.`) if run in an interactive terminal without arguments.
 - `-C`, `--config`: Path to a YAML configuration file (e.g. `typostats.yaml`). If not provided, `typostats.yaml` in the current directory is loaded automatically if present.
 - `--init-config`, `--generate-config`: Generate a sample template YAML configuration file (`typostats.yaml` by default, or at a specified path) and exit.
 - `-F`, `--force`: Force overwrite of existing configuration file when generating template config via `--init-config`.
-- `-i`, `--input`: One or more input files or patterns containing typo corrections.
+- `-i`, `--input`: One or more input files, directories, or glob patterns containing typo corrections. Positional inputs and `-i` / `--input` can be combined.
 - `-f`, `--format`: Choose the output format:
   - `arrow` (Default): Easy to read.
   - `csv`: Standard comma-separated values.
